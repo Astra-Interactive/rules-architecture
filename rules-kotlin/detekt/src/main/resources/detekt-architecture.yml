@@ -1,0 +1,58 @@
+# Settings of detekt's own rules that enforce the architecture rules.
+# List this file last in detekt's `config`: a later file overrides the values of an earlier one.
+style:
+  ClassOrdering:
+    active: true
+  ForbiddenComment:
+    active: true
+    comments:
+      - reason: 'Forbidden FIXME todo marker in comment, please fix the problem.'
+        value: 'FIXME:'
+      - reason: 'Forbidden STOPSHIP todo marker in comment, please fix the problem.'
+        value: 'STOPSHIP:'
+      - reason: 'Forbidden TODO todo marker in comment, please fix the problem.'
+        value: 'TODO:'
+      - reason: 'Region markers are forbidden: use small functions and the file structure instead.'
+        value: '^\s*(#?(end)?region(\s|$)|</?editor-fold)'
+      - reason: 'Separator and section-header comments are forbidden: use small functions and the file structure instead.'
+        value: '^\s*[-=*#~_]{3,}'
+  ForbiddenImport:
+    active: true
+    forbiddenImports:
+      - value: 'kotlinx.datetime.Instant'
+        reason: 'Use kotlin.time.Instant.'
+  ForbiddenImport/model:
+    active: true
+    includes: [ '**/model/**' ]
+    excludes: [ '**/data/**' ]
+    forbiddenImports:
+      - value: 'android.*'
+        reason: 'The model imports no platform type.'
+      - value: 'androidx.*'
+        reason: 'The model imports no platform type.'
+      - value: 'io.ktor.*'
+        reason: 'The model imports no framework type.'
+      - value: 'io.papermc.*'
+        reason: 'The model imports no platform type.'
+      - value: 'net.fabricmc.*'
+        reason: 'The model imports no platform type.'
+      - value: 'net.minecraft.*'
+        reason: 'The model imports no platform type.'
+      - value: 'net.minecraftforge.*'
+        reason: 'The model imports no platform type.'
+      - value: 'net.neoforged.*'
+        reason: 'The model imports no platform type.'
+      - value: 'org.bukkit.*'
+        reason: 'The model imports no platform type.'
+      - value: 'org.jetbrains.exposed.*'
+        reason: 'The model imports no ORM type: keep it in data/exposed.'
+  RedundantVisibilityModifier:
+    active: true
+  WildcardImport:
+    active: true
+    excludeImports: [ ]
+
+ktlint:
+  ImportOrdering:
+    active: true
+    layout: '*,java.**,javax.**,kotlin.**,^'
