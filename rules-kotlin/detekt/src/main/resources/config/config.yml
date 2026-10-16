@@ -22,3 +22,5 @@ architecture:
     active: true
   NamespaceObject:
     active: true
+  TestFunctionName:
+    active: true
