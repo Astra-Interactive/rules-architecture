@@ -5,6 +5,7 @@ import dev.detekt.api.RuleSetId
 import dev.detekt.api.RuleSetProvider
 import ru.astrainteractive.klibs.rules.detekt.declaration.DataClassDefaultValue
 import ru.astrainteractive.klibs.rules.detekt.declaration.LocalOrInnerClass
+import ru.astrainteractive.klibs.rules.detekt.declaration.NamespaceObject
 import ru.astrainteractive.klibs.rules.detekt.injection.ConstructorDefaultDependency
 import ru.astrainteractive.klibs.rules.detekt.kdoc.KDocHtmlTag
 import ru.astrainteractive.klibs.rules.detekt.lambda.ImplicitItParameter
@@ -33,6 +34,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::KDocHtmlTag,
             ::KindNameInPackage,
             ::LocalOrInnerClass,
+            ::NamespaceObject,
         )
     )
 

@@ -20,3 +20,5 @@ architecture:
     active: true
   LocalOrInnerClass:
     active: true
+  NamespaceObject:
+    active: true
