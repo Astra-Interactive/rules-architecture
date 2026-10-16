@@ -4,5 +4,7 @@ architecture:
     active: true
   CalleeBeforeCaller:
     active: true
+  ConstructorDefaultDependency:
+    active: true
   ImplicitItParameter:
     active: true
