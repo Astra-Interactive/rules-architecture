@@ -10,5 +10,7 @@ architecture:
     active: true
   ForbiddenPackageSegment:
     active: true
+  ImplementationName:
+    active: true
   ImplicitItParameter:
     active: true
