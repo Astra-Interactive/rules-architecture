@@ -1,0 +1,67 @@
+name: "Publish release"
+on:
+  workflow_call:
+    secrets:
+      ORG_GRADLE_PROJECT_MAVENCENTRALUSERNAME:
+        required: true
+      ORG_GRADLE_PROJECT_MAVENCENTRALPASSWORD:
+        required: true
+      ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEY:
+        required: true
+      ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYID:
+        required: true
+      ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYPASSWORD:
+        required: true
+      ACTIONS_TOKEN:
+        required: true
+
+jobs:
+  publish:
+    name: "Publish to Maven Central"
+    runs-on: ubuntu-latest
+    env:
+      ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.ORG_GRADLE_PROJECT_MAVENCENTRALUSERNAME }}
+      ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.ORG_GRADLE_PROJECT_MAVENCENTRALPASSWORD }}
+      ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEY }}
+      ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYID }}
+      ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYPASSWORD }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up JDK 21
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - name: Make gradlew executable
+        run: chmod +x rules-kotlin/gradlew
+      - name: Publish and release to Maven Central
+        uses: gradle/gradle-build-action@ac2d340dc04d9e1113182899e983b5400c17cda1 # v3
+        with:
+          build-root-directory: rules-kotlin
+          arguments: publishAndReleaseToMavenCentral --stacktrace
+  release:
+    needs: [ publish ]
+    name: "Create GitHub release"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      #   steps.properties.outputs.klibs-project-name
+      #   steps.properties.outputs.klibs-project-version-string
+      - name: Read project name and version from gradle.properties
+        uses: christian-draeger/read-properties@908f99d3334be3802ec7cb528395a69d19914e7b # 1.1.1
+        id: properties
+        with:
+          path: './rules-kotlin/gradle.properties'
+          properties: 'klibs.project.name klibs.project.version.string'
+      - name: Create GitHub release
+        id: create_release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACTIONS_TOKEN }}
+        with:
+          tag_name: ${{ steps.properties.outputs.klibs-project-name }}-${{ steps.properties.outputs.klibs-project-version-string }}
+          name: ${{ steps.properties.outputs.klibs-project-name }} - ${{ steps.properties.outputs.klibs-project-version-string }}
+          draft: false
+          prerelease: false
