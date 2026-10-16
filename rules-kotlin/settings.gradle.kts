@@ -18,3 +18,5 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 rootProject.name = "rules-kotlin"
 
 include(":detekt")
+
+include(":konsist")
