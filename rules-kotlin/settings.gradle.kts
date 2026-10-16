@@ -20,3 +20,5 @@ rootProject.name = "rules-kotlin"
 include(":detekt")
 
 include(":konsist")
+
+include(":structure")
