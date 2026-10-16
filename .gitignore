@@ -1,0 +1,9 @@
+**/build
+.claude
+.gradle
+.idea
+.kotlin
+local.properties
+AGENTS.kt.md
+AGENTS.md
+CLAUDE.md
