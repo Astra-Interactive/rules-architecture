@@ -4,6 +4,7 @@ import dev.detekt.api.RuleSet
 import dev.detekt.api.RuleSetId
 import dev.detekt.api.RuleSetProvider
 import ru.astrainteractive.klibs.rules.detekt.lambda.ImplicitItParameter
+import ru.astrainteractive.klibs.rules.detekt.ordering.CalleeBeforeCaller
 import ru.astrainteractive.klibs.rules.detekt.tuple.AnonymousTuple
 
 /**
@@ -16,6 +17,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
         ruleSetId,
         listOf(
             ::AnonymousTuple,
+            ::CalleeBeforeCaller,
             ::ImplicitItParameter,
         )
     )

@@ -2,5 +2,7 @@ architecture:
   active: true
   AnonymousTuple:
     active: true
+  CalleeBeforeCaller:
+    active: true
   ImplicitItParameter:
     active: true
