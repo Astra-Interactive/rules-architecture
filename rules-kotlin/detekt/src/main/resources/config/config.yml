@@ -18,3 +18,5 @@ architecture:
     active: true
   KindNameInPackage:
     active: true
+  LocalOrInnerClass:
+    active: true
