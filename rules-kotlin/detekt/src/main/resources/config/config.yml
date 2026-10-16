@@ -24,3 +24,5 @@ architecture:
     active: true
   TestFunctionName:
     active: true
+  TimeAsPrimitive:
+    active: true
