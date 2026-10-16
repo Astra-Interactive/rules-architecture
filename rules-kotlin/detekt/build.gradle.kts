@@ -1,5 +1,6 @@
 plugins {
     id("org.jetbrains.kotlin.jvm")
+    id("org.jetbrains.kotlinx.kover")
     id("ru.astrainteractive.gradleplugin.detekt")
     id("ru.astrainteractive.gradleplugin.java.version")
     id("ru.astrainteractive.gradleplugin.publication")
@@ -8,6 +9,16 @@ plugins {
 
 kotlin {
     explicitApi()
+}
+
+kover {
+    reports {
+        verify {
+            rule {
+                minBound(100)
+            }
+        }
+    }
 }
 
 dependencies {
