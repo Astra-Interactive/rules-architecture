@@ -16,3 +16,5 @@ architecture:
     active: true
   KDocHtmlTag:
     active: true
+  KindNameInPackage:
+    active: true

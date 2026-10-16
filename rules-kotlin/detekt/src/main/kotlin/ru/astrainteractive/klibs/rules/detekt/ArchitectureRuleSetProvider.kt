@@ -9,6 +9,7 @@ import ru.astrainteractive.klibs.rules.detekt.kdoc.KDocHtmlTag
 import ru.astrainteractive.klibs.rules.detekt.lambda.ImplicitItParameter
 import ru.astrainteractive.klibs.rules.detekt.naming.ForbiddenPackageSegment
 import ru.astrainteractive.klibs.rules.detekt.naming.ImplementationName
+import ru.astrainteractive.klibs.rules.detekt.naming.KindNameInPackage
 import ru.astrainteractive.klibs.rules.detekt.ordering.CalleeBeforeCaller
 import ru.astrainteractive.klibs.rules.detekt.tuple.AnonymousTuple
 
@@ -29,6 +30,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::ImplementationName,
             ::ImplicitItParameter,
             ::KDocHtmlTag,
+            ::KindNameInPackage,
         )
     )
 
