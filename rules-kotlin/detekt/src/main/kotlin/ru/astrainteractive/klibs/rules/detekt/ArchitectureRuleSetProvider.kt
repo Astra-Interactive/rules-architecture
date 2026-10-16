@@ -4,6 +4,7 @@ import dev.detekt.api.RuleSet
 import dev.detekt.api.RuleSetId
 import dev.detekt.api.RuleSetProvider
 import ru.astrainteractive.klibs.rules.detekt.lambda.ImplicitItParameter
+import ru.astrainteractive.klibs.rules.detekt.tuple.AnonymousTuple
 
 /**
  * Registers the architecture rules with detekt. A rule runs only when `config/config.yml` lists it.
@@ -14,6 +15,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
     override fun instance(): RuleSet = RuleSet(
         ruleSetId,
         listOf(
+            ::AnonymousTuple,
             ::ImplicitItParameter,
         )
     )

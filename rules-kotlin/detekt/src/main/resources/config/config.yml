@@ -1,4 +1,6 @@
 architecture:
   active: true
+  AnonymousTuple:
+    active: true
   ImplicitItParameter:
     active: true
