@@ -5,6 +5,7 @@ import dev.detekt.api.RuleSetId
 import dev.detekt.api.RuleSetProvider
 import ru.astrainteractive.klibs.rules.detekt.declaration.DataClassDefaultValue
 import ru.astrainteractive.klibs.rules.detekt.injection.ConstructorDefaultDependency
+import ru.astrainteractive.klibs.rules.detekt.kdoc.KDocHtmlTag
 import ru.astrainteractive.klibs.rules.detekt.lambda.ImplicitItParameter
 import ru.astrainteractive.klibs.rules.detekt.naming.ForbiddenPackageSegment
 import ru.astrainteractive.klibs.rules.detekt.naming.ImplementationName
@@ -27,6 +28,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::ForbiddenPackageSegment,
             ::ImplementationName,
             ::ImplicitItParameter,
+            ::KDocHtmlTag,
         )
     )
 

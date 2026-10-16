@@ -14,3 +14,5 @@ architecture:
     active: true
   ImplicitItParameter:
     active: true
+  KDocHtmlTag:
+    active: true
