@@ -1,0 +1,4 @@
+architecture:
+  active: true
+  ImplicitItParameter:
+    active: true

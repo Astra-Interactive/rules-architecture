@@ -23,6 +23,7 @@ kover {
 
 dependencies {
     compileOnly(libs.detekt.api)
+    compileOnly(libs.detekt.psi.utils)
 
     testImplementation(libs.detekt.test)
     testImplementation(libs.tests.kotlin.test)
