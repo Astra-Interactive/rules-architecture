@@ -8,5 +8,7 @@ architecture:
     active: true
   DataClassDefaultValue:
     active: true
+  ForbiddenPackageSegment:
+    active: true
   ImplicitItParameter:
     active: true
