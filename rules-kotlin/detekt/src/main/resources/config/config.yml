@@ -6,5 +6,7 @@ architecture:
     active: true
   ConstructorDefaultDependency:
     active: true
+  DataClassDefaultValue:
+    active: true
   ImplicitItParameter:
     active: true

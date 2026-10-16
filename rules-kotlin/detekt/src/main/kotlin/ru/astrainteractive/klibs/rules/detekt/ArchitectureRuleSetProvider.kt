@@ -3,6 +3,7 @@ package ru.astrainteractive.klibs.rules.detekt
 import dev.detekt.api.RuleSet
 import dev.detekt.api.RuleSetId
 import dev.detekt.api.RuleSetProvider
+import ru.astrainteractive.klibs.rules.detekt.declaration.DataClassDefaultValue
 import ru.astrainteractive.klibs.rules.detekt.injection.ConstructorDefaultDependency
 import ru.astrainteractive.klibs.rules.detekt.lambda.ImplicitItParameter
 import ru.astrainteractive.klibs.rules.detekt.ordering.CalleeBeforeCaller
@@ -20,6 +21,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::AnonymousTuple,
             ::CalleeBeforeCaller,
             ::ConstructorDefaultDependency,
+            ::DataClassDefaultValue,
             ::ImplicitItParameter,
         )
     )
