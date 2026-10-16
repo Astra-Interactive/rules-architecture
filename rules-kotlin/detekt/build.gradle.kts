@@ -29,6 +29,7 @@ dependencies {
     testImplementation(libs.tests.kotlin.test)
     testImplementation(platform(libs.tests.junit.bom))
     testImplementation(libs.tests.junit.jupiter)
+    testRuntimeOnly(libs.detekt.psi.utils)
     testRuntimeOnly(libs.tests.junit.platform.launcher)
 }
 
