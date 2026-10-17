@@ -8,6 +8,8 @@ architecture:
     active: true
   DataClassDefaultValue:
     active: true
+  DeclarationOrder:
+    active: true
   ImplementationName:
     active: true
   ImplicitItParameter:

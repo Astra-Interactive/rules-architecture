@@ -1,8 +1,9 @@
 # Settings of detekt's own rules that enforce the architecture rules.
 # List this file last in detekt's `config`: a later file overrides the values of an earlier one.
 style:
+  # Replaced by architecture.DeclarationOrder: the code-ordering rule puts init blocks after the functions they call.
   ClassOrdering:
-    active: true
+    active: false
   ForbiddenComment:
     active: true
     comments:

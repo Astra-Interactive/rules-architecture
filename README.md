@@ -167,6 +167,7 @@ val violations: List<StructureViolation> = checker.check(
 | `ConstructorDefaultDependency` | a constructor default that creates a dependency, such as `= Foo()`               |
 | `TestFunctionName`             | a `@Test` not named `GIVEN_<state>_WHEN_<action>_THEN_<outcome>`                 |
 | `CalleeBeforeCaller`           | a function that calls a function declared below it in the same class or file     |
+| `DeclarationOrder`             | properties, secondary constructors, functions, `init` blocks, companion: out of this order |
 | `NamespaceObject`              | an `object` that only groups functions                                           |
 | `LocalOrInnerClass`            | a class inside a function body and an `inner class`                              |
 | `TimeAsPrimitive`              | a time-named value (`createdAt`, `timeoutMs`) typed as a number or a string      |
@@ -176,7 +177,8 @@ val violations: List<StructureViolation> = checker.check(
 
 ### detekt settings
 
-`detekt-architecture.yml` configures detekt's own rules: `ClassOrdering`; `ForbiddenComment` for region
+`detekt-architecture.yml` configures detekt's own rules: `ClassOrdering` off, replaced by `DeclarationOrder`,
+which puts `init` blocks after the functions they call; `ForbiddenComment` for region
 markers and separator comments; `ForbiddenImport` for `kotlinx.datetime.Instant`, and for platform and ORM
 types in `model`; `RedundantVisibilityModifier`; `WildcardImport` with no exceptions; ktlint `ImportOrdering`.
 
