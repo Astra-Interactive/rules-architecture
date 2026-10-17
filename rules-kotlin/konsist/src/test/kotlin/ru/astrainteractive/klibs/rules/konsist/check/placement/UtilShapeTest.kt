@@ -35,4 +35,24 @@ internal class UtilShapeTest {
 
         assertEquals(listOf("Formatter", "Holder", "Int.clamp", "Shape"), subjects)
     }
+
+    @Test
+    fun GIVEN_entry_point_extensions_and_rules_on_lists_of_a_model_WHEN_checked_THEN_reports_nothing(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main("x.gui.bukkit.slot", "RatingsSlot.kt", "internal fun SlotContext.ratingsSlot(): String = \"\"")
+            .main(
+                "x.gui.bukkit.placeholder.model",
+                "Coloring.kt",
+                """
+                class Coloring(val rating: Int)
+
+                fun Collection<Coloring>.findByRating(rating: Int): Coloring? = firstOrNull()
+                """
+            )
+            .load(UnitKind.CONTEXT, rootPackage = "x.gui.bukkit")
+
+        assertEquals(emptyList(), UtilShape().check(sources))
+    }
 }
