@@ -18,6 +18,12 @@ internal val KoImportDeclaration.importedName: String
 internal val KoFileDeclaration.baseName: String
     get() = File(path).nameWithoutExtension
 
+/**
+ * The simple name of the type without nullability, type arguments or qualifier: `Jail` for `model.Jail?`.
+ */
+internal val KoTypeDeclaration.simpleName: String
+    get() = text.removeSuffix("?").substringBefore('<').substringAfterLast('.')
+
 internal fun KoFileDeclaration.topLevelClasses(): List<KoClassDeclaration> =
     classes(includeNested = false, includeLocal = false)
 
@@ -43,9 +49,3 @@ internal fun KoFileDeclaration.topLevelNames(): List<String> {
         properties(includeNested = false).map { declaration -> declaration.name } +
         typeAliases.map { declaration -> declaration.name }
 }
-
-/**
- * The simple name of the type without nullability, type arguments or qualifier: `Jail` for `model.Jail?`.
- */
-internal val KoTypeDeclaration.simpleName: String
-    get() = text.removeSuffix("?").substringBefore('<').substringAfterLast('.')
