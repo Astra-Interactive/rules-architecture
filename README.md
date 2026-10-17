@@ -222,35 +222,19 @@ cd rules-kotlin
 
 ---
 
-## 💜 Support Us
 
-If our projects help you, consider supporting their development.
+## 💖 Support the project
 
 <table>
 <tr>
 <td align="center" width="130">
-<img src="https://cdn.simpleicons.org/bitcoin/F7931A" width="25" alt="BTC"/><br/>
-<sub><b>Bitcoin</b></sub>
+<img src="https://cdn.simpleicons.org/telegram/26A5E4" width="25" alt="Telegram"/><br/>
+<sub><b>Telegram</b></sub>
 </td>
-<td>
-
-```text
-bc1q9a8dr55jgfae0mhevw3vvczegjv0khfp0ngrnv
-```
-
-</td>
-</tr>
-<tr>
-<td align="center" width="130">
-<img src="https://cdn.simpleicons.org/ethereum/627EEA" width="25" alt="ETH"/><br/>
-<sub><b>Ethereum</b></sub>
-</td>
-<td>
-
-```text
-0x0BaAeEA44Ce08c8DC139224ff57563695B30d423
-```
-
+<td align="center">
+<a href="https://t.me/makeevrserg">
+<img width="70%" src="https://img.shields.io/badge/@makeevrserg-Message-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram @makeevrserg"/>
+</a>
 </td>
 </tr>
 <tr>
@@ -264,6 +248,62 @@ bc1q9a8dr55jgfae0mhevw3vvczegjv0khfp0ngrnv
 </a>
 </td>
 </tr>
+<tr>
+<td align="center" width="130">
+<img src="https://cdn.simpleicons.org/tether/50AF95" width="25" alt="USDT"/><br/>
+<sub><b>USDT</b></sub><br/>
+<sub>Polygon (POL)</sub>
+</td>
+<td>
+
+```text
+0x3955abc6f5396e57b11a05b96f988bc60708c9b0
+```
+
+</td>
+</tr>
+<tr>
+<td align="center" width="130">
+<img src="https://cdn.simpleicons.org/tether/50AF95" width="25" alt="USDT"/><br/>
+<sub><b>USDT</b></sub><br/>
+<sub>TRC20</sub>
+</td>
+<td>
+
+```text
+TLYf28vZeuuHcEJMHSZtuYEzQ2DjNvNE3W
+```
+
+</td>
+</tr>
+<tr>
+<td align="center" width="130">
+<img src="https://cdn.simpleicons.org/tether/50AF95" width="25" alt="USDT"/><br/>
+<sub><b>USDT</b></sub><br/>
+<sub>Solana</sub>
+</td>
+<td>
+
+```text
+6sYK6Nss8cjLeeTp6u3t63JG4f1hFf8sDQ7nVtMNoyps
+```
+
+</td>
+</tr>
+<tr>
+<td align="center" width="130">
+<img src="https://cdn.simpleicons.org/ton/0098EA" width="25" alt="TON"/><br/>
+<sub><b>TON</b></sub><br/>
+<sub>TON network</sub>
+</td>
+<td>
+
+```text
+UQDfywxsnHI1ko_uqBYKED3RoMzoVm3mnxuS_-JVQc4mSSJt
+```
+
+</td>
+</tr>
 </table>
 
----
+A ⭐ on the repository costs nothing and helps just as much.
