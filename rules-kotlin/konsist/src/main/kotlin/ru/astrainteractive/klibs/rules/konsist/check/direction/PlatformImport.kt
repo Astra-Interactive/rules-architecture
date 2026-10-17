@@ -1,45 +1,56 @@
 package ru.astrainteractive.klibs.rules.konsist.check.direction
 
+import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.check.model.importedName
-import ru.astrainteractive.klibs.rules.konsist.layout.Layer
+import ru.astrainteractive.klibs.rules.konsist.layout.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 
 /**
- * Reports a platform or framework import in a use case or a contract, which reach the server only through the
- * library's abstractions or the context's own `integration` contract. `model` is checked by detekt's
- * `ForbiddenImport/model`.
+ * Reports a platform, framework or ORM import in `model`, `api` and `usecase`, and anywhere in an `api` unit,
+ * which holds platform-free code only. A technology unit is not checked: it is that technology's
+ * implementation, its own `model` included.
  */
 internal class PlatformImport : ArchitectureCheck {
-    override val unitKinds: Set<UnitKind> = setOf(UnitKind.CONTEXT)
+    override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet() - UnitKind.TECHNOLOGY
 
-    override fun check(sources: UnitSources): List<Violation> = sources.mainFiles
-        .filter { file -> sources.placementOf(file)?.layer in CHECKED_LAYERS }
-        .flatMap { file ->
-            file.imports
-                .map { import -> import.importedName }
-                .filter { importedName -> PLATFORM_PREFIXES.any { prefix -> importedName.startsWith(prefix) } }
-                .map { importedName ->
-                    val message = "$importedName is a platform type: reach it through an integration contract."
-                    Violation(RULE, sources.relativePath(file), importedName, message)
-                }
-        }
+    private fun isChecked(sources: UnitSources, file: KoFileDeclaration): Boolean {
+        if (sources.kind == UnitKind.API) return true
+        return sources.placementOf(file)?.kind in CHECKED_KINDS
+    }
+
+    override fun check(sources: UnitSources): List<Violation> {
+        return sources.mainFiles
+            .filter { file -> isChecked(sources, file) }
+            .flatMap { file ->
+                file.imports
+                    .map { import -> import.importedName }
+                    .filter { importedName -> PLATFORM_PREFIXES.any { prefix -> importedName.startsWith(prefix) } }
+                    .map { importedName ->
+                        val message = "$importedName is a platform type: keep it in a platform unit or a " +
+                            "technology package and map it to the model at their edge."
+                        Violation(RULE, sources.relativePath(file), importedName, message)
+                    }
+            }
+    }
 
     private companion object {
         const val RULE = "PlatformImport"
 
         @JvmField
-        val CHECKED_LAYERS = setOf(Layer.USE_CASE, Layer.CONTRACT)
+        val CHECKED_KINDS = setOf(Kind.MODEL, Kind.CONTRACT, Kind.USECASE)
 
         @JvmField
         val PLATFORM_PREFIXES = listOf(
             "android.",
             "androidx.",
+            "com.velocitypowered.",
             "io.ktor.",
             "io.papermc.",
             "net.fabricmc.",
+            "net.md_5.",
             "net.minecraft.",
             "net.minecraftforge.",
             "net.neoforged.",

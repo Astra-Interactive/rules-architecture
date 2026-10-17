@@ -1,40 +1,22 @@
 package ru.astrainteractive.klibs.rules.konsist.layout
 
 /**
- * Where a package sits inside a context: in which module, in which role, and how far below the role.
+ * Where a package sits inside a unit: `<unit root>[/<concept>[/<sub-concept>]]/<kind>[/<below>]`.
  *
- * A `null` [role] is the root of the context or of a module, where the use cases live.
+ * @property concepts the concept packages above the kind, empty for a kind directly under the unit root
+ * @property kind the kind, or `null` for the unit root and for a concept package
+ * @property kindWord the segment that named the kind, `null` for an implementation sitting directly in a concept
+ * package of a technology unit
+ * @property below the segments under the last kind package, which a kind package must not have
  */
 internal data class Placement(
-    val module: String?,
-    val role: Role?,
-    val subpackages: List<String>
+    val concepts: List<String>,
+    val kind: Kind?,
+    val kindWord: String?,
+    val below: List<String>
 ) {
-    /**
-     * The technology or external system a `data` or `integration` package is implemented with
-     * (`exposed` in `data/exposed`), or `null` at the level of the contract.
-     */
-    val technology: String?
-        get() = subpackages.firstOrNull()?.takeIf { role == Role.DATA || role == Role.INTEGRATION }
-
-    val layer: Layer
-        get() = when {
-            role == null -> Layer.USE_CASE
-            role.isEntryPoint -> Layer.ENTRY_POINT
-            role == Role.MODEL -> Layer.MODEL
-            role == Role.MAPPING -> Layer.MAPPING
-            role == Role.UTIL -> Layer.UTIL
-            role == Role.DI -> Layer.DI
-            technology == null -> Layer.CONTRACT
-            else -> Layer.TECHNOLOGY
-        }
-
     fun describe(): String {
-        val path = listOfNotNull(module, role?.segment, technology).joinToString("/")
-        return when (layer) {
-            Layer.USE_CASE -> if (module == null) "the context root" else "the root of module '$module'"
-            Layer.CONTRACT -> "the $path contract"
-            else -> "'$path'"
-        }
+        val path = (concepts + listOfNotNull(kindWord)).joinToString("/")
+        return if (path.isEmpty()) "the unit root" else "'$path'"
     }
 }

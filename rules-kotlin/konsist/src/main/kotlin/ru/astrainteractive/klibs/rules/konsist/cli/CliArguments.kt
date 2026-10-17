@@ -5,11 +5,15 @@ import java.io.File
 
 /**
  * The options of the command line, each written as `--name value`; `--main` and `--test` may repeat.
+ *
+ * @property unitPath the Gradle path of the unit (`:modules:event-bukkit`), which finds the root package when
+ * [rootPackage] is not given
  */
 internal data class CliArguments(
     val projectDirectory: File,
     val unitKind: UnitKind,
     val rootPackage: String?,
+    val unitPath: String?,
     val mainDirectories: List<File>,
     val testDirectories: List<File>,
     val reportFile: File
@@ -18,11 +22,12 @@ internal data class CliArguments(
         const val PROJECT_DIR = "--project-dir"
         const val UNIT_KIND = "--unit-kind"
         const val ROOT_PACKAGE = "--root-package"
+        const val UNIT_PATH = "--unit-path"
         const val MAIN = "--main"
         const val TEST = "--test"
         const val REPORT = "--report"
 
-        private val OPTIONS = setOf(PROJECT_DIR, UNIT_KIND, ROOT_PACKAGE, MAIN, TEST, REPORT)
+        private val OPTIONS = setOf(PROJECT_DIR, UNIT_KIND, ROOT_PACKAGE, UNIT_PATH, MAIN, TEST, REPORT)
 
         private fun Map<String, List<String>>.single(name: String): String? {
             val values = get(name) ?: return null
@@ -49,6 +54,7 @@ internal data class CliArguments(
                 projectDirectory = File(options.required(PROJECT_DIR)),
                 unitKind = parseUnitKind(options.required(UNIT_KIND)),
                 rootPackage = options.single(ROOT_PACKAGE),
+                unitPath = options.single(UNIT_PATH),
                 mainDirectories = options[MAIN].orEmpty().map(::File),
                 testDirectories = options[TEST].orEmpty().map(::File),
                 reportFile = File(options.required(REPORT))

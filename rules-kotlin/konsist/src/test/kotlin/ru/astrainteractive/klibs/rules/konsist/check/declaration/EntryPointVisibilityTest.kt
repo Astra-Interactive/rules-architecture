@@ -12,17 +12,22 @@ import kotlin.test.assertEquals
 internal class EntryPointVisibilityTest {
 
     @Test
-    fun GIVEN_public_entry_points_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_public_classes_in_platform_invoked_kinds_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
         val sources = SourceTree(directory)
-            .main("com.example.jail.command", "JailCommand.kt", "class JailCommand")
-            .main("com.example.jail.route", "JailRoutes.kt", "object JailRoutes")
-            .main("com.example.jail.event", "JailEvent.kt", "internal class JailEvent\n\nprivate object Helper")
-            .main("com.example.jail.service", "UnJailService.kt", "private class UnJailService")
-            .main("com.example.jail.model", "Jail.kt", "class Jail")
-            .load(UnitKind.CONTEXT)
+            .main("x.command.rating.command", "RatingCommand.kt", "class RatingCommand")
+            .main("x.command.error", "CommandExceptionHandler.kt", "object CommandExceptionHandler")
+            .main(
+                "x.command.reload.command",
+                "ReloadCommand.kt",
+                "internal class ReloadCommand\n\nprivate object Helper"
+            )
+            .main("x.command.rating.component", "RatingComponent.kt", "class RatingComponent")
+            .main("x.command.di", "CommandsModule.kt", "class CommandsModule")
+            .main("x.command.rating.service", "TickService.kt", "private class TickService")
+            .load(UnitKind.CONTEXT, unitPath = ":modules:command")
 
-        val subjects = EntryPointVisibility().check(sources).map { violation -> violation.subject }
+        val subjects = EntryPointVisibility().check(sources).map { violation -> violation.subject }.sorted()
 
-        assertEquals(listOf("JailCommand", "JailRoutes"), subjects)
+        assertEquals(listOf("CommandExceptionHandler", "RatingCommand"), subjects)
     }
 }

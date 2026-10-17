@@ -28,9 +28,10 @@ internal class SourceTree(private val projectDirectory: File) {
     fun test(packageName: String, fileName: String, code: String): SourceTree =
         write(testDirectory, packageName, fileName, code)
 
-    fun load(kind: UnitKind, rootPackage: String? = null): UnitSources = UnitSources.load(
+    fun load(kind: UnitKind, rootPackage: String? = null, unitPath: String? = null): UnitSources = UnitSources.load(
         kind = kind,
         rootPackage = rootPackage,
+        unitPath = unitPath,
         mainDirectories = listOf(mainDirectory),
         testDirectories = listOf(testDirectory),
         projectDirectory = projectDirectory

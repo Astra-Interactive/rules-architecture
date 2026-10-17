@@ -12,49 +12,65 @@ import kotlin.test.assertEquals
 internal class UseCaseShapeTest {
 
     @Test
-    fun GIVEN_use_cases_with_extra_entries_or_called_use_cases_WHEN_checked_THEN_reports_each(
-        @TempDir directory: File
-    ) {
+    fun GIVEN_use_cases_out_of_shape_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
         val sources = SourceTree(directory)
             .main(
-                "com.example.jail",
-                "JailPlayer.kt",
+                "x.gui.api.rating.usecase",
+                "AddRatingUseCase.kt",
                 """
-                class JailPlayer {
+                class AddRatingUseCase(private val loadPlayer: LoadPlayerUseCase?, private val count: Int) {
                     operator fun invoke() = Unit
                     fun undo() = Unit
                 }
                 """
             )
+            .main("x.gui.api.rating.usecase", "RatingCalculator.kt", "class RatingCalculator")
             .main(
-                "com.example.jail",
-                "FreeInmate.kt",
+                "x.gui.api.rating.component",
+                "LoadPlayerUseCase.kt",
+                "class LoadPlayerUseCase {\n    fun invoke() = Unit\n}"
+            )
+            .main("x.gui.api.rating.model", "Rating.kt", "class Rating")
+            .load(UnitKind.API, unitPath = ":gui:api")
+
+        val messages = UseCaseShape().check(sources).map { violation -> violation.message }.sorted()
+
+        assertEquals(
+            listOf(
+                "AddRatingUseCase has the public functions invoke, undo: $ONE_ENTRY",
+                "AddRatingUseCase takes LoadPlayerUseCase: a use case never calls another use case; " +
+                    "the entry point calls both.",
+                "LoadPlayerUseCase has the public functions invoke: $ONE_ENTRY",
+                "Move LoadPlayerUseCase to the usecase package of its concept.",
+                "Name RatingCalculator <Verb><Object>UseCase, or move it out of the usecase package.",
+            ),
+            messages
+        )
+    }
+
+    @Test
+    fun GIVEN_use_case_in_shape_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.gui.api.rating.usecase",
+                "AddRatingUseCase.kt",
                 """
-                class FreeInmate(private val jailPlayer: JailPlayer?, private val count: Int) {
+                class AddRatingUseCase {
                     private fun log() = Unit
                     operator fun invoke() = log()
                 }
                 """
             )
-            .main("com.example.jail", "JailApi.kt", "interface JailApi")
-            .main("com.example.jail.model", "Jail.kt", "class Jail")
-            .load(UnitKind.CONTEXT)
+            .main("x.gui.api.rating.usecase", "EmptyUseCase.kt", "class EmptyUseCase")
+            .load(UnitKind.API, unitPath = ":gui:api")
 
-        val reported = UseCaseShape().check(sources).map { violation -> violation.subject }
-
-        assertEquals(listOf("FreeInmate -> JailPlayer", "JailPlayer"), reported.sorted())
+        assertEquals(
+            listOf("EmptyUseCase has the public functions none: $ONE_ENTRY"),
+            UseCaseShape().check(sources).map { violation -> violation.message }
+        )
     }
 
-    @Test
-    fun GIVEN_use_case_with_one_entry_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
-        val sources = SourceTree(directory)
-            .main(
-                "com.example.jail",
-                "JailPlayer.kt",
-                "class JailPlayer(private val other: JailPlayer) { operator fun invoke() = Unit }"
-            )
-            .load(UnitKind.CONTEXT)
-
-        assertEquals(emptyList(), UseCaseShape().check(sources))
+    private companion object {
+        const val ONE_ENTRY = "a use case has one public entry, operator fun invoke."
     }
 }

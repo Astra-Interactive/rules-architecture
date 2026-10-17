@@ -12,23 +12,21 @@ import kotlin.test.assertEquals
 internal class ErrorPlacementTest {
 
     @Test
-    fun GIVEN_errors_outside_model_and_technology_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_errors_outside_model_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
         val sources = SourceTree(directory)
-            .main("com.example.jail.model", "JailError.kt", "sealed class JailError : Exception()")
-            .main("com.example.jail.data.exposed", "ExposedFailure.kt", "class ExposedFailure : RuntimeException()")
-            .main("com.example.jail", "JailFailure.kt", "class JailFailure : IllegalStateException()")
+            .main("x.command.model", "UsageCommandException.kt", "class UsageCommandException : Exception()")
+            .main("x.command.rating.model", "RatingError.kt", "sealed class RatingError : Exception()")
+            .main("x.command.error", "HandlerFailure.kt", "class HandlerFailure : IllegalStateException()")
             .main(
-                "com.example.jail.command",
-                "CommandError.kt",
-                "class CommandError : JailError()\n\nprivate class LocalError : Throwable()"
+                "x.command.rating.command",
+                "RatingCommand.kt",
+                "internal class RatingCommand\n\nprivate class LocalError : Throwable()"
             )
-            .main("com.example.jail.data", "LoadException.kt", "class LoadException : Exception()")
-            .main("com.example.jail.data", "JailRepository.kt", "interface JailRepository : AutoCloseable")
-            .main("com.example.jail.presentation", "LegacyError.kt", "class LegacyError : Exception()")
-            .load(UnitKind.CONTEXT)
+            .main("x.command.rating.api", "RatingApi.kt", "interface RatingApi : AutoCloseable")
+            .load(UnitKind.CONTEXT, unitPath = ":modules:command")
 
-        val subjects = ErrorPlacement().check(sources).map { violation -> violation.subject }
+        val subjects = ErrorPlacement().check(sources).map { violation -> violation.subject }.sorted()
 
-        assertEquals(listOf("CommandError", "JailFailure", "LoadException"), subjects.sorted())
+        assertEquals(listOf("HandlerFailure", "LocalError"), subjects)
     }
 }

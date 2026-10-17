@@ -55,15 +55,20 @@ internal class UnitSources(
             return Konsist.scopeFromExternalDirectories(existing.map { directory -> directory.absolutePath }).files
         }
 
+        /**
+         * @param unitPath the Gradle path of the unit, used to find its root package when [rootPackage] is `null`
+         */
         fun load(
             kind: UnitKind,
             rootPackage: String?,
+            unitPath: String?,
             mainDirectories: List<File>,
             testDirectories: List<File>,
             projectDirectory: File
         ): UnitSources {
             val mainFiles = parse(mainDirectories)
-            val layout = UnitLayout.create(mainFiles.map { file -> file.packageName }.distinct(), rootPackage)
+            val packages = mainFiles.map { file -> file.packageName }.distinct()
+            val layout = UnitLayout.create(packages, rootPackage, unitPath, kind)
             return UnitSources(kind, layout, mainFiles, parse(testDirectories), projectDirectory)
         }
     }

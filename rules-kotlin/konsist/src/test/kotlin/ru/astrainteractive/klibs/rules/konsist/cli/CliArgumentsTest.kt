@@ -26,6 +26,8 @@ internal class CliArgumentsTest {
             required + listOf(
                 "--root-package",
                 "com.example",
+                "--unit-path",
+                ":instances:bukkit",
                 "--main",
                 "/unit/src/main/kotlin",
                 "--main",
@@ -40,6 +42,7 @@ internal class CliArgumentsTest {
                 projectDirectory = File("/unit"),
                 unitKind = UnitKind.ENTRY_POINT,
                 rootPackage = "com.example",
+                unitPath = ":instances:bukkit",
                 mainDirectories = listOf(File("/unit/src/main/kotlin"), File("/unit/src/jvmMain/kotlin")),
                 testDirectories = listOf(File("/unit/src/test/kotlin")),
                 reportFile = File("/unit/report.tsv")
@@ -53,6 +56,7 @@ internal class CliArgumentsTest {
         val arguments = CliArguments.parse(required)
 
         assertNull(arguments.rootPackage)
+        assertNull(arguments.unitPath)
         assertEquals(emptyList(), arguments.mainDirectories + arguments.testDirectories)
     }
 

@@ -4,33 +4,47 @@ import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.check.model.topLevelClasses
-import ru.astrainteractive.klibs.rules.konsist.layout.Layer
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 
 /**
- * Reports a public class or object in an entry-point role: the entry-point unit constructs the context's DI
- * module, never its commands, listeners or routes.
+ * Reports a public class or object in a kind the platform invokes (`command`, `event`, `route`, `job`,
+ * `service`, `warmup`, `migration`, `error`): other units construct the unit's DI module, never its entry
+ * points. UI state holders are left out, because another unit's screen calls them.
  */
 internal class EntryPointVisibility : ArchitectureCheck {
-    override val unitKinds: Set<UnitKind> = setOf(UnitKind.CONTEXT)
+    override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
 
-    override fun check(sources: UnitSources): List<Violation> = sources.mainFiles
-        .filter { file -> sources.placementOf(file)?.layer == Layer.ENTRY_POINT }
-        .flatMap { file ->
-            val classes = file.topLevelClasses()
-                .filterNot { declaration -> declaration.hasInternalModifier || declaration.hasPrivateModifier }
-                .map { declaration -> declaration.name }
-            val objects = file.objects(includeNested = false)
-                .filterNot { declaration -> declaration.hasInternalModifier || declaration.hasPrivateModifier }
-                .map { declaration -> declaration.name }
-            (classes + objects).map { name ->
-                val message = "Make $name internal: the entry-point unit constructs the context's DI module, " +
-                    "not its entry points."
-                Violation(RULE, sources.relativePath(file), name, message)
+    override fun check(sources: UnitSources): List<Violation> {
+        return sources.mainFiles
+            .filter { file -> sources.placementOf(file)?.kindWord in PLATFORM_INVOKED_KINDS }
+            .flatMap { file ->
+                val classes = file.topLevelClasses()
+                    .filterNot { declaration -> declaration.hasInternalModifier || declaration.hasPrivateModifier }
+                    .map { declaration -> declaration.name }
+                val objects = file.objects(includeNested = false)
+                    .filterNot { declaration -> declaration.hasInternalModifier || declaration.hasPrivateModifier }
+                    .map { declaration -> declaration.name }
+                (classes + objects).map { name ->
+                    val message = "Make $name internal: other units construct the unit's DI module, " +
+                        "not its entry points."
+                    Violation(RULE, sources.relativePath(file), name, message)
+                }
             }
-        }
+    }
 
     private companion object {
         const val RULE = "EntryPointVisibility"
+
+        @JvmField
+        val PLATFORM_INVOKED_KINDS = setOf(
+            "command",
+            "error",
+            "event",
+            "job",
+            "migration",
+            "route",
+            "service",
+            "warmup",
+        )
     }
 }

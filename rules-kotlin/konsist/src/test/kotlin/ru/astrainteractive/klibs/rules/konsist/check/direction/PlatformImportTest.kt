@@ -12,41 +12,49 @@ import kotlin.test.assertEquals
 internal class PlatformImportTest {
 
     @Test
-    fun GIVEN_platform_imports_in_use_case_and_contract_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_platform_imports_in_model_api_and_usecase_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
         val sources = SourceTree(directory)
+            .main("x.jail.jail.model", "Jail.kt", "import org.bukkit.Location\n\nclass Jail")
+            .main("x.jail.jail.api", "JailRepository.kt", "import io.ktor.http.*\n\ninterface JailRepository")
             .main(
-                "com.example.jail",
-                "JailPlayer.kt",
+                "x.jail.jail.usecase",
+                "JailPlayerUseCase.kt",
+                "import net.minecraft.world.Level\n\nclass JailPlayerUseCase"
+            )
+            .main(
+                "x.jail.jail.command",
+                "JailCommand.kt",
+                "import org.bukkit.command.Command\n\ninternal class JailCommand"
+            )
+            .main(
+                "x.jail.jail.util",
+                "LocationExt.kt",
                 """
                 import kotlin.time.Duration
-                import org.bukkit.Location
 
-                class JailPlayer { operator fun invoke(location: Location, duration: Duration) = Unit }
+                fun format(duration: Duration): String = duration.toString()
                 """
             )
+            .load(UnitKind.CONTEXT, unitPath = ":jail")
+
+        val subjects = PlatformImport().check(sources).map { violation -> violation.subject }.sorted()
+
+        assertEquals(listOf("io.ktor.http.*", "net.minecraft.world.Level", "org.bukkit.Location"), subjects)
+    }
+
+    @Test
+    fun GIVEN_api_unit_WHEN_checked_THEN_every_file_is_platform_free(@TempDir directory: File) {
+        val sources = SourceTree(directory)
             .main(
-                "com.example.jail.data",
-                "JailRepository.kt",
-                """
-                import io.ktor.http.*
-
-                interface JailRepository
-                """
+                "x.gui.api.rating.component",
+                "RatingComponent.kt",
+                "import org.bukkit.entity.Player\n\nclass RatingComponent"
             )
-            .main(
-                "com.example.jail.data.exposed",
-                "ExposedJailRepository.kt",
-                """
-                import org.jetbrains.exposed.v1.core.Table
+            .load(UnitKind.API, unitPath = ":gui:api")
 
-                class ExposedJailRepository
-                """
-            )
-            .main("com.example.jail.model", "Jail.kt", "import android.os.Parcelable\n\nclass Jail")
-            .load(UnitKind.CONTEXT)
-
-        val subjects = PlatformImport().check(sources).map { violation -> violation.subject }
-
-        assertEquals(listOf("org.bukkit.Location", "io.ktor.http.*"), subjects)
+        assertEquals(
+            listOf("org.bukkit.entity.Player"),
+            PlatformImport().check(sources).map { violation -> violation.subject }
+        )
     }
 }

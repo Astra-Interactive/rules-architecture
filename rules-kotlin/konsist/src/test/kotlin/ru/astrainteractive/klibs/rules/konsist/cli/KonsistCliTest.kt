@@ -14,15 +14,20 @@ internal class KonsistCliTest {
     @Test
     fun GIVEN_unit_with_violations_WHEN_run_THEN_writes_them_to_the_report(@TempDir directory: File) {
         val tree = SourceTree(directory)
-            .main("com.example.jail", "JailPlayer.kt", "class JailPlayer { operator fun invoke() = Unit }")
+            .main(
+                "com.example.jail.jail.usecase",
+                "JailPlayerUseCase.kt",
+                "class JailPlayerUseCase { operator fun invoke() = Unit }"
+            )
             .main("com.example.jail", "Jail.kt", "data class Jail(val id: Int)")
-            .test("com.example.jail.model", "JailPlayerTest.kt", "class JailPlayerTest")
+            .test("com.example.jail.jail.model", "JailPlayerUseCaseTest.kt", "class JailPlayerUseCaseTest")
         val reportFile = File(directory, "build/architecture/konsist.tsv")
 
         main(
             arrayOf(
                 "--project-dir", directory.absolutePath,
                 "--unit-kind", "context",
+                "--unit-path", ":jail",
                 "--main", tree.mainDirectory.absolutePath,
                 "--main", File(directory, "src/jvmMain/kotlin").absolutePath,
                 "--test", tree.testDirectory.absolutePath,
@@ -33,17 +38,16 @@ internal class KonsistCliTest {
         assertEquals(
             listOf(
                 tsvLine(
-                    "LooseRootFile",
+                    "KindShape",
                     "src/main/kotlin/com/example/jail/Jail.kt",
                     "Jail",
-                    "Move Jail to a role package: the context root holds only use cases, the <Context>Api and its " +
-                        "Default<Context>Api."
+                    "Move Jail into a kind package: the unit root holds only packages."
                 ),
                 tsvLine(
                     "TestMirror",
-                    "src/test/kotlin/com/example/jail/model/JailPlayerTest.kt",
-                    "JailPlayerTest",
-                    "Move JailPlayerTest to com.example.jail, the package of JailPlayer."
+                    "src/test/kotlin/com/example/jail/jail/model/JailPlayerUseCaseTest.kt",
+                    "JailPlayerUseCaseTest",
+                    "Move JailPlayerUseCaseTest to com.example.jail.jail.usecase, the package of JailPlayerUseCase."
                 ),
             ),
             reportFile.readLines()

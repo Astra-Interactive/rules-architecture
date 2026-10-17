@@ -7,68 +7,86 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 internal class UnitLayoutTest {
-    private val packages = listOf(
-        "com.example.jail",
-        "com.example.jail.model",
-        "com.example.jail.data.exposed.table",
-        "com.example.jail.offer.model",
-        "com.example.jail.presentation",
-    )
-    private val layout = UnitLayout.create(packages, rootPackage = null)
 
-    @Test
-    fun GIVEN_packages_of_a_context_WHEN_created_THEN_root_is_their_common_prefix() {
-        assertEquals("com.example.jail", layout.rootPackage)
+    private fun rootOf(packages: List<String>, unitPath: String?): String {
+        return UnitLayout.create(packages, rootPackage = null, unitPath = unitPath, unitKind = UnitKind.CONTEXT)
+            .rootPackage
     }
 
     @Test
-    fun GIVEN_packages_all_inside_roles_WHEN_created_THEN_trailing_role_segments_are_dropped() {
-        val rolesOnly = UnitLayout.create(listOf("com.example.jail.model"), rootPackage = null)
+    fun GIVEN_unit_paths_WHEN_root_detected_THEN_cuts_after_the_unit_name() {
+        val event = rootOf(
+            listOf("x.astrarating.event.kill.usecase", "x.astrarating.event.di"),
+            ":modules:event-bukkit"
+        )
+        val papi = rootOf(
+            listOf("x.astrarating.integration.papi.placeholder.expansion", "x.astrarating.integration.papi.di"),
+            ":modules:integration-papi"
+        )
+        val dao = rootOf(
+            listOf("x.astrarating.data.dao.rating.api", "x.astrarating.data.dao.rating.model"),
+            ":modules:data:dao"
+        )
 
-        assertEquals("com.example.jail", rolesOnly.rootPackage)
+        assertEquals(
+            listOf("x.astrarating.event", "x.astrarating.integration.papi", "x.astrarating.data.dao"),
+            listOf(event, papi, dao)
+        )
+    }
+
+    @Test
+    fun GIVEN_unit_name_absent_from_packages_WHEN_root_detected_THEN_uses_the_common_package() {
+        assertEquals("x.astrarating", rootOf(listOf("x.astrarating", "x.astrarating.di"), ":instances:bukkit"))
+        assertEquals("x.jail", rootOf(listOf("x.jail.model"), unitPath = null))
+        assertEquals("x.jail", rootOf(listOf("x.jail"), unitPath = null))
+        assertEquals("", rootOf(emptyList(), unitPath = null))
+        assertEquals("", rootOf(listOf("a.b", "c.d"), unitPath = null))
     }
 
     @Test
     fun GIVEN_explicit_root_package_WHEN_created_THEN_uses_it() {
-        val explicit = UnitLayout.create(packages, rootPackage = "com.example")
+        val layout = UnitLayout.create(
+            listOf("x.jail.model"),
+            rootPackage = "x",
+            unitPath = ":jail",
+            unitKind = UnitKind.CONTEXT
+        )
 
-        assertEquals("com.example", explicit.rootPackage)
+        assertEquals("x", layout.rootPackage)
     }
 
     @Test
-    fun GIVEN_no_packages_WHEN_created_THEN_root_is_the_default_package() {
-        assertEquals("", UnitLayout.create(emptyList(), rootPackage = null).rootPackage)
+    fun GIVEN_packages_of_a_unit_WHEN_placed_THEN_resolves_concepts_and_the_last_kind() {
+        val layout = UnitLayout("x.gui.api", UnitKind.API)
+
+        assertEquals(Placement(emptyList(), null, null, emptyList()), layout.placementOf("x.gui.api"))
+        assertEquals(Placement(listOf("rating"), null, null, emptyList()), layout.placementOf("x.gui.api.rating"))
+        assertEquals(
+            Placement(listOf("router"), Kind.CONTRACT, "api", emptyList()),
+            layout.placementOf("x.gui.api.router.api")
+        )
+        assertEquals(
+            Placement(listOf("rating"), Kind.MODEL, "model", listOf("extra")),
+            layout.placementOf("x.gui.api.rating.model.extra")
+        )
+        assertNull(layout.placementOf("x.gui.apix"))
     }
 
     @Test
-    fun GIVEN_role_packages_WHEN_placed_THEN_resolves_role_and_technology() {
+    fun GIVEN_technology_unit_WHEN_placed_THEN_concept_packages_hold_implementations() {
+        val layout = UnitLayout("x.data.exposed", UnitKind.TECHNOLOGY)
+
         assertEquals(
-            Placement(module = null, role = null, subpackages = emptyList()),
-            layout.placementOf("com.example.jail")
+            Placement(listOf("rating"), Kind.IMPLEMENTATION, null, emptyList()),
+            layout.placementOf("x.data.exposed.rating")
         )
-        assertEquals(
-            Placement(module = null, role = Role.DATA, subpackages = listOf("exposed", "table")),
-            layout.placementOf("com.example.jail.data.exposed.table")
-        )
+        assertEquals(Placement(emptyList(), null, null, emptyList()), layout.placementOf("x.data.exposed"))
     }
 
     @Test
-    fun GIVEN_module_packages_WHEN_placed_THEN_resolves_module_and_role() {
-        assertEquals(
-            Placement(module = "offer", role = Role.MODEL, subpackages = emptyList()),
-            layout.placementOf("com.example.jail.offer.model")
-        )
-        assertEquals(
-            Placement(module = "offer", role = null, subpackages = emptyList()),
-            layout.placementOf("com.example.jail.offer")
-        )
-    }
+    fun GIVEN_default_root_package_WHEN_placed_THEN_every_package_is_below_it() {
+        val layout = UnitLayout("", UnitKind.CONTEXT)
 
-    @Test
-    fun GIVEN_packages_outside_the_layout_WHEN_placed_THEN_has_no_placement() {
-        assertNull(layout.placementOf("com.example.jail.presentation"))
-        assertNull(layout.placementOf("com.example.jail.offer.presentation"))
-        assertNull(layout.placementOf("com.example.jailhouse"))
-        assertNull(layout.placementOf("org.other"))
+        assertEquals(Placement(listOf("jail"), Kind.MODEL, "model", emptyList()), layout.placementOf("jail.model"))
     }
 }

@@ -1,14 +1,20 @@
 package ru.astrainteractive.klibs.rules.konsist.layout
 
 /**
- * The kind of build unit, which decides what may sit at its root and which checks apply.
+ * The kind of build unit, which decides the exceptions to the concept → kind shape.
  */
 internal enum class UnitKind(val cliName: String) {
     CONTEXT("context"),
     LIBRARY("library"),
     API("api"),
     CONTRACT("contract"),
-    ENTRY_POINT("entry-point");
+    ENTRY_POINT("entry-point"),
+
+    /**
+     * A unit that is wholly one technology's implementation (`data/exposed`): its concept packages hold the
+     * implementations directly.
+     */
+    TECHNOLOGY("technology");
 
     companion object {
         fun fromCliName(cliName: String): UnitKind? = entries.find { kind -> kind.cliName == cliName }
