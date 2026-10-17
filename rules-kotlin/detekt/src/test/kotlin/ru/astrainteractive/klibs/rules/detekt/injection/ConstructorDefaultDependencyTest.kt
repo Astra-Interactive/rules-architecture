@@ -57,4 +57,16 @@ internal class ConstructorDefaultDependencyTest {
 
         assertEquals(0, rule.lint(code).size)
     }
+
+    @Test
+    fun GIVEN_serializable_class_creating_default_WHEN_linted_THEN_reports_nothing() {
+        val code = """
+            import kotlinx.serialization.Serializable
+
+            @Serializable
+            class AstraRatingConfig(val killPlayer: KillPlayer = KillPlayer())
+        """.trimIndent()
+
+        assertEquals(0, rule.lint(code).size)
+    }
 }
