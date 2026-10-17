@@ -79,4 +79,21 @@ internal class KindNameInPackageTest {
 
         assertEquals(0, rule.lint(code).size)
     }
+
+    @Test
+    fun GIVEN_helper_util_and_manager_classes_WHEN_linted_THEN_reports_each() {
+        val code = """
+            package ru.astrainteractive.astrarating.core.util
+
+            class RatingHelper
+
+            object StringUtils
+
+            class CacheManager
+
+            class Utility
+        """.trimIndent()
+
+        assertEquals(3, rule.lint(code).size)
+    }
 }

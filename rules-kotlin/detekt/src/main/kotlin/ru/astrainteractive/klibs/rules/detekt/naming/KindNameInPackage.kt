@@ -10,7 +10,9 @@ import org.jetbrains.kotlin.psi.KtClassOrObject
  * Reports a type name that carries a kind word its package does not allow:
  * - `Service` outside a `service` package, the role of components the platform runs on its own lifecycle;
  * - the `Model` or `Entity` suffix in a `model` package, unless that package sits under `data`, where a
- *   technology keeps its own representation.
+ *   technology keeps its own representation;
+ * - the `Helper`, `Util`, `Utils` and `Manager` suffixes anywhere: a class with behaviour has a role, and the role
+ *   names it.
  */
 internal class KindNameInPackage(config: Config) : Rule(config, DESCRIPTION) {
 
@@ -22,6 +24,9 @@ internal class KindNameInPackage(config: Config) : Rule(config, DESCRIPTION) {
     }
 
     private fun findViolations(name: String, segments: List<String>): List<String> = buildList {
+        ROLELESS_SUFFIXES
+            .filter { suffix -> name.endsWith(suffix) }
+            .forEach { suffix -> add("Name '$name' after its role instead of the '$suffix' suffix.") }
         if (name.contains(SERVICE_WORD) && SERVICE_SEGMENT !in segments) {
             add("Move '$name' to a '$SERVICE_SEGMENT' package, or drop '$SERVICE_WORD' from its name.")
         }
@@ -51,6 +56,9 @@ internal class KindNameInPackage(config: Config) : Rule(config, DESCRIPTION) {
 
         @JvmField
         val MODEL_SUFFIXES = listOf("Model", "Entity")
+
+        @JvmField
+        val ROLELESS_SUFFIXES = listOf("Helper", "Util", "Utils", "Manager")
         const val DESCRIPTION = "Kind words in a type name match the package that holds the type."
     }
 }
