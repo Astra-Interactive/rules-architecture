@@ -92,6 +92,7 @@ dependencies {
 }
 
 val konsistReport = layout.buildDirectory.file("reports/konsist.tsv")
+val unitPath = path
 
 val konsistCheck = tasks.register<JavaExec>("konsistCheck") {
     val reportFile = konsistReport.get().asFile
@@ -100,6 +101,7 @@ val konsistCheck = tasks.register<JavaExec>("konsistCheck") {
     args(
         "--project-dir", projectDir.absolutePath,
         "--unit-kind", "context",
+        "--unit-path", unitPath,
         "--main", file("src/main/kotlin").absolutePath,
         "--test", file("src/test/kotlin").absolutePath,
         "--report", reportFile.absolutePath,
@@ -116,21 +118,23 @@ tasks.named("check") { dependsOn(konsistCheck) }
 | Option           | Value                                                                              |
 |------------------|------------------------------------------------------------------------------------|
 | `--project-dir`  | the unit's directory; report paths are relative to it                              |
-| `--unit-kind`    | `context`, `library`, `api`, `contract` or `entry-point`, see below                |
+| `--unit-kind`    | `context`, `library`, `api`, `contract`, `entry-point` or `technology`, see below  |
+| `--unit-path`    | the unit's Gradle path; finds the root package (`:modules:event-bukkit` → `…event`) |
 | `--main`         | a main source directory; repeat it for every source set (`src/commonMain/kotlin`)  |
 | `--test`         | a test source directory; repeatable                                                |
 | `--report`       | the file the violations are written to                                             |
-| `--root-package` | the unit's root package; detected from the sources when left out                   |
+| `--root-package` | the unit's root package, when the unit path does not find it                       |
 
-The unit kind decides which layout rules apply:
+Every unit has the shape `<unit root>[/<concept>]/<kind>/<File>`. The unit kind decides the exceptions:
 
-| Kind          | The unit                                                               |
-|---------------|------------------------------------------------------------------------|
-| `context`     | is a bounded context: use cases at the root, roles below it            |
-| `library`     | is a published library or `core`: capability packages at the root      |
-| `api`         | publishes a context's `<Context>Api` for other contexts                |
-| `contract`    | holds the wire types a server and its client share                     |
-| `entry-point` | holds the platform main class and the composition root                 |
+| Kind          | The unit                                                                                  |
+|---------------|-------------------------------------------------------------------------------------------|
+| `context`     | is a sub-context unit (`command`, `event-bukkit`, `gui/bukkit`)                           |
+| `library`     | is a published library or `core`                                                          |
+| `api`         | holds platform-free code other units call (`gui/api`); no file imports a platform type   |
+| `contract`    | holds the wire types a server and its client share                                        |
+| `entry-point` | holds the platform main class, which may sit at the root, and `RootModule`                |
+| `technology`  | is wholly one technology's implementation (`data/exposed`); its concepts hold implementations directly |
 
 ### Structure checks
 
@@ -167,9 +171,8 @@ val violations: List<StructureViolation> = checker.check(
 | `LocalOrInnerClass`            | a class inside a function body and an `inner class`                              |
 | `TimeAsPrimitive`              | a time-named value (`createdAt`, `timeoutMs`) typed as a number or a string      |
 | `KDocHtmlTag`                  | Javadoc HTML (`<p>`, `<code>`) in KDoc                                           |
-| `ForbiddenPackageSegment`      | a layer or kind word in a package (`domain`, `usecase`, `dto`, ...)              |
 | `ImplementationName`           | the `Impl` and `Interface` suffixes and the `I` prefix on an interface           |
-| `KindNameInPackage`            | `Service` outside a `service` package, `Model`/`Entity` in a domain `model`      |
+| `KindNameInPackage`            | `Service` outside a `service` package, `Model`/`Entity` in a domain `model`, `Helper`/`Util`/`Manager` names |
 
 ### detekt settings
 
@@ -179,27 +182,28 @@ types in `model`; `RedundantVisibilityModifier`; `WildcardImport` with no except
 
 ### Konsist checks
 
-| Check                     | Reports                                                                                     | Units        |
-|---------------------------|---------------------------------------------------------------------------------------------|--------------|
-| `RoleImportDirection`     | an import against the direction table: `model` depends on nothing, contracts on `model`, ... | context      |
-| `PlatformImport`          | a platform or framework import in a use case or a contract                                  | context      |
-| `LooseRootFile`           | anything at a context root but use cases, `<Context>Api` and `Default<Context>Api`          | context      |
-| `UseCaseShape`            | a use case with more than one public entry, or one that takes another use case              | context      |
-| `DefaultApiImplementsApi` | a `Default<Context>Api` that does not implement `<Context>Api` or is not at the root        | context      |
-| `ContractLevel`           | a repository outside `data`, an implementation on the contract level, a `database` package  | context      |
-| `EntryPointVisibility`    | a public command, listener, route or other entry point                                      | context      |
-| `ErrorPlacement`          | an error type outside `model` and outside a technology package                              | context      |
-| `DiPlacement`             | a DI module outside `di/`, a `di/` below a role, two DI modules in one package              | every unit   |
-| `NestedDataClass`         | a top-level data class used as a property type by exactly one class                         | every unit   |
-| `TestMirror`              | a test in another package than its owner                                                    | every unit   |
-| `FakePlacement`           | a `Fake*` outside a `fake/` package                                                         | every unit   |
-| `InMemoryPlacement`       | an `InMemory*` outside `data/memory` of the main sources                                    | every unit   |
+| Check                  | Reports                                                                                                   |
+|------------------------|-----------------------------------------------------------------------------------------------------------|
+| `KindShape`            | a file loose in the unit root or a concept package, a package below a kind package                        |
+| `KindImportDirection`  | an import against the first table of `arch-context.md`: `model` depends on nothing of its level, ...      |
+| `PlatformImport`       | a platform or ORM import in `model`, `api` or `usecase`, or anywhere in an `api` unit                     |
+| `UseCaseShape`         | `*UseCase` outside `usecase`, other names in `usecase`, more than one entry, a use case taking another    |
+| `ContractPlacement`    | a `*Repository` outside `api`, an implementation inside `api`, a `network`/`local`/`remote` package       |
+| `ForbiddenPackageName` | a forbidden word in a package created inside the unit; the root package may keep its unit's word          |
+| `UtilShape`            | a class or object in `util`, an extension function outside `util` and outside its receiver's file          |
+| `EntryPointVisibility` | a public class in a kind the platform invokes (`command`, `event`, `route`, `service`, `warmup`, ...)     |
+| `ErrorPlacement`       | an error type outside a `model` package                                                                   |
+| `DiPlacement`          | a `*Module` outside a `di` package                                                                        |
+| `NestedDataClass`      | a top-level data class used as a property type by exactly one class                                       |
+| `TestMirror`           | a test in another package than its owner                                                                  |
+| `FakePlacement`        | a `Fake*` outside a `fake` package                                                                        |
+| `InMemoryPlacement`    | an `InMemory*` outside a `memory` package of the main sources                                              |
 
 ### Structure checks
 
 | Check            | Reports                                                                                      |
 |------------------|----------------------------------------------------------------------------------------------|
-| `UnitDependency` | an `api` unit depending on an `impl` unit, any other non-entry unit depending on an `impl`, a `contract` unit depending on a project unit |
+| `UnitDependency` | a dependency on an `impl` unit or a feature's platform unit (`gui/bukkit`) outside the entry point, `core` depending on a feature, a `contract` unit depending on a project unit |
 | `UnitReadme`     | a unit without a `README.md` of one sentence                                                 |
 | `NestedUnit`     | a unit inside the directory of another unit                                                  |
 | `RootSources`    | sources in the root project                                                                  |
