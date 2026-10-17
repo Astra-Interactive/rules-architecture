@@ -60,4 +60,34 @@ internal class UnitDependencyTest {
             UnitDependency().check(contract).map { violation -> violation.subject }
         )
     }
+
+    @Test
+    fun GIVEN_units_depending_on_platform_units_WHEN_checked_THEN_only_core_platform_is_allowed() {
+        val gui = unit(
+            ":modules:gui:bukkit",
+            isEntryPoint = false,
+            dependencies = setOf(
+                ":modules:core:bukkit",
+                ":modules:gui:api",
+                ":modules:event-bukkit",
+                ":modules:menu:bukkit"
+            )
+        )
+
+        assertEquals(listOf(":modules:menu:bukkit"), UnitDependency().check(gui).map { violation -> violation.subject })
+    }
+
+    @Test
+    fun GIVEN_core_unit_depending_on_a_feature_WHEN_checked_THEN_reports_it() {
+        val core = unit(
+            ":modules:core:bukkit",
+            isEntryPoint = false,
+            dependencies = setOf(":modules:core:api", ":modules:gui:api")
+        )
+
+        assertEquals(
+            listOf("core depends on no feature unit: drop :modules:gui:api."),
+            UnitDependency().check(core).map { violation -> violation.message }
+        )
+    }
 }
