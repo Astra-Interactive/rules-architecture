@@ -1,8 +1,6 @@
 package ru.astrainteractive.klibs.rules.gradle.linter.model
 
 /**
- * One violation of the architecture rules, from the Konsist checks or the structure checks.
- *
  * @property path the file or directory, relative to the project directory
  */
 internal data class ArchitectureFinding(

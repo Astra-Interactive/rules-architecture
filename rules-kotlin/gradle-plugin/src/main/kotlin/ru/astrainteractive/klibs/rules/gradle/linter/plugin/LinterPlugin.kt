@@ -25,11 +25,6 @@ import ru.astrainteractive.klibs.rules.gradle.linter.util.productionProjectDepen
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
 import java.util.Properties
 
-/**
- * One linter for the architecture rules: detekt with the shared configuration, the architecture detekt rules
- * and their settings, and `architectureCheck`, which runs the Konsist checks of the unit's package layout and
- * the structure checks of its directory and dependencies. `check` depends on both.
- */
 internal class LinterPlugin : Plugin<Project> {
     private fun readResource(name: String): String {
         val stream = javaClass.classLoader.getResourceAsStream(name)

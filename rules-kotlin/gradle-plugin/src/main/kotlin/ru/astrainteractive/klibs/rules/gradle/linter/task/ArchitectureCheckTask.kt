@@ -12,14 +12,8 @@ import org.gradle.work.DisableCachingByDefault
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
 import ru.astrainteractive.klibs.rules.gradle.linter.plugin.LinterPlugin
 
-/**
- * Fails the build on every architecture violation the baseline does not list, and writes them to [reportFile].
- */
 @DisableCachingByDefault(because = "The check is cheap next to the cost of storing a failing result")
 internal abstract class ArchitectureCheckTask : ArchitectureTask() {
-    /**
-     * The baseline written by `architectureBaseline`; a missing file accepts nothing.
-     */
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.NONE)
     abstract val baseline: ConfigurableFileCollection

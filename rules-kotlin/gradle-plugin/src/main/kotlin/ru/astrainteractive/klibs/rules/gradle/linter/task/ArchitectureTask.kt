@@ -26,10 +26,6 @@ import ru.astrainteractive.klibs.rules.structure.unit.StructureChecker
 import java.io.File
 import javax.inject.Inject
 
-/**
- * Finds the architecture violations of one build unit: the Konsist checks of its sources, run in a separate
- * JVM because Konsist embeds the Kotlin compiler, and the structure checks of its directory and dependencies.
- */
 internal abstract class ArchitectureTask : DefaultTask() {
     @get:Classpath
     abstract val konsistClasspath: ConfigurableFileCollection
@@ -100,6 +96,7 @@ internal abstract class ArchitectureTask : DefaultTask() {
         val mainDirectories = sourceDirectories(isTest = false)
         if (rootOfBuild.get() || mainDirectories.isEmpty()) return emptyList()
         val reportFile = File(temporaryDir, KONSIST_REPORT)
+        // Konsist embeds the Kotlin compiler, so it runs in a JVM of its own
         execOperations.javaexec { spec ->
             spec.classpath = konsistClasspath
             spec.mainClass.set(KONSIST_MAIN_CLASS)

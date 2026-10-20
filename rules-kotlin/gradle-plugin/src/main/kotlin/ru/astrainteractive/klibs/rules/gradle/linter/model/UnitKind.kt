@@ -1,10 +1,5 @@
 package ru.astrainteractive.klibs.rules.gradle.linter.model
 
-/**
- * The kind of build unit, which decides the layout rules the Konsist checks apply.
- *
- * @property cliName the value of `linter.unitKind` and of the Konsist `--unit-kind` option
- */
 internal enum class UnitKind(val cliName: String) {
     CONTEXT("context"),
     LIBRARY("library"),

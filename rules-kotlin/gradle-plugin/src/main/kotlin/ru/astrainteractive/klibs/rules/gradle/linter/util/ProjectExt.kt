@@ -29,11 +29,6 @@ private fun Project.isEntryPointByConvention(): Boolean {
         .or(path.startsWith(ENTRY_POINT_PATH_PREFIX))
 }
 
-/**
- * The unit kind by convention: the path segment `api` or `contract`, a technology name (`data/exposed`), an
- * application plugin or a path under `:instances` for an entry point, explicit API strict for a library, a
- * context otherwise.
- */
 internal fun Project.detectUnitKind(): UnitKind {
     val unitName = path.substringAfterLast(':')
     return when {
@@ -52,9 +47,6 @@ private fun isProductionConfiguration(name: String): Boolean {
         .and(!name.contains("test", ignoreCase = true))
 }
 
-/**
- * Paths of the projects the production code of this project depends on; test configurations are left out.
- */
 internal fun Project.productionProjectDependencies(): Set<String> {
     return configurations
         .filter { configuration -> isProductionConfiguration(configuration.name) }
