@@ -14,8 +14,7 @@ kotlin {
     explicitApi()
 }
 
-// TestKit runs the plugins in a separate Gradle daemon, which kover does not instrument, so the gate holds the
-// classes that need no Gradle: the models. The Gradle-facing classes are covered by the TestKit tests.
+// TestKit runs out of process, so kover sees only the models
 kover {
     reports {
         filters {
@@ -43,7 +42,7 @@ dependencies {
 
     implementation(libs.detekt.gradle)
     implementation(projects.structure)
-    // The linter reads detekt-architecture.yml from the jar of the rules
+    // The linter reads detekt-architecture.yml from the rules jar
     runtimeOnly(projects.detekt)
 
     testImplementation(gradleTestKit())
@@ -52,11 +51,11 @@ dependencies {
     testImplementation(libs.tests.junit.jupiter)
     testRuntimeOnly(libs.tests.junit.platform.launcher)
 
-    // The plugins read Kotlin Gradle plugin types, which stay compileOnly in production
+    // Kotlin Gradle plugin is compileOnly, so the tests add it back
     add(testPluginDependencies.name, libs.kotlin.gradle)
 }
 
-// The linter resolves the rules at the version of the plugin itself, so the plugin has to know it at runtime.
+// The linter resolves the rules at its own version
 val generateRulesVersion = tasks.register<WriteProperties>("generateRulesVersion") {
     destinationFile = layout.buildDirectory.file("generated/klibs-rules/klibs-rules.properties")
     property("version", project.version.toString())
@@ -101,6 +100,6 @@ tasks.withType<Detekt>().configureEach {
 
 tasks.test {
     useJUnitPlatform()
-    // The linter tests resolve the rules at the version of the plugin, which is not on Maven Central before its release
+    // The tests resolve the rules from Maven Local: this version is not on Central yet
     dependsOn(":detekt:publishToMavenLocal", ":konsist:publishToMavenLocal", ":structure:publishToMavenLocal")
 }

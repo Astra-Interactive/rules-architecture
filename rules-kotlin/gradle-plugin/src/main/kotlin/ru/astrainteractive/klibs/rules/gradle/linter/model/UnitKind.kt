@@ -8,8 +8,7 @@ internal enum class UnitKind(val cliName: String) {
     ENTRY_POINT("entry-point"),
 
     /**
-     * A unit that is wholly one technology's implementation (`data/exposed`): its concept packages hold the
-     * implementations directly.
+     * Concept packages hold the implementations directly.
      */
     TECHNOLOGY("technology");
 

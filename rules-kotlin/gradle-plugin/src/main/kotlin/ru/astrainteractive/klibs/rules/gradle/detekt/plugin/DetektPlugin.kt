@@ -44,7 +44,6 @@ internal class DetektPlugin : Plugin<Project> {
         }
 
         target.tasks.withType(Detekt::class.java).configureEach { task ->
-            // Disable caching
             task.outputs.upToDateWhen { false }
 
             task.reports { reports ->
@@ -68,7 +67,6 @@ internal class DetektPlugin : Plugin<Project> {
 
             task.allRules.set(true)
 
-            // Target version of the generated JVM bytecode. It is used for type resolution.
             task.jvmTarget.set(extension.jvmTarget)
         }
 

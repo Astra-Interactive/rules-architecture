@@ -4,8 +4,7 @@ import org.gradle.api.provider.Property
 
 public abstract class DetektRulesExtension {
     /**
-     * The JVM target detekt resolves types against, such as `17`. Taken from the Kotlin JVM target of the project
-     * when it has one, and from the JVM that runs Gradle otherwise.
+     * Falls back to the Kotlin JVM target of the project, then to the JVM that runs Gradle.
      */
     public abstract val jvmTarget: Property<String>
 }

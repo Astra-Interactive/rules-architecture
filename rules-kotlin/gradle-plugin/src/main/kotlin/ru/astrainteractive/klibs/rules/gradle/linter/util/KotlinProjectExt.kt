@@ -5,8 +5,7 @@ import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 import org.jetbrains.kotlin.gradle.dsl.KotlinBaseExtension
 
 /**
- * Call it only when a Kotlin plugin is applied: a build without Kotlin does not have the Kotlin Gradle plugin
- * types this loads.
+ * Call it only when a Kotlin plugin is applied.
  */
 internal fun Project.explicitApiMode(): String? =
     when (extensions.findByType(KotlinBaseExtension::class.java)?.explicitApi) {

@@ -17,8 +17,7 @@ internal class IsolatedProjectsBuild(private val rootDirectory: File) {
     fun file(path: String): File = File(rootDirectory, path)
 
     /**
-     * Lets the build download dependencies, for a plugin that resolves a tool at execution time; the TestKit
-     * Gradle home starts with an empty cache.
+     * The TestKit Gradle home starts empty, so tools resolved at execution time need the network.
      */
     fun online(): IsolatedProjectsBuild {
         offline = false
@@ -48,7 +47,7 @@ internal class IsolatedProjectsBuild(private val rootDirectory: File) {
             content = """
                 dependencyResolutionManagement {
                     repositories {
-                        // The rules of the version under test are published here by the test task
+                        // The test task publishes the rules here
                         mavenLocal {
                             content { includeGroup("ru.astrainteractive.klibs.rules") }
                         }

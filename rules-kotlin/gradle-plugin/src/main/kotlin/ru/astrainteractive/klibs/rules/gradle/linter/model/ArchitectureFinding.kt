@@ -1,8 +1,5 @@
 package ru.astrainteractive.klibs.rules.gradle.linter.model
 
-/**
- * @property path the file or directory, relative to the project directory
- */
 internal data class ArchitectureFinding(
     val rule: String,
     val path: String,
@@ -10,7 +7,7 @@ internal data class ArchitectureFinding(
     val message: String
 ) {
     /**
-     * Identifies the finding in a baseline: the message may change wording, the rule, path and subject do not.
+     * Leaves the message out, so rewording a rule keeps the baseline valid.
      */
     val baselineKey: String
         get() = listOf(rule, path, subject).joinToString(separator = FIELD_SEPARATOR)
@@ -22,7 +19,7 @@ internal data class ArchitectureFinding(
         private const val FIELD_COUNT = 4
 
         /**
-         * Parses a line of the Konsist report, `rule<TAB>path<TAB>subject<TAB>message`.
+         * Parses `rule<TAB>path<TAB>subject<TAB>message`.
          */
         fun parse(line: String): ArchitectureFinding {
             val fields = line.split(FIELD_SEPARATOR, limit = FIELD_COUNT)
