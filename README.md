@@ -16,18 +16,21 @@ sources and tell you which file breaks which rule and how to fix it.
   levels, DI placement, test mirroring and more.
 - **Unit structure checks**: the unit graph (`api` never depends on `impl`), one-sentence unit READMEs, no unit
   nested in another.
+- **Gradle plugins**: one plugin that applies detekt with the rules and runs the Konsist and structure checks
+  of every unit in `check`, with a baseline for old code.
 - **Multiplatform**: the detekt rules read syntax only and the Konsist checks parse source directories, so both
   work on `commonMain` as well as on JVM sources.
 
 ## 🚀 Installation
 
-Three artifacts, one version:
+Four artifacts, one version:
 
-| Artifact                                    | Use it for                                     |
-|---------------------------------------------|------------------------------------------------|
-| `ru.astrainteractive.klibs.rules:detekt`    | detekt plugin with the rules and their settings |
-| `ru.astrainteractive.klibs.rules:konsist`   | Konsist checks, run from the command line      |
-| `ru.astrainteractive.klibs.rules:structure` | structure checks, called from your build logic |
+| Artifact                                       | Use it for                                                      |
+|------------------------------------------------|-----------------------------------------------------------------|
+| `ru.astrainteractive.klibs.rules:gradle-plugin` | Gradle plugins that wire the three artifacts below into a build |
+| `ru.astrainteractive.klibs.rules:detekt`       | detekt plugin with the rules and their settings                 |
+| `ru.astrainteractive.klibs.rules:konsist`      | Konsist checks, run from the command line                       |
+| `ru.astrainteractive.klibs.rules:structure`    | structure checks, called from your build logic                  |
 
 #### Version catalogs
 
@@ -42,6 +45,59 @@ klibs-rules-structure = { module = "ru.astrainteractive.klibs.rules:structure", 
 ```
 
 ## 🛠️ Basic Usage
+
+### Gradle plugins
+
+Two plugins, both from `ru.astrainteractive.klibs.rules:gradle-plugin`, published to Maven Central. Add
+`mavenCentral()` to the `pluginManagement` repositories, then apply a plugin to every unit:
+
+```kotlin
+plugins {
+    id("ru.astrainteractive.klibs.rules.gradle.linter") version "<version>"
+}
+```
+
+| Plugin id                                     | Does                                                                              |
+|-----------------------------------------------|-----------------------------------------------------------------------------------|
+| `ru.astrainteractive.klibs.rules.gradle.detekt` | applies detekt with a bundled `detekt.yml`, the ktlint wrapper and the compose rules |
+| `ru.astrainteractive.klibs.rules.gradle.linter` | applies the detekt plugin and the architecture rules, and adds `architectureCheck`   |
+
+**Detekt plugin.**
+
+- Applies `dev.detekt` and registers a `detektFormat` task with auto-correction on.
+- Writes the bundled `detekt.yml` to the root project's `build/detekt` once for the whole build, and enables
+  HTML reports, parallel execution and `allRules`.
+- Resolves types against the Kotlin JVM target of the project, or the JVM that runs Gradle when there is none.
+  Set another target with `detektRules { jvmTarget.set("21") }`.
+
+**Linter plugin.** Apply it instead of the detekt plugin.
+
+- Adds the architecture detekt rules and their `detekt-architecture.yml`, listed after `detekt.yml` so they win,
+  and passes the module's explicit API mode to the `detekt` task.
+- Registers `architectureCheck`, which `check` depends on: the Konsist checks of the unit's package layout, run in
+  a separate JVM, and the structure checks of its README, nested units and project dependencies.
+- Registers `architectureBaseline`, which writes the current violations to `architecture-baseline.txt`; the check
+  accepts what the file lists, so old code can stay as it is.
+
+The unit kind decides which layout rules apply. It is detected by convention and can be set:
+
+```kotlin
+linter {
+    unitKind.set("library") // context, library, api, contract, entry-point or technology
+    rootPackage.set("ru.astrainteractive.aspekt.module.jail")
+}
+```
+
+| Detected as       | When                                                                                     |
+|-------------------|------------------------------------------------------------------------------------------|
+| `api`, `contract` | the last segment of the project path                                                     |
+| `technology`      | a technology name as the last segment of the project path (`data/exposed`, `data/room`) |
+| `entry-point`     | the `application` or `com.android.application` plugin, or a path under `:instances`      |
+| `library`         | Kotlin explicit API mode strict                                                          |
+| `context`         | anything else                                                                            |
+
+The plugins use the rules of their own version, so a version of the plugin brings the same version of the
+`detekt`, `konsist` and `structure` artifacts. The sections below are for builds that wire the artifacts by hand.
 
 ### detekt rules
 
@@ -214,16 +270,17 @@ types in `model`; `RedundantVisibilityModifier`; `WildcardImport` with no except
 
 | Path                     | Holds                                                                     |
 |--------------------------|---------------------------------------------------------------------------|
-| `rules-kotlin/detekt`    | the detekt rules, their `config/config.yml` and `detekt-architecture.yml` |
-| `rules-kotlin/konsist`   | the Konsist checks and their command-line entry point                     |
-| `rules-kotlin/structure` | the structure checks                                                      |
+| `rules-kotlin/detekt`      | the detekt rules, their `config/config.yml` and `detekt-architecture.yml` |
+| `rules-kotlin/gradle-plugin` | the detekt and linter Gradle plugins                                    |
+| `rules-kotlin/konsist`     | the Konsist checks and their command-line entry point                     |
+| `rules-kotlin/structure`   | the structure checks                                                      |
 
 Build and test locally:
 
 ```shell
 cd rules-kotlin
 ./gradlew check                # tests, 100% line coverage, detekt with these very rules
-./gradlew publishToMavenLocal  # ru.astrainteractive.klibs.rules:{detekt,konsist,structure}
+./gradlew publishToMavenLocal  # ru.astrainteractive.klibs.rules:{detekt,gradle-plugin,konsist,structure}
 ```
 
 ---
