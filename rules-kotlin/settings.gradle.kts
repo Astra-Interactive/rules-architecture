@@ -19,6 +19,8 @@ rootProject.name = "rules-kotlin"
 
 include(":detekt")
 
+include(":gradle-plugin")
+
 include(":konsist")
 
 include(":structure")
