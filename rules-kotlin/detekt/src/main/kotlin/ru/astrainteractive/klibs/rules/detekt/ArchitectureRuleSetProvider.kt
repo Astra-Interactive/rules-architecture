@@ -6,6 +6,7 @@ import dev.detekt.api.RuleSetProvider
 import ru.astrainteractive.klibs.rules.detekt.declaration.DataClassDefaultValue
 import ru.astrainteractive.klibs.rules.detekt.declaration.LocalOrInnerClass
 import ru.astrainteractive.klibs.rules.detekt.declaration.NamespaceObject
+import ru.astrainteractive.klibs.rules.detekt.formatting.BooleanOperatorWrapping
 import ru.astrainteractive.klibs.rules.detekt.formatting.ExpressionBodyOnOneLine
 import ru.astrainteractive.klibs.rules.detekt.injection.ConstructorDefaultDependency
 import ru.astrainteractive.klibs.rules.detekt.kdoc.KDocHtmlTag
@@ -29,6 +30,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ruleSetId,
             listOf(
                 ::AnonymousTuple,
+                ::BooleanOperatorWrapping,
                 ::CalleeBeforeCaller,
                 ::ConstructorDefaultDependency,
                 ::DataClassDefaultValue,

@@ -231,6 +231,7 @@ val violations: List<StructureViolation> = checker.check(
 | `ImplementationName`           | the `Impl` and `Interface` suffixes and the `I` prefix on an interface           |
 | `KindNameInPackage`            | `Service` outside a `service` package, `Model`/`Entity` in a domain `model`, `Helper`/`Util`/`Manager` names |
 | `ExpressionBodyOnOneLine`      | an expression body (`= …`) with a line break after the `=` or inside the body     |
+| `BooleanOperatorWrapping` | a line break on either side of `&&` or `||` |
 
 ### detekt settings
 
