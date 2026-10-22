@@ -15,6 +15,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.declaration.UseCaseShape
 import ru.astrainteractive.klibs.rules.konsist.check.direction.KindImportDirection
 import ru.astrainteractive.klibs.rules.konsist.check.direction.PlatformImport
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
+import ru.astrainteractive.klibs.rules.konsist.check.placement.ComposeKindWithoutCompose
 import ru.astrainteractive.klibs.rules.konsist.check.placement.ContractPlacement
 import ru.astrainteractive.klibs.rules.konsist.check.placement.ContractUnitShape
 import ru.astrainteractive.klibs.rules.konsist.check.placement.CoreShape
@@ -51,6 +52,7 @@ public fun main(args: Array<String>) {
     )
     val checker = ArchitectureChecker(
         listOf(
+            ComposeKindWithoutCompose(),
             ContractName(),
             ContractPlacement(),
             ContractUnitShape(),
