@@ -300,6 +300,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `ContractUnitShape` | in a `contract` unit, a class or interface that is not `@Serializable`, a function with a body outside an object |
 | `ComposeKindWithoutCompose` | a `composable`, `viewmodel` or `theme` package in a unit that imports no Compose |
 | `PlatformPackage` | a package named after a platform (`android`, `ios`, `jvm`, …) in a unit with several main source sets |
+| `DuplicateRepresentation` | a technology data class with the same constructor parameter names as a `model` data class |
 
 ### Structure checks
 
