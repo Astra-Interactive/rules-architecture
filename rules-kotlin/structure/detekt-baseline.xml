@@ -2,6 +2,17 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
+    <ID>ArgumentPerLine:NestedUnit.kt:NestedUnit$StructureViolation(RULE, nestedPath, nestedPath, message)</ID>
+    <ID>ArgumentPerLine:RootSources.kt:RootSources$StructureViolation(RULE, SOURCES, SOURCES, message)</ID>
+    <ID>ArgumentPerLine:UnitDependency.kt:UnitDependency$StructureViolation(RULE, BUILD_FILE, dependency, message)</ID>
+    <ID>ArgumentPerLine:UnitDependency.kt:UnitDependency.Companion$setOf("bukkit", "bungee", "fabric", "forge", "neoforge", "paper", "spigot", "velocity")</ID>
+    <ID>ArgumentPerLine:UnitDependencyTest.kt:UnitDependencyTest$setOf(":economy:impl", ":economy:api", ":core")</ID>
+    <ID>ArgumentPerLine:UnitDependencyTest.kt:UnitDependencyTest$unit(":dictionary:contract", isEntryPoint = false, dependencies = setOf(":core", ":kernel"))</ID>
+    <ID>ArgumentPerLine:UnitDependencyTest.kt:UnitDependencyTest$unit(":instances:bukkit", isEntryPoint = true, dependencies = setOf(":jail:impl", ":core"))</ID>
+    <ID>ArgumentPerLine:UnitDependencyTest.kt:UnitDependencyTest$unit(":jail:impl", isEntryPoint = false, dependencies = setOf(":economy:impl", ":economy:api"))</ID>
+    <ID>ArgumentPerLine:UnitReadme.kt:UnitReadme$StructureViolation(RULE, README, README, message)</ID>
+    <ID>ArgumentPerLine:UnitReadmeTest.kt:UnitReadmeTest$readme("# jail", "", "Jails players for a sentence and frees them.")</ID>
+    <ID>ArgumentPerLine:UnitReadmeTest.kt:UnitReadmeTest$readme("# jail", "", "Jails players. Frees them later!")</ID>
     <ID>ExpressionBodyOnOneLine:NestedUnit.kt:NestedUnit$private fun isUnitDirectory: Boolean</ID>
     <ID>ExpressionBodyOnOneLine:NestedUnitTest.kt:NestedUnitTest$private fun unit: BuildUnit</ID>
     <ID>ExpressionBodyOnOneLine:RootSourcesTest.kt:RootSourcesTest$private fun unit: BuildUnit</ID>

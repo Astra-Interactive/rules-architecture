@@ -2,6 +2,9 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
+    <ID>ArgumentPerLine:ArchitectureTask.kt:ArchitectureTask$ArchitectureFinding(violation.rule, violation.path, violation.subject, violation.message)</ID>
+    <ID>ArgumentPerLine:ArchitectureTask.kt:ArchitectureTask$konsistArguments(kind, mainDirectories, reportFile)</ID>
+    <ID>ArgumentPerLine:ArchitectureTask.kt:ArchitectureTask$listOf(NestedUnit(), RootSources(), UnitDependency(), UnitReadme())</ID>
     <ID>ExpressionBodyOnOneLine:ArchitectureTask.kt:ArchitectureTask$private fun konsistArguments: List&lt;String></ID>
     <ID>ExpressionBodyOnOneLine:ArchitectureTask.kt:ArchitectureTask$private fun sourceDirectories: List&lt;File></ID>
   </CurrentIssues>

@@ -2,6 +2,8 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
+    <ID>ArgumentPerLine:KindNameInPackage.kt:KindNameInPackage.Companion$listOf("Helper", "Util", "Utils", "Manager")</ID>
+    <ID>ArgumentPerLine:TimeAsPrimitive.kt:TimeAsPrimitive.Companion$setOf("Long", "Int", "String", "Double", "Float")</ID>
     <ID>ExpressionBodyOnOneLine:CalleeBeforeCaller.kt:CalleeBeforeCaller$fun callsBack: Boolean</ID>
     <ID>ExpressionBodyOnOneLine:CalleeBeforeCaller.kt:CalleeBeforeCaller$private fun calledNames: Set&lt;String></ID>
     <ID>ExpressionBodyOnOneLine:ImplementationName.kt:ImplementationName$private fun findViolations: List&lt;String></ID>

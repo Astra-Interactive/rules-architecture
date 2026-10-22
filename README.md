@@ -232,6 +232,7 @@ val violations: List<StructureViolation> = checker.check(
 | `KindNameInPackage`            | `Service` outside a `service` package, `Model`/`Entity` in a domain `model`, `Helper`/`Util`/`Manager` names |
 | `ExpressionBodyOnOneLine`      | an expression body (`= …`) with a line break after the `=` or inside the body     |
 | `BooleanOperatorWrapping` | a line break on either side of `&&` or `||` |
+| `ArgumentPerLine` | a call or constructor call with three or more arguments in its parentheses, not each on its own line |
 
 ### detekt settings
 
