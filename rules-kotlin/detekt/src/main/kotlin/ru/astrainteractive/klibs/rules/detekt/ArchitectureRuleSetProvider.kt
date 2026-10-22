@@ -31,6 +31,7 @@ import ru.astrainteractive.klibs.rules.detekt.naming.TestFunctionName
 import ru.astrainteractive.klibs.rules.detekt.ordering.CalleeBeforeCaller
 import ru.astrainteractive.klibs.rules.detekt.ordering.ConstantOutsideCompanion
 import ru.astrainteractive.klibs.rules.detekt.ordering.DeclarationOrder
+import ru.astrainteractive.klibs.rules.detekt.result.GetOrThrowInMain
 import ru.astrainteractive.klibs.rules.detekt.result.RunCatchingCancellation
 import ru.astrainteractive.klibs.rules.detekt.result.ThrowInsideRunCatching
 import ru.astrainteractive.klibs.rules.detekt.time.TimeAsPrimitive
@@ -60,6 +61,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::ExplicitInvoke,
                 ::ExpressionBodyOnOneLine,
                 ::FunctionVerb,
+                ::GetOrThrowInMain,
                 ::ImplementationName,
                 ::ImplicitItParameter,
                 ::ImpureUpdateLambda,

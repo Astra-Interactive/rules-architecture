@@ -28,6 +28,8 @@ architecture:
     active: true
   FunctionVerb:
     active: true
+  GetOrThrowInMain:
+    active: true
   ImplementationName:
     active: true
   ImplicitItParameter:
