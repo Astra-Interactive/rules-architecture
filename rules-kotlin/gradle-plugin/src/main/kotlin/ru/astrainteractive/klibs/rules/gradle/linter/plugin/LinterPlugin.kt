@@ -92,9 +92,11 @@ internal class LinterPlugin : Plugin<Project> {
         }
     }
 
-    private fun Project.architectureInputs(): FileCollection = fileTree(projectDir) { tree ->
-        tree.include("src/**/*.kt", "src/**/*.java", "README.md", "**/build.gradle.kts", "**/build.gradle")
-        tree.exclude("**/build/**", "**/.gradle/**")
+    private fun Project.architectureInputs(): FileCollection {
+        return fileTree(projectDir) { tree ->
+            tree.include("src/**/*.kt", "src/**/*.java", "README.md", "**/build.gradle.kts", "**/build.gradle")
+            tree.exclude("**/build/**", "**/.gradle/**")
+        }
     }
 
     private fun ArchitectureTask.configureFrom(

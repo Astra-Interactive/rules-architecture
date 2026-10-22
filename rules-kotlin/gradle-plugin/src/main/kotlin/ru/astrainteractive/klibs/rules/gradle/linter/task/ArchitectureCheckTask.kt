@@ -21,17 +21,21 @@ internal abstract class ArchitectureCheckTask : ArchitectureTask() {
     @get:OutputFile
     abstract val reportFile: RegularFileProperty
 
-    private fun readBaseline(): Set<String> = baseline.files
-        .filter { file -> file.isFile }
-        .flatMap { file -> file.readLines() }
-        .filter { line -> line.isNotBlank() }
-        .toSet()
+    private fun readBaseline(): Set<String> {
+        return baseline.files
+            .filter { file -> file.isFile }
+            .flatMap { file -> file.readLines() }
+            .filter { line -> line.isNotBlank() }
+            .toSet()
+    }
 
-    private fun failureMessage(findings: List<ArchitectureFinding>): String = buildString {
-        appendLine("Architecture check found ${findings.size} violation(s) in ${projectPath.get()}:")
-        findings.forEach { finding -> appendLine("  ${finding.describe()}") }
-        val baselineTask = "${projectPath.get().removeSuffix(":")}:${LinterPlugin.BASELINE_TASK_NAME}"
-        append("Fix them, or run $baselineTask to accept the current ones.")
+    private fun failureMessage(findings: List<ArchitectureFinding>): String {
+        return buildString {
+            appendLine("Architecture check found ${findings.size} violation(s) in ${projectPath.get()}:")
+            findings.forEach { finding -> appendLine("  ${finding.describe()}") }
+            val baselineTask = "${projectPath.get().removeSuffix(":")}:${LinterPlugin.BASELINE_TASK_NAME}"
+            append("Fix them, or run $baselineTask to accept the current ones.")
+        }
     }
 
     @TaskAction

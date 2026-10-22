@@ -24,8 +24,9 @@ internal val KoFileDeclaration.baseName: String
 internal val KoTypeDeclaration.simpleName: String
     get() = text.removeSuffix("?").substringBefore('<').substringAfterLast('.')
 
-internal fun KoFileDeclaration.topLevelClasses(): List<KoClassDeclaration> =
-    classes(includeNested = false, includeLocal = false)
+internal fun KoFileDeclaration.topLevelClasses(): List<KoClassDeclaration> {
+    return classes(includeNested = false, includeLocal = false)
+}
 
 internal fun KoFileDeclaration.topLevelClassAndObjectNames(): List<String> {
     return topLevelClasses().map { declaration -> declaration.name } +

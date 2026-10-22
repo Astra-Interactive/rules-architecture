@@ -102,25 +102,27 @@ class DetektPluginTest {
             .withModule(name = "library", buildScript = moduleScript)
     }
 
-    private fun jvmTargetScript(applyKotlin: Boolean, configuration: String): String = """
-        import dev.detekt.gradle.Detekt
+    private fun jvmTargetScript(applyKotlin: Boolean, configuration: String): String {
+        return """
+            import dev.detekt.gradle.Detekt
 
-        plugins {
-            ${if (applyKotlin) """id("org.jetbrains.kotlin.jvm")""" else "`java-library`"}
-            id("ru.astrainteractive.klibs.rules.gradle.detekt")
-        }
+            plugins {
+                ${if (applyKotlin) """id("org.jetbrains.kotlin.jvm")""" else "`java-library`"}
+                id("ru.astrainteractive.klibs.rules.gradle.detekt")
+            }
 
-        $configuration
+            $configuration
 
-        val detektJvmTarget = tasks.named<Detekt>("detekt").get().jvmTarget
-        val jvmTargetReport = layout.buildDirectory.file("$JVM_TARGET_REPORT_NAME")
-        tasks.register("reportJvmTarget") {
-            val jvmTarget = detektJvmTarget
-            val reportFile = jvmTargetReport
-            outputs.file(reportFile)
-            doLast { reportFile.get().asFile.writeText(jvmTarget.get()) }
-        }
-    """.trimIndent()
+            val detektJvmTarget = tasks.named<Detekt>("detekt").get().jvmTarget
+            val jvmTargetReport = layout.buildDirectory.file("$JVM_TARGET_REPORT_NAME")
+            tasks.register("reportJvmTarget") {
+                val jvmTarget = detektJvmTarget
+                val reportFile = jvmTargetReport
+                outputs.file(reportFile)
+                doLast { reportFile.get().asFile.writeText(jvmTarget.get()) }
+            }
+        """.trimIndent()
+    }
 
     private fun IsolatedProjectsBuild.reportedJvmTarget(): String {
         run(":library:reportJvmTarget")

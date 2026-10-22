@@ -35,11 +35,14 @@ internal data class CliArguments(
             return values.single()
         }
 
-        private fun Map<String, List<String>>.required(name: String): String =
-            requireNotNull(single(name)) { "$name is required" }
+        private fun Map<String, List<String>>.required(name: String): String {
+            return requireNotNull(single(name)) { "$name is required" }
+        }
 
-        private fun parseUnitKind(name: String): UnitKind = requireNotNull(UnitKind.fromCliName(name)) {
-            "Unknown unit kind '$name', expected one of ${UnitKind.entries.joinToString { kind -> kind.cliName }}"
+        private fun parseUnitKind(name: String): UnitKind {
+            return requireNotNull(UnitKind.fromCliName(name)) {
+                "Unknown unit kind '$name', expected one of ${UnitKind.entries.joinToString { kind -> kind.cliName }}"
+            }
         }
 
         fun parse(arguments: List<String>): CliArguments {

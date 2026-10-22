@@ -17,10 +17,12 @@ internal class DetektPlugin : Plugin<Project> {
         return stream.use { input -> input.readBytes().decodeToString() }
     }
 
-    private fun Project.detektConfigFile(): File = isolated.rootProject
-        .projectDirectory
-        .file("build/detekt/$DETEKT_CONFIG_FILE_NAME")
-        .asFile
+    private fun Project.detektConfigFile(): File {
+        return isolated.rootProject
+            .projectDirectory
+            .file("build/detekt/$DETEKT_CONFIG_FILE_NAME")
+            .asFile
+    }
 
     override fun apply(target: Project) {
         target.pluginManager.apply("dev.detekt")

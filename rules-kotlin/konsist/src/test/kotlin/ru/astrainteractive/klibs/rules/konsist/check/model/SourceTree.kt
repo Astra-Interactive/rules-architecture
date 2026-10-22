@@ -22,18 +22,22 @@ internal class SourceTree(private val projectDirectory: File) {
         return this
     }
 
-    fun main(packageName: String, fileName: String, code: String): SourceTree =
-        write(mainDirectory, packageName, fileName, code)
+    fun main(packageName: String, fileName: String, code: String): SourceTree {
+        return write(mainDirectory, packageName, fileName, code)
+    }
 
-    fun test(packageName: String, fileName: String, code: String): SourceTree =
-        write(testDirectory, packageName, fileName, code)
+    fun test(packageName: String, fileName: String, code: String): SourceTree {
+        return write(testDirectory, packageName, fileName, code)
+    }
 
-    fun load(kind: UnitKind, rootPackage: String? = null, unitPath: String? = null): UnitSources = UnitSources.load(
-        kind = kind,
-        rootPackage = rootPackage,
-        unitPath = unitPath,
-        mainDirectories = listOf(mainDirectory),
-        testDirectories = listOf(testDirectory),
-        projectDirectory = projectDirectory
-    )
+    fun load(kind: UnitKind, rootPackage: String? = null, unitPath: String? = null): UnitSources {
+        return UnitSources.load(
+            kind = kind,
+            rootPackage = rootPackage,
+            unitPath = unitPath,
+            mainDirectories = listOf(mainDirectory),
+            testDirectories = listOf(testDirectory),
+            projectDirectory = projectDirectory
+        )
+    }
 }

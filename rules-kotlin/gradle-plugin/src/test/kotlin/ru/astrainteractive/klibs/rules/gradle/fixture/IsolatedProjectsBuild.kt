@@ -61,11 +61,13 @@ internal class IsolatedProjectsBuild(private val rootDirectory: File) {
         writeFile(path = "gradle.properties", content = GRADLE_PROPERTIES)
     }
 
-    private fun runner(arguments: Array<out String>): GradleRunner = GradleRunner.create()
-        .withProjectDir(rootDirectory)
-        .withPluginClasspath()
-        .forwardOutput()
-        .withArguments(arguments.toList() + listOfNotNull("--offline".takeIf { offline }, "--stacktrace"))
+    private fun runner(arguments: Array<out String>): GradleRunner {
+        return GradleRunner.create()
+            .withProjectDir(rootDirectory)
+            .withPluginClasspath()
+            .forwardOutput()
+            .withArguments(arguments.toList() + listOfNotNull("--offline".takeIf { offline }, "--stacktrace"))
+    }
 
     fun run(vararg arguments: String): BuildResult {
         writeSettings()

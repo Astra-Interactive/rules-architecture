@@ -17,37 +17,39 @@ class LinterPluginTest {
         }
     """.trimIndent()
 
-    private fun jailBuild(rootDirectory: File): IsolatedProjectsBuild = IsolatedProjectsBuild(rootDirectory)
-        .online()
-        .withRootBuildScript("")
-        .withModule(name = "jail", buildScript = javaModuleScript)
-        .withSourceFile("jail/README.md", "Jails players for a sentence and frees them when it ends.")
-        .withSourceFile(
-            "jail/src/main/kotlin/com/example/jail/jail/usecase/JailPlayerUseCase.kt",
-            """
-            package com.example.jail.jail.usecase
+    private fun jailBuild(rootDirectory: File): IsolatedProjectsBuild {
+        return IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "jail", buildScript = javaModuleScript)
+            .withSourceFile("jail/README.md", "Jails players for a sentence and frees them when it ends.")
+            .withSourceFile(
+                "jail/src/main/kotlin/com/example/jail/jail/usecase/JailPlayerUseCase.kt",
+                """
+                package com.example.jail.jail.usecase
 
-            class JailPlayerUseCase {
-                operator fun invoke() = Unit
-            }
-            """.trimIndent()
-        )
-        .withSourceFile(
-            "jail/src/main/kotlin/com/example/jail/Jail.kt",
-            """
-            package com.example.jail
+                class JailPlayerUseCase {
+                    operator fun invoke() = Unit
+                }
+                """.trimIndent()
+            )
+            .withSourceFile(
+                "jail/src/main/kotlin/com/example/jail/Jail.kt",
+                """
+                package com.example.jail
 
-            data class Jail(val id: Int)
-            """.trimIndent()
-        )
-        .withSourceFile(
-            "jail/src/main/kotlin/com/example/jail/jail/model/Cell.kt",
-            """
-            package com.example.jail.jail.model
+                data class Jail(val id: Int)
+                """.trimIndent()
+            )
+            .withSourceFile(
+                "jail/src/main/kotlin/com/example/jail/jail/model/Cell.kt",
+                """
+                package com.example.jail.jail.model
 
-            class Cell
-            """.trimIndent()
-        )
+                class Cell
+                """.trimIndent()
+            )
+    }
 
     @Test
     fun GIVEN_context_with_a_loose_root_file_WHEN_architecture_checked_THEN_fails_naming_it(
@@ -173,23 +175,25 @@ class LinterPluginTest {
         assertTrue(report[3].contains("ru.astrainteractive.klibs.rules:detekt"), "rules missing: ${report[3]}")
     }
 
-    private fun unitKindScript(plugins: String): String = """
-        import ru.astrainteractive.klibs.rules.gradle.linter.extension.LinterExtension
+    private fun unitKindScript(plugins: String): String {
+        return """
+            import ru.astrainteractive.klibs.rules.gradle.linter.extension.LinterExtension
 
-        plugins {
-            $plugins
-            id("ru.astrainteractive.klibs.rules.gradle.linter")
-        }
+            plugins {
+                $plugins
+                id("ru.astrainteractive.klibs.rules.gradle.linter")
+            }
 
-        val linterUnitKind = extensions.getByType<LinterExtension>().unitKind
-        val kindReport = layout.buildDirectory.file("unit-kind.txt")
-        tasks.register("reportUnitKind") {
-            val unitKind = linterUnitKind
-            val reportFile = kindReport
-            outputs.file(reportFile)
-            doLast { reportFile.get().asFile.writeText(unitKind.get()) }
-        }
-    """.trimIndent()
+            val linterUnitKind = extensions.getByType<LinterExtension>().unitKind
+            val kindReport = layout.buildDirectory.file("unit-kind.txt")
+            tasks.register("reportUnitKind") {
+                val unitKind = linterUnitKind
+                val reportFile = kindReport
+                outputs.file(reportFile)
+                doLast { reportFile.get().asFile.writeText(unitKind.get()) }
+            }
+        """.trimIndent()
+    }
 
     @Test
     fun GIVEN_units_named_and_built_by_convention_WHEN_configured_THEN_detects_their_kind(

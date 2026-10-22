@@ -28,11 +28,13 @@ internal class UnitSources(
         }
     }
 
-    private fun qualify(packageName: String, name: String): String =
-        if (packageName.isEmpty()) name else "$packageName.$name"
+    private fun qualify(packageName: String, name: String): String {
+        return if (packageName.isEmpty()) name else "$packageName.$name"
+    }
 
-    fun relativePath(file: KoFileDeclaration): String =
-        File(file.path).relativeTo(projectDirectory).invariantSeparatorsPath
+    fun relativePath(file: KoFileDeclaration): String {
+        return File(file.path).relativeTo(projectDirectory).invariantSeparatorsPath
+    }
 
     fun placementOf(file: KoFileDeclaration): Placement? = layout.placementOf(file.packageName)
 
