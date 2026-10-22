@@ -22,6 +22,7 @@ import ru.astrainteractive.klibs.rules.detekt.formatting.ArgumentPerLine
 import ru.astrainteractive.klibs.rules.detekt.formatting.BooleanOperatorWrapping
 import ru.astrainteractive.klibs.rules.detekt.formatting.ExplicitInvoke
 import ru.astrainteractive.klibs.rules.detekt.formatting.ExpressionBodyOnOneLine
+import ru.astrainteractive.klibs.rules.detekt.formatting.OperatorBeforeTrailingCall
 import ru.astrainteractive.klibs.rules.detekt.injection.ConstructorDefaultDependency
 import ru.astrainteractive.klibs.rules.detekt.injection.DiModuleLifecycle
 import ru.astrainteractive.klibs.rules.detekt.injection.RootModuleConstruction
@@ -85,6 +86,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::MutableStateFlowEmit,
                 ::NamespaceObject,
                 ::OneTypeFamilyPerFile,
+                ::OperatorBeforeTrailingCall,
                 ::PreviewBlockLast,
                 ::PropertyAsFunction,
                 ::RememberInName,

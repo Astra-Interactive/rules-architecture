@@ -58,6 +58,8 @@ architecture:
     active: true
   OneTypeFamilyPerFile:
     active: true
+  OperatorBeforeTrailingCall:
+    active: true
   PreviewBlockLast:
     active: true
   PropertyAsFunction:

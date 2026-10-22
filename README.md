@@ -259,6 +259,7 @@ val violations: List<StructureViolation> = checker.check(
 | `RunBlockingInTest` | `runBlocking` in a test source set |
 | `KDocFiller` | a KDoc filler phrase, a `@return` of "the result", a `@param` that repeats its name, a summary of more than four sentences |
 | `LambdaSingleIfGuard` | a lambda whose whole body is one `if` without `else` |
+| `OperatorBeforeTrailingCall` | arithmetic in parentheses before a call or property (`(a * b).sp`), a chain of `plus`/`minus`/`times`/`div`/`rem` calls |
 
 ### detekt settings
 
