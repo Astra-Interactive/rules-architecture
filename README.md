@@ -257,6 +257,7 @@ val violations: List<StructureViolation> = checker.check(
 | `RootModuleConstruction` | a `RootModule` property that constructs anything but a `…Module` or a `Lifecycle` |
 | `SystemTimeCall` | `System.currentTimeMillis()` and `System.nanoTime()` |
 | `RunBlockingInTest` | `runBlocking` in a test source set |
+| `KDocFiller` | a KDoc filler phrase, a `@return` of "the result", a `@param` that repeats its name, a summary of more than four sentences |
 
 ### detekt settings
 

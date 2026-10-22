@@ -25,6 +25,7 @@ import ru.astrainteractive.klibs.rules.detekt.formatting.ExpressionBodyOnOneLine
 import ru.astrainteractive.klibs.rules.detekt.injection.ConstructorDefaultDependency
 import ru.astrainteractive.klibs.rules.detekt.injection.DiModuleLifecycle
 import ru.astrainteractive.klibs.rules.detekt.injection.RootModuleConstruction
+import ru.astrainteractive.klibs.rules.detekt.kdoc.KDocFiller
 import ru.astrainteractive.klibs.rules.detekt.kdoc.KDocHtmlTag
 import ru.astrainteractive.klibs.rules.detekt.lambda.ImplicitItParameter
 import ru.astrainteractive.klibs.rules.detekt.multiplatform.ActualFileSuffix
@@ -75,6 +76,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::ImplementationName,
                 ::ImplicitItParameter,
                 ::ImpureUpdateLambda,
+                ::KDocFiller,
                 ::KDocHtmlTag,
                 ::KindNameInPackage,
                 ::LocalOrInnerClass,

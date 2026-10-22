@@ -42,6 +42,8 @@ architecture:
     active: true
   ImpureUpdateLambda:
     active: true
+  KDocFiller:
+    active: true
   KDocHtmlTag:
     active: true
   KindNameInPackage:
