@@ -5,6 +5,7 @@ package ru.astrainteractive.klibs.rules.detekt
 import dev.detekt.api.Config
 import dev.detekt.core.config.YamlConfig
 import dev.detekt.rules.coroutines.GlobalCoroutineUsage
+import dev.detekt.rules.naming.PackageNaming
 import dev.detekt.rules.style.DataClassContainsFunctions
 import dev.detekt.rules.style.DataClassShouldBeImmutable
 import dev.detekt.rules.style.ForbiddenComment
@@ -148,5 +149,13 @@ internal class DetektArchitectureSettingsTest {
             .lint(code)
 
         assertEquals(1, findings.size)
+    }
+
+    @Test
+    fun GIVEN_package_with_an_upper_case_letter_WHEN_linted_THEN_reports_it_and_allows_lowercase() {
+        val rule = PackageNaming(settings.subConfig("naming").subConfig("PackageNaming"))
+
+        assertEquals(1, rule.lint("package com.example.featureFlag").size)
+        assertEquals(0, rule.lint("package com.example.featureflag2").size)
     }
 }

@@ -4,6 +4,11 @@ coroutines:
   # A DI module never reaches for a global singleton: scopes are constructed and passed in.
   GlobalCoroutineUsage:
     active: true
+naming:
+  # A package name is lowercase, one word per segment.
+  PackageNaming:
+    active: true
+    packagePattern: '[a-z]+(\.[a-z][a-z0-9]*)*'
 style:
   # Replaced by architecture.DeclarationOrder: the code-ordering rule puts init blocks after the functions they call.
   ClassOrdering:
