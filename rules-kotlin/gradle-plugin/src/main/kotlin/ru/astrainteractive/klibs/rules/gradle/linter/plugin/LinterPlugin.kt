@@ -114,6 +114,7 @@ internal class LinterPlugin : Plugin<Project> {
         konsistClasspath.from(classpath)
         sources.from(project.architectureInputs())
         projectDirectory.set(project.layout.projectDirectory)
+        rootDirectory.set(project.isolated.rootProject.projectDirectory)
         projectPath.set(project.path)
         unitKind.set(extension.unitKind)
         rootPackage.set(extension.rootPackage)

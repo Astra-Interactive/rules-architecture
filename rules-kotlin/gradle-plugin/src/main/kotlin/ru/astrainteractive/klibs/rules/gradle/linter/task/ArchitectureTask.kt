@@ -23,6 +23,7 @@ import ru.astrainteractive.klibs.rules.structure.graph.EntryPointDependency
 import ru.astrainteractive.klibs.rules.structure.graph.TechnologyDependency
 import ru.astrainteractive.klibs.rules.structure.graph.UnitDependency
 import ru.astrainteractive.klibs.rules.structure.nesting.NestedUnit
+import ru.astrainteractive.klibs.rules.structure.nesting.ProjectDirMatchesPath
 import ru.astrainteractive.klibs.rules.structure.nesting.RootSources
 import ru.astrainteractive.klibs.rules.structure.readme.UnitReadme
 import ru.astrainteractive.klibs.rules.structure.unit.BuildUnit
@@ -41,6 +42,9 @@ internal abstract class ArchitectureTask : DefaultTask() {
 
     @get:Internal
     abstract val projectDirectory: DirectoryProperty
+
+    @get:Internal
+    abstract val rootDirectory: DirectoryProperty
 
     @get:Input
     abstract val projectPath: Property<String>
@@ -124,6 +128,7 @@ internal abstract class ArchitectureTask : DefaultTask() {
                 ApiUnitDependency(),
                 EntryPointDependency(),
                 NestedUnit(),
+                ProjectDirMatchesPath(rootDirectory.get().asFile),
                 RootBuildSubprojects(),
                 RootSources(),
                 TechnologyDependency(),
