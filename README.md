@@ -231,7 +231,7 @@ val violations: List<StructureViolation> = checker.check(
 | `ImplementationName`           | the `Impl` and `Interface` suffixes and the `I` prefix on an interface           |
 | `KindNameInPackage`            | `Service` outside a `service` package, `Model`/`Entity` in a domain `model`, `Helper`/`Util`/`Manager` names |
 | `ExpressionBodyOnOneLine`      | an expression body (`= …`) with a line break after the `=` or inside the body     |
-| `BooleanOperatorWrapping` | a line break on either side of `&&` or `||` |
+| `BooleanOperatorWrapping` | a line break on either side of `&&` or `\|\|` |
 | `ArgumentPerLine` | a call or constructor call with three or more arguments in its parentheses, not each on its own line |
 | `ExplicitInvoke` | a call `name(…)` of a parameter, property or local value instead of `name.invoke(…)` |
 | `FunctionVerb` | a function named `get…` (but `getState`) or with the word `map`, `make`, `do`, `handle` or `process` |
@@ -265,6 +265,8 @@ val violations: List<StructureViolation> = checker.check(
 which puts `init` blocks after the functions they call; `ForbiddenComment` for region
 markers and separator comments; `ForbiddenImport` for `kotlinx.datetime.Instant`, `kotlinx.datetime.Clock` and `java.util.Date`, for `java.time` types and `java.util.Calendar` outside technology packages (`ForbiddenImport/time`), and for platform and ORM
 types in `model`; `RedundantVisibilityModifier`; `WildcardImport` with no exceptions; ktlint `ImportOrdering`.
+`DataClassContainsFunctions`, with no conversion exception, and `DataClassShouldBeImmutable`: a data class
+holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with a lowercase-only pattern.
 
 ### Konsist checks
 
