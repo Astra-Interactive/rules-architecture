@@ -15,25 +15,37 @@ internal class UnitLayout(
     }
 
     /**
+     * The kind is the last kind word of the package, except Compose's `composable`, which is the kind whenever it
+     * appears: the segment below it is its sub-kind, even when that segment is a kind word too (`screen`).
+     *
      * @return `null` for a package outside the unit's root package
      */
     fun placementOf(packageName: String): Placement? {
         val segments = segmentsBelowRoot(packageName) ?: return null
-        val kindIndex = segments.indexOfLast { segment -> Kind.fromSegment(segment) != null }
+        val composableIndex = segments.indexOf(Kind.COMPOSABLE_WORD)
+        val kindIndex = if (composableIndex >= 0) {
+            composableIndex
+        } else {
+            segments.indexOfLast { segment -> Kind.fromSegment(segment) != null }
+        }
         if (kindIndex < 0) {
             val kind = Kind.IMPLEMENTATION.takeIf { unitKind == UnitKind.TECHNOLOGY && segments.isNotEmpty() }
             return Placement(
                 concepts = segments,
                 kind = kind,
                 kindWord = null,
+                subKind = null,
                 below = emptyList()
             )
         }
+        val subKind = segments.getOrNull(kindIndex + 1)?.takeIf { kindIndex == composableIndex }
+        val belowIndex = if (subKind == null) kindIndex + 1 else kindIndex + 2
         return Placement(
             concepts = segments.take(kindIndex),
             kind = Kind.fromSegment(segments[kindIndex]),
             kindWord = segments[kindIndex],
-            below = segments.drop(kindIndex + 1)
+            subKind = subKind,
+            below = segments.drop(belowIndex)
         )
     }
 

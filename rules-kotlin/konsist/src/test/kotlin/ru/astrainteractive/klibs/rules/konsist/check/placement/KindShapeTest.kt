@@ -71,4 +71,52 @@ internal class KindShapeTest {
 
         assertEquals(emptyList(), KindShape().check(technology) + KindShape().check(context))
     }
+
+    @Test
+    fun GIVEN_composable_with_one_level_of_singular_sub_packages_WHEN_checked_THEN_accepts_it(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main("x.paywall.impl.composable.screen", "SplashScreenComposable.kt", "fun SplashScreen() = Unit")
+            .main("x.paywall.impl.composable.component", "HeroCopyComposable.kt", "fun HeroCopy() = Unit")
+            .main("x.paywall.impl.composable.layout", "ScrollFadeComposable.kt", "fun ScrollFade() = Unit")
+            .main("x.paywall.impl.offer.composable", "OfferComposable.kt", "fun Offer() = Unit")
+            .load(UnitKind.CONTEXT, unitPath = ":paywall:impl")
+
+        assertEquals(emptyList(), KindShape().check(sources))
+    }
+
+    @Test
+    fun GIVEN_composable_sub_packages_against_the_compose_rule_WHEN_checked_THEN_reports_each(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main("x.paywall.impl.composable.screen", "SplashScreenComposable.kt", "fun SplashScreen() = Unit")
+            .main("x.paywall.impl.composable", "LooseComposable.kt", "fun Loose() = Unit")
+            .main("x.paywall.impl.composable.model", "BenefitContent.kt", "class BenefitContent")
+            .main("x.paywall.impl.composable.util", "ModifierExt.kt", "fun format() = Unit")
+            .main("x.paywall.impl.composable.theme", "PaywallMotion.kt", "object PaywallMotion")
+            .main("x.paywall.impl.composable.components", "CardComposable.kt", "fun Card() = Unit")
+            .main("x.paywall.impl.composable.address", "AddressComposable.kt", "fun Address() = Unit")
+            .main("x.paywall.impl.composable.layout.frame", "FrameComposable.kt", "fun Frame() = Unit")
+            .load(UnitKind.CONTEXT, unitPath = ":paywall:impl")
+
+        val messages = KindShape().check(sources).map { violation -> violation.message }.sorted()
+
+        assertEquals(
+            listOf(
+                "Move BenefitContent out of 'composable/model': model is a kind of the level, never a sub-package " +
+                    "of composable.",
+                "Move FrameComposable out of 'composable/layout/frame': a composable sub-package holds only files.",
+                "Move LooseComposable into a sub-package of 'composable': composable holds files or sub-packages, " +
+                    "never both.",
+                "Move ModifierExt out of 'composable/util': util is a kind of the level, never a sub-package of " +
+                    "composable.",
+                "Move PaywallMotion out of 'composable/theme': theme is a kind of the level, never a sub-package of " +
+                    "composable.",
+                "Rename 'composable/components' to the singular: a composable sub-package is named like a kind.",
+            ),
+            messages
+        )
+    }
 }
