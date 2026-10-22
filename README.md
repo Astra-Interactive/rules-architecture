@@ -177,7 +177,7 @@ tasks.named("check") { dependsOn(konsistCheck) }
 | `--unit-kind`    | `context`, `library`, `api`, `contract`, `entry-point` or `technology`, see below  |
 | `--unit-path`    | the unit's Gradle path; finds the root package (`:modules:event-bukkit` → `…event`) |
 | `--main`         | a main source directory; repeat it for every source set (`src/commonMain/kotlin`)  |
-| `--test`         | a test source directory; repeatable                                                |
+| `--test`         | a test source directory (`src/test/kotlin`, `src/testFixtures/kotlin`); repeatable |
 | `--report`       | the file the violations are written to                                             |
 | `--root-package` | the unit's root package, when the unit path does not find it                       |
 
@@ -290,7 +290,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `DiPlacement`          | a `*Module` outside a `di` package                                                                        |
 | `NestedDataClass`      | a top-level data class used as a property type by exactly one class, except a sealed variant or a `*State` |
 | `TestMirror`           | a test in another package than its owner                                                                  |
-| `FakePlacement`        | a `Fake*` outside a `fake` package                                                                        |
+| `FakePlacement`        | a `Fake*` outside a `fake` package of the tests, or in the main sources outside a `<feature>/fake` unit    |
 | `InMemoryPlacement`    | an `InMemory*` outside a `memory` package of the main sources                                              |
 | `SealedFamilyFile` | a class or object whose direct supertype is a sealed type declared in another file |
 | `StateTypePlacement` | a `<Screen>State` nested in another type or declared outside `model` |

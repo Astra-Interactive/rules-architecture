@@ -299,6 +299,30 @@ class LinterPluginTest {
     }
 
     @Test
+    fun GIVEN_fake_in_test_fixtures_outside_a_fake_package_WHEN_architecture_checked_THEN_judges_it_as_a_test(
+        @TempDir rootDirectory: File
+    ) {
+        val build = jailBuild(rootDirectory)
+            .withSourceFile(
+                "jail/src/testFixtures/kotlin/com/example/jail/jail/FakeClock.kt",
+                """
+                package com.example.jail.jail
+
+                object FakeClock
+                """.trimIndent()
+            )
+
+        val result = build.runAndFail(":jail:architectureCheck")
+
+        assertTrue(
+            result.output.contains(
+                "src/testFixtures/kotlin/com/example/jail/jail/FakeClock.kt: Move FakeClock to a fake package"
+            ),
+            "the testFixtures fake was not judged as a test source:\n${result.output}"
+        )
+    }
+
+    @Test
     fun GIVEN_root_project_with_sources_WHEN_architecture_checked_THEN_reports_them(@TempDir rootDirectory: File) {
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
