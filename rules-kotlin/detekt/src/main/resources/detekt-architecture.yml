@@ -45,7 +45,21 @@ style:
   ForbiddenImport/model:
     active: true
     includes: [ '**/model/**' ]
-    excludes: [ '**/data/**' ]
+    # A technology package keeps its own representation; any other model, under data included, is checked.
+    excludes:
+      - '**/exposed/**'
+      - '**/room/**'
+      - '**/ktor/**'
+      - '**/krate/**'
+      - '**/sqldelight/**'
+      - '**/datastore/**'
+      - '**/retrofit/**'
+      - '**/okhttp/**'
+      - '**/cache4k/**'
+      - '**/file/**'
+      - '**/memory/**'
+      - '**/table/**'
+      - '**/entity/**'
     forbiddenImports:
       - value: 'android.*'
         reason: 'The model imports no platform type.'

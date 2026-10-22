@@ -123,6 +123,30 @@ internal class DetektArchitectureSettingsTest {
     }
 
     @Test
+    fun GIVEN_model_settings_WHEN_read_THEN_excludes_only_technology_packages_not_any_data_path() {
+        val excludes = styleConfig.subConfig("ForbiddenImport/model").valueOrNull<List<String>>("excludes")
+
+        assertEquals(
+            listOf(
+                "**/exposed/**",
+                "**/room/**",
+                "**/ktor/**",
+                "**/krate/**",
+                "**/sqldelight/**",
+                "**/datastore/**",
+                "**/retrofit/**",
+                "**/okhttp/**",
+                "**/cache4k/**",
+                "**/file/**",
+                "**/memory/**",
+                "**/table/**",
+                "**/entity/**",
+            ),
+            excludes
+        )
+    }
+
+    @Test
     fun GIVEN_java_util_wildcard_WHEN_linted_THEN_reports_it() {
         val code = """
             import java.util.*
