@@ -8,6 +8,8 @@ architecture:
     active: true
   CalleeBeforeCaller:
     active: true
+  ComposableFileType:
+    active: true
   ConstantOutsideCompanion:
     active: true
   ConstructorDefaultDependency:

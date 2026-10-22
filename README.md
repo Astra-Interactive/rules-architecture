@@ -238,6 +238,7 @@ val violations: List<StructureViolation> = checker.check(
 | `PropertyAsFunction` | a function with no parameters that only returns a property of its class or file |
 | `OneTypeFamilyPerFile` | a top-level function (a composable included) beside a top-level type, and a second class with behaviour in one file |
 | `ConstantOutsideCompanion` | a `const val` or literal `val` in a class body outside its companion, a `private object` of constants beside a type |
+| `ComposableFileType` | a class, interface or object in a file with a `@Composable` function, except a `*Defaults` object |
 
 ### detekt settings
 
