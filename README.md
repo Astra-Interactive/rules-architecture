@@ -234,6 +234,7 @@ val violations: List<StructureViolation> = checker.check(
 | `BooleanOperatorWrapping` | a line break on either side of `&&` or `||` |
 | `ArgumentPerLine` | a call or constructor call with three or more arguments in its parentheses, not each on its own line |
 | `ExplicitInvoke` | a call `name(…)` of a parameter, property or local value instead of `name.invoke(…)` |
+| `FunctionVerb` | a function named `get…` (but `getState`) or with the word `map`, `make`, `do`, `handle` or `process` |
 
 ### detekt settings
 

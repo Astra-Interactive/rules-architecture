@@ -18,6 +18,8 @@ architecture:
     active: true
   ExpressionBodyOnOneLine:
     active: true
+  FunctionVerb:
+    active: true
   ImplementationName:
     active: true
   ImplicitItParameter:
