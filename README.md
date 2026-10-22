@@ -226,7 +226,7 @@ val violations: List<StructureViolation> = checker.check(
 | `DeclarationOrder`             | properties, secondary constructors, functions, `init` blocks, companion: out of this order; a top-level `PREVIEW_*`/`Preview*` fixture may follow the composables |
 | `NamespaceObject`              | an `object` that only groups functions, except a Compose `<Component>Defaults`   |
 | `LocalOrInnerClass`            | a class inside a function body and an `inner class`                              |
-| `TimeAsPrimitive`              | a time-named value (`createdAt`, `timeoutMs`) typed as a number or a string      |
+| `TimeAsPrimitive`              | a time-named value (`createdAt`, `timeoutMs`, `CARD_IN_MS`) typed as a number or a string, or inferred from such a literal |
 | `KDocHtmlTag`                  | Javadoc HTML (`<p>`, `<code>`) in KDoc                                           |
 | `ImplementationName`           | the `Impl` and `Interface` suffixes and the `I` prefix on an interface           |
 | `KindNameInPackage`            | `Service` outside a `service` package, `Model`/`Entity` in a `model` with no technology word (`exposed`, `room`, ...) before it, `Helper`/`Util`/`Manager` names |
