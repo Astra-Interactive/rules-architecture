@@ -11,7 +11,7 @@ internal class ExpressionBodyOnOneLineTest {
     private val rule = ExpressionBodyOnOneLine(Config.empty)
 
     @Test
-    fun GIVEN_expression_body_spanning_lines_WHEN_linted_THEN_reports_each_function() {
+    fun GIVEN_expression_bodies_spanning_lines_WHEN_linted_THEN_reports_each_function() {
         val code = """
             class Names(private val users: List<String>) {
                 fun trimmed(): List<String> = users
@@ -19,14 +19,24 @@ internal class ExpressionBodyOnOneLineTest {
 
                 fun first(): String =
                     users.first()
+
+                private fun count(
+                    offset: Int
+                ): Int = users.size + offset
+
+                fun stage(value: Int): String = when {
+                    value > 0 -> "positive"
+                    else -> "other"
+                }
             }
         """.trimIndent()
 
         val findings = rule.lint(code)
 
-        assertEquals(2, findings.size)
+        assertEquals(4, findings.size)
         assertEquals(
-            "The expression body of 'trimmed' spans several lines: use a block body with an explicit return.",
+            "The expression-body function 'trimmed' spans several lines: use a block body with an explicit " +
+                "return; an expression body is one line, signature and body.",
             findings.first().message
         )
     }
@@ -38,9 +48,15 @@ internal class ExpressionBodyOnOneLineTest {
                 fun load(): String
             }
 
-            fun count(
-                values: List<Int>
-            ): Int = values.size
+            /**
+             * Counts the values.
+             */
+            @Suppress("Unused")
+            @JvmName("countValues")
+            internal fun count(values: List<Int>): Int = values.size
+
+            @Composable
+            fun Title() = Unit
 
             fun describe(values: List<Int>): String {
                 return values
