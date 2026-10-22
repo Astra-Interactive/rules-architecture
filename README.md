@@ -299,6 +299,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `EntryPointShape` | a file of an entry-point unit outside its root and its `di` package |
 | `ContractUnitShape` | in a `contract` unit, a class or interface that is not `@Serializable`, a function with a body outside an object |
 | `ComposeKindWithoutCompose` | a `composable`, `viewmodel` or `theme` package in a unit that imports no Compose |
+| `PlatformPackage` | a package named after a platform (`android`, `ios`, `jvm`, …) in a unit with several main source sets |
 
 ### Structure checks
 

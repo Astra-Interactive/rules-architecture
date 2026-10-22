@@ -26,6 +26,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.placement.FakePlacement
 import ru.astrainteractive.klibs.rules.konsist.check.placement.ForbiddenPackageName
 import ru.astrainteractive.klibs.rules.konsist.check.placement.InMemoryPlacement
 import ru.astrainteractive.klibs.rules.konsist.check.placement.KindShape
+import ru.astrainteractive.klibs.rules.konsist.check.placement.PlatformPackage
 import ru.astrainteractive.klibs.rules.konsist.check.placement.RootModulePlacement
 import ru.astrainteractive.klibs.rules.konsist.check.placement.TestMirror
 import ru.astrainteractive.klibs.rules.konsist.check.placement.UtilFileName
@@ -70,6 +71,7 @@ public fun main(args: Array<String>) {
             NestedDataClass(),
             NestedEnum(),
             PlatformImport(),
+            PlatformPackage(),
             RootModulePlacement(),
             SealedFamilyFile(),
             StateTypePlacement(),
