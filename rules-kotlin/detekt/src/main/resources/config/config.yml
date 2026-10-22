@@ -32,6 +32,8 @@ architecture:
     active: true
   NamespaceObject:
     active: true
+  PropertyAsFunction:
+    active: true
   TestFunctionName:
     active: true
   TimeAsPrimitive:
