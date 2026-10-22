@@ -6,6 +6,8 @@ architecture:
     active: true
   ArgumentPerLine:
     active: true
+  BareIdentifier:
+    active: true
   BooleanOperatorWrapping:
     active: true
   CalleeBeforeCaller:

@@ -250,6 +250,7 @@ val violations: List<StructureViolation> = checker.check(
 | `ThrowInsideRunCatching` | a `throw` inside the lambda of `runCatching`, `mapCatching` or `recoverCatching` |
 | `RunCatchingCancellation` | a `runCatching` in a `suspend` function or coroutine lambda not followed by `.propagateCancellationException()` |
 | `GetOrThrowInMain` | `getOrThrow()` outside the test sources |
+| `BareIdentifier` | a property named `id`/`…Id` typed `String`, `Int`, `Long` or `UUID` outside a `@Serializable` class or technology package, a `…Id` class that is not a value class |
 
 ### detekt settings
 

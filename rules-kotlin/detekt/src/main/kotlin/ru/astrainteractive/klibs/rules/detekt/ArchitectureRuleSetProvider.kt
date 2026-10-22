@@ -11,6 +11,7 @@ import ru.astrainteractive.klibs.rules.detekt.compose.ThemeObjectFunction
 import ru.astrainteractive.klibs.rules.detekt.coroutine.ImpureUpdateLambda
 import ru.astrainteractive.klibs.rules.detekt.coroutine.MutableStateFlowEmit
 import ru.astrainteractive.klibs.rules.detekt.coroutine.SingleJobLaunchMode
+import ru.astrainteractive.klibs.rules.detekt.declaration.BareIdentifier
 import ru.astrainteractive.klibs.rules.detekt.declaration.DataClassDefaultValue
 import ru.astrainteractive.klibs.rules.detekt.declaration.LocalOrInnerClass
 import ru.astrainteractive.klibs.rules.detekt.declaration.NamespaceObject
@@ -50,6 +51,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::ActualFileSuffix,
                 ::AnonymousTuple,
                 ::ArgumentPerLine,
+                ::BareIdentifier,
                 ::BooleanOperatorWrapping,
                 ::CalleeBeforeCaller,
                 ::ComposableFileType,
