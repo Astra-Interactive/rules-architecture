@@ -30,6 +30,8 @@ architecture:
     active: true
   DiModuleLifecycle:
     active: true
+  DurationOverloadCall:
+    active: true
   ExplicitInvoke:
     active: true
   ExpressionBodyOnOneLine:

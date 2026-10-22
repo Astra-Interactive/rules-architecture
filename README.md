@@ -263,6 +263,7 @@ val violations: List<StructureViolation> = checker.check(
 | `TrivialLambdaReference` | a lambda that only passes its parameters to one function, or a `{ obj.foo() }` callback, instead of a function reference |
 | `ComposableWhenBranch` | a `when` branch of a `@Composable` function that spans several lines |
 | `NonComposableFileInComposable` | a file in a `composable` package with no `@Composable` function |
+| `DurationOverloadCall` | `.inWholeMilliseconds`/`.inWholeSeconds`/`.inWholeNanoseconds` passed to `delay`, `withTimeout`, `debounce` and other calls with a `Duration` overload |
 
 ### detekt settings
 
