@@ -58,6 +58,8 @@ architecture:
     active: true
   RememberInName:
     active: true
+  RolelessClassName:
+    active: true
   RunCatchingCancellation:
     active: true
   SingleJobLaunchMode:

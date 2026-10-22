@@ -29,6 +29,7 @@ import ru.astrainteractive.klibs.rules.detekt.multiplatform.ActualFileSuffix
 import ru.astrainteractive.klibs.rules.detekt.naming.FunctionVerb
 import ru.astrainteractive.klibs.rules.detekt.naming.ImplementationName
 import ru.astrainteractive.klibs.rules.detekt.naming.KindNameInPackage
+import ru.astrainteractive.klibs.rules.detekt.naming.RolelessClassName
 import ru.astrainteractive.klibs.rules.detekt.naming.TestFunctionName
 import ru.astrainteractive.klibs.rules.detekt.ordering.CalleeBeforeCaller
 import ru.astrainteractive.klibs.rules.detekt.ordering.ConstantOutsideCompanion
@@ -78,6 +79,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::PreviewBlockLast,
                 ::PropertyAsFunction,
                 ::RememberInName,
+                ::RolelessClassName,
                 ::RunCatchingCancellation,
                 ::SingleJobLaunchMode,
                 ::TestFunctionName,
