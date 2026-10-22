@@ -14,6 +14,8 @@ architecture:
     active: true
   DeclarationOrder:
     active: true
+  ExplicitInvoke:
+    active: true
   ExpressionBodyOnOneLine:
     active: true
   ImplementationName:
