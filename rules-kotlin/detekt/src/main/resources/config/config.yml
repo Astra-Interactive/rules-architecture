@@ -44,6 +44,8 @@ architecture:
     active: true
   PropertyAsFunction:
     active: true
+  RememberInName:
+    active: true
   TestFunctionName:
     active: true
   ThemeObjectFunction:

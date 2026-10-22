@@ -242,6 +242,7 @@ val violations: List<StructureViolation> = checker.check(
 | `ThemeObjectFunction` | a function inside an object of a `theme` package |
 | `ComposeConstantCase` | a `const val` not `UPPER_SNAKE` or a `val` not `PascalCase` in a composable or `theme` file |
 | `PreviewBlockLast` | a non-preview declaration after the first `@Preview`, a `@Preview` not named `…Preview` |
+| `RememberInName` | a `remember…` function whose body calls no `remember` |
 
 ### detekt settings
 
