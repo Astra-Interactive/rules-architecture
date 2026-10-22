@@ -1,5 +1,7 @@
 architecture:
   active: true
+  ActualFileSuffix:
+    active: true
   AnonymousTuple:
     active: true
   ArgumentPerLine:

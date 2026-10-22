@@ -20,6 +20,7 @@ import ru.astrainteractive.klibs.rules.detekt.formatting.ExpressionBodyOnOneLine
 import ru.astrainteractive.klibs.rules.detekt.injection.ConstructorDefaultDependency
 import ru.astrainteractive.klibs.rules.detekt.kdoc.KDocHtmlTag
 import ru.astrainteractive.klibs.rules.detekt.lambda.ImplicitItParameter
+import ru.astrainteractive.klibs.rules.detekt.multiplatform.ActualFileSuffix
 import ru.astrainteractive.klibs.rules.detekt.naming.FunctionVerb
 import ru.astrainteractive.klibs.rules.detekt.naming.ImplementationName
 import ru.astrainteractive.klibs.rules.detekt.naming.KindNameInPackage
@@ -40,6 +41,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
         return RuleSet(
             ruleSetId,
             listOf(
+                ::ActualFileSuffix,
                 ::AnonymousTuple,
                 ::ArgumentPerLine,
                 ::BooleanOperatorWrapping,

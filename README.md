@@ -243,6 +243,7 @@ val violations: List<StructureViolation> = checker.check(
 | `ComposeConstantCase` | a `const val` not `UPPER_SNAKE` or a `val` not `PascalCase` in a composable or `theme` file |
 | `PreviewBlockLast` | a non-preview declaration after the first `@Preview`, a `@Preview` not named `…Preview` |
 | `RememberInName` | a `remember…` function whose body calls no `remember` |
+| `ActualFileSuffix` | a file with an `actual` declaration whose name has no platform suffix (`Name.android.kt`) |
 
 ### detekt settings
 
