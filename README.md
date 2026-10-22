@@ -297,6 +297,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `CoreShape` | a `…UseCase` class or a `…Repository` interface in a `core` unit |
 | `RootModulePlacement` | a `RootModule` outside the entry-point unit or its `di` package |
 | `EntryPointShape` | a file of an entry-point unit outside its root and its `di` package |
+| `ContractUnitShape` | in a `contract` unit, a class or interface that is not `@Serializable`, a function with a body outside an object |
 
 ### Structure checks
 
