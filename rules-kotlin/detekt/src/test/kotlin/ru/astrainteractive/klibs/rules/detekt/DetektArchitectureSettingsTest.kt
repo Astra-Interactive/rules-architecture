@@ -4,6 +4,7 @@ package ru.astrainteractive.klibs.rules.detekt
 
 import dev.detekt.api.Config
 import dev.detekt.core.config.YamlConfig
+import dev.detekt.rules.coroutines.GlobalCoroutineUsage
 import dev.detekt.rules.style.DataClassContainsFunctions
 import dev.detekt.rules.style.DataClassShouldBeImmutable
 import dev.detekt.rules.style.ForbiddenComment
@@ -130,5 +131,22 @@ internal class DetektArchitectureSettingsTest {
         val mutable = DataClassShouldBeImmutable(styleConfig.subConfig("DataClassShouldBeImmutable")).lint(code)
 
         assertEquals(2, functions.size + mutable.size)
+    }
+
+    @Test
+    fun GIVEN_global_scope_WHEN_linted_THEN_reports_it() {
+        val code = """
+            import kotlinx.coroutines.GlobalScope
+            import kotlinx.coroutines.launch
+
+            fun start() {
+                GlobalScope.launch { }
+            }
+        """.trimIndent()
+
+        val findings = GlobalCoroutineUsage(settings.subConfig("coroutines").subConfig("GlobalCoroutineUsage"))
+            .lint(code)
+
+        assertEquals(1, findings.size)
     }
 }

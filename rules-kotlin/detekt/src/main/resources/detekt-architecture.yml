@@ -1,5 +1,9 @@
 # Settings of detekt's own rules that enforce the architecture rules.
 # List this file last in detekt's `config`: a later file overrides the values of an earlier one.
+coroutines:
+  # A DI module never reaches for a global singleton: scopes are constructed and passed in.
+  GlobalCoroutineUsage:
+    active: true
 style:
   # Replaced by architecture.DeclarationOrder: the code-ordering rule puts init blocks after the functions they call.
   ClassOrdering:

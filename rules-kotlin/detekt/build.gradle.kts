@@ -30,6 +30,7 @@ dependencies {
     compileOnly(libs.detekt.psi.utils)
 
     testImplementation(libs.detekt.core)
+    testImplementation(libs.detekt.rules.coroutines)
     testImplementation(libs.detekt.rules.style)
     testImplementation(libs.detekt.test)
     testImplementation(libs.tests.kotlin.test)
