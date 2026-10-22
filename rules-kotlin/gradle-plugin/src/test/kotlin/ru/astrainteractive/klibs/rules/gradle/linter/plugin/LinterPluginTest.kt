@@ -113,9 +113,10 @@ class LinterPluginTest {
 
         val result = build.runAndFail(":api:architectureCheck")
 
+        val isDependencyReported = result.output.contains("An api unit never depends on an impl unit")
+        val isRuleNamed = result.output.contains("[UnitDependency]")
         assertTrue(
-            result.output.contains("An api unit never depends on an impl unit") &&
-                result.output.contains("[UnitDependency]"),
+            isDependencyReported && isRuleNamed,
             "the api to impl dependency was not reported:\n${result.output}"
         )
     }
@@ -269,9 +270,10 @@ class LinterPluginTest {
 
         val result = build.runAndFail(":architectureCheck")
 
+        val isRootReported = result.output.contains("src: Move the sources of the root project into a unit")
+        val isNestedReported = result.output.contains("[NestedUnit]")
         assertTrue(
-            result.output.contains("src: Move the sources of the root project into a unit") &&
-                !result.output.contains("[NestedUnit]"),
+            isRootReported && !isNestedReported,
             "the root sources were not reported, or units below the root were:\n${result.output}"
         )
     }
