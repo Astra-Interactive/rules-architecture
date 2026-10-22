@@ -74,38 +74,41 @@ internal abstract class ArchitectureTask : DefaultTask() {
     @get:Inject
     abstract val execOperations: ExecOperations
 
-    private fun sourceDirectories(isTest: Boolean): List<File> =
-        File(projectDirectory.get().asFile, SOURCE_ROOT).listFiles().orEmpty()
-            .filter { sourceSet -> sourceSet.isDirectory }
+    private fun sourceDirectories(isTest: Boolean): List<File> {
+        return File(projectDirectory.get().asFile, SOURCE_ROOT).listFiles().orEmpty()
+            .filter(File::isDirectory)
             .filter { sourceSet -> sourceSet.name.contains(TEST_MARKER, ignoreCase = true) == isTest }
             .flatMap { sourceSet -> LANGUAGE_DIRECTORIES.map { language -> File(sourceSet, language) } }
-            .filter { directory -> directory.isDirectory }
-            .sortedBy { directory -> directory.path }
+            .filter(File::isDirectory)
+            .sortedBy(File::getPath)
+    }
 
     private fun konsistArguments(
         kind: UnitKind,
         mainDirectories: List<File>,
         reportFile: File
-    ): List<String> = buildList {
-        add("--project-dir")
-        add(projectDirectory.get().asFile.absolutePath)
-        add("--unit-kind")
-        add(kind.cliName)
-        add("--report")
-        add(reportFile.absolutePath)
-        add("--unit-path")
-        add(projectPath.get())
-        rootPackage.orNull?.let { packageName ->
-            add("--root-package")
-            add(packageName)
-        }
-        mainDirectories.forEach { directory ->
-            add("--main")
-            add(directory.absolutePath)
-        }
-        sourceDirectories(isTest = true).forEach { directory ->
-            add("--test")
-            add(directory.absolutePath)
+    ): List<String> {
+        return buildList {
+            add("--project-dir")
+            add(projectDirectory.get().asFile.absolutePath)
+            add("--unit-kind")
+            add(kind.cliName)
+            add("--report")
+            add(reportFile.absolutePath)
+            add("--unit-path")
+            add(projectPath.get())
+            rootPackage.orNull?.let { packageName ->
+                add("--root-package")
+                add(packageName)
+            }
+            mainDirectories.forEach { directory ->
+                add("--main")
+                add(directory.absolutePath)
+            }
+            sourceDirectories(isTest = true).forEach { directory ->
+                add("--test")
+                add(directory.absolutePath)
+            }
         }
     }
 
@@ -117,11 +120,16 @@ internal abstract class ArchitectureTask : DefaultTask() {
         execOperations.javaexec { spec ->
             spec.classpath = konsistClasspath
             spec.mainClass.set(KONSIST_MAIN_CLASS)
-            spec.args(konsistArguments(kind, mainDirectories, reportFile))
+            val arguments = konsistArguments(
+                kind,
+                mainDirectories,
+                reportFile
+            )
+            spec.args(arguments)
         }
         return reportFile.readLines()
-            .filter { line -> line.isNotBlank() }
-            .map { line -> ArchitectureFinding.parse(line) }
+            .filter(String::isNotBlank)
+            .map(ArchitectureFinding::parse)
     }
 
     private fun runStructureChecks(kind: UnitKind): List<ArchitectureFinding> {
@@ -146,16 +154,21 @@ internal abstract class ArchitectureTask : DefaultTask() {
             )
         )
         return checker.check(unit).map { violation ->
-            ArchitectureFinding(violation.rule, violation.path, violation.subject, violation.message)
+            ArchitectureFinding(
+                violation.rule,
+                violation.path,
+                violation.subject,
+                violation.message
+            )
         }
     }
 
     protected fun findFindings(): List<ArchitectureFinding> {
         val kind = UnitKind.fromCliName(unitKind.get()) ?: throw GradleException(
             "linter.unitKind of ${projectPath.get()} is '${unitKind.get()}', expected one of " +
-                UnitKind.entries.joinToString { entry -> entry.cliName }
+                UnitKind.entries.joinToString(transform = UnitKind::cliName)
         )
-        val buildFindings = buildFindings.get().map { line -> ArchitectureFinding.parse(line) }
+        val buildFindings = buildFindings.get().map(ArchitectureFinding::parse)
         return runKonsist(kind) + runStructureChecks(kind) + buildFindings
     }
 
