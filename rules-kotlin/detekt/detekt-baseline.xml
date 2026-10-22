@@ -10,5 +10,11 @@
     <ID>ExpressionBodyOnOneLine:ImplicitItParameter.kt:ImplicitItParameter$private fun isInsideImplicitLambda: Boolean</ID>
     <ID>ExpressionBodyOnOneLine:KindNameInPackage.kt:KindNameInPackage$private fun findViolations: List&lt;String></ID>
     <ID>KDocFiller:CalleeBeforeCaller.kt:CalleeBeforeCaller$/** * Reports a function that calls a function of the same class or file declared below it. * * Calls are matched by name. A call on another receiver counts only when a sibling extension has that name. * Recursion and mutual recursion are skipped, because no order satisfies them, and so is a name with an * overload declared above the caller. Property initializers are not checked: properties stay on top. */</ID>
+    <ID>TrivialLambdaReference:CalleeBeforeCaller.kt:CalleeBeforeCaller${ function -> function.name }</ID>
+    <ID>TrivialLambdaReference:DataClassDefaultValue.kt:DataClassDefaultValue${ parameter -> parameter.hasDefaultValue() }</ID>
+    <ID>TrivialLambdaReference:DeclarationOrderTest.kt:DeclarationOrderTest${ finding -> finding.message }</ID>
+    <ID>TrivialLambdaReference:KDocHtmlTag.kt:KDocHtmlTag${ match -> match.value }</ID>
+    <ID>TrivialLambdaReference:KindNameInPackage.kt:KindNameInPackage${ segment -> segment.asString() }</ID>
+    <ID>TrivialLambdaReference:KindNameInPackage.kt:KindNameInPackage${ suffix -> name.endsWith(suffix) }</ID>
   </CurrentIssues>
 </SmellBaseline>

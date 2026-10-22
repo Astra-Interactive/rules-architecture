@@ -18,5 +18,10 @@
     <ID>ExpressionBodyOnOneLine:RootSourcesTest.kt:RootSourcesTest$private fun unit: BuildUnit</ID>
     <ID>ExpressionBodyOnOneLine:UnitDependencyTest.kt:UnitDependencyTest$private fun unit: BuildUnit</ID>
     <ID>ExpressionBodyOnOneLine:UnitReadmeTest.kt:UnitReadmeTest$private fun unit: BuildUnit</ID>
+    <ID>TrivialLambdaReference:NestedUnitTest.kt:NestedUnitTest${ violation -> violation.subject }</ID>
+    <ID>TrivialLambdaReference:RootSourcesTest.kt:RootSourcesTest${ violation -> violation.path }</ID>
+    <ID>TrivialLambdaReference:UnitDependencyTest.kt:UnitDependencyTest${ violation -> violation.message }</ID>
+    <ID>TrivialLambdaReference:UnitDependencyTest.kt:UnitDependencyTest${ violation -> violation.subject }</ID>
+    <ID>TrivialLambdaReference:UnitReadme.kt:UnitReadme${ line -> line.trim() }</ID>
   </CurrentIssues>
 </SmellBaseline>

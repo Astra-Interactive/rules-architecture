@@ -110,5 +110,38 @@
     <ID>CompanionFactoryFunction:UnitLayout.kt:UnitLayout.Companion$fun create: UnitLayout</ID>
     <ID>ExpressionBodyOnOneLine:KindImportDirection.kt:KindImportDirection$private fun allowedTargets: Set&lt;Kind></ID>
     <ID>ExpressionBodyOnOneLine:TestMirror.kt:TestMirror$private fun packagesByName: Map&lt;String, Set&lt;String>></ID>
+    <ID>OperatorBeforeTrailingCall:EntryPointVisibility.kt:EntryPointVisibility$(classes + objects)</ID>
+    <ID>OperatorBeforeTrailingCall:KindShape.kt:KindShape$(placement.concepts + listOfNotNull(placement.kindWord) + placement.below)</ID>
+    <ID>OperatorBeforeTrailingCall:NestedDataClass.kt:NestedDataClass$(constructorTypes + bodyTypes)</ID>
+    <ID>TrivialLambdaReference:ContractPlacement.kt:ContractPlacement${ declaration -> declaration.name }</ID>
+    <ID>TrivialLambdaReference:ContractPlacement.kt:ContractPlacement${ file -> file.packageName }</ID>
+    <ID>TrivialLambdaReference:ContractPlacementTest.kt:ContractPlacementTest${ violation -> violation.subject }</ID>
+    <ID>TrivialLambdaReference:DiPlacementTest.kt:DiPlacementTest${ violation -> violation.subject }</ID>
+    <ID>TrivialLambdaReference:EntryPointVisibility.kt:EntryPointVisibility${ declaration -> declaration.name }</ID>
+    <ID>TrivialLambdaReference:EntryPointVisibilityTest.kt:EntryPointVisibilityTest${ violation -> violation.subject }</ID>
+    <ID>TrivialLambdaReference:ErrorPlacement.kt:ErrorPlacement${ declaration -> isError(declaration) }</ID>
+    <ID>TrivialLambdaReference:ErrorPlacementTest.kt:ErrorPlacementTest${ violation -> violation.subject }</ID>
+    <ID>TrivialLambdaReference:FakePlacement.kt:FakePlacement${ name -> FAKE_NAME.matches(name) }</ID>
+    <ID>TrivialLambdaReference:FakePlacementTest.kt:FakePlacementTest${ violation -> violation.subject }</ID>
+    <ID>TrivialLambdaReference:ForbiddenPackageName.kt:ForbiddenPackageName${ file -> file.packageName }</ID>
+    <ID>TrivialLambdaReference:ForbiddenPackageName.kt:ForbiddenPackageName${ previous -> isTechnologyWord(previous) }</ID>
+    <ID>TrivialLambdaReference:ForbiddenPackageNameTest.kt:ForbiddenPackageNameTest${ violation -> violation.subject }</ID>
+    <ID>TrivialLambdaReference:InMemoryPlacement.kt:InMemoryPlacement${ declaration -> declaration.name }</ID>
+    <ID>TrivialLambdaReference:InMemoryPlacement.kt:InMemoryPlacement${ name -> IN_MEMORY_NAME.matches(name) }</ID>
+    <ID>TrivialLambdaReference:InMemoryPlacementTest.kt:InMemoryPlacementTest${ violation -> violation.subject }</ID>
+    <ID>TrivialLambdaReference:KindShapeTest.kt:KindShapeTest${ violation -> violation.message }</ID>
+    <ID>TrivialLambdaReference:NestedDataClass.kt:NestedDataClass${ file -> file.path }</ID>
+    <ID>TrivialLambdaReference:NestedDataClassTest.kt:NestedDataClassTest${ violation -> violation.subject }</ID>
+    <ID>TrivialLambdaReference:PlatformImport.kt:PlatformImport${ import -> import.importedName }</ID>
+    <ID>TrivialLambdaReference:PlatformImport.kt:PlatformImport${ prefix -> importedName.startsWith(prefix) }</ID>
+    <ID>TrivialLambdaReference:PlatformImportTest.kt:PlatformImportTest${ violation -> violation.subject }</ID>
+    <ID>TrivialLambdaReference:TestMirror.kt:TestMirror${ location -> location.name }</ID>
+    <ID>TrivialLambdaReference:TestMirror.kt:TestMirror${ location -> location.packageName }</ID>
+    <ID>TrivialLambdaReference:TestMirrorTest.kt:TestMirrorTest${ violation -> violation.subject }</ID>
+    <ID>TrivialLambdaReference:UseCaseShape.kt:UseCaseShape${ entry -> entry.name }</ID>
+    <ID>TrivialLambdaReference:UseCaseShape.kt:UseCaseShape${ function -> function.hasPrivateModifier }</ID>
+    <ID>TrivialLambdaReference:UseCaseShapeTest.kt:UseCaseShapeTest${ violation -> violation.message }</ID>
+    <ID>TrivialLambdaReference:UtilShape.kt:UtilShape${ match -> match.value }</ID>
+    <ID>TrivialLambdaReference:UtilShapeTest.kt:UtilShapeTest${ violation -> violation.subject }</ID>
   </CurrentIssues>
 </SmellBaseline>

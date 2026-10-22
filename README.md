@@ -258,6 +258,7 @@ val violations: List<StructureViolation> = checker.check(
 | `SystemTimeCall` | `System.currentTimeMillis()` and `System.nanoTime()` |
 | `RunBlockingInTest` | `runBlocking` in a test source set |
 | `KDocFiller` | a KDoc filler phrase, a `@return` of "the result", a `@param` that repeats its name, a summary of more than four sentences |
+| `LambdaSingleIfGuard` | a lambda whose whole body is one `if` without `else` |
 
 ### detekt settings
 

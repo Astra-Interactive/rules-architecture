@@ -4,8 +4,13 @@
   <CurrentIssues>
     <ID>ArgumentPerLine:ArchitectureTask.kt:ArchitectureTask$ArchitectureFinding(violation.rule, violation.path, violation.subject, violation.message)</ID>
     <ID>ArgumentPerLine:ArchitectureTask.kt:ArchitectureTask$konsistArguments(kind, mainDirectories, reportFile)</ID>
-    <ID>ArgumentPerLine:ArchitectureTask.kt:ArchitectureTask$listOf(NestedUnit(), RootSources(), UnitDependency(), UnitReadme())</ID>
     <ID>ExpressionBodyOnOneLine:ArchitectureTask.kt:ArchitectureTask$private fun konsistArguments: List&lt;String></ID>
     <ID>ExpressionBodyOnOneLine:ArchitectureTask.kt:ArchitectureTask$private fun sourceDirectories: List&lt;File></ID>
+    <ID>TrivialLambdaReference:ArchitectureTask.kt:ArchitectureTask${ directory -> directory.isDirectory }</ID>
+    <ID>TrivialLambdaReference:ArchitectureTask.kt:ArchitectureTask${ directory -> directory.path }</ID>
+    <ID>TrivialLambdaReference:ArchitectureTask.kt:ArchitectureTask${ entry -> entry.cliName }</ID>
+    <ID>TrivialLambdaReference:ArchitectureTask.kt:ArchitectureTask${ line -> ArchitectureFinding.parse(line) }</ID>
+    <ID>TrivialLambdaReference:ArchitectureTask.kt:ArchitectureTask${ line -> line.isNotBlank() }</ID>
+    <ID>TrivialLambdaReference:ArchitectureTask.kt:ArchitectureTask${ sourceSet -> sourceSet.isDirectory }</ID>
   </CurrentIssues>
 </SmellBaseline>
