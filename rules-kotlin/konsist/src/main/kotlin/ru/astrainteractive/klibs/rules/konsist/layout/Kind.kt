@@ -20,7 +20,6 @@ internal enum class Kind(val words: Set<String>) {
     IMPLEMENTATION(
         setOf(
             "cache4k",
-            "database",
             "datastore",
             "entity",
             "exposed",

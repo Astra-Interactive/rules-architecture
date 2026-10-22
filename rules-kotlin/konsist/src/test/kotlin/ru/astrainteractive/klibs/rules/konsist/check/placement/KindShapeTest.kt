@@ -57,4 +57,18 @@ internal class KindShapeTest {
 
         assertEquals(emptyList(), KindShape().check(sources))
     }
+
+    @Test
+    fun GIVEN_database_kind_package_inside_a_technology_WHEN_checked_THEN_accepts_it(@TempDir directory: File) {
+        val technology = SourceTree(File(directory, "exposed"))
+            .main("x.data.exposed.rating", "ExposedRatingRepository.kt", "class ExposedRatingRepository")
+            .main("x.data.exposed.database", "RatingDatabase.kt", "class RatingDatabase")
+            .load(UnitKind.TECHNOLOGY, unitPath = ":modules:data:exposed")
+        val context = SourceTree(File(directory, "jail"))
+            .main("x.jail.jail.api", "JailRepository.kt", "interface JailRepository")
+            .main("x.jail.jail.exposed.database", "JailDatabase.kt", "class JailDatabase")
+            .load(UnitKind.CONTEXT, unitPath = ":jail")
+
+        assertEquals(emptyList(), KindShape().check(technology) + KindShape().check(context))
+    }
 }

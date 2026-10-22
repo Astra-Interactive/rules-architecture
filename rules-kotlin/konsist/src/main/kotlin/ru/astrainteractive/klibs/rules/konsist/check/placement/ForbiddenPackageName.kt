@@ -10,7 +10,8 @@ import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 /**
  * Reports a package created inside a unit with a word from the forbidden list of the package-layout rule. The
  * unit's root package is not judged: it follows the unit path and may keep a project's word (`…data.dao`).
- * `table` and `entity` are allowed only in a technology's implementation.
+ * `table`, `entity` and `database` are allowed only in a technology's implementation: in a technology unit or
+ * below a technology package.
  */
 internal class ForbiddenPackageName : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
@@ -46,7 +47,7 @@ internal class ForbiddenPackageName : ArchitectureCheck {
         const val RULE = "ForbiddenPackageName"
 
         @JvmField
-        val TECHNOLOGY_ONLY = setOf("table", "entity")
+        val TECHNOLOGY_ONLY = setOf("database", "entity", "table")
 
         @JvmField
         val FORBIDDEN = setOf(
