@@ -6,6 +6,7 @@ import ru.astrainteractive.klibs.rules.konsist.layout.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.Placement
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitLayout
+import ru.astrainteractive.klibs.rules.konsist.layout.util.createUnitLayout
 import java.io.File
 
 /**
@@ -92,7 +93,7 @@ internal class UnitSources(
         ): UnitSources {
             val mainFiles = parse(mainDirectories)
             val packages = mainFiles.map(KoFileDeclaration::packageName).distinct()
-            val layout = UnitLayout.create(
+            val layout = createUnitLayout(
                 packages,
                 rootPackage,
                 unitPath,
