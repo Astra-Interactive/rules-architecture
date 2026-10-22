@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ExpressionBodyOnOneLine:KindImportDirection.kt:KindImportDirection$private fun allowedTargets: Set&lt;Kind></ID>
+    <ID>ExpressionBodyOnOneLine:TestMirror.kt:TestMirror$private fun packagesByName: Map&lt;String, Set&lt;String>></ID>
+  </CurrentIssues>
+</SmellBaseline>

@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ExpressionBodyOnOneLine:ArchitectureTask.kt:ArchitectureTask$private fun konsistArguments: List&lt;String></ID>
+    <ID>ExpressionBodyOnOneLine:ArchitectureTask.kt:ArchitectureTask$private fun sourceDirectories: List&lt;File></ID>
+  </CurrentIssues>
+</SmellBaseline>

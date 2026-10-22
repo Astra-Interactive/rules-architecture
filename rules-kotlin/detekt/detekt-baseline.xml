@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ExpressionBodyOnOneLine:CalleeBeforeCaller.kt:CalleeBeforeCaller$fun callsBack: Boolean</ID>
+    <ID>ExpressionBodyOnOneLine:CalleeBeforeCaller.kt:CalleeBeforeCaller$private fun calledNames: Set&lt;String></ID>
+    <ID>ExpressionBodyOnOneLine:ImplementationName.kt:ImplementationName$private fun findViolations: List&lt;String></ID>
+    <ID>ExpressionBodyOnOneLine:ImplicitItParameter.kt:ImplicitItParameter$private fun isInsideImplicitLambda: Boolean</ID>
+    <ID>ExpressionBodyOnOneLine:KindNameInPackage.kt:KindNameInPackage$private fun findViolations: List&lt;String></ID>
+  </CurrentIssues>
+</SmellBaseline>

@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ExpressionBodyOnOneLine:NestedUnit.kt:NestedUnit$private fun isUnitDirectory: Boolean</ID>
+    <ID>ExpressionBodyOnOneLine:NestedUnitTest.kt:NestedUnitTest$private fun unit: BuildUnit</ID>
+    <ID>ExpressionBodyOnOneLine:RootSourcesTest.kt:RootSourcesTest$private fun unit: BuildUnit</ID>
+    <ID>ExpressionBodyOnOneLine:UnitDependencyTest.kt:UnitDependencyTest$private fun unit: BuildUnit</ID>
+    <ID>ExpressionBodyOnOneLine:UnitReadmeTest.kt:UnitReadmeTest$private fun unit: BuildUnit</ID>
+  </CurrentIssues>
+</SmellBaseline>

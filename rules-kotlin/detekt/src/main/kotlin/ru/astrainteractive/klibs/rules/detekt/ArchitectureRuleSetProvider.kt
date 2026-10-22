@@ -6,6 +6,7 @@ import dev.detekt.api.RuleSetProvider
 import ru.astrainteractive.klibs.rules.detekt.declaration.DataClassDefaultValue
 import ru.astrainteractive.klibs.rules.detekt.declaration.LocalOrInnerClass
 import ru.astrainteractive.klibs.rules.detekt.declaration.NamespaceObject
+import ru.astrainteractive.klibs.rules.detekt.formatting.ExpressionBodyOnOneLine
 import ru.astrainteractive.klibs.rules.detekt.injection.ConstructorDefaultDependency
 import ru.astrainteractive.klibs.rules.detekt.kdoc.KDocHtmlTag
 import ru.astrainteractive.klibs.rules.detekt.lambda.ImplicitItParameter
@@ -23,24 +24,27 @@ import ru.astrainteractive.klibs.rules.detekt.tuple.AnonymousTuple
 public class ArchitectureRuleSetProvider : RuleSetProvider {
     override val ruleSetId: RuleSetId = RuleSetId(RULE_SET_ID)
 
-    override fun instance(): RuleSet = RuleSet(
-        ruleSetId,
-        listOf(
-            ::AnonymousTuple,
-            ::CalleeBeforeCaller,
-            ::ConstructorDefaultDependency,
-            ::DataClassDefaultValue,
-            ::DeclarationOrder,
-            ::ImplementationName,
-            ::ImplicitItParameter,
-            ::KDocHtmlTag,
-            ::KindNameInPackage,
-            ::LocalOrInnerClass,
-            ::NamespaceObject,
-            ::TestFunctionName,
-            ::TimeAsPrimitive,
+    override fun instance(): RuleSet {
+        return RuleSet(
+            ruleSetId,
+            listOf(
+                ::AnonymousTuple,
+                ::CalleeBeforeCaller,
+                ::ConstructorDefaultDependency,
+                ::DataClassDefaultValue,
+                ::DeclarationOrder,
+                ::ExpressionBodyOnOneLine,
+                ::ImplementationName,
+                ::ImplicitItParameter,
+                ::KDocHtmlTag,
+                ::KindNameInPackage,
+                ::LocalOrInnerClass,
+                ::NamespaceObject,
+                ::TestFunctionName,
+                ::TimeAsPrimitive,
+            )
         )
-    )
+    }
 
     internal companion object {
         const val RULE_SET_ID = "architecture"
