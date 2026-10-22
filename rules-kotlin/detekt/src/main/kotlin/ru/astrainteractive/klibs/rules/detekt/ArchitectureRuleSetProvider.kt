@@ -30,6 +30,7 @@ import ru.astrainteractive.klibs.rules.detekt.kdoc.KDocFiller
 import ru.astrainteractive.klibs.rules.detekt.kdoc.KDocHtmlTag
 import ru.astrainteractive.klibs.rules.detekt.lambda.ImplicitItParameter
 import ru.astrainteractive.klibs.rules.detekt.lambda.LambdaSingleIfGuard
+import ru.astrainteractive.klibs.rules.detekt.lambda.TrivialLambdaReference
 import ru.astrainteractive.klibs.rules.detekt.multiplatform.ActualFileSuffix
 import ru.astrainteractive.klibs.rules.detekt.naming.FunctionVerb
 import ru.astrainteractive.klibs.rules.detekt.naming.ImplementationName
@@ -100,6 +101,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::ThemeObjectFunction,
                 ::ThrowInsideRunCatching,
                 ::TimeAsPrimitive,
+                ::TrivialLambdaReference,
             )
         )
     }

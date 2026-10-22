@@ -86,3 +86,5 @@ architecture:
     active: true
   TimeAsPrimitive:
     active: true
+  TrivialLambdaReference:
+    active: true
