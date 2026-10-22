@@ -254,6 +254,7 @@ val violations: List<StructureViolation> = checker.check(
 | `CompanionFactoryFunction` | a `create…`, `of` or `from` function in a companion object |
 | `RolelessClassName` | a `…Validator` or `…Factory` class, `…WarmUp`/`…Migration`/`…ViewModel` outside its `warmup`/`migration`/`viewmodel` package |
 | `DiModuleLifecycle` | a `…Module` that declares `enable`, `disable`, `reload`, `onEnable`, `onDisable` or `onReload` |
+| `RootModuleConstruction` | a `RootModule` property that constructs anything but a `…Module` or a `Lifecycle` |
 
 ### detekt settings
 
