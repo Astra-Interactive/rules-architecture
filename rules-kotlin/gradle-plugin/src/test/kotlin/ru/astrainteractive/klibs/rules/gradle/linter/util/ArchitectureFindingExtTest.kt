@@ -22,4 +22,16 @@ class ArchitectureFindingExtTest {
             finding.describe()
         )
     }
+
+    @Test
+    fun GIVEN_finding_WHEN_written_as_a_line_THEN_parses_back_to_it() {
+        val finding = ArchitectureFinding(
+            rule = "ApiConfiguration",
+            path = "build.gradle.kts",
+            subject = "api: com.example:core",
+            message = "Declare com.example:core with implementation"
+        )
+
+        assertEquals(finding, ArchitectureFinding.parse(finding.toLine()))
+    }
 }

@@ -2,6 +2,7 @@ package ru.astrainteractive.klibs.rules.gradle.linter.util
 
 import org.gradle.api.Project
 import org.gradle.api.artifacts.ProjectDependency
+import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
 
@@ -20,6 +21,14 @@ private val TECHNOLOGY_UNIT_NAMES = setOf(
     "room",
     "sqldelight",
 )
+
+private const val MULTIPLATFORM_PLUGIN_ID = "org.jetbrains.kotlin.multiplatform"
+
+private const val PUBLISH_PLUGIN_ID = "maven-publish"
+
+private const val API_CONFIGURATION = "api"
+
+private const val EXPORT_MARKER = "Export"
 
 private val PRODUCTION_CONFIGURATION_SUFFIXES = listOf(
     "implementation",
@@ -59,4 +68,40 @@ internal fun Project.productionProjectDependencies(): Set<String> {
         .map { dependency -> dependency.path }
         .filter { dependencyPath -> dependencyPath != path }
         .toSet()
+}
+
+private fun isApiConfiguration(name: String): Boolean {
+    val isApi = name == API_CONFIGURATION || name.endsWith(API_CONFIGURATION.replaceFirstChar(Char::uppercase))
+    return isApi && !name.contains("test", ignoreCase = true)
+}
+
+private fun Project.apiDependencies(): List<String> {
+    return configurations
+        .filter { configuration -> isApiConfiguration(configuration.name) }
+        .flatMap { configuration ->
+            configuration.dependencies.map { dependency ->
+                val notation = (dependency as? ProjectDependency)?.path ?: "${dependency.group}:${dependency.name}"
+                "${configuration.name}: $notation"
+            }
+        }
+        .sorted()
+}
+
+private fun Project.hasFrameworkExport(): Boolean {
+    if (!pluginManager.hasPlugin(MULTIPLATFORM_PLUGIN_ID)) return false
+    return configurations
+        .filter { configuration -> configuration.name.contains(EXPORT_MARKER) }
+        .any { configuration -> configuration.dependencies.isNotEmpty() }
+}
+
+internal fun Project.readUnitBuild(unitKind: UnitKind): UnitBuild {
+    val isKotlin = hasKotlinPlugin()
+    return UnitBuild(
+        unitKind = unitKind,
+        apiDependencies = apiDependencies(),
+        hasFrameworkExport = hasFrameworkExport(),
+        isPublished = pluginManager.hasPlugin(PUBLISH_PLUGIN_ID),
+        isKotlin = isKotlin,
+        explicitApiMode = if (isKotlin) explicitApiMode() else null
+    )
 }

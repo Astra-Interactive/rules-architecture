@@ -1,0 +1,53 @@
+@file:Suppress("FunctionNaming")
+
+package ru.astrainteractive.klibs.rules.gradle.linter.util
+
+import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
+import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class UnitBuildExtTest {
+    private val cleanBuild = UnitBuild(
+        unitKind = UnitKind.API,
+        apiDependencies = emptyList(),
+        hasFrameworkExport = false,
+        isPublished = false,
+        isKotlin = true,
+        explicitApiMode = null
+    )
+
+    @Test
+    fun GIVEN_api_configuration_without_framework_export_WHEN_checked_THEN_reports_each_dependency() {
+        val build = cleanBuild.copy(apiDependencies = listOf("api: com.example:core", "jvmMainApi: :core"))
+
+        val findings = build.findBuildFindings()
+
+        assertEquals(listOf("api: com.example:core", "jvmMainApi: :core"), findings.map { finding -> finding.subject })
+        assertEquals(
+            "Declare com.example:core with implementation: api is only for a type exported through a " +
+                "Multiplatform framework.",
+            findings.first().message
+        )
+    }
+
+    @Test
+    fun GIVEN_api_configuration_with_framework_export_WHEN_checked_THEN_reports_nothing() {
+        val build = cleanBuild.copy(apiDependencies = listOf("api: com.example:core"), hasFrameworkExport = true)
+
+        assertEquals(emptyList(), build.findBuildFindings())
+    }
+
+    @Test
+    fun GIVEN_published_kotlin_library_without_strict_explicit_api_WHEN_checked_THEN_reports_it() {
+        val warning = cleanBuild.copy(isPublished = true, explicitApiMode = "warning")
+        val strict = cleanBuild.copy(isPublished = true, explicitApiMode = "strict")
+        val java = cleanBuild.copy(isPublished = true, isKotlin = false)
+
+        assertEquals(
+            listOf("PublishedLibraryExplicitApi"),
+            (warning.findBuildFindings() + strict.findBuildFindings() + java.findBuildFindings())
+                .map { finding -> finding.rule }
+        )
+    }
+}

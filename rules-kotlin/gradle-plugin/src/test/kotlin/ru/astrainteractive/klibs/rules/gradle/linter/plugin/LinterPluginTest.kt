@@ -115,6 +115,36 @@ class LinterPluginTest {
     }
 
     @Test
+    fun GIVEN_unit_declaring_an_api_dependency_WHEN_architecture_checked_THEN_reports_the_configuration(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            plugins {
+                `java-library`
+                id("ru.astrainteractive.klibs.rules.gradle.linter")
+            }
+
+            dependencies {
+                api("org.slf4j:slf4j-api:2.0.13")
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "jail", buildScript = moduleScript)
+            .withSourceFile("jail/README.md", "Jails players for a sentence and frees them when it ends.")
+
+        val result = build.runAndFail(":jail:architectureCheck")
+
+        val isDependencyReported = result.output.contains("Declare org.slf4j:slf4j-api with implementation")
+        val isRuleNamed = result.output.contains("[ApiConfiguration]")
+        assertTrue(
+            isDependencyReported && isRuleNamed,
+            "the api dependency was not reported:\n${result.output}"
+        )
+    }
+
+    @Test
     fun GIVEN_kotlin_library_with_explicit_api_WHEN_configured_THEN_detekt_runs_the_architecture_rules(
         @TempDir rootDirectory: File
     ) {

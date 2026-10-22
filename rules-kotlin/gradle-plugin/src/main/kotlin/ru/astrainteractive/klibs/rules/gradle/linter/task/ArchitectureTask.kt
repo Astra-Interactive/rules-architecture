@@ -4,6 +4,7 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.Classpath
@@ -61,6 +62,12 @@ internal abstract class ArchitectureTask : DefaultTask() {
 
     @get:Input
     abstract val projectDependencies: SetProperty<String>
+
+    /**
+     * The findings of the unit's own build, read at configuration time, one report line each.
+     */
+    @get:Input
+    abstract val buildFindings: ListProperty<String>
 
     @get:Inject
     abstract val execOperations: ExecOperations
@@ -146,7 +153,8 @@ internal abstract class ArchitectureTask : DefaultTask() {
             "linter.unitKind of ${projectPath.get()} is '${unitKind.get()}', expected one of " +
                 UnitKind.entries.joinToString { entry -> entry.cliName }
         )
-        return runKonsist(kind) + runStructureChecks(kind)
+        val buildFindings = buildFindings.get().map { line -> ArchitectureFinding.parse(line) }
+        return runKonsist(kind) + runStructureChecks(kind) + buildFindings
     }
 
     private companion object {

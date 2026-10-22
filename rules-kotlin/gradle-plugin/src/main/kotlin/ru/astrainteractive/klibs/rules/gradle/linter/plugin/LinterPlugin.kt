@@ -16,12 +16,16 @@ import org.gradle.language.base.plugins.LifecycleBasePlugin
 import ru.astrainteractive.klibs.rules.gradle.detekt.plugin.DetektPlugin
 import ru.astrainteractive.klibs.rules.gradle.detekt.service.DetektConfigService
 import ru.astrainteractive.klibs.rules.gradle.linter.extension.LinterExtension
+import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.task.ArchitectureBaselineTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.ArchitectureCheckTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.ArchitectureTask
 import ru.astrainteractive.klibs.rules.gradle.linter.util.detectUnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.util.explicitApiMode
+import ru.astrainteractive.klibs.rules.gradle.linter.util.findBuildFindings
 import ru.astrainteractive.klibs.rules.gradle.linter.util.productionProjectDependencies
+import ru.astrainteractive.klibs.rules.gradle.linter.util.readUnitBuild
+import ru.astrainteractive.klibs.rules.gradle.linter.util.toLine
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
 import java.util.Properties
 
@@ -120,6 +124,12 @@ internal class LinterPlugin : Plugin<Project> {
         rootPackage.set(extension.rootPackage)
         rootOfBuild.set(project.path == project.isolated.rootProject.path)
         projectDependencies.set(project.provider { project.productionProjectDependencies() })
+        buildFindings.set(
+            extension.unitKind.map { cliName ->
+                val kind = UnitKind.fromCliName(cliName) ?: UnitKind.CONTEXT
+                project.readUnitBuild(kind).findBuildFindings().map { finding -> finding.toLine() }
+            }
+        )
     }
 
     override fun apply(target: Project) {
