@@ -286,6 +286,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `TestMirror`           | a test in another package than its owner                                                                  |
 | `FakePlacement`        | a `Fake*` outside a `fake` package                                                                        |
 | `InMemoryPlacement`    | an `InMemory*` outside a `memory` package of the main sources                                              |
+| `SealedFamilyFile` | a class or object whose direct supertype is a sealed type declared in another file |
 
 ### Structure checks
 
