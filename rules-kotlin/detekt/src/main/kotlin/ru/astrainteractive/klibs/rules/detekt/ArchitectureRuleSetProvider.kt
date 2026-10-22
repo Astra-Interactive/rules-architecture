@@ -6,6 +6,7 @@ import dev.detekt.api.RuleSetProvider
 import ru.astrainteractive.klibs.rules.detekt.compose.ComposableFileType
 import ru.astrainteractive.klibs.rules.detekt.compose.ComposableWhenBranch
 import ru.astrainteractive.klibs.rules.detekt.compose.ComposeConstantCase
+import ru.astrainteractive.klibs.rules.detekt.compose.NonComposableFileInComposable
 import ru.astrainteractive.klibs.rules.detekt.compose.PreviewBlockLast
 import ru.astrainteractive.klibs.rules.detekt.compose.RememberInName
 import ru.astrainteractive.klibs.rules.detekt.compose.ThemeObjectFunction
@@ -88,6 +89,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::LocalOrInnerClass,
                 ::MutableStateFlowEmit,
                 ::NamespaceObject,
+                ::NonComposableFileInComposable,
                 ::OneTypeFamilyPerFile,
                 ::OperatorBeforeTrailingCall,
                 ::PreviewBlockLast,
