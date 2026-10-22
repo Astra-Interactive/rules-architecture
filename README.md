@@ -245,6 +245,7 @@ val violations: List<StructureViolation> = checker.check(
 | `RememberInName` | a `remember…` function whose body calls no `remember` |
 | `ActualFileSuffix` | a file with an `actual` declaration whose name has no platform suffix (`Name.android.kt`) |
 | `MutableStateFlowEmit` | `emit`/`tryEmit` on a property declared or initialised as a `MutableStateFlow` |
+| `ImpureUpdateLambda` | an assignment to an outer name inside the lambda of `update`, `getAndUpdate` or `updateAndGet` |
 
 ### detekt settings
 

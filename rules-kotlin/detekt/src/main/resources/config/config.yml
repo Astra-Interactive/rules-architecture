@@ -32,6 +32,8 @@ architecture:
     active: true
   ImplicitItParameter:
     active: true
+  ImpureUpdateLambda:
+    active: true
   KDocHtmlTag:
     active: true
   KindNameInPackage:

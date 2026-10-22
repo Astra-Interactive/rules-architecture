@@ -8,6 +8,7 @@ import ru.astrainteractive.klibs.rules.detekt.compose.ComposeConstantCase
 import ru.astrainteractive.klibs.rules.detekt.compose.PreviewBlockLast
 import ru.astrainteractive.klibs.rules.detekt.compose.RememberInName
 import ru.astrainteractive.klibs.rules.detekt.compose.ThemeObjectFunction
+import ru.astrainteractive.klibs.rules.detekt.coroutine.ImpureUpdateLambda
 import ru.astrainteractive.klibs.rules.detekt.coroutine.MutableStateFlowEmit
 import ru.astrainteractive.klibs.rules.detekt.declaration.DataClassDefaultValue
 import ru.astrainteractive.klibs.rules.detekt.declaration.LocalOrInnerClass
@@ -58,6 +59,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::FunctionVerb,
                 ::ImplementationName,
                 ::ImplicitItParameter,
+                ::ImpureUpdateLambda,
                 ::KDocHtmlTag,
                 ::KindNameInPackage,
                 ::LocalOrInnerClass,
