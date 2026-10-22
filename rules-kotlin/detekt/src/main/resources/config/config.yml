@@ -52,6 +52,8 @@ architecture:
     active: true
   RememberInName:
     active: true
+  RunCatchingCancellation:
+    active: true
   SingleJobLaunchMode:
     active: true
   TestFunctionName:
