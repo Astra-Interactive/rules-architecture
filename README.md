@@ -236,6 +236,7 @@ val violations: List<StructureViolation> = checker.check(
 | `ExplicitInvoke` | a call `name(…)` of a parameter, property or local value instead of `name.invoke(…)` |
 | `FunctionVerb` | a function named `get…` (but `getState`) or with the word `map`, `make`, `do`, `handle` or `process` |
 | `PropertyAsFunction` | a function with no parameters that only returns a property of its class or file |
+| `OneTypeFamilyPerFile` | a top-level function (a composable included) beside a top-level type, and a second class with behaviour in one file |
 
 ### detekt settings
 

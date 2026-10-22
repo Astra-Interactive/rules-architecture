@@ -6,6 +6,7 @@ import dev.detekt.api.RuleSetProvider
 import ru.astrainteractive.klibs.rules.detekt.declaration.DataClassDefaultValue
 import ru.astrainteractive.klibs.rules.detekt.declaration.LocalOrInnerClass
 import ru.astrainteractive.klibs.rules.detekt.declaration.NamespaceObject
+import ru.astrainteractive.klibs.rules.detekt.declaration.OneTypeFamilyPerFile
 import ru.astrainteractive.klibs.rules.detekt.declaration.PropertyAsFunction
 import ru.astrainteractive.klibs.rules.detekt.formatting.ArgumentPerLine
 import ru.astrainteractive.klibs.rules.detekt.formatting.BooleanOperatorWrapping
@@ -49,6 +50,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::KindNameInPackage,
                 ::LocalOrInnerClass,
                 ::NamespaceObject,
+                ::OneTypeFamilyPerFile,
                 ::PropertyAsFunction,
                 ::TestFunctionName,
                 ::TimeAsPrimitive,
