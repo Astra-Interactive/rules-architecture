@@ -17,7 +17,8 @@ import org.jetbrains.kotlin.psi.KtSecondaryConstructor
  * Reports a declaration out of the order of the code-ordering rule: properties, secondary constructors,
  * functions, `init` blocks, which call the functions above them, and the companion object last. Nested classes
  * and objects other than the companion are not ordered. The order of functions among themselves is left to
- * [CalleeBeforeCaller].
+ * [CalleeBeforeCaller]. At file level a preview fixture (`PREVIEW_*`, `Preview*`) is not ordered either: the
+ * preview block closes a composable file, its fixtures before the previews that use them.
  */
 internal class DeclarationOrder(config: Config) : Rule(config, DESCRIPTION) {
 
@@ -38,6 +39,12 @@ internal class DeclarationOrder(config: Config) : Rule(config, DESCRIPTION) {
             declaration is KtObjectDeclaration && declaration.isCompanion() -> Section.COMPANION_OBJECT
             else -> null
         }
+    }
+
+    private fun isPreviewFixture(declaration: KtDeclaration): Boolean {
+        if (declaration !is KtProperty) return false
+        val name = declaration.name.orEmpty()
+        return PREVIEW_PREFIXES.any { prefix -> name.startsWith(prefix) }
     }
 
     private fun describe(declaration: KtDeclaration, section: Section): String {
@@ -61,7 +68,7 @@ internal class DeclarationOrder(config: Config) : Rule(config, DESCRIPTION) {
 
     override fun visitKtFile(file: KtFile) {
         super.visitKtFile(file)
-        checkScope(file.declarations)
+        checkScope(file.declarations.filterNot { declaration -> isPreviewFixture(declaration) })
     }
 
     override fun visitClassBody(classBody: KtClassBody) {
@@ -72,5 +79,8 @@ internal class DeclarationOrder(config: Config) : Rule(config, DESCRIPTION) {
     private companion object {
         const val DESCRIPTION = "Declarations follow the code-ordering rule: properties, secondary constructors, " +
             "functions, init blocks, then the companion object."
+
+        @JvmField
+        val PREVIEW_PREFIXES = listOf("PREVIEW_", "Preview")
     }
 }

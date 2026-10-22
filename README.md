@@ -223,7 +223,7 @@ val violations: List<StructureViolation> = checker.check(
 | `ConstructorDefaultDependency` | a constructor default that creates a dependency, such as `= Foo()`               |
 | `TestFunctionName`             | a `@Test` not named `GIVEN_<state>_WHEN_<action>_THEN_<outcome>`                 |
 | `CalleeBeforeCaller`           | a function that calls a function declared below it in the same class or file     |
-| `DeclarationOrder`             | properties, secondary constructors, functions, `init` blocks, companion: out of this order |
+| `DeclarationOrder`             | properties, secondary constructors, functions, `init` blocks, companion: out of this order; a top-level `PREVIEW_*`/`Preview*` fixture may follow the composables |
 | `NamespaceObject`              | an `object` that only groups functions                                           |
 | `LocalOrInnerClass`            | a class inside a function body and an `inner class`                              |
 | `TimeAsPrimitive`              | a time-named value (`createdAt`, `timeoutMs`) typed as a number or a string      |
