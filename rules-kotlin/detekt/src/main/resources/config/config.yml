@@ -8,6 +8,8 @@ architecture:
     active: true
   CalleeBeforeCaller:
     active: true
+  ConstantOutsideCompanion:
+    active: true
   ConstructorDefaultDependency:
     active: true
   DataClassDefaultValue:
