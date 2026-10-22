@@ -1,6 +1,7 @@
 package ru.astrainteractive.klibs.rules.gradle.linter.util
 
 import org.gradle.api.Project
+import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
@@ -94,6 +95,15 @@ private fun Project.hasFrameworkExport(): Boolean {
         .any { configuration -> configuration.dependencies.isNotEmpty() }
 }
 
+private fun Project.externalProductionDependencies(): List<String> {
+    return configurations
+        .filter { configuration -> isProductionConfiguration(configuration.name) }
+        .flatMap { configuration -> configuration.dependencies.withType(ExternalModuleDependency::class.java) }
+        .map { dependency -> "${dependency.group}:${dependency.name}" }
+        .distinct()
+        .sorted()
+}
+
 internal fun Project.readUnitBuild(unitKind: UnitKind): UnitBuild {
     val isKotlin = hasKotlinPlugin()
     return UnitBuild(
@@ -102,6 +112,7 @@ internal fun Project.readUnitBuild(unitKind: UnitKind): UnitBuild {
         hasFrameworkExport = hasFrameworkExport(),
         isPublished = pluginManager.hasPlugin(PUBLISH_PLUGIN_ID),
         isKotlin = isKotlin,
-        explicitApiMode = if (isKotlin) explicitApiMode() else null
+        explicitApiMode = if (isKotlin) explicitApiMode() else null,
+        platformDependencies = externalProductionDependencies()
     )
 }

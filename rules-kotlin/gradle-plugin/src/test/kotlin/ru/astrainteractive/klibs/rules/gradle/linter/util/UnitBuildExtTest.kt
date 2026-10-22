@@ -14,7 +14,8 @@ class UnitBuildExtTest {
         hasFrameworkExport = false,
         isPublished = false,
         isKotlin = true,
-        explicitApiMode = null
+        explicitApiMode = null,
+        platformDependencies = listOf("androidx.compose.runtime:runtime", "org.jetbrains.kotlinx:kotlinx-coroutines")
     )
 
     @Test
@@ -48,6 +49,35 @@ class UnitBuildExtTest {
             listOf("PublishedLibraryExplicitApi"),
             (warning.findBuildFindings() + strict.findBuildFindings() + java.findBuildFindings())
                 .map { finding -> finding.rule }
+        )
+    }
+
+    @Test
+    fun GIVEN_api_unit_with_platform_dependencies_WHEN_checked_THEN_reports_each() {
+        val build = cleanBuild.copy(
+            platformDependencies = listOf(
+                "io.papermc.paper:paper-api",
+                "androidx.core:core-ktx",
+                "androidx.annotation:annotation",
+                "com.android.tools:desugar"
+            )
+        )
+        val context = build.copy(unitKind = UnitKind.CONTEXT)
+
+        val findings = build.findBuildFindings() + context.findBuildFindings()
+
+        assertEquals(
+            listOf(
+                "io.papermc.paper:paper-api",
+                "androidx.core:core-ktx",
+                "com.android.tools:desugar"
+            ),
+            findings.map { finding -> finding.subject }
+        )
+        assertEquals(
+            "Move the platform dependency io.papermc.paper:paper-api out of this api unit: the api unit holds " +
+                "platform-free code, and its platform unit depends on it.",
+            findings.first().message
         )
     }
 }

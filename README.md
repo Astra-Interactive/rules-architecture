@@ -319,6 +319,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `ProjectDirMatchesPath` | a unit whose directory differs from its Gradle path |
 | `ApiConfiguration` | a dependency in an `api` configuration of a unit that exports no Multiplatform framework (Gradle plugin) |
 | `PublishedLibraryExplicitApi` | a Kotlin unit applying `maven-publish` without strict explicit API mode (Gradle plugin) |
+| `ApiUnitPlatformDependency` | an external platform dependency (Paper, Bukkit, Fabric, Forge, Android, `androidx` but Compose, annotation and collection) in an `api` unit (Gradle plugin) |
 
 ## 🗂️ Repository
 
