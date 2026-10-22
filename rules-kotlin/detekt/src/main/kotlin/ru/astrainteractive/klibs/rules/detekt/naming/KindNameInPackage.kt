@@ -4,6 +4,7 @@ import dev.detekt.api.Config
 import dev.detekt.api.Entity
 import dev.detekt.api.Finding
 import dev.detekt.api.Rule
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtClassOrObject
 
 /**
@@ -22,26 +23,26 @@ internal class KindNameInPackage(config: Config) : Rule(config, DESCRIPTION) {
         return segments.take(modelIndex).none { segment -> segment in TECHNOLOGY_SEGMENTS }
     }
 
-    private fun findViolations(name: String, segments: List<String>): List<String> = buildList {
-        ROLELESS_SUFFIXES
-            .filter { suffix -> name.endsWith(suffix) }
-            .forEach { suffix -> add("Name '$name' after its role instead of the '$suffix' suffix.") }
-        if (name.contains(SERVICE_WORD) && SERVICE_SEGMENT !in segments) {
-            add("Move '$name' to a '$SERVICE_SEGMENT' package, or drop '$SERVICE_WORD' from its name.")
-        }
-        if (isDomainModelPackage(segments)) {
-            MODEL_SUFFIXES
-                .filter { suffix -> name.endsWith(suffix) }
-                .forEach { suffix -> add("Remove the '$suffix' suffix from the domain type '$name'.") }
+    private fun findViolations(name: String, segments: List<String>): List<String> {
+        return buildList {
+            ROLELESS_SUFFIXES
+                .filter(name::endsWith)
+                .forEach { suffix -> add("Name '$name' after its role instead of the '$suffix' suffix.") }
+            if (name.contains(SERVICE_WORD) && SERVICE_SEGMENT !in segments) {
+                add("Move '$name' to a '$SERVICE_SEGMENT' package, or drop '$SERVICE_WORD' from its name.")
+            }
+            if (isDomainModelPackage(segments)) {
+                MODEL_SUFFIXES
+                    .filter(name::endsWith)
+                    .forEach { suffix -> add("Remove the '$suffix' suffix from the domain type '$name'.") }
+            }
         }
     }
 
     override fun visitClassOrObject(classOrObject: KtClassOrObject) {
         super.visitClassOrObject(classOrObject)
         val name = classOrObject.name ?: return
-        val segments = classOrObject.containingKtFile.packageFqName.pathSegments().map { segment ->
-            segment.asString()
-        }
+        val segments = classOrObject.containingKtFile.packageFqName.pathSegments().map(Name::asString)
         findViolations(name, segments).forEach { message ->
             report(Finding(Entity.from(classOrObject), message))
         }
@@ -73,7 +74,12 @@ internal class KindNameInPackage(config: Config) : Rule(config, DESCRIPTION) {
         )
 
         @JvmField
-        val ROLELESS_SUFFIXES = listOf("Helper", "Util", "Utils", "Manager")
+        val ROLELESS_SUFFIXES = listOf(
+            "Helper",
+            "Util",
+            "Utils",
+            "Manager"
+        )
         const val DESCRIPTION = "Kind words in a type name match the package that holds the type."
     }
 }

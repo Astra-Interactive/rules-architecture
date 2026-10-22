@@ -58,8 +58,8 @@ internal class TimeAsPrimitive(config: Config) : Rule(config, DESCRIPTION) {
 
     private fun isTimeName(name: String): Boolean {
         val words = name.split(WORD_BOUNDARY)
-            .filter { word -> word.isNotEmpty() }
-            .map { word -> word.lowercase() }
+            .filter(String::isNotEmpty)
+            .map(String::lowercase)
         val lastWord = words.lastOrNull() ?: return false
         if (lastWord in TIME_WORDS) return true
         return words.size > 1 && lastWord in TIME_UNITS
@@ -101,13 +101,38 @@ internal class TimeAsPrimitive(config: Config) : Rule(config, DESCRIPTION) {
         const val SERIALIZABLE = "Serializable"
 
         @JvmField
-        val PRIMITIVE_TYPES = setOf("Long", "Int", "String", "Double", "Float")
+        val PRIMITIVE_TYPES = setOf(
+            "Long",
+            "Int",
+            "String",
+            "Double",
+            "Float"
+        )
 
         @JvmField
-        val TIME_WORDS = setOf("cooldown", "date", "delay", "duration", "interval", "time", "timeout", "timestamp")
+        val TIME_WORDS = setOf(
+            "cooldown",
+            "date",
+            "delay",
+            "duration",
+            "interval",
+            "time",
+            "timeout",
+            "timestamp"
+        )
 
         @JvmField
-        val TIME_UNITS = setOf("at", "days", "hours", "millis", "minutes", "ms", "nanos", "seconds", "secs")
+        val TIME_UNITS = setOf(
+            "at",
+            "days",
+            "hours",
+            "millis",
+            "minutes",
+            "ms",
+            "nanos",
+            "seconds",
+            "secs"
+        )
 
         @JvmField
         val WORD_BOUNDARY = Regex("_+|(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")

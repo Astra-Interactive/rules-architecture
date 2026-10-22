@@ -44,7 +44,7 @@ internal class DeclarationOrder(config: Config) : Rule(config, DESCRIPTION) {
     private fun isPreviewFixture(declaration: KtDeclaration): Boolean {
         if (declaration !is KtProperty) return false
         val name = declaration.name.orEmpty()
-        return PREVIEW_PREFIXES.any { prefix -> name.startsWith(prefix) }
+        return PREVIEW_PREFIXES.any(name::startsWith)
     }
 
     private fun describe(declaration: KtDeclaration, section: Section): String {
@@ -68,7 +68,7 @@ internal class DeclarationOrder(config: Config) : Rule(config, DESCRIPTION) {
 
     override fun visitKtFile(file: KtFile) {
         super.visitKtFile(file)
-        checkScope(file.declarations.filterNot { declaration -> isPreviewFixture(declaration) })
+        checkScope(file.declarations.filterNot(::isPreviewFixture))
     }
 
     override fun visitClassBody(classBody: KtClassBody) {

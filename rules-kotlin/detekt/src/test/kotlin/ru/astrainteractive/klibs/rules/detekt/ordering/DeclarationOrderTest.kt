@@ -3,6 +3,7 @@
 package ru.astrainteractive.klibs.rules.detekt.ordering
 
 import dev.detekt.api.Config
+import dev.detekt.api.Finding
 import dev.detekt.test.lint
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -49,7 +50,7 @@ internal class DeclarationOrderTest {
             }
         """.trimIndent()
 
-        val messages = rule.lint(code).map { finding -> finding.message }
+        val messages = rule.lint(code).map(Finding::message)
 
         assertEquals(
             listOf(
@@ -78,7 +79,7 @@ internal class DeclarationOrderTest {
             }
         """.trimIndent()
 
-        val messages = rule.lint(code).map { finding -> finding.message }.sorted()
+        val messages = rule.lint(code).map(Finding::message).sorted()
 
         assertEquals(
             listOf("'NAME' goes before functions: $ORDER", "The init block goes before the companion object: $ORDER"),
@@ -119,7 +120,7 @@ internal class DeclarationOrderTest {
             }
         """.trimIndent()
 
-        val messages = rule.lint(code).map { finding -> finding.message }.sorted()
+        val messages = rule.lint(code).map(Finding::message).sorted()
 
         assertEquals(
             listOf("'PreviewTitle' goes before functions: $ORDER", "'Title' goes before functions: $ORDER"),

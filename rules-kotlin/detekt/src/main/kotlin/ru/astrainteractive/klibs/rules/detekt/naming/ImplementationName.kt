@@ -12,15 +12,17 @@ import org.jetbrains.kotlin.psi.KtClassOrObject
  */
 internal class ImplementationName(config: Config) : Rule(config, DESCRIPTION) {
 
-    private fun findViolations(declaration: KtClassOrObject, name: String): List<String> = buildList {
-        if (name.endsWith(IMPL_SUFFIX)) {
-            add("Name '$name' by its technology or variant instead of the '$IMPL_SUFFIX' suffix.")
-        }
-        if (name.endsWith(INTERFACE_SUFFIX)) {
-            add("Remove the '$INTERFACE_SUFFIX' suffix from '$name'.")
-        }
-        if (declaration is KtClass && declaration.isInterface() && INTERFACE_PREFIX.matches(name)) {
-            add("Remove the 'I' prefix from '$name'.")
+    private fun findViolations(declaration: KtClassOrObject, name: String): List<String> {
+        return buildList {
+            if (name.endsWith(IMPL_SUFFIX)) {
+                add("Name '$name' by its technology or variant instead of the '$IMPL_SUFFIX' suffix.")
+            }
+            if (name.endsWith(INTERFACE_SUFFIX)) {
+                add("Remove the '$INTERFACE_SUFFIX' suffix from '$name'.")
+            }
+            if (declaration is KtClass && declaration.isInterface() && INTERFACE_PREFIX.matches(name)) {
+                add("Remove the 'I' prefix from '$name'.")
+            }
         }
     }
 

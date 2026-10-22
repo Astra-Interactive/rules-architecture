@@ -6,6 +6,7 @@ import dev.detekt.api.Finding
 import dev.detekt.api.Rule
 import dev.detekt.psi.hasAnnotation
 import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.psi.KtParameter
 
 /**
  * Reports a default value on a `data class` constructor parameter.
@@ -18,7 +19,7 @@ internal class DataClassDefaultValue(config: Config) : Rule(config, DESCRIPTION)
         if (!klass.isData()) return
         if (klass.hasAnnotation(SERIALIZABLE)) return
         klass.primaryConstructorParameters
-            .filter { parameter -> parameter.hasDefaultValue() }
+            .filter(KtParameter::hasDefaultValue)
             .forEach { parameter ->
                 val message = "Remove the default of '${parameter.name}' and pass the value from the caller."
                 report(Finding(Entity.from(parameter), message))

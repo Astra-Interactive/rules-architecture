@@ -18,7 +18,7 @@ import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 /**
  * Reports a function that calls a function of the same class or file declared below it.
  *
- * Calls are matched by name. A call on another receiver counts only when a sibling extension has that name.
+ * Calls are matched by name, and a call on another receiver counts only when a sibling extension has that name.
  * Recursion and mutual recursion are skipped, because no order satisfies them, and so is a name with an
  * overload declared above the caller. Property initializers are not checked: properties stay on top.
  */
@@ -30,8 +30,8 @@ internal class CalleeBeforeCaller(config: Config) : Rule(config, DESCRIPTION) {
         return qualified.receiverExpression
     }
 
-    private fun calledNames(function: KtNamedFunction, extensionNames: Set<String>): Set<String> =
-        function.collectDescendantsOfType<KtCallExpression>()
+    private fun calledNames(function: KtNamedFunction, extensionNames: Set<String>): Set<String> {
+        return function.collectDescendantsOfType<KtCallExpression>()
             .mapNotNull { call ->
                 val callee = call.calleeExpression as? KtNameReferenceExpression ?: return@mapNotNull null
                 val name = callee.getReferencedName()
@@ -40,12 +40,13 @@ internal class CalleeBeforeCaller(config: Config) : Rule(config, DESCRIPTION) {
                 name.takeIf { isSiblingCall }
             }
             .toSet()
+    }
 
     private fun checkScope(declarations: List<KtDeclaration>) {
         val functions = declarations.filterIsInstance<KtNamedFunction>()
         val extensionNames = functions
             .filter { function -> function.receiverTypeReference != null }
-            .mapNotNull { function -> function.name }
+            .mapNotNull(KtNamedFunction::getName)
             .toSet()
         val firstIndexByName = functions
             .withIndex()
@@ -53,8 +54,10 @@ internal class CalleeBeforeCaller(config: Config) : Rule(config, DESCRIPTION) {
             .associate { indexed -> indexed.value.name to indexed.index }
         val calls = functions.map { function -> calledNames(function, extensionNames) }
 
-        fun callsBack(calleeName: String, callerName: String): Boolean = functions.indices.any { index ->
-            functions[index].name == calleeName && callerName in calls[index]
+        fun callsBack(calleeName: String, callerName: String): Boolean {
+            return functions.indices.any { index ->
+                functions[index].name == calleeName && callerName in calls[index]
+            }
         }
 
         functions.forEachIndexed { callerIndex, caller ->

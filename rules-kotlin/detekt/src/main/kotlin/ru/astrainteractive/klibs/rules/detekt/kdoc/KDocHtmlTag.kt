@@ -14,7 +14,7 @@ internal class KDocHtmlTag(config: Config) : Rule(config, DESCRIPTION) {
 
     private fun findTags(text: String): List<String> {
         val prose = text.replace(FENCED_CODE, "").replace(INLINE_CODE, "")
-        return HTML_TAG.findAll(prose).map { match -> match.value }.distinct().toList()
+        return HTML_TAG.findAll(prose).map(MatchResult::value).distinct().toList()
     }
 
     override fun visitDeclaration(dcl: KtDeclaration) {
