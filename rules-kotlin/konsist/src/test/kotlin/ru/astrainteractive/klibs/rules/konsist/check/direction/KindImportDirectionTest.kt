@@ -214,4 +214,31 @@ internal class KindImportDirectionTest {
             reported
         )
     }
+
+    @Test
+    fun GIVEN_implementation_importing_util_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.jail.jail.file",
+                "FileJailRepository.kt",
+                """
+                import x.jail.jail.api.JailRepository
+                import x.jail.jail.file.table.JailTable
+                import x.jail.jail.model.Jail
+                import x.jail.jail.util.isSentenceOver
+
+                internal class FileJailRepository
+                """
+            )
+            .main("x.jail.jail.file.table", "JailTable.kt", "object JailTable")
+            .main("x.jail.jail.api", "JailRepository.kt", "interface JailRepository")
+            .main("x.jail.jail.model", "Jail.kt", "class Jail")
+            .main("x.jail.jail.util", "JailExt.kt", "fun isSentenceOver(): Boolean = false")
+            .load(UnitKind.CONTEXT, unitPath = ":jail")
+
+        assertEquals(
+            listOf("x.jail.jail.util.isSentenceOver"),
+            KindImportDirection().check(sources).map { violation -> violation.subject }
+        )
+    }
 }
