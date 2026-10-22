@@ -17,6 +17,7 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.process.ExecOperations
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
+import ru.astrainteractive.klibs.rules.structure.graph.ApiUnitDependency
 import ru.astrainteractive.klibs.rules.structure.graph.EntryPointDependency
 import ru.astrainteractive.klibs.rules.structure.graph.TechnologyDependency
 import ru.astrainteractive.klibs.rules.structure.graph.UnitDependency
@@ -119,6 +120,7 @@ internal abstract class ArchitectureTask : DefaultTask() {
         )
         val checker = StructureChecker(
             listOf(
+                ApiUnitDependency(),
                 EntryPointDependency(),
                 NestedUnit(),
                 RootSources(),
