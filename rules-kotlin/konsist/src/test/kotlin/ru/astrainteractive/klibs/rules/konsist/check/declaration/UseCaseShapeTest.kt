@@ -5,6 +5,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.declaration
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
+import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 import java.io.File
 import kotlin.test.assertEquals
@@ -24,16 +25,24 @@ internal class UseCaseShapeTest {
                 }
                 """
             )
-            .main("x.gui.api.rating.usecase", "RatingCalculator.kt", "class RatingCalculator")
+            .main(
+                "x.gui.api.rating.usecase",
+                "RatingCalculator.kt",
+                "class RatingCalculator"
+            )
             .main(
                 "x.gui.api.rating.component",
                 "LoadPlayerUseCase.kt",
                 "class LoadPlayerUseCase {\n    fun invoke() = Unit\n}"
             )
-            .main("x.gui.api.rating.model", "Rating.kt", "class Rating")
+            .main(
+                "x.gui.api.rating.model",
+                "Rating.kt",
+                "class Rating"
+            )
             .load(UnitKind.API, unitPath = ":gui:api")
 
-        val messages = UseCaseShape().check(sources).map { violation -> violation.message }.sorted()
+        val messages = UseCaseShape().check(sources).map(Violation::message).sorted()
 
         assertEquals(
             listOf(
@@ -61,12 +70,16 @@ internal class UseCaseShapeTest {
                 }
                 """
             )
-            .main("x.gui.api.rating.usecase", "EmptyUseCase.kt", "class EmptyUseCase")
+            .main(
+                "x.gui.api.rating.usecase",
+                "EmptyUseCase.kt",
+                "class EmptyUseCase"
+            )
             .load(UnitKind.API, unitPath = ":gui:api")
 
         assertEquals(
             listOf("EmptyUseCase has the public functions none: $ONE_ENTRY"),
-            UseCaseShape().check(sources).map { violation -> violation.message }
+            UseCaseShape().check(sources).map(Violation::message)
         )
     }
 

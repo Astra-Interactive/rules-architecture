@@ -1,8 +1,26 @@
 architecture:
   active: true
+  ActualFileSuffix:
+    active: true
   AnonymousTuple:
     active: true
+  ArgumentPerLine:
+    active: true
+  BareIdentifier:
+    active: true
+  BooleanOperatorWrapping:
+    active: true
   CalleeBeforeCaller:
+    active: true
+  CompanionFactoryFunction:
+    active: true
+  ComposableFileType:
+    active: true
+  ComposableWhenBranch:
+    active: true
+  ComposeConstantCase:
+    active: true
+  ConstantOutsideCompanion:
     active: true
   ConstructorDefaultDependency:
     active: true
@@ -10,19 +28,69 @@ architecture:
     active: true
   DeclarationOrder:
     active: true
+  DiModuleLifecycle:
+    active: true
+  DurationOverloadCall:
+    active: true
+  ExplicitInvoke:
+    active: true
+  ExpressionBodyOnOneLine:
+    active: true
+  FunctionVerb:
+    active: true
+  GetOrThrowInMain:
+    active: true
   ImplementationName:
     active: true
   ImplicitItParameter:
+    active: true
+  ImpureUpdateLambda:
+    active: true
+  KDocFiller:
     active: true
   KDocHtmlTag:
     active: true
   KindNameInPackage:
     active: true
+  LambdaSingleIfGuard:
+    active: true
   LocalOrInnerClass:
+    active: true
+  MutableStateFlowEmit:
     active: true
   NamespaceObject:
     active: true
+  NonComposableFileInComposable:
+    active: true
+  OneTypeFamilyPerFile:
+    active: true
+  OperatorBeforeTrailingCall:
+    active: true
+  PreviewBlockLast:
+    active: true
+  PropertyAsFunction:
+    active: true
+  RememberInName:
+    active: true
+  RolelessClassName:
+    active: true
+  RootModuleConstruction:
+    active: true
+  RunBlockingInTest:
+    active: true
+  RunCatchingCancellation:
+    active: true
+  SingleJobLaunchMode:
+    active: true
+  SystemTimeCall:
+    active: true
   TestFunctionName:
     active: true
+  ThemeObjectFunction:
+    active: true
+  ThrowInsideRunCatching:
+    active: true
   TimeAsPrimitive:
+    active: true
+  TrivialLambdaReference:
     active: true

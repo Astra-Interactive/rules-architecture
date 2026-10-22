@@ -19,7 +19,13 @@ kover {
     reports {
         filters {
             excludes {
-                classes("*.plugin.*", "*.task.*", "*.extension.*", "*.service.*", "*.util.*")
+                classes(
+                    "*.plugin.*",
+                    "*.task.*",
+                    "*.extension.*",
+                    "*.service.*",
+                    "*.util.*"
+                )
             }
         }
         verify {
@@ -76,14 +82,27 @@ gradlePlugin {
             displayName = "Detekt Code Analysis Plugin"
             description =
                 "Automatically applies detekt with KLibs configuration for static code analysis with Kotlin linting rules"
-            tags.set(listOf("kotlin", "static-analysis", "klibs"))
+            tags.set(
+                listOf(
+                    "kotlin",
+                    "static-analysis",
+                    "klibs"
+                )
+            )
         }
         create("linter") {
             id = "ru.astrainteractive.klibs.rules.gradle.linter"
             implementationClass = "ru.astrainteractive.klibs.rules.gradle.linter.plugin.LinterPlugin"
             displayName = "Architecture Linter Plugin"
             description = "Applies detekt with the architecture rules and checks the package layout and unit graph"
-            tags.set(listOf("kotlin", "static-analysis", "architecture", "klibs"))
+            tags.set(
+                listOf(
+                    "kotlin",
+                    "static-analysis",
+                    "architecture",
+                    "klibs"
+                )
+            )
         }
     }
 }
@@ -101,5 +120,9 @@ tasks.withType<Detekt>().configureEach {
 tasks.test {
     useJUnitPlatform()
     // The tests resolve the rules from Maven Local: this version is not on Central yet
-    dependsOn(":detekt:publishToMavenLocal", ":konsist:publishToMavenLocal", ":structure:publishToMavenLocal")
+    dependsOn(
+        ":detekt:publishToMavenLocal",
+        ":konsist:publishToMavenLocal",
+        ":structure:publishToMavenLocal"
+    )
 }

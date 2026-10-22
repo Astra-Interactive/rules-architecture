@@ -17,13 +17,15 @@ internal class TestMirror : ArchitectureCheck {
 
     private class OwnerLocation(val name: String, val packageName: String)
 
-    private fun packagesByName(sources: UnitSources): Map<String, Set<String>> = sources.mainFiles
-        .flatMap { file ->
-            val names = file.topLevelNames() + file.baseName
-            names.map { name -> OwnerLocation(name, file.packageName) }
-        }
-        .groupBy(keySelector = { location -> location.name }, valueTransform = { location -> location.packageName })
-        .mapValues { entry -> entry.value.toSet() }
+    private fun packagesByName(sources: UnitSources): Map<String, Set<String>> {
+        return sources.mainFiles
+            .flatMap { file ->
+                val names = file.topLevelNames() + file.baseName
+                names.map { name -> OwnerLocation(name, file.packageName) }
+            }
+            .groupBy(keySelector = OwnerLocation::name, valueTransform = OwnerLocation::packageName)
+            .mapValues { entry -> entry.value.toSet() }
+    }
 
     override fun check(sources: UnitSources): List<Violation> {
         val packagesByName = packagesByName(sources)
@@ -34,7 +36,12 @@ internal class TestMirror : ArchitectureCheck {
                 val ownerPackages = packagesByName[ownerName] ?: return@mapNotNull null
                 if (file.packageName in ownerPackages) return@mapNotNull null
                 val message = "Move ${file.baseName} to ${ownerPackages.sorted().first()}, the package of $ownerName."
-                Violation(RULE, sources.relativePath(file), file.baseName, message)
+                Violation(
+                    RULE,
+                    sources.relativePath(file),
+                    file.baseName,
+                    message
+                )
             }
     }
 

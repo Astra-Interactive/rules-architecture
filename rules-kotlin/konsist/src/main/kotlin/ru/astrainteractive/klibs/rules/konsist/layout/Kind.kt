@@ -12,10 +12,14 @@ internal enum class Kind(val words: Set<String>) {
     USECASE(setOf("usecase")),
     UTIL(setOf("util")),
     DI(setOf("di")),
+
+    /**
+     * Compose only: the values several composables of a level share, and in the design-system unit the theme.
+     */
+    THEME(setOf("theme")),
     IMPLEMENTATION(
         setOf(
             "cache4k",
-            "database",
             "datastore",
             "entity",
             "exposed",
@@ -55,6 +59,11 @@ internal enum class Kind(val words: Set<String>) {
     );
 
     companion object {
+        /**
+         * Compose's `composable`, the one kind that may hold sub-packages.
+         */
+        const val COMPOSABLE_WORD = "composable"
+
         fun fromSegment(segment: String): Kind? = entries.find { kind -> segment in kind.words }
     }
 }

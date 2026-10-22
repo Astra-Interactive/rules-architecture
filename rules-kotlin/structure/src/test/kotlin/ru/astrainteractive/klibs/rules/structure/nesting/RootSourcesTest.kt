@@ -5,18 +5,21 @@ package ru.astrainteractive.klibs.rules.structure.nesting
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.structure.unit.BuildUnit
+import ru.astrainteractive.klibs.rules.structure.unit.StructureViolation
 import java.io.File
 import kotlin.test.assertEquals
 
 internal class RootSourcesTest {
 
-    private fun unit(directory: File, isRoot: Boolean): BuildUnit = BuildUnit(
-        path = ":",
-        directory = directory,
-        isEntryPoint = false,
-        isRoot = isRoot,
-        projectDependencies = emptySet()
-    )
+    private fun unit(directory: File, isRoot: Boolean): BuildUnit {
+        return BuildUnit(
+            path = ":",
+            directory = directory,
+            isEntryPoint = false,
+            isRoot = isRoot,
+            projectDependencies = emptySet()
+        )
+    }
 
     @Test
     fun GIVEN_root_project_with_sources_WHEN_checked_THEN_reports_them(@TempDir directory: File) {
@@ -24,7 +27,7 @@ internal class RootSourcesTest {
 
         assertEquals(
             listOf("src"),
-            RootSources().check(unit(directory, isRoot = true)).map { violation -> violation.path }
+            RootSources().check(unit(directory, isRoot = true)).map(StructureViolation::path)
         )
     }
 

@@ -2,7 +2,9 @@
 
 package ru.astrainteractive.klibs.rules.detekt
 
+import dev.detekt.api.RuleName
 import org.junit.jupiter.api.Test
+import java.io.BufferedReader
 import kotlin.test.assertEquals
 
 internal class ArchitectureRuleSetProviderTest {
@@ -12,7 +14,7 @@ internal class ArchitectureRuleSetProviderTest {
         val stream = checkNotNull(javaClass.classLoader.getResourceAsStream("config/config.yml")) {
             "config/config.yml is missing from the rule set jar"
         }
-        val lines = stream.bufferedReader().use { reader -> reader.readLines() }
+        val lines = stream.bufferedReader().use(BufferedReader::readLines)
         return lines
             .windowed(size = 2)
             .mapNotNull { window ->
@@ -32,7 +34,7 @@ internal class ArchitectureRuleSetProviderTest {
     @Test
     fun GIVEN_bundled_config_WHEN_compared_with_provider_THEN_every_rule_is_listed_active() {
         val providedRules = ArchitectureRuleSetProvider().instance().rules.keys
-            .map { ruleName -> ruleName.value }
+            .map(RuleName::value)
             .toSet()
 
         assertEquals(providedRules, readActiveRulesFromConfig())

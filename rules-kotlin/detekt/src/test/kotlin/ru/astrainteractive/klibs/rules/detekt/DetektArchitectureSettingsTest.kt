@@ -4,6 +4,10 @@ package ru.astrainteractive.klibs.rules.detekt
 
 import dev.detekt.api.Config
 import dev.detekt.core.config.YamlConfig
+import dev.detekt.rules.coroutines.GlobalCoroutineUsage
+import dev.detekt.rules.naming.PackageNaming
+import dev.detekt.rules.style.DataClassContainsFunctions
+import dev.detekt.rules.style.DataClassShouldBeImmutable
 import dev.detekt.rules.style.ForbiddenComment
 import dev.detekt.rules.style.ForbiddenImport
 import dev.detekt.rules.style.WildcardImport
@@ -12,7 +16,8 @@ import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
 internal class DetektArchitectureSettingsTest {
-    private val styleConfig: Config = loadSettings().subConfig("style")
+    private val settings: Config = loadSettings()
+    private val styleConfig: Config = settings.subConfig("style")
 
     private fun loadSettings(): Config {
         val stream = checkNotNull(javaClass.classLoader.getResourceAsStream("detekt-architecture.yml")) {
@@ -86,7 +91,8 @@ internal class DetektArchitectureSettingsTest {
     fun GIVEN_platform_and_orm_imports_WHEN_linted_with_model_settings_THEN_reports_each() {
         val code = """
             import android.os.Parcelable
-            import androidx.compose.runtime.Immutable
+            import androidx.lifecycle.ViewModel
+            import androidx.room.Entity
             import io.ktor.http.Url
             import io.papermc.paper.event.player.AsyncChatEvent
             import kotlinx.serialization.Serializable
@@ -100,7 +106,44 @@ internal class DetektArchitectureSettingsTest {
 
         val findings = ForbiddenImport(styleConfig.subConfig("ForbiddenImport/model")).lint(code)
 
-        assertEquals(10, findings.size)
+        assertEquals(11, findings.size)
+    }
+
+    @Test
+    fun GIVEN_compose_imports_WHEN_linted_with_model_settings_THEN_reports_nothing() {
+        val code = """
+            import androidx.compose.runtime.Immutable
+            import androidx.compose.ui.graphics.painter.Painter
+            import org.jetbrains.compose.resources.StringResource
+        """.trimIndent()
+
+        val findings = ForbiddenImport(styleConfig.subConfig("ForbiddenImport/model")).lint(code)
+
+        assertEquals(0, findings.size)
+    }
+
+    @Test
+    fun GIVEN_model_settings_WHEN_read_THEN_excludes_only_technology_packages_not_any_data_path() {
+        val excludes = styleConfig.subConfig("ForbiddenImport/model").valueOrNull<List<String>>("excludes")
+
+        assertEquals(
+            listOf(
+                "**/exposed/**",
+                "**/room/**",
+                "**/ktor/**",
+                "**/krate/**",
+                "**/sqldelight/**",
+                "**/datastore/**",
+                "**/retrofit/**",
+                "**/okhttp/**",
+                "**/cache4k/**",
+                "**/file/**",
+                "**/memory/**",
+                "**/table/**",
+                "**/entity/**",
+            ),
+            excludes
+        )
     }
 
     @Test
@@ -113,5 +156,72 @@ internal class DetektArchitectureSettingsTest {
         val findings = WildcardImport(styleConfig.subConfig("WildcardImport")).lint(code)
 
         assertEquals(1, findings.size)
+    }
+
+    @Test
+    fun GIVEN_data_class_with_a_conversion_and_a_var_WHEN_linted_THEN_reports_both() {
+        val code = """
+            data class Plan(var price: Int) {
+                fun toContent(): String = price.toString()
+            }
+        """.trimIndent()
+
+        val functions = DataClassContainsFunctions(styleConfig.subConfig("DataClassContainsFunctions")).lint(code)
+        val mutable = DataClassShouldBeImmutable(styleConfig.subConfig("DataClassShouldBeImmutable")).lint(code)
+
+        assertEquals(2, functions.size + mutable.size)
+    }
+
+    @Test
+    fun GIVEN_global_scope_WHEN_linted_THEN_reports_it() {
+        val code = """
+            import kotlinx.coroutines.GlobalScope
+            import kotlinx.coroutines.launch
+
+            fun start() {
+                GlobalScope.launch { }
+            }
+        """.trimIndent()
+
+        val findings = GlobalCoroutineUsage(settings.subConfig("coroutines").subConfig("GlobalCoroutineUsage"))
+            .lint(code)
+
+        assertEquals(1, findings.size)
+    }
+
+    @Test
+    fun GIVEN_package_with_an_upper_case_letter_WHEN_linted_THEN_reports_it_and_allows_lowercase() {
+        val rule = PackageNaming(settings.subConfig("naming").subConfig("PackageNaming"))
+
+        assertEquals(1, rule.lint("package com.example.featureFlag").size)
+        assertEquals(0, rule.lint("package com.example.featureflag2").size)
+    }
+
+    @Test
+    fun GIVEN_old_time_imports_WHEN_linted_THEN_reports_each() {
+        val code = """
+            import java.util.Date
+            import kotlinx.datetime.Clock
+            import kotlin.time.Clock
+        """.trimIndent()
+
+        val findings = ForbiddenImport(styleConfig.subConfig("ForbiddenImport")).lint(code)
+
+        assertEquals(2, findings.size)
+    }
+
+    @Test
+    fun GIVEN_java_time_imports_WHEN_linted_with_time_settings_THEN_reports_each() {
+        val code = """
+            import java.time.Duration
+            import java.time.Instant
+            import java.time.LocalDateTime
+            import java.util.Calendar
+            import kotlin.time.Duration
+        """.trimIndent()
+
+        val findings = ForbiddenImport(styleConfig.subConfig("ForbiddenImport/time")).lint(code)
+
+        assertEquals(4, findings.size)
     }
 }

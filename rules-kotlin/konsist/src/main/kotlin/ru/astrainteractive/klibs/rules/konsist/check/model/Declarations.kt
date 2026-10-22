@@ -4,6 +4,7 @@ import com.lemonappdev.konsist.api.declaration.KoClassDeclaration
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import com.lemonappdev.konsist.api.declaration.KoImportDeclaration
 import com.lemonappdev.konsist.api.declaration.type.KoTypeDeclaration
+import com.lemonappdev.konsist.api.provider.KoNameProvider
 import java.io.File
 
 internal val KoFileDeclaration.packageName: String
@@ -24,19 +25,20 @@ internal val KoFileDeclaration.baseName: String
 internal val KoTypeDeclaration.simpleName: String
     get() = text.removeSuffix("?").substringBefore('<').substringAfterLast('.')
 
-internal fun KoFileDeclaration.topLevelClasses(): List<KoClassDeclaration> =
-    classes(includeNested = false, includeLocal = false)
+internal fun KoFileDeclaration.topLevelClasses(): List<KoClassDeclaration> {
+    return classes(includeNested = false, includeLocal = false)
+}
 
 internal fun KoFileDeclaration.topLevelClassAndObjectNames(): List<String> {
-    return topLevelClasses().map { declaration -> declaration.name } +
-        objects(includeNested = false).map { declaration -> declaration.name }
+    return topLevelClasses().map(KoNameProvider::name) +
+        objects(includeNested = false).map(KoNameProvider::name)
 }
 
 /**
  * Names of the classes, interfaces and objects at the top level of the file.
  */
 internal fun KoFileDeclaration.topLevelTypeNames(): List<String> {
-    return topLevelClassAndObjectNames() + interfaces(includeNested = false).map { declaration -> declaration.name }
+    return topLevelClassAndObjectNames() + interfaces(includeNested = false).map(KoNameProvider::name)
 }
 
 /**
@@ -45,7 +47,7 @@ internal fun KoFileDeclaration.topLevelTypeNames(): List<String> {
  */
 internal fun KoFileDeclaration.topLevelNames(): List<String> {
     return topLevelTypeNames() +
-        functions(includeNested = false, includeLocal = false).map { declaration -> declaration.name } +
-        properties(includeNested = false).map { declaration -> declaration.name } +
-        typeAliases.map { declaration -> declaration.name }
+        functions(includeNested = false, includeLocal = false).map(KoNameProvider::name) +
+        properties(includeNested = false).map(KoNameProvider::name) +
+        typeAliases.map(KoNameProvider::name)
 }

@@ -10,9 +10,11 @@ internal data class ArchitectureFinding(
      * Leaves the message out, so rewording a rule keeps the baseline valid.
      */
     val baselineKey: String
-        get() = listOf(rule, path, subject).joinToString(separator = FIELD_SEPARATOR)
-
-    fun describe(): String = "$path: $message [$rule]"
+        get() = listOf(
+            rule,
+            path,
+            subject
+        ).joinToString(separator = FIELD_SEPARATOR)
 
     companion object {
         const val FIELD_SEPARATOR = "\t"
@@ -24,7 +26,12 @@ internal data class ArchitectureFinding(
         fun parse(line: String): ArchitectureFinding {
             val fields = line.split(FIELD_SEPARATOR, limit = FIELD_COUNT)
             require(fields.size == FIELD_COUNT) { "Malformed architecture report line: '$line'" }
-            return ArchitectureFinding(rule = fields[0], path = fields[1], subject = fields[2], message = fields[3])
+            return ArchitectureFinding(
+                rule = fields[0],
+                path = fields[1],
+                subject = fields[2],
+                message = fields[3]
+            )
         }
     }
 }

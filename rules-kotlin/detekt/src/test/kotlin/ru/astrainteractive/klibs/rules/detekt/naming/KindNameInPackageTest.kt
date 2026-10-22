@@ -57,6 +57,28 @@ internal class KindNameInPackageTest {
     }
 
     @Test
+    fun GIVEN_entity_suffix_in_model_below_room_WHEN_linted_THEN_reports_nothing() {
+        val code = """
+            package ru.astrainteractive.bsb.data.room.dictionary.model
+
+            class DictionaryEntity
+        """.trimIndent()
+
+        assertEquals(0, rule.lint(code).size)
+    }
+
+    @Test
+    fun GIVEN_model_suffix_in_model_below_data_without_technology_WHEN_linted_THEN_reports_it() {
+        val code = """
+            package ru.astrainteractive.astrarating.data.dao.rating.model
+
+            data class RatingModel(val value: Int)
+        """.trimIndent()
+
+        assertEquals(1, rule.lint(code).size)
+    }
+
+    @Test
     fun GIVEN_model_package_above_data_WHEN_linted_THEN_reports_suffix() {
         val code = """
             package ru.astrainteractive.aspekt.module.jail.model.data

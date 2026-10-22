@@ -1,6 +1,7 @@
 package ru.astrainteractive.klibs.rules.konsist.check.placement
 
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
+import com.lemonappdev.konsist.api.declaration.KoInterfaceDeclaration
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
@@ -25,14 +26,24 @@ internal class ContractPlacement : ArchitectureCheck {
             .filterNot { kind == Kind.CONTRACT }
             .map { declaration ->
                 val message = "Move ${declaration.name} to the api package of the concept it stores."
-                Violation(RULE, path, declaration.name, message)
+                Violation(
+                    RULE,
+                    path,
+                    declaration.name,
+                    message
+                )
             }
         val implementations = file.topLevelClasses()
             .filter { kind == Kind.CONTRACT }
             .filter { declaration -> declaration.parents().any { parent -> parent.name in contractNames } }
             .map { declaration ->
                 val message = "Move ${declaration.name} out of api, into the package of the technology it uses."
-                Violation(RULE, path, declaration.name, message)
+                Violation(
+                    RULE,
+                    path,
+                    declaration.name,
+                    message
+                )
             }
         return repositories + implementations
     }
@@ -40,12 +51,17 @@ internal class ContractPlacement : ArchitectureCheck {
     private fun vagueTechnologyPackages(sources: UnitSources): List<Violation> {
         return sources.mainFiles
             .filter { file -> file.packageName.substringAfterLast('.') in VAGUE_TECHNOLOGIES }
-            .distinctBy { file -> file.packageName }
+            .distinctBy(KoFileDeclaration::packageName)
             .map { file ->
                 val segment = file.packageName.substringAfterLast('.')
                 val message = "Rename the package '$segment' after the library it uses: " +
                     "network, local and remote are not technology names."
-                Violation(RULE, sources.relativePath(file), file.packageName, message)
+                Violation(
+                    RULE,
+                    sources.relativePath(file),
+                    file.packageName,
+                    message
+                )
             }
     }
 
@@ -53,10 +69,16 @@ internal class ContractPlacement : ArchitectureCheck {
         val contractNames = sources.mainFiles
             .filter { file -> sources.placementOf(file)?.kind == Kind.CONTRACT }
             .flatMap { file -> file.interfaces(includeNested = false) }
-            .map { declaration -> declaration.name }
+            .map(KoInterfaceDeclaration::name)
             .toSet()
-        return sources.mainFiles.flatMap { file -> checkFile(sources, file, contractNames) } +
-            vagueTechnologyPackages(sources)
+        val contractViolations = sources.mainFiles.flatMap { file ->
+            checkFile(
+                sources,
+                file,
+                contractNames
+            )
+        }
+        return contractViolations + vagueTechnologyPackages(sources)
     }
 
     private companion object {
@@ -64,6 +86,10 @@ internal class ContractPlacement : ArchitectureCheck {
         const val REPOSITORY_SUFFIX = "Repository"
 
         @JvmField
-        val VAGUE_TECHNOLOGIES = setOf("network", "local", "remote")
+        val VAGUE_TECHNOLOGIES = setOf(
+            "network",
+            "local",
+            "remote"
+        )
     }
 }

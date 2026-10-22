@@ -2,6 +2,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.declaration
 
 import com.lemonappdev.konsist.api.KoModifier
 import com.lemonappdev.konsist.api.declaration.KoClassDeclaration
+import com.lemonappdev.konsist.api.declaration.KoFunctionDeclaration
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
@@ -21,12 +22,12 @@ internal class UseCaseShape : ArchitectureCheck {
 
     private fun findEntryMessage(useCase: KoClassDeclaration): String? {
         val entries = useCase.functions(includeNested = false, includeLocal = false)
-            .filterNot { function -> function.hasPrivateModifier }
+            .filterNot(KoFunctionDeclaration::hasPrivateModifier)
         val isOperatorInvoke = entries.singleOrNull()
             ?.let { entry -> entry.name == INVOKE && entry.hasModifier(KoModifier.OPERATOR) }
             ?: false
         if (isOperatorInvoke) return null
-        val names = entries.joinToString { entry -> entry.name }.ifEmpty { "none" }
+        val names = entries.joinToString(transform = KoFunctionDeclaration::name).ifEmpty { "none" }
         return "${useCase.name} has the public functions $names: a use case has one public entry, " +
             "operator fun invoke."
     }
@@ -55,7 +56,12 @@ internal class UseCaseShape : ArchitectureCheck {
             val placement = sources.placementOf(file)
             file.topLevelClasses().flatMap { declaration ->
                 findMessages(declaration, placement).map { message ->
-                    Violation(RULE, sources.relativePath(file), declaration.name, message)
+                    Violation(
+                        RULE,
+                        sources.relativePath(file),
+                        declaration.name,
+                        message
+                    )
                 }
             }
         }

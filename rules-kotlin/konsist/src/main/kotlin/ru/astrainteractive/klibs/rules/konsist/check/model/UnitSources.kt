@@ -2,21 +2,38 @@ package ru.astrainteractive.klibs.rules.konsist.check.model
 
 import com.lemonappdev.konsist.api.Konsist
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
+import ru.astrainteractive.klibs.rules.konsist.layout.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.Placement
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitLayout
+import ru.astrainteractive.klibs.rules.konsist.layout.util.createUnitLayout
 import java.io.File
 
 /**
  * The parsed sources of one build unit, with the layout its checks judge them by.
+ *
+ * @property unitPath the Gradle path of the unit (`:modules:core:api`), `null` when it was not given
+ * @property mainDirectories the main source directories as given, one per source set
  */
 internal class UnitSources(
     val kind: UnitKind,
     val layout: UnitLayout,
+    val unitPath: String?,
+    val mainDirectories: List<File>,
     val mainFiles: List<KoFileDeclaration>,
     val testFiles: List<KoFileDeclaration>,
     private val projectDirectory: File
 ) {
+    /**
+     * Whether the unit is a Compose UI unit: a main file outside `model` imports Compose, so its build depends
+     * on it. A `model` import alone does not count, as it is the import this fact judges.
+     */
+    val isComposeUnit: Boolean by lazy {
+        mainFiles
+            .filterNot { file -> layout.placementOf(file.packageName)?.kind == Kind.MODEL }
+            .any { file -> file.imports.any { import -> isComposeImport(import.importedName) } }
+    }
+
     /**
      * The package of every top-level declaration of the main sources, by its fully qualified name.
      */
@@ -28,11 +45,13 @@ internal class UnitSources(
         }
     }
 
-    private fun qualify(packageName: String, name: String): String =
-        if (packageName.isEmpty()) name else "$packageName.$name"
+    private fun qualify(packageName: String, name: String): String {
+        return if (packageName.isEmpty()) name else "$packageName.$name"
+    }
 
-    fun relativePath(file: KoFileDeclaration): String =
-        File(file.path).relativeTo(projectDirectory).invariantSeparatorsPath
+    fun relativePath(file: KoFileDeclaration): String {
+        return File(file.path).relativeTo(projectDirectory).invariantSeparatorsPath
+    }
 
     fun placementOf(file: KoFileDeclaration): Placement? = layout.placementOf(file.packageName)
 
@@ -49,10 +68,16 @@ internal class UnitSources(
     }
 
     companion object {
+        private val COMPOSE_PACKAGE_PREFIXES = listOf("androidx.compose.", "org.jetbrains.compose.")
+
+        fun isComposeImport(importedName: String): Boolean {
+            return COMPOSE_PACKAGE_PREFIXES.any(importedName::startsWith)
+        }
+
         private fun parse(directories: List<File>): List<KoFileDeclaration> {
-            val existing = directories.filter { directory -> directory.isDirectory }
+            val existing = directories.filter(File::isDirectory)
             if (existing.isEmpty()) return emptyList()
-            return Konsist.scopeFromExternalDirectories(existing.map { directory -> directory.absolutePath }).files
+            return Konsist.scopeFromExternalDirectories(existing.map(File::getAbsolutePath)).files
         }
 
         /**
@@ -67,9 +92,22 @@ internal class UnitSources(
             projectDirectory: File
         ): UnitSources {
             val mainFiles = parse(mainDirectories)
-            val packages = mainFiles.map { file -> file.packageName }.distinct()
-            val layout = UnitLayout.create(packages, rootPackage, unitPath, kind)
-            return UnitSources(kind, layout, mainFiles, parse(testDirectories), projectDirectory)
+            val packages = mainFiles.map(KoFileDeclaration::packageName).distinct()
+            val layout = createUnitLayout(
+                packages,
+                rootPackage,
+                unitPath,
+                kind
+            )
+            return UnitSources(
+                kind = kind,
+                layout = layout,
+                unitPath = unitPath,
+                mainDirectories = mainDirectories,
+                mainFiles = mainFiles,
+                testFiles = parse(testDirectories),
+                projectDirectory = projectDirectory
+            )
         }
     }
 }

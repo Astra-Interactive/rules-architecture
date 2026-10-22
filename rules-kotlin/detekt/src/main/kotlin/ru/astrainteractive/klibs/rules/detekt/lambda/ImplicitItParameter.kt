@@ -23,10 +23,11 @@ internal class ImplicitItParameter(config: Config) : Rule(config, DESCRIPTION) {
         return qualified.selectorExpression == expression
     }
 
-    private fun isInsideImplicitLambda(expression: KtNameReferenceExpression): Boolean =
-        expression.parents.any { parent ->
+    private fun isInsideImplicitLambda(expression: KtNameReferenceExpression): Boolean {
+        return expression.parents.any { parent ->
             parent is KtFunctionLiteral && !parent.hasParameterSpecification()
         }
+    }
 
     private fun isImplicitIt(expression: KtNameReferenceExpression): Boolean {
         if (expression.getReferencedName() != IMPLICIT_NAME) return false

@@ -31,11 +31,16 @@ internal class ErrorPlacement : ArchitectureCheck {
             .filter { file -> isOutsideModel(sources, file) }
             .flatMap { file ->
                 file.topLevelClasses()
-                    .filter { declaration -> isError(declaration) }
+                    .filter(::isError)
                     .map { declaration ->
                         val message = "Move ${declaration.name} to the model package of the level that uses it: " +
                             "every error type is its own file in model."
-                        Violation(RULE, sources.relativePath(file), declaration.name, message)
+                        Violation(
+                            RULE,
+                            sources.relativePath(file),
+                            declaration.name,
+                            message
+                        )
                     }
             }
     }

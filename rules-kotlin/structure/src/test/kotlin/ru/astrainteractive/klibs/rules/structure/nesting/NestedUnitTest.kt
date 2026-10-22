@@ -5,6 +5,7 @@ package ru.astrainteractive.klibs.rules.structure.nesting
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.structure.unit.BuildUnit
+import ru.astrainteractive.klibs.rules.structure.unit.StructureViolation
 import java.io.File
 import kotlin.test.assertEquals
 
@@ -16,13 +17,15 @@ internal class NestedUnitTest {
         file.writeText("")
     }
 
-    private fun unit(directory: File, isRoot: Boolean): BuildUnit = BuildUnit(
-        path = ":dictionary",
-        directory = directory,
-        isEntryPoint = false,
-        isRoot = isRoot,
-        projectDependencies = emptySet()
-    )
+    private fun unit(directory: File, isRoot: Boolean): BuildUnit {
+        return BuildUnit(
+            path = ":dictionary",
+            directory = directory,
+            isEntryPoint = false,
+            isRoot = isRoot,
+            projectDependencies = emptySet()
+        )
+    }
 
     @Test
     fun GIVEN_units_inside_the_unit_directory_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
@@ -36,7 +39,7 @@ internal class NestedUnitTest {
         touch(directory, "a/b/c/deep/build.gradle.kts")
         touch(directory, "docs/README.md")
 
-        val subjects = NestedUnit().check(unit(directory, isRoot = false)).map { violation -> violation.subject }
+        val subjects = NestedUnit().check(unit(directory, isRoot = false)).map(StructureViolation::subject)
 
         assertEquals(listOf("contract", "legacy/groovy"), subjects)
     }

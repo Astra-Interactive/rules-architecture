@@ -1,9 +1,24 @@
 # Settings of detekt's own rules that enforce the architecture rules.
 # List this file last in detekt's `config`: a later file overrides the values of an earlier one.
+coroutines:
+  # A DI module never reaches for a global singleton: scopes are constructed and passed in.
+  GlobalCoroutineUsage:
+    active: true
+naming:
+  # A package name is lowercase, one word per segment.
+  PackageNaming:
+    active: true
+    packagePattern: '[a-z]+(\.[a-z][a-z0-9]*)*'
 style:
   # Replaced by architecture.DeclarationOrder: the code-ordering rule puts init blocks after the functions they call.
   ClassOrdering:
     active: false
+  # The model is data: a rule is an extension in util, a conversion to<Type> included.
+  DataClassContainsFunctions:
+    active: true
+    conversionFunctionPrefix: [ ]
+  DataClassShouldBeImmutable:
+    active: true
   ForbiddenComment:
     active: true
     comments:
@@ -22,14 +37,51 @@ style:
     forbiddenImports:
       - value: 'kotlinx.datetime.Instant'
         reason: 'Use kotlin.time.Instant.'
+      - value: 'kotlinx.datetime.Clock'
+        reason: 'Use kotlin.time.Clock.'
+      - value: 'java.util.Date'
+        reason: 'Use kotlin.time.Instant.'
+  # androidx.compose.* is left out: the model of a Compose UI unit may carry Compose types.
   ForbiddenImport/model:
     active: true
     includes: [ '**/model/**' ]
-    excludes: [ '**/data/**' ]
+    # A technology package keeps its own representation; any other model, under data included, is checked.
+    excludes:
+      - '**/exposed/**'
+      - '**/room/**'
+      - '**/ktor/**'
+      - '**/krate/**'
+      - '**/sqldelight/**'
+      - '**/datastore/**'
+      - '**/retrofit/**'
+      - '**/okhttp/**'
+      - '**/cache4k/**'
+      - '**/file/**'
+      - '**/memory/**'
+      - '**/table/**'
+      - '**/entity/**'
     forbiddenImports:
       - value: 'android.*'
         reason: 'The model imports no platform type.'
-      - value: 'androidx.*'
+      - value: 'androidx.activity.*'
+        reason: 'The model imports no platform type.'
+      - value: 'androidx.appcompat.*'
+        reason: 'The model imports no platform type.'
+      - value: 'androidx.core.*'
+        reason: 'The model imports no platform type.'
+      - value: 'androidx.datastore.*'
+        reason: 'The model imports no platform type.'
+      - value: 'androidx.fragment.*'
+        reason: 'The model imports no platform type.'
+      - value: 'androidx.lifecycle.*'
+        reason: 'The model imports no platform type.'
+      - value: 'androidx.navigation.*'
+        reason: 'The model imports no platform type.'
+      - value: 'androidx.room.*'
+        reason: 'The model imports no platform type.'
+      - value: 'androidx.sqlite.*'
+        reason: 'The model imports no platform type.'
+      - value: 'androidx.work.*'
         reason: 'The model imports no platform type.'
       - value: 'io.ktor.*'
         reason: 'The model imports no framework type.'
@@ -47,6 +99,30 @@ style:
         reason: 'The model imports no platform type.'
       - value: 'org.jetbrains.exposed.*'
         reason: 'The model imports no ORM type: keep it in data/exposed.'
+  ForbiddenImport/time:
+    active: true
+    includes: [ '**' ]
+    excludes:
+      - '**/exposed/**'
+      - '**/room/**'
+      - '**/ktor/**'
+      - '**/krate/**'
+      - '**/sqldelight/**'
+      - '**/datastore/**'
+      - '**/retrofit/**'
+      - '**/okhttp/**'
+      - '**/table/**'
+      - '**/entity/**'
+      - '**/contract/**'
+    forbiddenImports:
+      - value: 'java.time.Instant'
+        reason: 'kotlin.time at the boundary only: use kotlin.time.Instant.'
+      - value: 'java.time.Duration'
+        reason: 'kotlin.time at the boundary only: use kotlin.time.Duration.'
+      - value: 'java.time.LocalDateTime'
+        reason: 'kotlin.time at the boundary only: use kotlin.time.Instant.'
+      - value: 'java.util.Calendar'
+        reason: 'kotlin.time at the boundary only: use kotlin.time.Instant.'
   RedundantVisibilityModifier:
     active: true
   WildcardImport:

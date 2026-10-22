@@ -3,17 +3,51 @@ package ru.astrainteractive.klibs.rules.detekt
 import dev.detekt.api.RuleSet
 import dev.detekt.api.RuleSetId
 import dev.detekt.api.RuleSetProvider
+import ru.astrainteractive.klibs.rules.detekt.compose.ComposableFileType
+import ru.astrainteractive.klibs.rules.detekt.compose.ComposableWhenBranch
+import ru.astrainteractive.klibs.rules.detekt.compose.ComposeConstantCase
+import ru.astrainteractive.klibs.rules.detekt.compose.NonComposableFileInComposable
+import ru.astrainteractive.klibs.rules.detekt.compose.PreviewBlockLast
+import ru.astrainteractive.klibs.rules.detekt.compose.RememberInName
+import ru.astrainteractive.klibs.rules.detekt.compose.ThemeObjectFunction
+import ru.astrainteractive.klibs.rules.detekt.coroutine.ImpureUpdateLambda
+import ru.astrainteractive.klibs.rules.detekt.coroutine.MutableStateFlowEmit
+import ru.astrainteractive.klibs.rules.detekt.coroutine.SingleJobLaunchMode
+import ru.astrainteractive.klibs.rules.detekt.declaration.BareIdentifier
+import ru.astrainteractive.klibs.rules.detekt.declaration.CompanionFactoryFunction
 import ru.astrainteractive.klibs.rules.detekt.declaration.DataClassDefaultValue
 import ru.astrainteractive.klibs.rules.detekt.declaration.LocalOrInnerClass
 import ru.astrainteractive.klibs.rules.detekt.declaration.NamespaceObject
+import ru.astrainteractive.klibs.rules.detekt.declaration.OneTypeFamilyPerFile
+import ru.astrainteractive.klibs.rules.detekt.declaration.PropertyAsFunction
+import ru.astrainteractive.klibs.rules.detekt.formatting.ArgumentPerLine
+import ru.astrainteractive.klibs.rules.detekt.formatting.BooleanOperatorWrapping
+import ru.astrainteractive.klibs.rules.detekt.formatting.ExplicitInvoke
+import ru.astrainteractive.klibs.rules.detekt.formatting.ExpressionBodyOnOneLine
+import ru.astrainteractive.klibs.rules.detekt.formatting.OperatorBeforeTrailingCall
 import ru.astrainteractive.klibs.rules.detekt.injection.ConstructorDefaultDependency
+import ru.astrainteractive.klibs.rules.detekt.injection.DiModuleLifecycle
+import ru.astrainteractive.klibs.rules.detekt.injection.RootModuleConstruction
+import ru.astrainteractive.klibs.rules.detekt.kdoc.KDocFiller
 import ru.astrainteractive.klibs.rules.detekt.kdoc.KDocHtmlTag
 import ru.astrainteractive.klibs.rules.detekt.lambda.ImplicitItParameter
+import ru.astrainteractive.klibs.rules.detekt.lambda.LambdaSingleIfGuard
+import ru.astrainteractive.klibs.rules.detekt.lambda.TrivialLambdaReference
+import ru.astrainteractive.klibs.rules.detekt.multiplatform.ActualFileSuffix
+import ru.astrainteractive.klibs.rules.detekt.naming.FunctionVerb
 import ru.astrainteractive.klibs.rules.detekt.naming.ImplementationName
 import ru.astrainteractive.klibs.rules.detekt.naming.KindNameInPackage
+import ru.astrainteractive.klibs.rules.detekt.naming.RolelessClassName
 import ru.astrainteractive.klibs.rules.detekt.naming.TestFunctionName
 import ru.astrainteractive.klibs.rules.detekt.ordering.CalleeBeforeCaller
+import ru.astrainteractive.klibs.rules.detekt.ordering.ConstantOutsideCompanion
 import ru.astrainteractive.klibs.rules.detekt.ordering.DeclarationOrder
+import ru.astrainteractive.klibs.rules.detekt.result.GetOrThrowInMain
+import ru.astrainteractive.klibs.rules.detekt.result.RunCatchingCancellation
+import ru.astrainteractive.klibs.rules.detekt.result.ThrowInsideRunCatching
+import ru.astrainteractive.klibs.rules.detekt.testing.RunBlockingInTest
+import ru.astrainteractive.klibs.rules.detekt.time.DurationOverloadCall
+import ru.astrainteractive.klibs.rules.detekt.time.SystemTimeCall
 import ru.astrainteractive.klibs.rules.detekt.time.TimeAsPrimitive
 import ru.astrainteractive.klibs.rules.detekt.tuple.AnonymousTuple
 
@@ -23,24 +57,60 @@ import ru.astrainteractive.klibs.rules.detekt.tuple.AnonymousTuple
 public class ArchitectureRuleSetProvider : RuleSetProvider {
     override val ruleSetId: RuleSetId = RuleSetId(RULE_SET_ID)
 
-    override fun instance(): RuleSet = RuleSet(
-        ruleSetId,
-        listOf(
-            ::AnonymousTuple,
-            ::CalleeBeforeCaller,
-            ::ConstructorDefaultDependency,
-            ::DataClassDefaultValue,
-            ::DeclarationOrder,
-            ::ImplementationName,
-            ::ImplicitItParameter,
-            ::KDocHtmlTag,
-            ::KindNameInPackage,
-            ::LocalOrInnerClass,
-            ::NamespaceObject,
-            ::TestFunctionName,
-            ::TimeAsPrimitive,
+    override fun instance(): RuleSet {
+        return RuleSet(
+            ruleSetId,
+            listOf(
+                ::ActualFileSuffix,
+                ::AnonymousTuple,
+                ::ArgumentPerLine,
+                ::BareIdentifier,
+                ::BooleanOperatorWrapping,
+                ::CalleeBeforeCaller,
+                ::CompanionFactoryFunction,
+                ::ComposableFileType,
+                ::ComposableWhenBranch,
+                ::ComposeConstantCase,
+                ::ConstantOutsideCompanion,
+                ::ConstructorDefaultDependency,
+                ::DataClassDefaultValue,
+                ::DeclarationOrder,
+                ::DiModuleLifecycle,
+                ::DurationOverloadCall,
+                ::ExplicitInvoke,
+                ::ExpressionBodyOnOneLine,
+                ::FunctionVerb,
+                ::GetOrThrowInMain,
+                ::ImplementationName,
+                ::ImplicitItParameter,
+                ::ImpureUpdateLambda,
+                ::KDocFiller,
+                ::KDocHtmlTag,
+                ::KindNameInPackage,
+                ::LambdaSingleIfGuard,
+                ::LocalOrInnerClass,
+                ::MutableStateFlowEmit,
+                ::NamespaceObject,
+                ::NonComposableFileInComposable,
+                ::OneTypeFamilyPerFile,
+                ::OperatorBeforeTrailingCall,
+                ::PreviewBlockLast,
+                ::PropertyAsFunction,
+                ::RememberInName,
+                ::RolelessClassName,
+                ::RootModuleConstruction,
+                ::RunBlockingInTest,
+                ::RunCatchingCancellation,
+                ::SingleJobLaunchMode,
+                ::SystemTimeCall,
+                ::TestFunctionName,
+                ::ThemeObjectFunction,
+                ::ThrowInsideRunCatching,
+                ::TimeAsPrimitive,
+                ::TrivialLambdaReference,
+            )
         )
-    )
+    }
 
     internal companion object {
         const val RULE_SET_ID = "architecture"

@@ -9,5 +9,5 @@ private val KOTLIN_PLUGIN_IDS = listOf(
 )
 
 internal fun Project.hasKotlinPlugin(): Boolean {
-    return KOTLIN_PLUGIN_IDS.any { pluginId -> pluginManager.hasPlugin(pluginId) }
+    return KOTLIN_PLUGIN_IDS.any(pluginManager::hasPlugin)
 }

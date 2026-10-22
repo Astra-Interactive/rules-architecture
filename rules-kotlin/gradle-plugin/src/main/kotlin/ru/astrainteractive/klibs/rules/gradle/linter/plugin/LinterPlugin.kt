@@ -16,12 +16,17 @@ import org.gradle.language.base.plugins.LifecycleBasePlugin
 import ru.astrainteractive.klibs.rules.gradle.detekt.plugin.DetektPlugin
 import ru.astrainteractive.klibs.rules.gradle.detekt.service.DetektConfigService
 import ru.astrainteractive.klibs.rules.gradle.linter.extension.LinterExtension
+import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
+import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.task.ArchitectureBaselineTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.ArchitectureCheckTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.ArchitectureTask
 import ru.astrainteractive.klibs.rules.gradle.linter.util.detectUnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.util.explicitApiMode
+import ru.astrainteractive.klibs.rules.gradle.linter.util.findBuildFindings
 import ru.astrainteractive.klibs.rules.gradle.linter.util.productionProjectDependencies
+import ru.astrainteractive.klibs.rules.gradle.linter.util.readUnitBuild
+import ru.astrainteractive.klibs.rules.gradle.linter.util.toLine
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
 import java.util.Properties
 
@@ -55,7 +60,7 @@ internal class LinterPlugin : Plugin<Project> {
                 isolated.rootProject.projectDirectory.file("build/detekt/$ARCHITECTURE_CONFIG_FILE_NAME").asFile
             )
         }
-        val architectureConfigFile = configService.map { service -> service.configFile }
+        val architectureConfigFile = configService.map(DetektConfigService::configFile)
         val explicitApiArguments = provider { explicitApiArguments() }
         tasks.withType(Detekt::class.java).configureEach { task ->
             task.usesService(configService)
@@ -92,9 +97,17 @@ internal class LinterPlugin : Plugin<Project> {
         }
     }
 
-    private fun Project.architectureInputs(): FileCollection = fileTree(projectDir) { tree ->
-        tree.include("src/**/*.kt", "src/**/*.java", "README.md", "**/build.gradle.kts", "**/build.gradle")
-        tree.exclude("**/build/**", "**/.gradle/**")
+    private fun Project.architectureInputs(): FileCollection {
+        return fileTree(projectDir) { tree ->
+            tree.include(
+                "src/**/*.kt",
+                "src/**/*.java",
+                "README.md",
+                "**/build.gradle.kts",
+                "**/build.gradle"
+            )
+            tree.exclude("**/build/**", "**/.gradle/**")
+        }
     }
 
     private fun ArchitectureTask.configureFrom(
@@ -106,11 +119,18 @@ internal class LinterPlugin : Plugin<Project> {
         konsistClasspath.from(classpath)
         sources.from(project.architectureInputs())
         projectDirectory.set(project.layout.projectDirectory)
+        rootDirectory.set(project.isolated.rootProject.projectDirectory)
         projectPath.set(project.path)
         unitKind.set(extension.unitKind)
         rootPackage.set(extension.rootPackage)
         rootOfBuild.set(project.path == project.isolated.rootProject.path)
         projectDependencies.set(project.provider { project.productionProjectDependencies() })
+        buildFindings.set(
+            extension.unitKind.map { cliName ->
+                val kind = UnitKind.fromCliName(cliName) ?: UnitKind.CONTEXT
+                project.readUnitBuild(kind).findBuildFindings().map(ArchitectureFinding::toLine)
+            }
+        )
     }
 
     override fun apply(target: Project) {
@@ -124,13 +144,21 @@ internal class LinterPlugin : Plugin<Project> {
 
         val checkTask = target.tasks.register(CHECK_TASK_NAME, ArchitectureCheckTask::class.java) { task ->
             task.description = "Checks the package layout and the unit structure against the architecture rules"
-            task.configureFrom(target, extension, classpath)
+            task.configureFrom(
+                target,
+                extension,
+                classpath
+            )
             task.baseline.from(target.layout.projectDirectory.file(BASELINE_FILE_NAME))
             task.reportFile.set(target.layout.buildDirectory.file("reports/architecture/violations.txt"))
         }
         target.tasks.register(BASELINE_TASK_NAME, ArchitectureBaselineTask::class.java) { task ->
             task.description = "Accepts the current architecture violations in $BASELINE_FILE_NAME"
-            task.configureFrom(target, extension, classpath)
+            task.configureFrom(
+                target,
+                extension,
+                classpath
+            )
             task.baselineFile.set(target.layout.projectDirectory.file(BASELINE_FILE_NAME))
         }
         target.plugins.withType(LifecycleBasePlugin::class.java) {

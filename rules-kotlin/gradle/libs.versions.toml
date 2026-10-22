@@ -11,6 +11,8 @@ detekt-api = { module = "dev.detekt:detekt-api", version.ref = "detekt" }
 detekt-core = { module = "dev.detekt:detekt-core", version.ref = "detekt" }
 detekt-gradle = { module = "dev.detekt:detekt-gradle-plugin", version.ref = "detekt" }
 detekt-psi-utils = { module = "dev.detekt:detekt-psi-utils", version.ref = "detekt" }
+detekt-rules-coroutines = { module = "dev.detekt:detekt-rules-coroutines", version.ref = "detekt" }
+detekt-rules-naming = { module = "dev.detekt:detekt-rules-naming", version.ref = "detekt" }
 detekt-rules-style = { module = "dev.detekt:detekt-rules-style", version.ref = "detekt" }
 detekt-test = { module = "dev.detekt:detekt-test", version.ref = "detekt" }
 konsist = { module = "com.lemonappdev:konsist", version.ref = "konsist" }

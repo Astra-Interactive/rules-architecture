@@ -4,6 +4,7 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.Classpath
@@ -15,10 +16,16 @@ import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.process.ExecOperations
+import org.gradle.work.DisableCachingByDefault
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
+import ru.astrainteractive.klibs.rules.structure.buildfile.RootBuildSubprojects
+import ru.astrainteractive.klibs.rules.structure.graph.ApiUnitDependency
+import ru.astrainteractive.klibs.rules.structure.graph.EntryPointDependency
+import ru.astrainteractive.klibs.rules.structure.graph.TechnologyDependency
 import ru.astrainteractive.klibs.rules.structure.graph.UnitDependency
 import ru.astrainteractive.klibs.rules.structure.nesting.NestedUnit
+import ru.astrainteractive.klibs.rules.structure.nesting.ProjectDirMatchesPath
 import ru.astrainteractive.klibs.rules.structure.nesting.RootSources
 import ru.astrainteractive.klibs.rules.structure.readme.UnitReadme
 import ru.astrainteractive.klibs.rules.structure.unit.BuildUnit
@@ -26,6 +33,7 @@ import ru.astrainteractive.klibs.rules.structure.unit.StructureChecker
 import java.io.File
 import javax.inject.Inject
 
+@DisableCachingByDefault(because = "An abstract base: each concrete task declares its own caching")
 internal abstract class ArchitectureTask : DefaultTask() {
     @get:Classpath
     abstract val konsistClasspath: ConfigurableFileCollection
@@ -37,6 +45,9 @@ internal abstract class ArchitectureTask : DefaultTask() {
 
     @get:Internal
     abstract val projectDirectory: DirectoryProperty
+
+    @get:Internal
+    abstract val rootDirectory: DirectoryProperty
 
     @get:Input
     abstract val projectPath: Property<String>
@@ -54,41 +65,50 @@ internal abstract class ArchitectureTask : DefaultTask() {
     @get:Input
     abstract val projectDependencies: SetProperty<String>
 
+    /**
+     * The findings of the unit's own build, read at configuration time, one report line each.
+     */
+    @get:Input
+    abstract val buildFindings: ListProperty<String>
+
     @get:Inject
     abstract val execOperations: ExecOperations
 
-    private fun sourceDirectories(isTest: Boolean): List<File> =
-        File(projectDirectory.get().asFile, SOURCE_ROOT).listFiles().orEmpty()
-            .filter { sourceSet -> sourceSet.isDirectory }
+    private fun sourceDirectories(isTest: Boolean): List<File> {
+        return File(projectDirectory.get().asFile, SOURCE_ROOT).listFiles().orEmpty()
+            .filter(File::isDirectory)
             .filter { sourceSet -> sourceSet.name.contains(TEST_MARKER, ignoreCase = true) == isTest }
             .flatMap { sourceSet -> LANGUAGE_DIRECTORIES.map { language -> File(sourceSet, language) } }
-            .filter { directory -> directory.isDirectory }
-            .sortedBy { directory -> directory.path }
+            .filter(File::isDirectory)
+            .sortedBy(File::getPath)
+    }
 
     private fun konsistArguments(
         kind: UnitKind,
         mainDirectories: List<File>,
         reportFile: File
-    ): List<String> = buildList {
-        add("--project-dir")
-        add(projectDirectory.get().asFile.absolutePath)
-        add("--unit-kind")
-        add(kind.cliName)
-        add("--report")
-        add(reportFile.absolutePath)
-        add("--unit-path")
-        add(projectPath.get())
-        rootPackage.orNull?.let { packageName ->
-            add("--root-package")
-            add(packageName)
-        }
-        mainDirectories.forEach { directory ->
-            add("--main")
-            add(directory.absolutePath)
-        }
-        sourceDirectories(isTest = true).forEach { directory ->
-            add("--test")
-            add(directory.absolutePath)
+    ): List<String> {
+        return buildList {
+            add("--project-dir")
+            add(projectDirectory.get().asFile.absolutePath)
+            add("--unit-kind")
+            add(kind.cliName)
+            add("--report")
+            add(reportFile.absolutePath)
+            add("--unit-path")
+            add(projectPath.get())
+            rootPackage.orNull?.let { packageName ->
+                add("--root-package")
+                add(packageName)
+            }
+            mainDirectories.forEach { directory ->
+                add("--main")
+                add(directory.absolutePath)
+            }
+            sourceDirectories(isTest = true).forEach { directory ->
+                add("--test")
+                add(directory.absolutePath)
+            }
         }
     }
 
@@ -100,11 +120,16 @@ internal abstract class ArchitectureTask : DefaultTask() {
         execOperations.javaexec { spec ->
             spec.classpath = konsistClasspath
             spec.mainClass.set(KONSIST_MAIN_CLASS)
-            spec.args(konsistArguments(kind, mainDirectories, reportFile))
+            val arguments = konsistArguments(
+                kind,
+                mainDirectories,
+                reportFile
+            )
+            spec.args(arguments)
         }
         return reportFile.readLines()
-            .filter { line -> line.isNotBlank() }
-            .map { line -> ArchitectureFinding.parse(line) }
+            .filter(String::isNotBlank)
+            .map(ArchitectureFinding::parse)
     }
 
     private fun runStructureChecks(kind: UnitKind): List<ArchitectureFinding> {
@@ -115,18 +140,36 @@ internal abstract class ArchitectureTask : DefaultTask() {
             isRoot = rootOfBuild.get(),
             projectDependencies = projectDependencies.get()
         )
-        val checker = StructureChecker(listOf(NestedUnit(), RootSources(), UnitDependency(), UnitReadme()))
+        val checker = StructureChecker(
+            listOf(
+                ApiUnitDependency(),
+                EntryPointDependency(),
+                NestedUnit(),
+                ProjectDirMatchesPath(rootDirectory.get().asFile),
+                RootBuildSubprojects(),
+                RootSources(),
+                TechnologyDependency(),
+                UnitDependency(),
+                UnitReadme()
+            )
+        )
         return checker.check(unit).map { violation ->
-            ArchitectureFinding(violation.rule, violation.path, violation.subject, violation.message)
+            ArchitectureFinding(
+                violation.rule,
+                violation.path,
+                violation.subject,
+                violation.message
+            )
         }
     }
 
     protected fun findFindings(): List<ArchitectureFinding> {
         val kind = UnitKind.fromCliName(unitKind.get()) ?: throw GradleException(
             "linter.unitKind of ${projectPath.get()} is '${unitKind.get()}', expected one of " +
-                UnitKind.entries.joinToString { entry -> entry.cliName }
+                UnitKind.entries.joinToString(transform = UnitKind::cliName)
         )
-        return runKonsist(kind) + runStructureChecks(kind)
+        val buildFindings = buildFindings.get().map(ArchitectureFinding::parse)
+        return runKonsist(kind) + runStructureChecks(kind) + buildFindings
     }
 
     private companion object {

@@ -7,9 +7,10 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinBaseExtension
 /**
  * Call it only when a Kotlin plugin is applied.
  */
-internal fun Project.explicitApiMode(): String? =
-    when (extensions.findByType(KotlinBaseExtension::class.java)?.explicitApi) {
+internal fun Project.explicitApiMode(): String? {
+    return when (extensions.findByType(KotlinBaseExtension::class.java)?.explicitApi) {
         ExplicitApiMode.Strict -> "strict"
         ExplicitApiMode.Warning -> "warning"
         else -> null
     }
+}

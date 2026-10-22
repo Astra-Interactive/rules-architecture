@@ -14,7 +14,7 @@ public class UnitReadme : StructureCheck {
 
     private fun countSentences(readme: File): Int {
         val text = readme.readLines()
-            .map { line -> line.trim() }
+            .map(String::trim)
             .filterNot { line -> line.isEmpty() || line.startsWith("#") }
             .joinToString(separator = " ")
             .replace(ABBREVIATION, "")
@@ -27,13 +27,27 @@ public class UnitReadme : StructureCheck {
         val readme = File(unit.directory, README)
         if (!readme.isFile) {
             val message = "Add a README.md of one sentence that states the responsibility of ${unit.path}."
-            return listOf(StructureViolation(RULE, README, README, message))
+            return listOf(
+                StructureViolation(
+                    RULE,
+                    README,
+                    README,
+                    message
+                )
+            )
         }
         val sentences = countSentences(readme)
         if (sentences == 1) return emptyList()
         val message = "README.md of ${unit.path} has $sentences sentences, expected one: a responsibility that " +
             "does not fit one sentence is the signal to split the unit."
-        return listOf(StructureViolation(RULE, README, README, message))
+        return listOf(
+            StructureViolation(
+                RULE,
+                README,
+                README,
+                message
+            )
+        )
     }
 
     private companion object {

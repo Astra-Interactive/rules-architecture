@@ -19,19 +19,34 @@ internal class KonsistCliTest {
                 "JailPlayerUseCase.kt",
                 "class JailPlayerUseCase { operator fun invoke() = Unit }"
             )
-            .main("com.example.jail", "Jail.kt", "data class Jail(val id: Int)")
-            .test("com.example.jail.jail.model", "JailPlayerUseCaseTest.kt", "class JailPlayerUseCaseTest")
+            .main(
+                "com.example.jail",
+                "Jail.kt",
+                "data class Jail(val id: Int)"
+            )
+            .test(
+                "com.example.jail.jail.model",
+                "JailPlayerUseCaseTest.kt",
+                "class JailPlayerUseCaseTest"
+            )
         val reportFile = File(directory, "build/architecture/konsist.tsv")
 
         main(
             arrayOf(
-                "--project-dir", directory.absolutePath,
-                "--unit-kind", "context",
-                "--unit-path", ":jail",
-                "--main", tree.mainDirectory.absolutePath,
-                "--main", File(directory, "src/jvmMain/kotlin").absolutePath,
-                "--test", tree.testDirectory.absolutePath,
-                "--report", reportFile.absolutePath,
+                "--project-dir",
+                directory.absolutePath,
+                "--unit-kind",
+                "context",
+                "--unit-path",
+                ":jail",
+                "--main",
+                tree.mainDirectory.absolutePath,
+                "--main",
+                File(directory, "src/jvmMain/kotlin").absolutePath,
+                "--test",
+                tree.testDirectory.absolutePath,
+                "--report",
+                reportFile.absolutePath
             )
         )
 

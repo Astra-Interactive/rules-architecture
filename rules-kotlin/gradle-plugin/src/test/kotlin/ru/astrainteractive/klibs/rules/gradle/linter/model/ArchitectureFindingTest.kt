@@ -18,7 +18,12 @@ class ArchitectureFindingTest {
 
     @Test
     fun GIVEN_report_line_WHEN_parsed_THEN_splits_it_into_the_four_fields() {
-        val line = listOf(finding.rule, finding.path, finding.subject, finding.message).joinToLine()
+        val line = listOf(
+            finding.rule,
+            finding.path,
+            finding.subject,
+            finding.message
+        ).joinToLine()
 
         assertEquals(finding, ArchitectureFinding.parse(line))
     }
@@ -26,7 +31,12 @@ class ArchitectureFindingTest {
     @Test
     fun GIVEN_message_with_a_tab_WHEN_parsed_THEN_keeps_the_tab_in_the_message() {
         val message = listOf("Move", "Jail").joinToLine()
-        val line = listOf("KindShape", "Jail.kt", "Jail", message).joinToLine()
+        val line = listOf(
+            "KindShape",
+            "Jail.kt",
+            "Jail",
+            message
+        ).joinToLine()
 
         assertEquals(message, ArchitectureFinding.parse(line).message)
     }
@@ -46,16 +56,12 @@ class ArchitectureFindingTest {
 
         assertEquals(finding.baselineKey, reworded.baselineKey)
         assertEquals(
-            listOf("KindShape", "src/main/kotlin/com/example/Jail.kt", "Jail").joinToLine(),
+            listOf(
+                "KindShape",
+                "src/main/kotlin/com/example/Jail.kt",
+                "Jail"
+            ).joinToLine(),
             finding.baselineKey
-        )
-    }
-
-    @Test
-    fun GIVEN_finding_WHEN_described_THEN_names_path_message_and_rule() {
-        assertEquals(
-            "src/main/kotlin/com/example/Jail.kt: Move Jail into a kind package [KindShape]",
-            finding.describe()
         )
     }
 }

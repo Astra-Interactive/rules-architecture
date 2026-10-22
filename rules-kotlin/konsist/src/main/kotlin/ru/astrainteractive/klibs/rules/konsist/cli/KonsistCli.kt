@@ -3,20 +3,37 @@
 package ru.astrainteractive.klibs.rules.konsist.cli
 
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureChecker
+import ru.astrainteractive.klibs.rules.konsist.check.declaration.ContractName
+import ru.astrainteractive.klibs.rules.konsist.check.declaration.DuplicateRepresentation
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.EntryPointVisibility
+import ru.astrainteractive.klibs.rules.konsist.check.declaration.FieldDependencyConstruction
+import ru.astrainteractive.klibs.rules.konsist.check.declaration.ImplementationVisibility
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.NestedDataClass
+import ru.astrainteractive.klibs.rules.konsist.check.declaration.NestedEnum
+import ru.astrainteractive.klibs.rules.konsist.check.declaration.SealedFamilyFile
+import ru.astrainteractive.klibs.rules.konsist.check.declaration.StateTypePlacement
+import ru.astrainteractive.klibs.rules.konsist.check.declaration.UseCaseAbstraction
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.UseCaseShape
 import ru.astrainteractive.klibs.rules.konsist.check.direction.KindImportDirection
 import ru.astrainteractive.klibs.rules.konsist.check.direction.PlatformImport
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
+import ru.astrainteractive.klibs.rules.konsist.check.placement.ComposeKindWithoutCompose
 import ru.astrainteractive.klibs.rules.konsist.check.placement.ContractPlacement
+import ru.astrainteractive.klibs.rules.konsist.check.placement.ContractUnitShape
+import ru.astrainteractive.klibs.rules.konsist.check.placement.CoreShape
 import ru.astrainteractive.klibs.rules.konsist.check.placement.DiPlacement
+import ru.astrainteractive.klibs.rules.konsist.check.placement.EntryPointShape
 import ru.astrainteractive.klibs.rules.konsist.check.placement.ErrorPlacement
 import ru.astrainteractive.klibs.rules.konsist.check.placement.FakePlacement
 import ru.astrainteractive.klibs.rules.konsist.check.placement.ForbiddenPackageName
 import ru.astrainteractive.klibs.rules.konsist.check.placement.InMemoryPlacement
 import ru.astrainteractive.klibs.rules.konsist.check.placement.KindShape
+import ru.astrainteractive.klibs.rules.konsist.check.placement.PlatformPackage
+import ru.astrainteractive.klibs.rules.konsist.check.placement.RootModulePlacement
 import ru.astrainteractive.klibs.rules.konsist.check.placement.TestMirror
+import ru.astrainteractive.klibs.rules.konsist.check.placement.TestOwnerBehaviour
+import ru.astrainteractive.klibs.rules.konsist.check.placement.UtilFileName
+import ru.astrainteractive.klibs.rules.konsist.check.placement.UtilFunctionAsExtension
 import ru.astrainteractive.klibs.rules.konsist.check.placement.UtilShape
 
 /**
@@ -39,19 +56,36 @@ public fun main(args: Array<String>) {
     )
     val checker = ArchitectureChecker(
         listOf(
+            ComposeKindWithoutCompose(),
+            ContractName(),
             ContractPlacement(),
+            ContractUnitShape(),
+            CoreShape(),
             DiPlacement(),
+            DuplicateRepresentation(),
+            EntryPointShape(),
             EntryPointVisibility(),
             ErrorPlacement(),
             FakePlacement(),
+            FieldDependencyConstruction(),
             ForbiddenPackageName(),
+            ImplementationVisibility(),
             InMemoryPlacement(),
             KindImportDirection(),
             KindShape(),
             NestedDataClass(),
+            NestedEnum(),
             PlatformImport(),
+            PlatformPackage(),
+            RootModulePlacement(),
+            SealedFamilyFile(),
+            StateTypePlacement(),
             TestMirror(),
+            TestOwnerBehaviour(),
+            UseCaseAbstraction(),
             UseCaseShape(),
+            UtilFileName(),
+            UtilFunctionAsExtension(),
             UtilShape(),
         )
     )

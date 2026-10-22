@@ -12,12 +12,17 @@ import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 
 /**
  * Reports a top-level data class that is the property type of exactly one class and is named in no file but
- * its own and that class's: it is nested in its owner.
+ * its own and that class's: it is nested in its owner. A data class with a supertype (the variant of a sealed
+ * family) and the state of a screen or a menu (`*State`) are families of their own in `model`, never nested.
  */
 internal class NestedDataClass : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
 
     private class DeclaredClass(val file: KoFileDeclaration, val declaration: KoClassDeclaration)
+
+    private fun isFamilyOfItsOwn(declaration: KoClassDeclaration): Boolean {
+        return declaration.hasParents() || declaration.name.endsWith(STATE_SUFFIX)
+    }
 
     private fun propertyTypeNames(declaration: KoClassDeclaration): Set<String> {
         val constructorTypes = declaration.primaryConstructor?.parameters.orEmpty()
@@ -25,12 +30,12 @@ internal class NestedDataClass : ArchitectureCheck {
             .map { parameter -> parameter.type.simpleName }
         val bodyTypes = declaration.properties(includeNested = false)
             .mapNotNull { property -> property.type?.simpleName }
-        return (constructorTypes + bodyTypes).toSet()
+        return constructorTypes.plus(bodyTypes).toSet()
     }
 
     private fun referencingFiles(name: String, files: List<KoFileDeclaration>): Set<String> {
         val word = Regex("\\b${Regex.escape(name)}\\b")
-        return files.filter { file -> word.containsMatchIn(file.text) }.map { file -> file.path }.toSet()
+        return files.filter { file -> word.containsMatchIn(file.text) }.map(KoFileDeclaration::path).toSet()
     }
 
     private fun findOwner(
@@ -57,15 +62,26 @@ internal class NestedDataClass : ArchitectureCheck {
         return sources.mainFiles
             .flatMap { file -> file.topLevelClasses().map { declaration -> DeclaredClass(file, declaration) } }
             .filter { declared -> declared.declaration.hasModifier(KoModifier.DATA) }
+            .filterNot { declared -> isFamilyOfItsOwn(declared.declaration) }
             .mapNotNull { dataClass ->
-                val owner = findOwner(dataClass, classes, sources.mainFiles) ?: return@mapNotNull null
+                val owner = findOwner(
+                    dataClass,
+                    classes,
+                    sources.mainFiles
+                ) ?: return@mapNotNull null
                 val name = dataClass.declaration.name
                 val message = "Nest $name in ${owner.declaration.name}: it is the property type of that class only."
-                Violation(RULE, sources.relativePath(dataClass.file), name, message)
+                Violation(
+                    RULE,
+                    sources.relativePath(dataClass.file),
+                    name,
+                    message
+                )
             }
     }
 
     private companion object {
         const val RULE = "NestedDataClass"
+        const val STATE_SUFFIX = "State"
     }
 }
