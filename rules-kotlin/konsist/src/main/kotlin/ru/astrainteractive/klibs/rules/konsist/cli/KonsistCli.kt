@@ -16,6 +16,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.direction.KindImportDirecti
 import ru.astrainteractive.klibs.rules.konsist.check.direction.PlatformImport
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.placement.ContractPlacement
+import ru.astrainteractive.klibs.rules.konsist.check.placement.CoreShape
 import ru.astrainteractive.klibs.rules.konsist.check.placement.DiPlacement
 import ru.astrainteractive.klibs.rules.konsist.check.placement.ErrorPlacement
 import ru.astrainteractive.klibs.rules.konsist.check.placement.FakePlacement
@@ -49,6 +50,7 @@ public fun main(args: Array<String>) {
         listOf(
             ContractName(),
             ContractPlacement(),
+            CoreShape(),
             DiPlacement(),
             EntryPointVisibility(),
             ErrorPlacement(),
