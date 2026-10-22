@@ -38,6 +38,8 @@ architecture:
     active: true
   LocalOrInnerClass:
     active: true
+  MutableStateFlowEmit:
+    active: true
   NamespaceObject:
     active: true
   OneTypeFamilyPerFile:

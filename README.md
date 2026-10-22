@@ -244,6 +244,7 @@ val violations: List<StructureViolation> = checker.check(
 | `PreviewBlockLast` | a non-preview declaration after the first `@Preview`, a `@Preview` not named `…Preview` |
 | `RememberInName` | a `remember…` function whose body calls no `remember` |
 | `ActualFileSuffix` | a file with an `actual` declaration whose name has no platform suffix (`Name.android.kt`) |
+| `MutableStateFlowEmit` | `emit`/`tryEmit` on a property declared or initialised as a `MutableStateFlow` |
 
 ### detekt settings
 

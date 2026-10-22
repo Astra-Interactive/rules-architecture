@@ -8,6 +8,7 @@ import ru.astrainteractive.klibs.rules.detekt.compose.ComposeConstantCase
 import ru.astrainteractive.klibs.rules.detekt.compose.PreviewBlockLast
 import ru.astrainteractive.klibs.rules.detekt.compose.RememberInName
 import ru.astrainteractive.klibs.rules.detekt.compose.ThemeObjectFunction
+import ru.astrainteractive.klibs.rules.detekt.coroutine.MutableStateFlowEmit
 import ru.astrainteractive.klibs.rules.detekt.declaration.DataClassDefaultValue
 import ru.astrainteractive.klibs.rules.detekt.declaration.LocalOrInnerClass
 import ru.astrainteractive.klibs.rules.detekt.declaration.NamespaceObject
@@ -60,6 +61,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::KDocHtmlTag,
                 ::KindNameInPackage,
                 ::LocalOrInnerClass,
+                ::MutableStateFlowEmit,
                 ::NamespaceObject,
                 ::OneTypeFamilyPerFile,
                 ::PreviewBlockLast,
