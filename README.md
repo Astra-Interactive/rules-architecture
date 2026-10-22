@@ -255,6 +255,7 @@ val violations: List<StructureViolation> = checker.check(
 | `RolelessClassName` | a `…Validator` or `…Factory` class, `…WarmUp`/`…Migration`/`…ViewModel` outside its `warmup`/`migration`/`viewmodel` package |
 | `DiModuleLifecycle` | a `…Module` that declares `enable`, `disable`, `reload`, `onEnable`, `onDisable` or `onReload` |
 | `RootModuleConstruction` | a `RootModule` property that constructs anything but a `…Module` or a `Lifecycle` |
+| `SystemTimeCall` | `System.currentTimeMillis()` and `System.nanoTime()` |
 
 ### detekt settings
 

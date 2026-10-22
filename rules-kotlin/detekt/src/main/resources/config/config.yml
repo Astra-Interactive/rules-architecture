@@ -68,6 +68,8 @@ architecture:
     active: true
   SingleJobLaunchMode:
     active: true
+  SystemTimeCall:
+    active: true
   TestFunctionName:
     active: true
   ThemeObjectFunction:
