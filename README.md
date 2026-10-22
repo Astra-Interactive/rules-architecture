@@ -289,6 +289,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `SealedFamilyFile` | a class or object whose direct supertype is a sealed type declared in another file |
 | `StateTypePlacement` | a `<Screen>State` nested in another type or declared outside `model` |
 | `NestedEnum` | a top-level enum used as the property type of exactly one class |
+| `UtilFileName` | a `util` file of one receiver's extensions not named `<Receiver>Ext.kt`, a file named `Utils.kt`, `Helpers.kt`, `Extensions.kt` and the like |
 
 ### Structure checks
 

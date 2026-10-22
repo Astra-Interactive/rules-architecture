@@ -20,6 +20,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.placement.ForbiddenPackageN
 import ru.astrainteractive.klibs.rules.konsist.check.placement.InMemoryPlacement
 import ru.astrainteractive.klibs.rules.konsist.check.placement.KindShape
 import ru.astrainteractive.klibs.rules.konsist.check.placement.TestMirror
+import ru.astrainteractive.klibs.rules.konsist.check.placement.UtilFileName
 import ru.astrainteractive.klibs.rules.konsist.check.placement.UtilShape
 
 /**
@@ -58,6 +59,7 @@ public fun main(args: Array<String>) {
             StateTypePlacement(),
             TestMirror(),
             UseCaseShape(),
+            UtilFileName(),
             UtilShape(),
         )
     )
