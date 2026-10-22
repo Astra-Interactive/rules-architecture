@@ -241,6 +241,7 @@ val violations: List<StructureViolation> = checker.check(
 | `ComposableFileType` | a class, interface or object in a file with a `@Composable` function, except a `*Defaults` object |
 | `ThemeObjectFunction` | a function inside an object of a `theme` package |
 | `ComposeConstantCase` | a `const val` not `UPPER_SNAKE` or a `val` not `PascalCase` in a composable or `theme` file |
+| `PreviewBlockLast` | a non-preview declaration after the first `@Preview`, a `@Preview` not named `…Preview` |
 
 ### detekt settings
 

@@ -40,6 +40,8 @@ architecture:
     active: true
   OneTypeFamilyPerFile:
     active: true
+  PreviewBlockLast:
+    active: true
   PropertyAsFunction:
     active: true
   TestFunctionName:
