@@ -315,6 +315,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `EntryPointDependency` | a dependency on an entry-point unit (a path with the segment `instances`) |
 | `TechnologyDependency` | a dependency on a technology unit (`exposed`, `room`, `ktor`, …) outside the entry point and other technology units |
 | `ApiUnitDependency` | an `api` unit depending on a unit that is not `api`, `core` or a storage contracts unit (`dao`, `contract`) |
+| `RootBuildSubprojects` | a `subprojects { }` or `allprojects { }` block in the root build file |
 
 ## 🗂️ Repository
 

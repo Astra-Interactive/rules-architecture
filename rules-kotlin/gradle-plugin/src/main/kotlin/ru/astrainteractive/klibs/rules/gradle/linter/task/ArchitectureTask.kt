@@ -17,6 +17,7 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.process.ExecOperations
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
+import ru.astrainteractive.klibs.rules.structure.buildfile.RootBuildSubprojects
 import ru.astrainteractive.klibs.rules.structure.graph.ApiUnitDependency
 import ru.astrainteractive.klibs.rules.structure.graph.EntryPointDependency
 import ru.astrainteractive.klibs.rules.structure.graph.TechnologyDependency
@@ -123,6 +124,7 @@ internal abstract class ArchitectureTask : DefaultTask() {
                 ApiUnitDependency(),
                 EntryPointDependency(),
                 NestedUnit(),
+                RootBuildSubprojects(),
                 RootSources(),
                 TechnologyDependency(),
                 UnitDependency(),
