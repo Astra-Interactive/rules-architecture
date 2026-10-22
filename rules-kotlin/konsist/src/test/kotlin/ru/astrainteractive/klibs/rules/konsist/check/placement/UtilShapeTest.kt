@@ -33,15 +33,21 @@ internal class UtilShapeTest {
 
         val subjects = UtilShape().check(sources).map { violation -> violation.subject }.sorted()
 
-        assertEquals(listOf("Formatter", "Holder", "Int.clamp", "Shape"), subjects)
+        assertEquals(listOf("Formatter", "Holder", "Int.clamp", "RatingCommand.isValid", "Shape"), subjects)
     }
 
     @Test
-    fun GIVEN_entry_point_extensions_and_rules_on_lists_of_a_model_WHEN_checked_THEN_reports_nothing(
-        @TempDir directory: File
-    ) {
+    fun GIVEN_entry_point_extensions_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
         val sources = SourceTree(directory)
             .main("x.gui.bukkit.slot", "RatingsSlot.kt", "internal fun SlotContext.ratingsSlot(): String = \"\"")
+            .load(UnitKind.CONTEXT, rootPackage = "x.gui.bukkit")
+
+        assertEquals(emptyList(), UtilShape().check(sources))
+    }
+
+    @Test
+    fun GIVEN_rule_on_a_list_of_a_model_in_the_model_file_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+        val sources = SourceTree(directory)
             .main(
                 "x.gui.bukkit.placeholder.model",
                 "Coloring.kt",
@@ -53,6 +59,9 @@ internal class UtilShapeTest {
             )
             .load(UnitKind.CONTEXT, rootPackage = "x.gui.bukkit")
 
-        assertEquals(emptyList(), UtilShape().check(sources))
+        assertEquals(
+            listOf("Collection.findByRating"),
+            UtilShape().check(sources).map { violation -> violation.subject }
+        )
     }
 }

@@ -284,7 +284,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `UseCaseShape`         | `*UseCase` outside `usecase`, other names in `usecase`, more than one entry, a use case taking another    |
 | `ContractPlacement`    | a `*Repository` outside `api`, an implementation inside `api`, a `network`/`local`/`remote` package       |
 | `ForbiddenPackageName` | a forbidden word in a package created inside the unit; the root package may keep its unit's word; `table`, `entity` and `database` outside a technology unit or package |
-| `UtilShape`            | a class or object in `util`, an extension function outside `util` and outside its receiver's file          |
+| `UtilShape`            | a class or object in `util`, an extension function outside `util`, its receiver's file included           |
 | `EntryPointVisibility` | a public class in a kind the platform invokes (`command`, `event`, `route`, `service`, `warmup`, ...)     |
 | `ErrorPlacement`       | an error type outside a `model` package                                                                   |
 | `DiPlacement`          | a `*Module` outside a `di` package                                                                        |
