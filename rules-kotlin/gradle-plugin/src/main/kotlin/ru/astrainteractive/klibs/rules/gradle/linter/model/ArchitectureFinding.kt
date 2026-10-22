@@ -16,8 +16,6 @@ internal data class ArchitectureFinding(
             subject
         ).joinToString(separator = FIELD_SEPARATOR)
 
-    fun describe(): String = "$path: $message [$rule]"
-
     companion object {
         const val FIELD_SEPARATOR = "\t"
         private const val FIELD_COUNT = 4

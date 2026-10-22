@@ -11,6 +11,7 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
 import ru.astrainteractive.klibs.rules.gradle.linter.plugin.LinterPlugin
+import ru.astrainteractive.klibs.rules.gradle.linter.util.describe
 
 @DisableCachingByDefault(because = "The check is cheap next to the cost of storing a failing result")
 internal abstract class ArchitectureCheckTask : ArchitectureTask() {

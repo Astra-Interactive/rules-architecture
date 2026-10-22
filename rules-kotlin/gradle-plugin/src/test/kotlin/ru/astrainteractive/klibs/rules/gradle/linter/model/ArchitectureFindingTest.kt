@@ -64,12 +64,4 @@ class ArchitectureFindingTest {
             finding.baselineKey
         )
     }
-
-    @Test
-    fun GIVEN_finding_WHEN_described_THEN_names_path_message_and_rule() {
-        assertEquals(
-            "src/main/kotlin/com/example/Jail.kt: Move Jail into a kind package [KindShape]",
-            finding.describe()
-        )
-    }
 }
