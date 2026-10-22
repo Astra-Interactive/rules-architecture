@@ -4,6 +4,7 @@ import dev.detekt.api.RuleSet
 import dev.detekt.api.RuleSetId
 import dev.detekt.api.RuleSetProvider
 import ru.astrainteractive.klibs.rules.detekt.compose.ComposableFileType
+import ru.astrainteractive.klibs.rules.detekt.compose.ComposableWhenBranch
 import ru.astrainteractive.klibs.rules.detekt.compose.ComposeConstantCase
 import ru.astrainteractive.klibs.rules.detekt.compose.PreviewBlockLast
 import ru.astrainteractive.klibs.rules.detekt.compose.RememberInName
@@ -66,6 +67,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::CalleeBeforeCaller,
                 ::CompanionFactoryFunction,
                 ::ComposableFileType,
+                ::ComposableWhenBranch,
                 ::ComposeConstantCase,
                 ::ConstantOutsideCompanion,
                 ::ConstructorDefaultDependency,

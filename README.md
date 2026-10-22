@@ -261,6 +261,7 @@ val violations: List<StructureViolation> = checker.check(
 | `LambdaSingleIfGuard` | a lambda whose whole body is one `if` without `else` |
 | `OperatorBeforeTrailingCall` | arithmetic in parentheses before a call or property (`(a * b).sp`), a chain of `plus`/`minus`/`times`/`div`/`rem` calls |
 | `TrivialLambdaReference` | a lambda that only passes its parameters to one function, or a `{ obj.foo() }` callback, instead of a function reference |
+| `ComposableWhenBranch` | a `when` branch of a `@Composable` function that spans several lines |
 
 ### detekt settings
 
