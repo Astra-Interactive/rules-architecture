@@ -41,4 +41,30 @@ internal class NestedDataClassTest {
 
         assertEquals(emptyList(), NestedDataClass().check(sources))
     }
+
+    @Test
+    fun GIVEN_sealed_variant_and_screen_state_with_one_owner_WHEN_checked_THEN_reports_nothing(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "com.example.splash.model",
+                "SplashPaywallState.kt",
+                """
+                sealed interface SplashPaywallState
+
+                data class Content(val title: String) : SplashPaywallState
+                """
+            )
+            .main("com.example.splash.model", "Holder.kt", "class Holder(val content: Content)")
+            .main("com.example.splash.model", "RatingPlayersState.kt", "data class RatingPlayersState(val page: Int)")
+            .main(
+                "com.example.splash.component",
+                "RatingPlayersComponent.kt",
+                "class RatingPlayersComponent(val state: RatingPlayersState)"
+            )
+            .load(UnitKind.CONTEXT)
+
+        assertEquals(emptyList(), NestedDataClass().check(sources))
+    }
 }

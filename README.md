@@ -288,7 +288,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `EntryPointVisibility` | a public class in a kind the platform invokes (`command`, `event`, `route`, `service`, `warmup`, ...)     |
 | `ErrorPlacement`       | an error type outside a `model` package                                                                   |
 | `DiPlacement`          | a `*Module` outside a `di` package                                                                        |
-| `NestedDataClass`      | a top-level data class used as a property type by exactly one class                                       |
+| `NestedDataClass`      | a top-level data class used as a property type by exactly one class, except a sealed variant or a `*State` |
 | `TestMirror`           | a test in another package than its owner                                                                  |
 | `FakePlacement`        | a `Fake*` outside a `fake` package                                                                        |
 | `InMemoryPlacement`    | an `InMemory*` outside a `memory` package of the main sources                                              |
