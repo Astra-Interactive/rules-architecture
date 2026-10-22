@@ -9,10 +9,11 @@ import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 /**
  * Reports a public class or object in a kind the platform invokes (`command`, `event`, `route`, `job`,
  * `service`, `warmup`, `migration`, `error`): other units construct the unit's DI module, never its entry
- * points. UI state holders are left out, because another unit's screen calls them.
+ * points. UI state holders are left out, because another unit's screen calls them, and so is a published
+ * library, whose public API may live in these kinds.
  */
 internal class EntryPointVisibility : ArchitectureCheck {
-    override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
+    override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet() - UnitKind.LIBRARY
 
     override fun check(sources: UnitSources): List<Violation> {
         return sources.mainFiles

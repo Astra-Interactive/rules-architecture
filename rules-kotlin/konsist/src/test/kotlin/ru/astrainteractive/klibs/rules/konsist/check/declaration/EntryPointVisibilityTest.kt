@@ -4,6 +4,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.declaration
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureChecker
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 import java.io.File
@@ -29,5 +30,17 @@ internal class EntryPointVisibilityTest {
         val subjects = EntryPointVisibility().check(sources).map { violation -> violation.subject }.sorted()
 
         assertEquals(listOf("CommandExceptionHandler", "RatingCommand"), subjects)
+    }
+
+    @Test
+    fun GIVEN_published_library_WHEN_checked_by_the_checker_THEN_its_public_command_api_is_not_judged(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main("x.klibs.command.command", "Command.kt", "class Command")
+            .main("x.klibs.command.event", "EventListener.kt", "class EventListener")
+            .load(UnitKind.LIBRARY, unitPath = ":command")
+
+        assertEquals(emptyList(), ArchitectureChecker(listOf(EntryPointVisibility())).check(sources))
     }
 }
