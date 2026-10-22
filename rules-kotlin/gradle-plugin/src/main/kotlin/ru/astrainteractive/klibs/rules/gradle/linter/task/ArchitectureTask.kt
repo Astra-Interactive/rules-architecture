@@ -18,6 +18,7 @@ import org.gradle.process.ExecOperations
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import ru.astrainteractive.klibs.rules.structure.graph.EntryPointDependency
+import ru.astrainteractive.klibs.rules.structure.graph.TechnologyDependency
 import ru.astrainteractive.klibs.rules.structure.graph.UnitDependency
 import ru.astrainteractive.klibs.rules.structure.nesting.NestedUnit
 import ru.astrainteractive.klibs.rules.structure.nesting.RootSources
@@ -121,6 +122,7 @@ internal abstract class ArchitectureTask : DefaultTask() {
                 EntryPointDependency(),
                 NestedUnit(),
                 RootSources(),
+                TechnologyDependency(),
                 UnitDependency(),
                 UnitReadme()
             )
