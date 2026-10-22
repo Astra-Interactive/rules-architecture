@@ -9,8 +9,8 @@ import org.jetbrains.kotlin.psi.KtClassOrObject
 /**
  * Reports a type name that carries a kind word its package does not allow:
  * - `Service` outside a `service` package, the role of components the platform runs on its own lifecycle;
- * - the `Model` or `Entity` suffix in a `model` package, unless that package sits under `data`, where a
- *   technology keeps its own representation;
+ * - the `Model` or `Entity` suffix in a `model` package, unless a technology word (`exposed`, `room`, `table`, ...)
+ *   precedes it in the package path, where a technology keeps its own representation;
  * - the `Helper`, `Util`, `Utils` and `Manager` suffixes anywhere: a class with behaviour has a role, and the role
  *   names it.
  */
@@ -19,8 +19,7 @@ internal class KindNameInPackage(config: Config) : Rule(config, DESCRIPTION) {
     private fun isDomainModelPackage(segments: List<String>): Boolean {
         val modelIndex = segments.indexOf(MODEL_SEGMENT)
         if (modelIndex < 0) return false
-        val dataIndex = segments.indexOf(DATA_SEGMENT)
-        return dataIndex !in 0 until modelIndex
+        return segments.take(modelIndex).none { segment -> segment in TECHNOLOGY_SEGMENTS }
     }
 
     private fun findViolations(name: String, segments: List<String>): List<String> = buildList {
@@ -52,10 +51,26 @@ internal class KindNameInPackage(config: Config) : Rule(config, DESCRIPTION) {
         const val SERVICE_WORD = "Service"
         const val SERVICE_SEGMENT = "service"
         const val MODEL_SEGMENT = "model"
-        const val DATA_SEGMENT = "data"
 
         @JvmField
         val MODEL_SUFFIXES = listOf("Model", "Entity")
+
+        @JvmField
+        val TECHNOLOGY_SEGMENTS = setOf(
+            "cache4k",
+            "datastore",
+            "entity",
+            "exposed",
+            "file",
+            "krate",
+            "ktor",
+            "memory",
+            "okhttp",
+            "retrofit",
+            "room",
+            "sqldelight",
+            "table",
+        )
 
         @JvmField
         val ROLELESS_SUFFIXES = listOf("Helper", "Util", "Utils", "Manager")

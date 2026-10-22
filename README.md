@@ -229,7 +229,7 @@ val violations: List<StructureViolation> = checker.check(
 | `TimeAsPrimitive`              | a time-named value (`createdAt`, `timeoutMs`) typed as a number or a string      |
 | `KDocHtmlTag`                  | Javadoc HTML (`<p>`, `<code>`) in KDoc                                           |
 | `ImplementationName`           | the `Impl` and `Interface` suffixes and the `I` prefix on an interface           |
-| `KindNameInPackage`            | `Service` outside a `service` package, `Model`/`Entity` in a domain `model`, `Helper`/`Util`/`Manager` names |
+| `KindNameInPackage`            | `Service` outside a `service` package, `Model`/`Entity` in a `model` with no technology word (`exposed`, `room`, ...) before it, `Helper`/`Util`/`Manager` names |
 | `ExpressionBodyOnOneLine`      | an expression-body function whose signature and body are not one line            |
 | `BooleanOperatorWrapping` | a line break on either side of `&&` or `\|\|` |
 | `ArgumentPerLine` | a call or constructor call with three or more arguments in its parentheses, not each on its own line |
