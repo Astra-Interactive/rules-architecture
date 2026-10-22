@@ -8,6 +8,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.model.importedName
 import ru.astrainteractive.klibs.rules.konsist.layout.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.Placement
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
+import ru.astrainteractive.klibs.rules.konsist.layout.util.describe
 
 /**
  * Checks the direction table of `arch-context.md` through the imports between the kind packages of a unit:

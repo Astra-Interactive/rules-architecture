@@ -17,9 +17,4 @@ internal data class Placement(
     val kindWord: String?,
     val subKind: String?,
     val below: List<String>
-) {
-    fun describe(): String {
-        val path = concepts.plus(listOfNotNull(kindWord, subKind)).joinToString("/")
-        return if (path.isEmpty()) "the unit root" else "'$path'"
-    }
-}
+)

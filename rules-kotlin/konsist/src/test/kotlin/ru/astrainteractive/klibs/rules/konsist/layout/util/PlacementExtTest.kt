@@ -1,11 +1,13 @@
 @file:Suppress("FunctionNaming")
 
-package ru.astrainteractive.klibs.rules.konsist.layout
+package ru.astrainteractive.klibs.rules.konsist.layout.util
 
 import org.junit.jupiter.api.Test
+import ru.astrainteractive.klibs.rules.konsist.layout.Kind
+import ru.astrainteractive.klibs.rules.konsist.layout.Placement
 import kotlin.test.assertEquals
 
-internal class PlacementTest {
+internal class PlacementExtTest {
 
     @Test
     fun GIVEN_placements_WHEN_described_THEN_names_their_place() {
