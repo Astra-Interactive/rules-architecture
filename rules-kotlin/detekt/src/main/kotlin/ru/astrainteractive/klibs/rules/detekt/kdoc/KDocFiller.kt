@@ -33,7 +33,7 @@ internal class KDocFiller(config: Config) : Rule(config, DESCRIPTION) {
     }
 
     private fun repeatsName(tag: KDocTag, name: String): Boolean {
-        val words = name.split(WORD_START).joinToString(" ") { word -> word.lowercase() }
+        val words = name.split(WORD_START).joinToString(" ", transform = String::lowercase)
         val content = normalize(tag.getContent())
         return content.isEmpty() || content == words
     }

@@ -6,6 +6,7 @@ import dev.detekt.api.Finding
 import dev.detekt.api.Rule
 import dev.detekt.psi.hasAnnotation
 import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtClassOrObject
@@ -34,7 +35,7 @@ internal class BareIdentifier(config: Config) : Rule(config, DESCRIPTION) {
     }
 
     private fun isTechnologyPackage(declaration: KtCallableDeclaration): Boolean {
-        val segments = declaration.containingKtFile.packageFqName.pathSegments().map { segment -> segment.asString() }
+        val segments = declaration.containingKtFile.packageFqName.pathSegments().map(Name::asString)
         return segments.any { segment -> segment in TECHNOLOGY_WORDS }
     }
 

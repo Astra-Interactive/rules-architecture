@@ -4,6 +4,7 @@ package ru.astrainteractive.klibs.rules.structure.graph
 
 import org.junit.jupiter.api.Test
 import ru.astrainteractive.klibs.rules.structure.unit.BuildUnit
+import ru.astrainteractive.klibs.rules.structure.unit.StructureViolation
 import java.io.File
 import kotlin.test.assertEquals
 
@@ -28,7 +29,7 @@ internal class EntryPointDependencyTest {
                 "Drop the dependency on the entry point :instances:bukkit: nothing depends on the entry point; " +
                     "depend on the api unit that holds what you need."
             ),
-            EntryPointDependency().check(unit).map { violation -> violation.message }
+            EntryPointDependency().check(unit).map(StructureViolation::message)
         )
     }
 }

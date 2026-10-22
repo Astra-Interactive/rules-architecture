@@ -3,6 +3,7 @@
 package ru.astrainteractive.klibs.rules.detekt.ordering
 
 import dev.detekt.api.Config
+import dev.detekt.api.Finding
 import dev.detekt.test.lint
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -47,7 +48,7 @@ internal class ConstantOutsideCompanionTest {
                 "Move the constants of 'ReloaderDefaults' to the companion object of the type that uses them: " +
                     "a private object of constants beside a type is forbidden."
             ),
-            rule.lint(code).map { finding -> finding.message }
+            rule.lint(code).map(Finding::message)
         )
     }
 

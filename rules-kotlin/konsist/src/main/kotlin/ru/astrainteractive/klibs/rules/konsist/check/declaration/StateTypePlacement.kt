@@ -1,6 +1,7 @@
 package ru.astrainteractive.klibs.rules.konsist.check.declaration
 
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
+import com.lemonappdev.konsist.api.provider.KoNameProvider
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
@@ -17,9 +18,9 @@ internal class StateTypePlacement : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
 
     private fun nestedStateNames(file: KoFileDeclaration): List<String> {
-        val nested = file.classes(includeNested = true, includeLocal = false).map { declaration -> declaration.name } +
-            file.interfaces(includeNested = true).map { declaration -> declaration.name } +
-            file.objects(includeNested = true).map { declaration -> declaration.name }
+        val nested = file.classes(includeNested = true, includeLocal = false).map(KoNameProvider::name) +
+            file.interfaces(includeNested = true).map(KoNameProvider::name) +
+            file.objects(includeNested = true).map(KoNameProvider::name)
         return nested - file.topLevelTypeNames().toSet()
     }
 
@@ -27,7 +28,7 @@ internal class StateTypePlacement : ArchitectureCheck {
         return sources.mainFiles.flatMap { file ->
             val path = sources.relativePath(file)
             val nested = nestedStateNames(file)
-                .filter { name -> STATE_NAME.matches(name) }
+                .filter(STATE_NAME::matches)
                 .map { name ->
                     val message = "Move $name to its own file in model/: a screen state is never nested in its view " +
                         "model or state holder."

@@ -15,7 +15,7 @@ public class RootBuildSubprojects : StructureCheck {
         if (!unit.isRoot) return emptyList()
         return BUILD_FILES
             .map { name -> File(unit.directory, name) }
-            .filter { file -> file.isFile }
+            .filter(File::isFile)
             .flatMap { file ->
                 CROSS_PROJECT_BLOCK.findAll(file.readText())
                     .map { match -> match.groupValues[1] }

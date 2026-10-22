@@ -5,6 +5,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.placement
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
+import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 import java.io.File
 import kotlin.test.assertEquals
@@ -22,7 +23,7 @@ internal class RootModulePlacementTest {
                 "Move RootModule to the entry-point unit: the composition root lives next to the platform main " +
                     "class that creates it."
             ),
-            RootModulePlacement().check(sources).map { violation -> violation.message }
+            RootModulePlacement().check(sources).map(Violation::message)
         )
     }
 
@@ -35,7 +36,7 @@ internal class RootModulePlacementTest {
 
         assertEquals(
             listOf("Move RootModule to the di package of the entry-point unit."),
-            RootModulePlacement().check(sources).map { violation -> violation.message }
+            RootModulePlacement().check(sources).map(Violation::message)
         )
     }
 

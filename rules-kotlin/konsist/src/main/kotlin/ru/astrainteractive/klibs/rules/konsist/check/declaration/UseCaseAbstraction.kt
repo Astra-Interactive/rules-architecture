@@ -1,6 +1,7 @@
 package ru.astrainteractive.klibs.rules.konsist.check.declaration
 
 import com.lemonappdev.konsist.api.KoModifier
+import com.lemonappdev.konsist.api.provider.KoNameProvider
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
@@ -15,11 +16,11 @@ internal class UseCaseAbstraction : ArchitectureCheck {
 
     override fun check(sources: UnitSources): List<Violation> {
         return sources.mainFiles.flatMap { file ->
-            val interfaces = file.interfaces(includeNested = false).map { declaration -> declaration.name }
+            val interfaces = file.interfaces(includeNested = false).map(KoNameProvider::name)
             val abstractClasses = file.topLevelClasses()
                 .filter { declaration -> declaration.hasModifier(KoModifier.ABSTRACT) }
-                .map { declaration -> declaration.name }
-            (interfaces + abstractClasses)
+                .map(KoNameProvider::name)
+            interfaces.plus(abstractClasses)
                 .filter { name -> name.endsWith(USE_CASE_SUFFIX) }
                 .map { name ->
                     val message = "Make $name a final class with operator fun invoke: a use case gets no interface; " +

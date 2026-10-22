@@ -5,6 +5,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.declaration
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
+import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 import java.io.File
 import kotlin.test.assertEquals
@@ -26,7 +27,7 @@ internal class StateTypePlacementTest {
             )
             .load(UnitKind.CONTEXT, rootPackage = "com.example")
 
-        val messages = StateTypePlacement().check(sources).map { violation -> violation.message }
+        val messages = StateTypePlacement().check(sources).map(Violation::message)
 
         assertEquals(
             listOf(

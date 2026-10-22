@@ -2,6 +2,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.declaration
 
 import com.lemonappdev.konsist.api.KoModifier
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
+import com.lemonappdev.konsist.api.provider.KoNameProvider
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
@@ -19,11 +20,11 @@ internal class SealedFamilyFile : ArchitectureCheck {
         return files.flatMap { file ->
             val classes = file.classes(includeNested = true, includeLocal = false)
                 .filter { declaration -> declaration.hasModifier(KoModifier.SEALED) }
-                .map { declaration -> declaration.name }
+                .map(KoNameProvider::name)
             val interfaces = file.interfaces(includeNested = true)
                 .filter { declaration -> declaration.hasModifier(KoModifier.SEALED) }
-                .map { declaration -> declaration.name }
-            (classes + interfaces).map { name -> SealedType(name, file) }
+                .map(KoNameProvider::name)
+            classes.plus(interfaces).map { name -> SealedType(name, file) }
         }.associate { sealed -> sealed.name to sealed.file }
     }
 
@@ -31,10 +32,10 @@ internal class SealedFamilyFile : ArchitectureCheck {
         val sealedByName = sealedFiles(sources.mainFiles)
         return sources.mainFiles.flatMap { file ->
             val classes = file.classes(includeNested = true, includeLocal = false)
-                .map { declaration -> Subtype(declaration.name, declaration.parents().map { parent -> parent.name }) }
+                .map { declaration -> Subtype(declaration.name, declaration.parents().map(KoNameProvider::name)) }
             val objects = file.objects(includeNested = true)
-                .map { declaration -> Subtype(declaration.name, declaration.parents().map { parent -> parent.name }) }
-            (classes + objects).mapNotNull { subtype ->
+                .map { declaration -> Subtype(declaration.name, declaration.parents().map(KoNameProvider::name)) }
+            classes.plus(objects).mapNotNull { subtype ->
                 val parentName = subtype.parentNames
                     .map { name -> name.substringBefore('<') }
                     .firstOrNull { name -> sealedByName[name]?.path.let { path -> path != null && path != file.path } }

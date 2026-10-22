@@ -19,7 +19,7 @@ internal class ContractName : ArchitectureCheck {
             val isContract = sources.placementOf(file)?.kind == Kind.CONTRACT
             file.interfaces(includeNested = false).mapNotNull { declaration ->
                 val name = declaration.name
-                val technologySuffix = TECHNOLOGY_SUFFIXES.firstOrNull { suffix -> name.endsWith(suffix) }
+                val technologySuffix = TECHNOLOGY_SUFFIXES.firstOrNull(name::endsWith)
                 val genericBase = declaration.parents()
                     .map { parent -> parent.name.substringBefore('<') }
                     .firstOrNull { parent -> parent.endsWith(REPOSITORY) || CRUD in parent }

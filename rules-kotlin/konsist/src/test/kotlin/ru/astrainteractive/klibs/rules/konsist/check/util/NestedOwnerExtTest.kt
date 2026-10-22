@@ -2,6 +2,7 @@
 
 package ru.astrainteractive.klibs.rules.konsist.check.util
 
+import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
@@ -28,7 +29,7 @@ internal class NestedOwnerExtTest {
             .main("com.example.jail.model/Cell.kt", "class Cell")
             .load(UnitKind.CONTEXT)
         val jail = sources.mainFiles
-            .flatMap { file -> file.classes() }
+            .flatMap(KoFileDeclaration::classes)
             .single { declaration -> declaration.name == "Jail" }
 
         assertEquals(

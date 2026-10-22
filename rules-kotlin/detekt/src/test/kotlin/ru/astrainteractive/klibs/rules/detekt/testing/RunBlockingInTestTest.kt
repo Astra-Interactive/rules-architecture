@@ -3,6 +3,7 @@
 package ru.astrainteractive.klibs.rules.detekt.testing
 
 import dev.detekt.api.Config
+import dev.detekt.api.Finding
 import dev.detekt.test.lint
 import dev.detekt.test.utils.compileForTest
 import org.junit.jupiter.api.Test
@@ -17,7 +18,7 @@ internal class RunBlockingInTestTest {
         val file = File(directory, path)
         file.parentFile.mkdirs()
         file.writeText(CODE)
-        return rule.lint(compileForTest(file.toPath())).map { finding -> finding.message }
+        return rule.lint(compileForTest(file.toPath())).map(Finding::message)
     }
 
     @Test

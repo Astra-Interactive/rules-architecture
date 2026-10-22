@@ -36,7 +36,7 @@ internal class SingleJobLaunchMode(config: Config) : Rule(config, DESCRIPTION) {
         val function = call.getStrictParentOfType<KtNamedFunction>() ?: return false
         if (!HANDLER_NAME.matches(function.name.orEmpty())) return false
         val owner = function.containingClassOrObject?.name.orEmpty()
-        return STATE_HOLDER_SUFFIXES.any { suffix -> owner.endsWith(suffix) }
+        return STATE_HOLDER_SUFFIXES.any(owner::endsWith)
     }
 
     private fun findMessage(scopeName: String, call: KtCallExpression): String? {

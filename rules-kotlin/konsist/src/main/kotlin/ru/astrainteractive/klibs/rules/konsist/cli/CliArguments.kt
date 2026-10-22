@@ -48,16 +48,15 @@ internal data class CliArguments(
         }
 
         private fun parseUnitKind(name: String): UnitKind {
-            return requireNotNull(UnitKind.fromCliName(name)) {
-                "Unknown unit kind '$name', expected one of ${UnitKind.entries.joinToString { kind -> kind.cliName }}"
-            }
+            val kinds = UnitKind.entries.joinToString(transform = UnitKind::cliName)
+            return requireNotNull(UnitKind.fromCliName(name)) { "Unknown unit kind '$name', expected one of $kinds" }
         }
 
         fun parse(arguments: List<String>): CliArguments {
             require(arguments.size % 2 == 0) { "Every option takes exactly one value: $arguments" }
             val options = arguments.chunked(2).groupBy(
-                keySelector = { option -> option.first() },
-                valueTransform = { option -> option.last() }
+                keySelector = List<String>::first,
+                valueTransform = List<String>::last
             )
             val unknown = options.keys - OPTIONS
             require(unknown.isEmpty()) { "Unknown options $unknown, expected some of $OPTIONS" }

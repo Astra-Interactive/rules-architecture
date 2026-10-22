@@ -34,7 +34,7 @@ internal class DetektPlugin : Plugin<Project> {
             service.parameters.content.set(target.provider { readBundledConfig() })
             service.parameters.configFile.fileValue(target.detektConfigFile())
         }
-        val detektConfigFile = configService.map { service -> service.configFile }
+        val detektConfigFile = configService.map(DetektConfigService::configFile)
         val extension = target.extensions.create(EXTENSION_NAME, DetektRulesExtension::class.java)
         extension.jvmTarget.convention(
             target.provider { target.kotlinJvmTarget() ?: JavaVersion.current().majorVersion }

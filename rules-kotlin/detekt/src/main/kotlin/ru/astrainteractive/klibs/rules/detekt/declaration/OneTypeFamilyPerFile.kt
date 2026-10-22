@@ -51,8 +51,8 @@ internal class OneTypeFamilyPerFile(config: Config) : Rule(config, DESCRIPTION) 
         val types = file.declarations.filterIsInstance<KtClassOrObject>()
         val functions = file.declarations.filterIsInstance<KtNamedFunction>()
         if (types.isNotEmpty()) reportFunctions(functions, types.first().name)
-        val sealedNames = file.collectDescendantsOfType<KtClass> { declaration -> declaration.isSealed() }
-            .map { declaration -> declaration.name }
+        val sealedNames = file.collectDescendantsOfType<KtClass>(KtClass::isSealed)
+            .map(KtClass::getName)
             .toSet()
         types.filterIsInstance<KtClass>()
             .filter { declaration -> hasBehaviour(declaration, sealedNames) }

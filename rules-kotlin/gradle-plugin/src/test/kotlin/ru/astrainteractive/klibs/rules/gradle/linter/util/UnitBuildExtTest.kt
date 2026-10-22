@@ -2,6 +2,7 @@
 
 package ru.astrainteractive.klibs.rules.gradle.linter.util
 
+import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import kotlin.test.Test
@@ -24,7 +25,7 @@ class UnitBuildExtTest {
 
         val findings = build.findBuildFindings()
 
-        assertEquals(listOf("api: com.example:core", "jvmMainApi: :core"), findings.map { finding -> finding.subject })
+        assertEquals(listOf("api: com.example:core", "jvmMainApi: :core"), findings.map(ArchitectureFinding::subject))
         assertEquals(
             "Declare com.example:core with implementation: api is only for a type exported through a " +
                 "Multiplatform framework.",
@@ -45,11 +46,9 @@ class UnitBuildExtTest {
         val strict = cleanBuild.copy(isPublished = true, explicitApiMode = "strict")
         val java = cleanBuild.copy(isPublished = true, isKotlin = false)
 
-        assertEquals(
-            listOf("PublishedLibraryExplicitApi"),
-            (warning.findBuildFindings() + strict.findBuildFindings() + java.findBuildFindings())
-                .map { finding -> finding.rule }
-        )
+        val findings = warning.findBuildFindings() + strict.findBuildFindings() + java.findBuildFindings()
+
+        assertEquals(listOf("PublishedLibraryExplicitApi"), findings.map(ArchitectureFinding::rule))
     }
 
     @Test
@@ -72,7 +71,7 @@ class UnitBuildExtTest {
                 "androidx.core:core-ktx",
                 "com.android.tools:desugar"
             ),
-            findings.map { finding -> finding.subject }
+            findings.map(ArchitectureFinding::subject)
         )
         assertEquals(
             "Move the platform dependency io.papermc.paper:paper-api out of this api unit: the api unit holds " +

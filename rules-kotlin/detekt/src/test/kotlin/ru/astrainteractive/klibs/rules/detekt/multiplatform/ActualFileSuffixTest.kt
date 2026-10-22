@@ -3,6 +3,7 @@
 package ru.astrainteractive.klibs.rules.detekt.multiplatform
 
 import dev.detekt.api.Config
+import dev.detekt.api.Finding
 import dev.detekt.test.lint
 import dev.detekt.test.utils.compileContentForTest
 import org.junit.jupiter.api.Test
@@ -20,7 +21,7 @@ internal class ActualFileSuffixTest {
                 "Name the file of an actual declaration with its platform: Clipboard.<platform>.kt, such as " +
                     "Clipboard.android.kt or Clipboard.jvm.kt."
             ),
-            findings.map { finding -> finding.message }
+            findings.map(Finding::message)
         )
     }
 

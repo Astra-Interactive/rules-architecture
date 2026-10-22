@@ -3,6 +3,7 @@
 package ru.astrainteractive.klibs.rules.detekt.compose
 
 import dev.detekt.api.Config
+import dev.detekt.api.Finding
 import dev.detekt.test.lint
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -22,7 +23,7 @@ internal class RememberInNameTest {
             }
         """.trimIndent()
 
-        val messages = rule.lint(code).map { finding -> finding.message }
+        val messages = rule.lint(code).map(Finding::message)
 
         assertEquals(2, messages.size)
         assertEquals(

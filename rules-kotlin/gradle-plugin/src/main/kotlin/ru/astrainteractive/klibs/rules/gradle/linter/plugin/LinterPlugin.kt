@@ -16,6 +16,7 @@ import org.gradle.language.base.plugins.LifecycleBasePlugin
 import ru.astrainteractive.klibs.rules.gradle.detekt.plugin.DetektPlugin
 import ru.astrainteractive.klibs.rules.gradle.detekt.service.DetektConfigService
 import ru.astrainteractive.klibs.rules.gradle.linter.extension.LinterExtension
+import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.task.ArchitectureBaselineTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.ArchitectureCheckTask
@@ -59,7 +60,7 @@ internal class LinterPlugin : Plugin<Project> {
                 isolated.rootProject.projectDirectory.file("build/detekt/$ARCHITECTURE_CONFIG_FILE_NAME").asFile
             )
         }
-        val architectureConfigFile = configService.map { service -> service.configFile }
+        val architectureConfigFile = configService.map(DetektConfigService::configFile)
         val explicitApiArguments = provider { explicitApiArguments() }
         tasks.withType(Detekt::class.java).configureEach { task ->
             task.usesService(configService)
@@ -127,7 +128,7 @@ internal class LinterPlugin : Plugin<Project> {
         buildFindings.set(
             extension.unitKind.map { cliName ->
                 val kind = UnitKind.fromCliName(cliName) ?: UnitKind.CONTEXT
-                project.readUnitBuild(kind).findBuildFindings().map { finding -> finding.toLine() }
+                project.readUnitBuild(kind).findBuildFindings().map(ArchitectureFinding::toLine)
             }
         )
     }

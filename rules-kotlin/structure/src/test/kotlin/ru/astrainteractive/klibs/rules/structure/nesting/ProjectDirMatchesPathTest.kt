@@ -5,6 +5,7 @@ package ru.astrainteractive.klibs.rules.structure.nesting
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.structure.unit.BuildUnit
+import ru.astrainteractive.klibs.rules.structure.unit.StructureViolation
 import java.io.File
 import kotlin.test.assertEquals
 
@@ -33,7 +34,7 @@ internal class ProjectDirMatchesPathTest {
                 "Move :jail:api to jail/api or rename it after modules/jail-api: a unit's name equals its location, " +
                     "never a projectDir override."
             ),
-            ProjectDirMatchesPath(root).check(unit).map { violation -> violation.message }
+            ProjectDirMatchesPath(root).check(unit).map(StructureViolation::message)
         )
     }
 

@@ -4,6 +4,7 @@ package ru.astrainteractive.klibs.rules.structure.graph
 
 import org.junit.jupiter.api.Test
 import ru.astrainteractive.klibs.rules.structure.unit.BuildUnit
+import ru.astrainteractive.klibs.rules.structure.unit.StructureViolation
 import java.io.File
 import kotlin.test.assertEquals
 
@@ -29,7 +30,7 @@ internal class TechnologyDependencyTest {
 
         assertEquals(
             listOf(":core:cache4k", ":modules:data:exposed"),
-            violations.map { violation -> violation.subject }
+            violations.map(StructureViolation::subject)
         )
         assertEquals(
             "Depend on the contracts unit instead of the technology unit :core:cache4k: only the technology unit " +

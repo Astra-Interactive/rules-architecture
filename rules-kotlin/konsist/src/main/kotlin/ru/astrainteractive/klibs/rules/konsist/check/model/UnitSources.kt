@@ -57,9 +57,9 @@ internal class UnitSources(
 
     companion object {
         private fun parse(directories: List<File>): List<KoFileDeclaration> {
-            val existing = directories.filter { directory -> directory.isDirectory }
+            val existing = directories.filter(File::isDirectory)
             if (existing.isEmpty()) return emptyList()
-            return Konsist.scopeFromExternalDirectories(existing.map { directory -> directory.absolutePath }).files
+            return Konsist.scopeFromExternalDirectories(existing.map(File::getAbsolutePath)).files
         }
 
         /**
@@ -74,7 +74,7 @@ internal class UnitSources(
             projectDirectory: File
         ): UnitSources {
             val mainFiles = parse(mainDirectories)
-            val packages = mainFiles.map { file -> file.packageName }.distinct()
+            val packages = mainFiles.map(KoFileDeclaration::packageName).distinct()
             val layout = UnitLayout.create(
                 packages,
                 rootPackage,

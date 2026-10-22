@@ -5,6 +5,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.declaration
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
+import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 import java.io.File
 import kotlin.test.assertEquals
@@ -32,7 +33,7 @@ internal class ContractNameTest {
                 "Rename RatingDao to <Aggregate>Repository: Dao names a technology, not the contract.",
                 "Rename UserStorage to <Aggregate>Repository: Storage names a technology, not the contract.",
             ),
-            ContractName().check(sources).map { violation -> violation.message }.sorted()
+            ContractName().check(sources).map(Violation::message).sorted()
         )
     }
 

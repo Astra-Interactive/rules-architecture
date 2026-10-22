@@ -4,6 +4,7 @@ import dev.detekt.api.Config
 import dev.detekt.api.Entity
 import dev.detekt.api.Finding
 import dev.detekt.api.Rule
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtClassOrObject
 
 /**
@@ -29,9 +30,7 @@ internal class RolelessClassName(config: Config) : Rule(config, DESCRIPTION) {
     override fun visitClassOrObject(classOrObject: KtClassOrObject) {
         super.visitClassOrObject(classOrObject)
         val name = classOrObject.name ?: return
-        val segments = classOrObject.containingKtFile.packageFqName.pathSegments().map { segment ->
-            segment.asString()
-        }
+        val segments = classOrObject.containingKtFile.packageFqName.pathSegments().map(Name::asString)
         val message = findMessage(name, segments) ?: return
         report(Finding(Entity.atName(classOrObject), message))
     }

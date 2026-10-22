@@ -16,7 +16,7 @@ internal data class Placement(
     val below: List<String>
 ) {
     fun describe(): String {
-        val path = (concepts + listOfNotNull(kindWord)).joinToString("/")
+        val path = concepts.plus(listOfNotNull(kindWord)).joinToString("/")
         return if (path.isEmpty()) "the unit root" else "'$path'"
     }
 }

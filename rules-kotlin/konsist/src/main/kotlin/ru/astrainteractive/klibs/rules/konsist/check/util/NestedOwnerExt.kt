@@ -13,7 +13,7 @@ internal fun KoClassDeclaration.propertyTypeNames(): Set<String> {
         .map { parameter -> parameter.type.simpleName }
     val bodyTypes = properties(includeNested = false)
         .mapNotNull { property -> property.type?.simpleName }
-    return (constructorTypes + bodyTypes).toSet()
+    return constructorTypes.plus(bodyTypes).toSet()
 }
 
 /**
@@ -21,5 +21,5 @@ internal fun KoClassDeclaration.propertyTypeNames(): Set<String> {
  */
 internal fun List<KoFileDeclaration>.pathsNaming(name: String): Set<String> {
     val word = Regex("\\b${Regex.escape(name)}\\b")
-    return filter { file -> word.containsMatchIn(file.text) }.map { file -> file.path }.toSet()
+    return filter { file -> word.containsMatchIn(file.text) }.map(KoFileDeclaration::path).toSet()
 }

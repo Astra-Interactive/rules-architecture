@@ -3,6 +3,7 @@
 package ru.astrainteractive.klibs.rules.detekt.naming
 
 import dev.detekt.api.Config
+import dev.detekt.api.Finding
 import dev.detekt.test.lint
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -22,7 +23,7 @@ internal class FunctionVerbTest {
             fun toContentMap() = Unit
         """.trimIndent()
 
-        val messages = rule.lint(code).map { finding -> finding.message }
+        val messages = rule.lint(code).map(Finding::message)
 
         assertEquals(7, messages.size)
         assertEquals(

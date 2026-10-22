@@ -5,6 +5,7 @@ package ru.astrainteractive.klibs.rules.structure.buildfile
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.structure.unit.BuildUnit
+import ru.astrainteractive.klibs.rules.structure.unit.StructureViolation
 import java.io.File
 import kotlin.test.assertEquals
 
@@ -32,7 +33,7 @@ internal class RootBuildSubprojectsTest {
 
         val violations = RootBuildSubprojects().check(unit(directory, isRoot = true))
 
-        assertEquals(listOf("subprojects", "allprojects"), violations.map { violation -> violation.subject })
+        assertEquals(listOf("subprojects", "allprojects"), violations.map(StructureViolation::subject))
         assertEquals(
             "Replace the subprojects block of the root build with a convention plugin in build-logic, applied " +
                 "only by the units that need it.",

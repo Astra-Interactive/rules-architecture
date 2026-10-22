@@ -24,7 +24,7 @@ internal class PreviewBlockLast(config: Config) : Rule(config, DESCRIPTION) {
     private fun findMessageAfterPreviews(declaration: KtDeclaration): String? {
         val name = declaration.name.orEmpty()
         val isPreviewFunction = declaration is KtNamedFunction && PREVIEW in name
-        val hasPreviewPrefix = PREVIEW_VALUE_PREFIXES.any { prefix -> name.startsWith(prefix) }
+        val hasPreviewPrefix = PREVIEW_VALUE_PREFIXES.any(name::startsWith)
         val isPreviewValue = declaration is KtProperty && hasPreviewPrefix
         val isOther = declaration !is KtNamedFunction && declaration !is KtProperty
         if (isPreviewFunction || isPreviewValue || isOther || isPreview(declaration)) return null

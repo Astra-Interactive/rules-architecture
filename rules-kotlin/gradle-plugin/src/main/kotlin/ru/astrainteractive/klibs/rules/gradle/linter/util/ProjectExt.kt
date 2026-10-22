@@ -40,7 +40,7 @@ private val PRODUCTION_CONFIGURATION_SUFFIXES = listOf(
 
 private fun Project.isEntryPointByConvention(): Boolean {
     return ENTRY_POINT_PLUGIN_IDS
-        .any { pluginId -> pluginManager.hasPlugin(pluginId) }
+        .any(pluginManager::hasPlugin)
         .or(path.startsWith(ENTRY_POINT_PATH_PREFIX))
 }
 
@@ -66,7 +66,7 @@ internal fun Project.productionProjectDependencies(): Set<String> {
     return configurations
         .filter { configuration -> isProductionConfiguration(configuration.name) }
         .flatMap { configuration -> configuration.dependencies.withType(ProjectDependency::class.java) }
-        .map { dependency -> dependency.path }
+        .map(ProjectDependency::getPath)
         .filter { dependencyPath -> dependencyPath != path }
         .toSet()
 }

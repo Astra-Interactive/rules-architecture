@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
+import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 import java.io.File
 import kotlin.test.assertEquals
@@ -36,7 +37,7 @@ internal class PlatformPackageTest {
                 "Move the code of the package 'android' to the androidMain source set at the same package path: " +
                     "platform code is a source set, never a package."
             ),
-            PlatformPackage().check(sources).map { violation -> violation.message }
+            PlatformPackage().check(sources).map(Violation::message)
         )
     }
 

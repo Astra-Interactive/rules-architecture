@@ -28,7 +28,7 @@ internal class PlacementTest {
                 null,
                 emptyList()
             ),
-        ).map { placement -> placement.describe() }
+        ).map(Placement::describe)
 
         assertEquals(
             listOf(

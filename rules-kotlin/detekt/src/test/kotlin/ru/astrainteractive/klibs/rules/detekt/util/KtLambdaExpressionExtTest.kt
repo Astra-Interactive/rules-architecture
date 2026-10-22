@@ -21,7 +21,7 @@ internal class KtLambdaExpressionExtTest {
             """.trimIndent()
         )
 
-        val names = file.collectDescendantsOfType<KtLambdaExpression>().map { lambda -> lambda.findCallName() }
+        val names = file.collectDescendantsOfType<KtLambdaExpression>().map(KtLambdaExpression::findCallName)
 
         assertEquals(
             listOf(

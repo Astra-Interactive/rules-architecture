@@ -2,6 +2,8 @@ package ru.astrainteractive.klibs.rules.konsist.check.placement
 
 import com.lemonappdev.konsist.api.KoModifier
 import com.lemonappdev.konsist.api.declaration.KoClassDeclaration
+import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
+import com.lemonappdev.konsist.api.provider.KoNameProvider
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
@@ -26,9 +28,9 @@ internal class TestOwnerBehaviour : ArchitectureCheck {
 
     override fun check(sources: UnitSources): List<Violation> {
         val dataOwners = sources.mainFiles
-            .flatMap { file -> file.topLevelClasses() }
+            .flatMap(KoFileDeclaration::topLevelClasses)
             .filter(::hasNoBehaviour)
-            .map { declaration -> declaration.name }
+            .map(KoNameProvider::name)
             .toSet()
         return sources.testFiles
             .filter { file -> file.baseName.removeSuffix(TEST_SUFFIX) in dataOwners }

@@ -3,6 +3,7 @@
 package ru.astrainteractive.klibs.rules.detekt.result
 
 import dev.detekt.api.Config
+import dev.detekt.api.Finding
 import dev.detekt.test.lint
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -30,7 +31,7 @@ internal class RunCatchingCancellationTest {
             }
         """.trimIndent()
 
-        val messages = rule.lint(code).map { finding -> finding.message }
+        val messages = rule.lint(code).map(Finding::message)
 
         assertEquals(3, messages.size)
         assertEquals(

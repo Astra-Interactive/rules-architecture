@@ -1,5 +1,6 @@
 package ru.astrainteractive.klibs.rules.konsist.check.placement
 
+import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
@@ -18,7 +19,7 @@ internal class UtilFunctionAsExtension : ArchitectureCheck {
     override fun check(sources: UnitSources): List<Violation> {
         val modelNames = sources.mainFiles
             .filter { file -> sources.placementOf(file)?.kind == Kind.MODEL }
-            .flatMap { file -> file.topLevelTypeNames() }
+            .flatMap(KoFileDeclaration::topLevelTypeNames)
             .toSet()
         return sources.mainFiles
             .filter { file -> sources.placementOf(file)?.kind == Kind.UTIL }

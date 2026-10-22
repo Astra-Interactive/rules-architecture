@@ -12,6 +12,7 @@ import org.gradle.work.DisableCachingByDefault
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
 import ru.astrainteractive.klibs.rules.gradle.linter.plugin.LinterPlugin
 import ru.astrainteractive.klibs.rules.gradle.linter.util.describe
+import java.io.File
 
 @DisableCachingByDefault(because = "The check is cheap next to the cost of storing a failing result")
 internal abstract class ArchitectureCheckTask : ArchitectureTask() {
@@ -24,9 +25,9 @@ internal abstract class ArchitectureCheckTask : ArchitectureTask() {
 
     private fun readBaseline(): Set<String> {
         return baseline.files
-            .filter { file -> file.isFile }
-            .flatMap { file -> file.readLines() }
-            .filter { line -> line.isNotBlank() }
+            .filter(File::isFile)
+            .flatMap(File::readLines)
+            .filter(String::isNotBlank)
             .toSet()
     }
 

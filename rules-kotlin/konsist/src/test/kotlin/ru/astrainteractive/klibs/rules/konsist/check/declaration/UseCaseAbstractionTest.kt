@@ -5,6 +5,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.declaration
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
+import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 import java.io.File
 import kotlin.test.assertEquals
@@ -27,7 +28,7 @@ internal class UseCaseAbstractionTest {
                 "Make RatePlayerUseCase a final class with operator fun invoke: a use case gets no interface; " +
                     "a test runs it with fakes of the contracts it takes.",
             ),
-            UseCaseAbstraction().check(sources).map { violation -> violation.message }.sorted()
+            UseCaseAbstraction().check(sources).map(Violation::message).sorted()
         )
     }
 }

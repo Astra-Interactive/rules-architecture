@@ -5,6 +5,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.placement
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
+import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 import java.io.File
 import kotlin.test.assertEquals
@@ -37,7 +38,7 @@ internal class UtilFunctionAsExtensionTest {
                 "Write isSentenceOver as an extension of JailInmate: fun JailInmate.isSentenceOver(), a rule about " +
                     "one type extends that type."
             ),
-            UtilFunctionAsExtension().check(sources).map { violation -> violation.message }
+            UtilFunctionAsExtension().check(sources).map(Violation::message)
         )
     }
 }

@@ -1,6 +1,7 @@
 package ru.astrainteractive.klibs.rules.detekt.formatting
 
 import com.intellij.psi.PsiComment
+import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiWhiteSpace
 import dev.detekt.api.Config
 import dev.detekt.api.Entity
@@ -19,7 +20,7 @@ import org.jetbrains.kotlin.psi.KtValueArgumentList
 internal class ArgumentPerLine(config: Config) : Rule(config, DESCRIPTION) {
 
     private fun startsOnOwnLine(argument: KtValueArgument): Boolean {
-        val previous = generateSequence(argument.prevSibling) { sibling -> sibling.prevSibling }
+        val previous = generateSequence(argument.prevSibling, PsiElement::getPrevSibling)
             .firstOrNull { sibling -> sibling !is PsiComment }
         return previous is PsiWhiteSpace && '\n' in previous.text
     }

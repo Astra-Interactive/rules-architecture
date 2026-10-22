@@ -24,7 +24,7 @@ internal class ImplementationVisibility : ArchitectureCheck {
             }
             .flatMap { file ->
                 file.topLevelClasses()
-                    .filterNot { declaration -> NON_PUBLIC.any { modifier -> declaration.hasModifier(modifier) } }
+                    .filterNot { declaration -> NON_PUBLIC.any(declaration::hasModifier) }
                     .map { declaration ->
                         val message = "Make ${declaration.name} internal: the DI module of the unit constructs it."
                         Violation(

@@ -1,6 +1,7 @@
 package ru.astrainteractive.klibs.rules.konsist.check.declaration
 
 import com.lemonappdev.konsist.api.KoModifier
+import com.lemonappdev.konsist.api.provider.KoNameProvider
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
@@ -23,7 +24,7 @@ internal class DuplicateRepresentation : ArchitectureCheck {
                     .filter { declaration -> declaration.hasModifier(KoModifier.DATA) }
                     .map { declaration ->
                         val names = declaration.primaryConstructor?.parameters.orEmpty()
-                            .map { parameter -> parameter.name }
+                            .map(KoNameProvider::name)
                             .toSet()
                         DataClassShape(
                             declaration.name,

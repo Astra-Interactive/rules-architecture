@@ -3,6 +3,7 @@
 package ru.astrainteractive.klibs.rules.detekt.declaration
 
 import dev.detekt.api.Config
+import dev.detekt.api.Finding
 import dev.detekt.test.lint
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -21,7 +22,7 @@ internal class OneTypeFamilyPerFileTest {
             fun PricingCard() = Unit
         """.trimIndent()
 
-        val messages = rule.lint(code).map { finding -> finding.message }
+        val messages = rule.lint(code).map(Finding::message)
 
         assertEquals(
             listOf(
@@ -46,7 +47,7 @@ internal class OneTypeFamilyPerFileTest {
             data class Entry(val id: Int)
         """.trimIndent()
 
-        val messages = rule.lint(code).map { finding -> finding.message }
+        val messages = rule.lint(code).map(Finding::message)
 
         assertEquals(
             listOf("Move 'RefreshingCache' to its own file: a class with behaviour always has its own file."),

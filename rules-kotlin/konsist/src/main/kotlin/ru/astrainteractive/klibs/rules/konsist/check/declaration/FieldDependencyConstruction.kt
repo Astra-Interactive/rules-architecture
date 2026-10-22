@@ -1,6 +1,7 @@
 package ru.astrainteractive.klibs.rules.konsist.check.declaration
 
 import com.lemonappdev.konsist.api.declaration.KoClassDeclaration
+import com.lemonappdev.konsist.api.provider.KoNameProvider
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
@@ -23,7 +24,7 @@ internal class FieldDependencyConstruction : ArchitectureCheck {
         return sources.mainFiles
             .flatMap { file -> file.classes(includeNested = false, includeLocal = false) }
             .filter { declaration -> declaration.primaryConstructor?.parameters.orEmpty().isNotEmpty() }
-            .map { declaration -> declaration.name }
+            .map(KoNameProvider::name)
             .toSet()
     }
 

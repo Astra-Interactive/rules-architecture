@@ -52,7 +52,8 @@ internal class ImpureUpdateLambda(config: Config) : Rule(config, DESCRIPTION) {
         val parameters = lambda.collectDescendantsOfType<KtParameter>()
         val properties = lambda.collectDescendantsOfType<KtProperty>()
         val destructured = lambda.collectDescendantsOfType<KtDestructuringDeclarationEntry>()
-        return (parameters + properties + destructured).map(KtNamedDeclaration::getName).toSet()
+        val declarations = parameters + properties + destructured
+        return declarations.map(KtNamedDeclaration::getName).toSet()
     }
 
     private fun lambdasOf(call: KtCallExpression): List<KtLambdaExpression> {

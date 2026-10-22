@@ -14,5 +14,5 @@ internal fun KtElement.findEnclosingProperty(name: String): KtProperty? {
         .filterIsInstance<KtClassOrObject>()
         .flatMap { owner -> owner.declarations.filterIsInstance<KtProperty>() }
     val fileProperties = containingKtFile.declarations.filterIsInstance<KtProperty>()
-    return (classProperties + fileProperties).firstOrNull { property -> property.name == name }
+    return classProperties.plus(fileProperties).firstOrNull { property -> property.name == name }
 }

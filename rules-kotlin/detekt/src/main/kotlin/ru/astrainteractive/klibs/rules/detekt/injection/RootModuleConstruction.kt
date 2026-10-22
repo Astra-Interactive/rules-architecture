@@ -18,7 +18,7 @@ import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 internal class RootModuleConstruction(config: Config) : Rule(config, DESCRIPTION) {
 
     private fun isAllowed(call: KtCallExpression, name: String): Boolean {
-        if (ALLOWED_SUFFIXES.any { suffix -> name.endsWith(suffix) }) return true
+        if (ALLOWED_SUFFIXES.any(name::endsWith)) return true
         val qualified = call.parent as? KtDotQualifiedExpression ?: return false
         return name == LAMBDA && qualified.receiverExpression.text == LIFECYCLE
     }

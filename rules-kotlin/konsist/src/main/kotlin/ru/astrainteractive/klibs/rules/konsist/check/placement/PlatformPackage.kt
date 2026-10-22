@@ -1,5 +1,6 @@
 package ru.astrainteractive.klibs.rules.konsist.check.placement
 
+import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
@@ -16,7 +17,7 @@ internal class PlatformPackage : ArchitectureCheck {
     override fun check(sources: UnitSources): List<Violation> {
         if (sources.mainDirectories.size < MULTIPLATFORM_SOURCE_SETS) return emptyList()
         return sources.mainFiles
-            .distinctBy { file -> file.packageName }
+            .distinctBy(KoFileDeclaration::packageName)
             .mapNotNull { file ->
                 val platform = file.packageName.split('.').firstOrNull { segment -> segment in PLATFORMS }
                     ?: return@mapNotNull null

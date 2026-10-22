@@ -5,6 +5,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.declaration
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
+import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 import java.io.File
 import kotlin.test.assertEquals
@@ -20,7 +21,7 @@ internal class NestedEnumTest {
 
         assertEquals(
             listOf("Nest FadeSide in SoftEdge: an enum used only through one type is nested in it."),
-            NestedEnum().check(sources).map { violation -> violation.message }
+            NestedEnum().check(sources).map(Violation::message)
         )
     }
 

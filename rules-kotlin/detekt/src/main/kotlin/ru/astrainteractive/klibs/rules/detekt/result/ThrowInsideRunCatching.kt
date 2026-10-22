@@ -21,7 +21,7 @@ internal class ThrowInsideRunCatching(config: Config) : Rule(config, DESCRIPTION
         return expression.parents
             .takeWhile { parent -> parent !is KtNamedFunction && parent !is KtClassOrObject }
             .filterIsInstance<KtLambdaExpression>()
-            .mapNotNull { lambda -> lambda.findCallName() }
+            .mapNotNull(KtLambdaExpression::findCallName)
             .firstOrNull { name -> name in CATCHING_NAMES }
     }
 

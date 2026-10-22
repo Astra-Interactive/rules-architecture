@@ -40,7 +40,7 @@ internal class UnitLayout(
     companion object {
         private fun commonPrefix(packages: Collection<String>): List<String> {
             val split = packages.map { packageName -> packageName.split('.') }
-            val shortest = split.minOf { segments -> segments.size }
+            val shortest = split.minOf(List<String>::size)
             return (0 until shortest)
                 .takeWhile { index -> split.all { segments -> segments[index] == split.first()[index] } }
                 .map { index -> split.first()[index] }
@@ -53,12 +53,12 @@ internal class UnitLayout(
          * front (`:modules:data:dao` tries `[data, dao]` before `[dao]`).
          */
         private fun unitNameCandidates(unitPath: String): List<List<String>> {
-            val pathSegments = unitPath.split(':').filter { segment -> segment.isNotEmpty() }
+            val pathSegments = unitPath.split(':').filter(String::isNotEmpty)
             val parents = pathSegments.dropLast(1)
-            val parts = pathSegments.lastOrNull().orEmpty().split('-').filter { part -> part.isNotEmpty() }
-            val shortened = (parts.size - 1 downTo 1).map { size -> parts.take(size) }
+            val parts = pathSegments.lastOrNull().orEmpty().split('-').filter(String::isNotEmpty)
+            val shortened = (parts.size - 1 downTo 1).map(parts::take)
             val tails = listOf(parts, listOf(parts.joinToString(""))) + shortened
-            return tails.filter { tail -> tail.isNotEmpty() }.flatMap { tail ->
+            return tails.filter(List<String>::isNotEmpty).flatMap { tail ->
                 (parents.size downTo 0).map { count -> parents.takeLast(count) + tail }
             }
         }
@@ -76,7 +76,7 @@ internal class UnitLayout(
                 unitNameCandidates(path).firstNotNullOfOrNull { sequence -> firstEndOf(prefix, sequence) }
             }
             if (unitEnd != null) return prefix.take(unitEnd).joinToString(".")
-            val lastKind = prefix.lastOrNull()?.let { segment -> Kind.fromSegment(segment) }
+            val lastKind = prefix.lastOrNull()?.let(Kind::fromSegment)
             val isSingleKindPackage = packages.toSet().size == 1 && lastKind != null
             val root = if (isSingleKindPackage) prefix.dropLast(1) else prefix
             return root.joinToString(".")

@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtReturnExpression
 import org.jetbrains.kotlin.psi.KtThisExpression
@@ -42,11 +43,11 @@ internal class PropertyAsFunction(config: Config) : Rule(config, DESCRIPTION) {
     private fun propertyNames(function: KtNamedFunction): Set<String> {
         val owner: KtClassOrObject? = function.containingClassOrObject
         val declarations = owner?.declarations ?: function.containingKtFile.declarations
-        val bodyNames = declarations.filterIsInstance<KtProperty>().mapNotNull { property -> property.name }
+        val bodyNames = declarations.filterIsInstance<KtProperty>().mapNotNull(KtProperty::getName)
         val constructorNames = (owner as? KtClass)?.primaryConstructorParameters.orEmpty()
-            .filter { parameter -> parameter.hasValOrVar() }
-            .mapNotNull { parameter -> parameter.name }
-        return (bodyNames + constructorNames).toSet()
+            .filter(KtParameter::hasValOrVar)
+            .mapNotNull(KtParameter::getName)
+        return bodyNames.plus(constructorNames).toSet()
     }
 
     private fun isExempt(function: KtNamedFunction): Boolean {

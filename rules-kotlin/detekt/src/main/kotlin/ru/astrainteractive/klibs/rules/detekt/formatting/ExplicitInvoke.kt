@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtFunctionLiteral
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
@@ -30,17 +31,17 @@ internal class ExplicitInvoke(config: Config) : Rule(config, DESCRIPTION) {
         return block.statements
             .takeWhile { statement -> statement != child }
             .filterIsInstance<KtProperty>()
-            .map { property -> property.name }
+            .map(KtProperty::getName)
     }
 
     private fun scopeNames(scope: PsiElement, child: PsiElement): List<String?> {
         return when (scope) {
             is KtBlockExpression -> localNamesAbove(scope, child)
-            is KtFunctionLiteral -> scope.valueParameters.map { parameter -> parameter.name }
-            is KtNamedFunction -> scope.valueParameters.map { parameter -> parameter.name }
-            is KtClass -> scope.primaryConstructorParameters.map { parameter -> parameter.name } +
-                scope.getProperties().map { property -> property.name }
-            is KtClassOrObject -> scope.declarations.filterIsInstance<KtProperty>().map { property -> property.name }
+            is KtFunctionLiteral -> scope.valueParameters.map(KtParameter::getName)
+            is KtNamedFunction -> scope.valueParameters.map(KtParameter::getName)
+            is KtClass -> scope.primaryConstructorParameters.map(KtParameter::getName) +
+                scope.getProperties().map(KtProperty::getName)
+            is KtClassOrObject -> scope.declarations.filterIsInstance<KtProperty>().map(KtProperty::getName)
             else -> emptyList()
         }
     }
@@ -56,7 +57,7 @@ internal class ExplicitInvoke(config: Config) : Rule(config, DESCRIPTION) {
 
     override fun visitKtFile(file: KtFile) {
         functionNames = file.collectDescendantsOfType<KtNamedFunction>()
-            .mapNotNull { function -> function.name }
+            .mapNotNull(KtNamedFunction::getName)
             .toSet()
         super.visitKtFile(file)
     }

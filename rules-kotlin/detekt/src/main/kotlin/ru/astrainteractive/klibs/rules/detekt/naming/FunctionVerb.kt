@@ -19,11 +19,11 @@ internal class FunctionVerb(config: Config) : Rule(config, DESCRIPTION) {
         if (function.hasModifier(KtTokens.OVERRIDE_KEYWORD)) return true
         if (function.hasModifier(KtTokens.OPERATOR_KEYWORD)) return true
         if (name.startsWith(PROVIDE_PREFIX)) return true
-        return EXEMPT_ANNOTATIONS.any { annotation -> function.hasAnnotation(annotation) }
+        return EXEMPT_ANNOTATIONS.any(function::hasAnnotation)
     }
 
     private fun findMessage(name: String): String? {
-        val words = name.split(WORD_START).filter { word -> word.isNotEmpty() }.map { word -> word.lowercase() }
+        val words = name.split(WORD_START).filter(String::isNotEmpty).map(String::lowercase)
         if (words.firstOrNull() == GET && name != GET_STATE) {
             return "Name '$name' with a verb that says what happens instead of 'get': find, load, resolve, " +
                 "build, compute or a val."

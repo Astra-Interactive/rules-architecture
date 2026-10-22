@@ -53,8 +53,8 @@ private fun UnitBuild.findExplicitApiFindings(): List<ArchitectureFinding> {
 
 private fun isPlatformGroup(dependency: String): Boolean {
     val group = dependency.substringBefore(':')
-    val isPlatform = PLATFORM_GROUP_PREFIXES.any { prefix -> group.startsWith(prefix) }
-    val isPlatformFree = PLATFORM_FREE_ANDROIDX_PREFIXES.any { prefix -> group.startsWith(prefix) }
+    val isPlatform = PLATFORM_GROUP_PREFIXES.any(group::startsWith)
+    val isPlatformFree = PLATFORM_FREE_ANDROIDX_PREFIXES.any(group::startsWith)
     return isPlatform && !isPlatformFree
 }
 

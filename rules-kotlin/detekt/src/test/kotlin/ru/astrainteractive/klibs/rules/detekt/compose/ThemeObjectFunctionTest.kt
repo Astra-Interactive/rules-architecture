@@ -3,6 +3,7 @@
 package ru.astrainteractive.klibs.rules.detekt.compose
 
 import dev.detekt.api.Config
+import dev.detekt.api.Finding
 import dev.detekt.test.lint
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -27,7 +28,7 @@ internal class ThemeObjectFunctionTest {
                 "Move 'offset' out of the theme object 'PaywallMotion': a theme object holds values, not functions; " +
                     "a function goes to util/ or into the composable that uses it."
             ),
-            rule.lint(code).map { finding -> finding.message }
+            rule.lint(code).map(Finding::message)
         )
     }
 

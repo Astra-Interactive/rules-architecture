@@ -2,6 +2,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.placement
 
 import com.lemonappdev.konsist.api.KoModifier
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
+import com.lemonappdev.konsist.api.provider.KoNameProvider
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
@@ -19,10 +20,10 @@ internal class ContractUnitShape : ArchitectureCheck {
         val classes = file.topLevelClasses()
             .filterNot { declaration -> declaration.hasModifier(KoModifier.ENUM) }
             .filterNot { declaration -> declaration.hasAnnotationWithName(SERIALIZABLE) }
-            .map { declaration -> declaration.name }
+            .map(KoNameProvider::name)
         val interfaces = file.interfaces(includeNested = false)
             .filterNot { declaration -> declaration.hasAnnotationWithName(SERIALIZABLE) }
-            .map { declaration -> declaration.name }
+            .map(KoNameProvider::name)
         return classes + interfaces
     }
 
@@ -30,9 +31,9 @@ internal class ContractUnitShape : ArchitectureCheck {
         val topLevel = file.functions(includeNested = false, includeLocal = false)
         val inClasses = file.classes(includeNested = true, includeLocal = false)
             .flatMap { declaration -> declaration.functions(includeNested = false, includeLocal = false) }
-        return (topLevel + inClasses)
+        return topLevel.plus(inClasses)
             .filter { function -> function.hasBlockBody || function.hasExpressionBody }
-            .map { function -> function.name }
+            .map(KoNameProvider::name)
     }
 
     override fun check(sources: UnitSources): List<Violation> {

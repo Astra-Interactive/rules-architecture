@@ -5,6 +5,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.declaration
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
+import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 import java.io.File
 import kotlin.test.assertEquals
@@ -23,7 +24,7 @@ internal class DuplicateRepresentationTest {
                 "RatingRow copies the fields of Rating: one representation per thing; keep a technology shape only " +
                     "when the technology dictates it, and map at its edge."
             ),
-            DuplicateRepresentation().check(sources).map { violation -> violation.message }
+            DuplicateRepresentation().check(sources).map(Violation::message)
         )
     }
 
