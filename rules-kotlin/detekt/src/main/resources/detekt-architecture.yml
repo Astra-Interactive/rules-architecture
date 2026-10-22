@@ -37,6 +37,10 @@ style:
     forbiddenImports:
       - value: 'kotlinx.datetime.Instant'
         reason: 'Use kotlin.time.Instant.'
+      - value: 'kotlinx.datetime.Clock'
+        reason: 'Use kotlin.time.Clock.'
+      - value: 'java.util.Date'
+        reason: 'Use kotlin.time.Instant.'
   ForbiddenImport/model:
     active: true
     includes: [ '**/model/**' ]
@@ -62,6 +66,30 @@ style:
         reason: 'The model imports no platform type.'
       - value: 'org.jetbrains.exposed.*'
         reason: 'The model imports no ORM type: keep it in data/exposed.'
+  ForbiddenImport/time:
+    active: true
+    includes: [ '**' ]
+    excludes:
+      - '**/exposed/**'
+      - '**/room/**'
+      - '**/ktor/**'
+      - '**/krate/**'
+      - '**/sqldelight/**'
+      - '**/datastore/**'
+      - '**/retrofit/**'
+      - '**/okhttp/**'
+      - '**/table/**'
+      - '**/entity/**'
+      - '**/contract/**'
+    forbiddenImports:
+      - value: 'java.time.Instant'
+        reason: 'kotlin.time at the boundary only: use kotlin.time.Instant.'
+      - value: 'java.time.Duration'
+        reason: 'kotlin.time at the boundary only: use kotlin.time.Duration.'
+      - value: 'java.time.LocalDateTime'
+        reason: 'kotlin.time at the boundary only: use kotlin.time.Instant.'
+      - value: 'java.util.Calendar'
+        reason: 'kotlin.time at the boundary only: use kotlin.time.Instant.'
   RedundantVisibilityModifier:
     active: true
   WildcardImport:

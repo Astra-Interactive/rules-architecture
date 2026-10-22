@@ -158,4 +158,32 @@ internal class DetektArchitectureSettingsTest {
         assertEquals(1, rule.lint("package com.example.featureFlag").size)
         assertEquals(0, rule.lint("package com.example.featureflag2").size)
     }
+
+    @Test
+    fun GIVEN_old_time_imports_WHEN_linted_THEN_reports_each() {
+        val code = """
+            import java.util.Date
+            import kotlinx.datetime.Clock
+            import kotlin.time.Clock
+        """.trimIndent()
+
+        val findings = ForbiddenImport(styleConfig.subConfig("ForbiddenImport")).lint(code)
+
+        assertEquals(2, findings.size)
+    }
+
+    @Test
+    fun GIVEN_java_time_imports_WHEN_linted_with_time_settings_THEN_reports_each() {
+        val code = """
+            import java.time.Duration
+            import java.time.Instant
+            import java.time.LocalDateTime
+            import java.util.Calendar
+            import kotlin.time.Duration
+        """.trimIndent()
+
+        val findings = ForbiddenImport(styleConfig.subConfig("ForbiddenImport/time")).lint(code)
+
+        assertEquals(4, findings.size)
+    }
 }
