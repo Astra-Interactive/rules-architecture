@@ -10,6 +10,8 @@ architecture:
     active: true
   ComposableFileType:
     active: true
+  ComposeConstantCase:
+    active: true
   ConstantOutsideCompanion:
     active: true
   ConstructorDefaultDependency:

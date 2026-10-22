@@ -4,6 +4,7 @@ import dev.detekt.api.RuleSet
 import dev.detekt.api.RuleSetId
 import dev.detekt.api.RuleSetProvider
 import ru.astrainteractive.klibs.rules.detekt.compose.ComposableFileType
+import ru.astrainteractive.klibs.rules.detekt.compose.ComposeConstantCase
 import ru.astrainteractive.klibs.rules.detekt.compose.ThemeObjectFunction
 import ru.astrainteractive.klibs.rules.detekt.declaration.DataClassDefaultValue
 import ru.astrainteractive.klibs.rules.detekt.declaration.LocalOrInnerClass
@@ -42,6 +43,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::BooleanOperatorWrapping,
                 ::CalleeBeforeCaller,
                 ::ComposableFileType,
+                ::ComposeConstantCase,
                 ::ConstantOutsideCompanion,
                 ::ConstructorDefaultDependency,
                 ::DataClassDefaultValue,
