@@ -12,6 +12,7 @@ import ru.astrainteractive.klibs.rules.detekt.coroutine.ImpureUpdateLambda
 import ru.astrainteractive.klibs.rules.detekt.coroutine.MutableStateFlowEmit
 import ru.astrainteractive.klibs.rules.detekt.coroutine.SingleJobLaunchMode
 import ru.astrainteractive.klibs.rules.detekt.declaration.BareIdentifier
+import ru.astrainteractive.klibs.rules.detekt.declaration.CompanionFactoryFunction
 import ru.astrainteractive.klibs.rules.detekt.declaration.DataClassDefaultValue
 import ru.astrainteractive.klibs.rules.detekt.declaration.LocalOrInnerClass
 import ru.astrainteractive.klibs.rules.detekt.declaration.NamespaceObject
@@ -54,6 +55,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::BareIdentifier,
                 ::BooleanOperatorWrapping,
                 ::CalleeBeforeCaller,
+                ::CompanionFactoryFunction,
                 ::ComposableFileType,
                 ::ComposeConstantCase,
                 ::ConstantOutsideCompanion,

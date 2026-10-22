@@ -106,6 +106,7 @@
     <ID>ArgumentPerLine:UtilShapeTest.kt:UtilShapeTest$main("x.command.rating.util", "Holders.kt", "object Holder\n\ninterface Shape")</ID>
     <ID>ArgumentPerLine:UtilShapeTest.kt:UtilShapeTest$main("x.command.rating.util", "KPlayerExt.kt", "fun String.toPlayer(): String = this\n\nclass Formatter")</ID>
     <ID>ArgumentPerLine:UtilShapeTest.kt:UtilShapeTest$main("x.gui.bukkit.slot", "RatingsSlot.kt", "internal fun SlotContext.ratingsSlot(): String = \"\"")</ID>
+    <ID>CompanionFactoryFunction:UnitLayout.kt:UnitLayout.Companion$fun create: UnitLayout</ID>
     <ID>ExpressionBodyOnOneLine:KindImportDirection.kt:KindImportDirection$private fun allowedTargets: Set&lt;Kind></ID>
     <ID>ExpressionBodyOnOneLine:TestMirror.kt:TestMirror$private fun packagesByName: Map&lt;String, Set&lt;String>></ID>
   </CurrentIssues>

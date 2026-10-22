@@ -12,6 +12,8 @@ architecture:
     active: true
   CalleeBeforeCaller:
     active: true
+  CompanionFactoryFunction:
+    active: true
   ComposableFileType:
     active: true
   ComposeConstantCase:
