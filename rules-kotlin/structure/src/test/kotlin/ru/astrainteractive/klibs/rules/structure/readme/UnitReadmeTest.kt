@@ -11,13 +11,15 @@ import kotlin.test.assertTrue
 
 internal class UnitReadmeTest {
 
-    private fun unit(directory: File, isRoot: Boolean): BuildUnit = BuildUnit(
-        path = ":jail",
-        directory = directory,
-        isEntryPoint = false,
-        isRoot = isRoot,
-        projectDependencies = emptySet()
-    )
+    private fun unit(directory: File, isRoot: Boolean): BuildUnit {
+        return BuildUnit(
+            path = ":jail",
+            directory = directory,
+            isEntryPoint = false,
+            isRoot = isRoot,
+            projectDependencies = emptySet()
+        )
+    }
 
     private fun readme(vararg lines: String): String = lines.joinToString(separator = System.lineSeparator())
 
@@ -28,7 +30,12 @@ internal class UnitReadmeTest {
 
     @Test
     fun GIVEN_readme_of_one_sentence_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
-        assertEquals(0, countReported(directory, readme("# jail", "", "Jails players for a sentence and frees them.")))
+        val oneSentence = readme(
+            "# jail",
+            "",
+            "Jails players for a sentence and frees them."
+        )
+        assertEquals(0, countReported(directory, oneSentence))
         assertEquals(0, countReported(directory, "Jails players for a sentence and frees them"))
         assertEquals(0, countReported(directory, "Formats durations, e.g. 1h 2m, for chat messages."))
         assertEquals(0, countReported(directory, "Formats durations, i.e. the time left, etc. for chat."))
@@ -36,7 +43,12 @@ internal class UnitReadmeTest {
 
     @Test
     fun GIVEN_readme_of_several_sentences_or_none_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
-        assertEquals(1, countReported(directory, readme("# jail", "", "Jails players. Frees them later!")))
+        val twoSentences = readme(
+            "# jail",
+            "",
+            "Jails players. Frees them later!"
+        )
+        assertEquals(1, countReported(directory, twoSentences))
         assertEquals(1, countReported(directory, readme("# jail")))
     }
 

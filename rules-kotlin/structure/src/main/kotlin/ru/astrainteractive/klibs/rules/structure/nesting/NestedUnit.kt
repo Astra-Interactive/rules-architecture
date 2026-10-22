@@ -11,8 +11,9 @@ import java.io.File
  */
 public class NestedUnit : StructureCheck {
 
-    private fun isUnitDirectory(directory: File): Boolean =
-        BUILD_FILES.any { buildFile -> File(directory, buildFile).isFile }
+    private fun isUnitDirectory(directory: File): Boolean {
+        return BUILD_FILES.any { buildFile -> File(directory, buildFile).isFile }
+    }
 
     private fun findNestedUnits(directory: File, depth: Int): List<File> {
         if (depth > MAX_DEPTH) return emptyList()
@@ -31,7 +32,12 @@ public class NestedUnit : StructureCheck {
             .map { nestedPath ->
                 val message = "Move the unit in $nestedPath out of ${unit.path}: a unit's directory never holds " +
                     "another unit, a split context's directory is a container with no build file."
-                StructureViolation(RULE, nestedPath, nestedPath, message)
+                StructureViolation(
+                    RULE,
+                    nestedPath,
+                    nestedPath,
+                    message
+                )
             }
     }
 

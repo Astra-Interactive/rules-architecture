@@ -34,7 +34,12 @@ public class UnitDependency : StructureCheck {
             .sorted()
             .mapNotNull { dependency ->
                 val message = findMessage(unit, dependency) ?: return@mapNotNull null
-                StructureViolation(RULE, BUILD_FILE, dependency, message)
+                StructureViolation(
+                    RULE,
+                    BUILD_FILE,
+                    dependency,
+                    message
+                )
             }
     }
 
@@ -47,6 +52,15 @@ public class UnitDependency : StructureCheck {
         const val CORE = "core"
 
         @JvmField
-        val PLATFORMS = setOf("bukkit", "bungee", "fabric", "forge", "neoforge", "paper", "spigot", "velocity")
+        val PLATFORMS = setOf(
+            "bukkit",
+            "bungee",
+            "fabric",
+            "forge",
+            "neoforge",
+            "paper",
+            "spigot",
+            "velocity"
+        )
     }
 }
