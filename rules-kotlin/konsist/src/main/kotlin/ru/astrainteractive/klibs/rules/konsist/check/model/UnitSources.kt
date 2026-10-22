@@ -9,10 +9,15 @@ import java.io.File
 
 /**
  * The parsed sources of one build unit, with the layout its checks judge them by.
+ *
+ * @property unitPath the Gradle path of the unit (`:modules:core:api`), `null` when it was not given
+ * @property mainDirectories the main source directories as given, one per source set
  */
 internal class UnitSources(
     val kind: UnitKind,
     val layout: UnitLayout,
+    val unitPath: String?,
+    val mainDirectories: List<File>,
     val mainFiles: List<KoFileDeclaration>,
     val testFiles: List<KoFileDeclaration>,
     private val projectDirectory: File
@@ -77,11 +82,13 @@ internal class UnitSources(
                 kind
             )
             return UnitSources(
-                kind,
-                layout,
-                mainFiles,
-                parse(testDirectories),
-                projectDirectory
+                kind = kind,
+                layout = layout,
+                unitPath = unitPath,
+                mainDirectories = mainDirectories,
+                mainFiles = mainFiles,
+                testFiles = parse(testDirectories),
+                projectDirectory = projectDirectory
             )
         }
     }

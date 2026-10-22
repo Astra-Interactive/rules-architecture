@@ -40,6 +40,25 @@ internal class SourceTree(private val projectDirectory: File) {
         )
     }
 
+    /**
+     * Writes [code] to [path], a package and a file name joined by a slash: `com.example.jail.model/Jail.kt`.
+     */
+    fun main(path: String, code: String): SourceTree {
+        return main(
+            packageName = path.substringBefore('/'),
+            fileName = path.substringAfter('/'),
+            code = code
+        )
+    }
+
+    fun test(path: String, code: String): SourceTree {
+        return test(
+            packageName = path.substringBefore('/'),
+            fileName = path.substringAfter('/'),
+            code = code
+        )
+    }
+
     fun load(kind: UnitKind, rootPackage: String? = null, unitPath: String? = null): UnitSources {
         return UnitSources.load(
             kind = kind,
