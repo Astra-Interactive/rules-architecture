@@ -241,4 +241,81 @@ internal class KindImportDirectionTest {
             KindImportDirection().check(sources).map { violation -> violation.subject }
         )
     }
+
+    @Test
+    fun GIVEN_composable_sub_packages_WHEN_checked_THEN_they_import_each_other_and_only_di_imports_a_screen(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.paywall.impl.composable.screen",
+                "SplashScreenComposable.kt",
+                """
+                import x.paywall.impl.composable.component.heroCopy
+                import x.paywall.impl.composable.layout.scrollFade
+                import x.paywall.impl.composable.screen.splashContent
+
+                fun splashScreen() = Unit
+                """
+            )
+            .main("x.paywall.impl.composable.screen", "SplashContentComposable.kt", "fun splashContent() = Unit")
+            .main(
+                "x.paywall.impl.composable.component",
+                "HeroCopyComposable.kt",
+                """
+                import x.paywall.impl.composable.layout.scrollFade
+                import x.paywall.impl.composable.screen.splashScreen
+
+                fun heroCopy() = Unit
+                """
+            )
+            .main("x.paywall.impl.composable.layout", "ScrollFadeComposable.kt", "fun scrollFade() = Unit")
+            .main(
+                "x.paywall.impl.offer.composable.screen",
+                "OfferScreenComposable.kt",
+                "import x.paywall.impl.composable.screen.splashScreen\n\nfun offerScreen() = Unit"
+            )
+            .main(
+                "x.paywall.impl.component",
+                "PaywallComponent.kt",
+                "import x.paywall.impl.composable.screen.splashScreen\n\nclass PaywallComponent"
+            )
+            .main(
+                "x.paywall.impl.di",
+                "PaywallModule.kt",
+                "import x.paywall.impl.composable.screen.splashScreen\n\nclass PaywallModule"
+            )
+            .load(UnitKind.CONTEXT, unitPath = ":paywall:impl")
+
+        val reported = KindImportDirection().check(sources)
+            .map { violation -> "${violation.path.substringAfter("x/paywall/impl/")} -> ${violation.subject}" }
+            .sorted()
+
+        assertEquals(
+            listOf(
+                "component/PaywallComponent.kt -> x.paywall.impl.composable.screen.splashScreen",
+                "composable/component/HeroCopyComposable.kt -> x.paywall.impl.composable.screen.splashScreen",
+                "offer/composable/screen/OfferScreenComposable.kt -> x.paywall.impl.composable.screen.splashScreen",
+            ),
+            reported
+        )
+    }
+
+    @Test
+    fun GIVEN_import_of_a_screen_WHEN_reported_THEN_message_says_only_di_depends_on_it(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main("x.paywall.impl.composable.screen", "SplashScreenComposable.kt", "fun splashScreen() = Unit")
+            .main(
+                "x.paywall.impl.composable.component",
+                "HeroCopyComposable.kt",
+                "import x.paywall.impl.composable.screen.splashScreen\n\nfun heroCopy() = Unit"
+            )
+            .load(UnitKind.CONTEXT, unitPath = ":paywall:impl")
+
+        assertEquals(
+            "'composable/component' must not import x.paywall.impl.composable.screen.splashScreen from " +
+                "'composable/screen': nothing depends on a screen but di.",
+            KindImportDirection().check(sources).single().message
+        )
+    }
 }
