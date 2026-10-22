@@ -301,6 +301,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `ComposeKindWithoutCompose` | a `composable`, `viewmodel` or `theme` package in a unit that imports no Compose |
 | `PlatformPackage` | a package named after a platform (`android`, `ios`, `jvm`, …) in a unit with several main source sets |
 | `DuplicateRepresentation` | a technology data class with the same constructor parameter names as a `model` data class |
+| `FieldDependencyConstruction` | a field outside `di` that constructs a class of the unit taking constructor parameters |
 
 ### Structure checks
 

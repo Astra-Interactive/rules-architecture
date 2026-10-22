@@ -6,6 +6,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureChecker
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.ContractName
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.DuplicateRepresentation
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.EntryPointVisibility
+import ru.astrainteractive.klibs.rules.konsist.check.declaration.FieldDependencyConstruction
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.ImplementationVisibility
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.NestedDataClass
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.NestedEnum
@@ -65,6 +66,7 @@ public fun main(args: Array<String>) {
             EntryPointVisibility(),
             ErrorPlacement(),
             FakePlacement(),
+            FieldDependencyConstruction(),
             ForbiddenPackageName(),
             ImplementationVisibility(),
             InMemoryPlacement(),
