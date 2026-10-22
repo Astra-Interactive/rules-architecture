@@ -229,12 +229,14 @@ class LinterPluginTest {
             .withModule(name = "contract", buildScript = unitKindScript("`java-library`"))
             .withModule(name = "server", buildScript = unitKindScript("application"))
             .withModule(name = "exposed", buildScript = unitKindScript("`java-library`"))
+            .withModule(name = "memory", buildScript = unitKindScript("`java-library`"))
             .withModule(name = "jail", buildScript = unitKindScript("`java-library`"))
         val modules = listOf(
             "api",
             "contract",
             "server",
             "exposed",
+            "memory",
             "jail"
         )
 
@@ -246,6 +248,7 @@ class LinterPluginTest {
                 "api",
                 "contract",
                 "entry-point",
+                "technology",
                 "technology",
                 "context"
             ),

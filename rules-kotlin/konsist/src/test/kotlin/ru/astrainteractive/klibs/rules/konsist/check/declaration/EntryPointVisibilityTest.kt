@@ -25,11 +25,12 @@ internal class EntryPointVisibilityTest {
             .main("x.command.rating.component", "RatingComponent.kt", "class RatingComponent")
             .main("x.command.di", "CommandsModule.kt", "class CommandsModule")
             .main("x.command.rating.service", "TickService.kt", "private class TickService")
+            .main("x.command.papi.expansion", "RatingExpansion.kt", "class RatingExpansion")
             .load(UnitKind.CONTEXT, unitPath = ":modules:command")
 
         val subjects = EntryPointVisibility().check(sources).map { violation -> violation.subject }.sorted()
 
-        assertEquals(listOf("CommandExceptionHandler", "RatingCommand"), subjects)
+        assertEquals(listOf("CommandExceptionHandler", "RatingCommand", "RatingExpansion"), subjects)
     }
 
     @Test

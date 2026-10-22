@@ -91,7 +91,7 @@ linter {
 | Detected as       | When                                                                                     |
 |-------------------|------------------------------------------------------------------------------------------|
 | `api`, `contract` | the last segment of the project path                                                     |
-| `technology`      | a technology name as the last segment of the project path (`data/exposed`, `data/room`) |
+| `technology`      | a technology name as the last segment of the project path (`data/exposed`, `data/room`, `data/memory`) |
 | `entry-point`     | the `application` or `com.android.application` plugin, or a path under `:instances`      |
 | `library`         | Kotlin explicit API mode strict                                                          |
 | `context`         | anything else                                                                            |
@@ -285,7 +285,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `ContractPlacement`    | a `*Repository` outside `api`, an implementation inside `api`, a `network`/`local`/`remote` package       |
 | `ForbiddenPackageName` | a forbidden word in a package created inside the unit; the root package may keep its unit's word; `table`, `entity` and `database` outside a technology unit or package |
 | `UtilShape`            | a class or object in `util`, an extension function outside `util`, its receiver's file included           |
-| `EntryPointVisibility` | a public class in a kind the platform invokes (`command`, `event`, `route`, `service`, `warmup`, ...), outside a `library` unit |
+| `EntryPointVisibility` | a public class in a kind the platform invokes (`command`, `event`, `expansion`, `route`, `service`, `warmup`, ...), outside a `library` unit |
 | `ErrorPlacement`       | an error type outside a `model` package                                                                   |
 | `DiPlacement`          | a `*Module` outside a `di` package                                                                        |
 | `NestedDataClass`      | a top-level data class used as a property type by exactly one class, except a sealed variant or a `*State` |
