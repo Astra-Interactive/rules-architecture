@@ -312,6 +312,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `UnitReadme`     | a unit without a `README.md` of one sentence                                                 |
 | `NestedUnit`     | a unit inside the directory of another unit                                                  |
 | `RootSources`    | sources in the root project                                                                  |
+| `EntryPointDependency` | a dependency on an entry-point unit (a path with the segment `instances`) |
 
 ## 🗂️ Repository
 

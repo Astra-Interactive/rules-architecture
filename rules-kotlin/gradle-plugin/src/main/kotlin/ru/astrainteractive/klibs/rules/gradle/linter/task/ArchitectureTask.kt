@@ -17,6 +17,7 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.process.ExecOperations
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
+import ru.astrainteractive.klibs.rules.structure.graph.EntryPointDependency
 import ru.astrainteractive.klibs.rules.structure.graph.UnitDependency
 import ru.astrainteractive.klibs.rules.structure.nesting.NestedUnit
 import ru.astrainteractive.klibs.rules.structure.nesting.RootSources
@@ -115,7 +116,15 @@ internal abstract class ArchitectureTask : DefaultTask() {
             isRoot = rootOfBuild.get(),
             projectDependencies = projectDependencies.get()
         )
-        val checker = StructureChecker(listOf(NestedUnit(), RootSources(), UnitDependency(), UnitReadme()))
+        val checker = StructureChecker(
+            listOf(
+                EntryPointDependency(),
+                NestedUnit(),
+                RootSources(),
+                UnitDependency(),
+                UnitReadme()
+            )
+        )
         return checker.check(unit).map { violation ->
             ArchitectureFinding(violation.rule, violation.path, violation.subject, violation.message)
         }
