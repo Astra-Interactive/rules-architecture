@@ -17,16 +17,36 @@ internal class ViolationReportTest {
 
         writeReport(
             listOf(
-                Violation("LooseRootFile", "src/A.kt", "Jail", "Move${TAB}Jail${LINE_FEED}out"),
-                Violation("TestMirror", "src/B.kt", "BTest", "Move BTest"),
+                Violation(
+                    "LooseRootFile",
+                    "src/A.kt",
+                    "Jail",
+                    "Move${TAB}Jail${LINE_FEED}out"
+                ),
+                Violation(
+                    "TestMirror",
+                    "src/B.kt",
+                    "BTest",
+                    "Move BTest"
+                ),
             ),
             reportFile
         )
 
         assertEquals(
             listOf(
-                tsvLine("LooseRootFile", "src/A.kt", "Jail", "Move Jail out"),
-                tsvLine("TestMirror", "src/B.kt", "BTest", "Move BTest"),
+                tsvLine(
+                    "LooseRootFile",
+                    "src/A.kt",
+                    "Jail",
+                    "Move Jail out"
+                ),
+                tsvLine(
+                    "TestMirror",
+                    "src/B.kt",
+                    "BTest",
+                    "Move BTest"
+                ),
             ),
             reportFile.readLines()
         )

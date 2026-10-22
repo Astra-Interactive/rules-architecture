@@ -94,7 +94,13 @@ internal class LinterPlugin : Plugin<Project> {
 
     private fun Project.architectureInputs(): FileCollection {
         return fileTree(projectDir) { tree ->
-            tree.include("src/**/*.kt", "src/**/*.java", "README.md", "**/build.gradle.kts", "**/build.gradle")
+            tree.include(
+                "src/**/*.kt",
+                "src/**/*.java",
+                "README.md",
+                "**/build.gradle.kts",
+                "**/build.gradle"
+            )
             tree.exclude("**/build/**", "**/.gradle/**")
         }
     }
@@ -126,13 +132,21 @@ internal class LinterPlugin : Plugin<Project> {
 
         val checkTask = target.tasks.register(CHECK_TASK_NAME, ArchitectureCheckTask::class.java) { task ->
             task.description = "Checks the package layout and the unit structure against the architecture rules"
-            task.configureFrom(target, extension, classpath)
+            task.configureFrom(
+                target,
+                extension,
+                classpath
+            )
             task.baseline.from(target.layout.projectDirectory.file(BASELINE_FILE_NAME))
             task.reportFile.set(target.layout.buildDirectory.file("reports/architecture/violations.txt"))
         }
         target.tasks.register(BASELINE_TASK_NAME, ArchitectureBaselineTask::class.java) { task ->
             task.description = "Accepts the current architecture violations in $BASELINE_FILE_NAME"
-            task.configureFrom(target, extension, classpath)
+            task.configureFrom(
+                target,
+                extension,
+                classpath
+            )
             task.baselineFile.set(target.layout.projectDirectory.file(BASELINE_FILE_NAME))
         }
         target.plugins.withType(LifecycleBasePlugin::class.java) {

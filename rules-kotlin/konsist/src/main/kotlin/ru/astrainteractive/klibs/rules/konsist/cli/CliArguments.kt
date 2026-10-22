@@ -27,7 +27,15 @@ internal data class CliArguments(
         const val TEST = "--test"
         const val REPORT = "--report"
 
-        private val OPTIONS = setOf(PROJECT_DIR, UNIT_KIND, ROOT_PACKAGE, UNIT_PATH, MAIN, TEST, REPORT)
+        private val OPTIONS = setOf(
+            PROJECT_DIR,
+            UNIT_KIND,
+            ROOT_PACKAGE,
+            UNIT_PATH,
+            MAIN,
+            TEST,
+            REPORT
+        )
 
         private fun Map<String, List<String>>.single(name: String): String? {
             val values = get(name) ?: return null

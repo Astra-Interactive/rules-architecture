@@ -41,7 +41,11 @@ class DetektPluginTest {
 
     private fun IsolatedProjectsBuild.reportedConfigFile(moduleName: String): File {
         val reported = file("$moduleName/build/$CONFIG_REPORT_NAME").readLines()
-        assertEquals(1, reported.size, "expected exactly one detekt configuration file in $moduleName")
+        assertEquals(
+            1,
+            reported.size,
+            "expected exactly one detekt configuration file in $moduleName"
+        )
         return File(reported.first()).canonicalFile
     }
 

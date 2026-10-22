@@ -18,7 +18,12 @@ class ArchitectureFindingTest {
 
     @Test
     fun GIVEN_report_line_WHEN_parsed_THEN_splits_it_into_the_four_fields() {
-        val line = listOf(finding.rule, finding.path, finding.subject, finding.message).joinToLine()
+        val line = listOf(
+            finding.rule,
+            finding.path,
+            finding.subject,
+            finding.message
+        ).joinToLine()
 
         assertEquals(finding, ArchitectureFinding.parse(line))
     }
@@ -26,7 +31,12 @@ class ArchitectureFindingTest {
     @Test
     fun GIVEN_message_with_a_tab_WHEN_parsed_THEN_keeps_the_tab_in_the_message() {
         val message = listOf("Move", "Jail").joinToLine()
-        val line = listOf("KindShape", "Jail.kt", "Jail", message).joinToLine()
+        val line = listOf(
+            "KindShape",
+            "Jail.kt",
+            "Jail",
+            message
+        ).joinToLine()
 
         assertEquals(message, ArchitectureFinding.parse(line).message)
     }
@@ -46,7 +56,11 @@ class ArchitectureFindingTest {
 
         assertEquals(finding.baselineKey, reworded.baselineKey)
         assertEquals(
-            listOf("KindShape", "src/main/kotlin/com/example/Jail.kt", "Jail").joinToLine(),
+            listOf(
+                "KindShape",
+                "src/main/kotlin/com/example/Jail.kt",
+                "Jail"
+            ).joinToLine(),
             finding.baselineKey
         )
     }

@@ -207,12 +207,27 @@ class LinterPluginTest {
             .withModule(name = "server", buildScript = unitKindScript("application"))
             .withModule(name = "exposed", buildScript = unitKindScript("`java-library`"))
             .withModule(name = "jail", buildScript = unitKindScript("`java-library`"))
-        val modules = listOf("api", "contract", "server", "exposed", "jail")
+        val modules = listOf(
+            "api",
+            "contract",
+            "server",
+            "exposed",
+            "jail"
+        )
 
         build.run(*modules.map { module -> ":$module:reportUnitKind" }.toTypedArray())
 
         val kinds = modules.map { module -> build.file("$module/build/unit-kind.txt").readText() }
-        assertEquals(listOf("api", "contract", "entry-point", "technology", "context"), kinds)
+        assertEquals(
+            listOf(
+                "api",
+                "contract",
+                "entry-point",
+                "technology",
+                "context"
+            ),
+            kinds
+        )
     }
 
     @Test

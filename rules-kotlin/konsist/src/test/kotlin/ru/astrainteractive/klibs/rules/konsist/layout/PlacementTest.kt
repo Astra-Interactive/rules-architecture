@@ -10,11 +10,33 @@ internal class PlacementTest {
     @Test
     fun GIVEN_placements_WHEN_described_THEN_names_their_place() {
         val descriptions = listOf(
-            Placement(emptyList(), null, null, emptyList()),
-            Placement(listOf("rating", "players"), Kind.ENTRY_POINT, "component", emptyList()),
-            Placement(listOf("rating"), Kind.IMPLEMENTATION, null, emptyList()),
+            Placement(
+                emptyList(),
+                null,
+                null,
+                emptyList()
+            ),
+            Placement(
+                listOf("rating", "players"),
+                Kind.ENTRY_POINT,
+                "component",
+                emptyList()
+            ),
+            Placement(
+                listOf("rating"),
+                Kind.IMPLEMENTATION,
+                null,
+                emptyList()
+            ),
         ).map { placement -> placement.describe() }
 
-        assertEquals(listOf("the unit root", "'rating/players/component'", "'rating'"), descriptions)
+        assertEquals(
+            listOf(
+                "the unit root",
+                "'rating/players/component'",
+                "'rating'"
+            ),
+            descriptions
+        )
     }
 }

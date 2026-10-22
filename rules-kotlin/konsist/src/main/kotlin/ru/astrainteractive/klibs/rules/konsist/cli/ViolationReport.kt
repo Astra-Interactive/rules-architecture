@@ -6,7 +6,12 @@ import java.io.File
 private val LINE_BREAKING = Regex("[\t\r\n]")
 
 private fun Violation.toLine(): String {
-    return listOf(rule, path, subject, message)
+    return listOf(
+        rule,
+        path,
+        subject,
+        message
+    )
         .joinToString(separator = "\t") { field -> field.replace(LINE_BREAKING, " ") }
 }
 

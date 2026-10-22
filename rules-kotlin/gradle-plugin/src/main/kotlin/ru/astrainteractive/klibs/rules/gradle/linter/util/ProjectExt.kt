@@ -21,7 +21,12 @@ private val TECHNOLOGY_UNIT_NAMES = setOf(
     "sqldelight",
 )
 
-private val PRODUCTION_CONFIGURATION_SUFFIXES = listOf("implementation", "api", "compileOnly", "runtimeOnly")
+private val PRODUCTION_CONFIGURATION_SUFFIXES = listOf(
+    "implementation",
+    "api",
+    "compileOnly",
+    "runtimeOnly"
+)
 
 private fun Project.isEntryPointByConvention(): Boolean {
     return ENTRY_POINT_PLUGIN_IDS

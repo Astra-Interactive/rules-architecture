@@ -9,7 +9,12 @@ import kotlin.test.assertNull
 internal class UnitLayoutTest {
 
     private fun rootOf(packages: List<String>, unitPath: String?): String {
-        return UnitLayout.create(packages, rootPackage = null, unitPath = unitPath, unitKind = UnitKind.CONTEXT)
+        return UnitLayout.create(
+            packages,
+            rootPackage = null,
+            unitPath = unitPath,
+            unitKind = UnitKind.CONTEXT
+        )
             .rootPackage
     }
 
@@ -29,8 +34,16 @@ internal class UnitLayoutTest {
         )
 
         assertEquals(
-            listOf("x.astrarating.event", "x.astrarating.integration.papi", "x.astrarating.data.dao"),
-            listOf(event, papi, dao)
+            listOf(
+                "x.astrarating.event",
+                "x.astrarating.integration.papi",
+                "x.astrarating.data.dao"
+            ),
+            listOf(
+                event,
+                papi,
+                dao
+            )
         )
     }
 
@@ -59,14 +72,40 @@ internal class UnitLayoutTest {
     fun GIVEN_packages_of_a_unit_WHEN_placed_THEN_resolves_concepts_and_the_last_kind() {
         val layout = UnitLayout("x.gui.api", UnitKind.API)
 
-        assertEquals(Placement(emptyList(), null, null, emptyList()), layout.placementOf("x.gui.api"))
-        assertEquals(Placement(listOf("rating"), null, null, emptyList()), layout.placementOf("x.gui.api.rating"))
         assertEquals(
-            Placement(listOf("router"), Kind.CONTRACT, "api", emptyList()),
+            Placement(
+                emptyList(),
+                null,
+                null,
+                emptyList()
+            ),
+            layout.placementOf("x.gui.api")
+        )
+        assertEquals(
+            Placement(
+                listOf("rating"),
+                null,
+                null,
+                emptyList()
+            ),
+            layout.placementOf("x.gui.api.rating")
+        )
+        assertEquals(
+            Placement(
+                listOf("router"),
+                Kind.CONTRACT,
+                "api",
+                emptyList()
+            ),
             layout.placementOf("x.gui.api.router.api")
         )
         assertEquals(
-            Placement(listOf("rating"), Kind.MODEL, "model", listOf("extra")),
+            Placement(
+                listOf("rating"),
+                Kind.MODEL,
+                "model",
+                listOf("extra")
+            ),
             layout.placementOf("x.gui.api.rating.model.extra")
         )
         assertNull(layout.placementOf("x.gui.apix"))
@@ -77,16 +116,37 @@ internal class UnitLayoutTest {
         val layout = UnitLayout("x.data.exposed", UnitKind.TECHNOLOGY)
 
         assertEquals(
-            Placement(listOf("rating"), Kind.IMPLEMENTATION, null, emptyList()),
+            Placement(
+                listOf("rating"),
+                Kind.IMPLEMENTATION,
+                null,
+                emptyList()
+            ),
             layout.placementOf("x.data.exposed.rating")
         )
-        assertEquals(Placement(emptyList(), null, null, emptyList()), layout.placementOf("x.data.exposed"))
+        assertEquals(
+            Placement(
+                emptyList(),
+                null,
+                null,
+                emptyList()
+            ),
+            layout.placementOf("x.data.exposed")
+        )
     }
 
     @Test
     fun GIVEN_default_root_package_WHEN_placed_THEN_every_package_is_below_it() {
         val layout = UnitLayout("", UnitKind.CONTEXT)
 
-        assertEquals(Placement(listOf("jail"), Kind.MODEL, "model", emptyList()), layout.placementOf("jail.model"))
+        assertEquals(
+            Placement(
+                listOf("jail"),
+                Kind.MODEL,
+                "model",
+                emptyList()
+            ),
+            layout.placementOf("jail.model")
+        )
     }
 }

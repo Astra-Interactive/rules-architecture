@@ -70,8 +70,19 @@ internal class UnitSources(
         ): UnitSources {
             val mainFiles = parse(mainDirectories)
             val packages = mainFiles.map { file -> file.packageName }.distinct()
-            val layout = UnitLayout.create(packages, rootPackage, unitPath, kind)
-            return UnitSources(kind, layout, mainFiles, parse(testDirectories), projectDirectory)
+            val layout = UnitLayout.create(
+                packages,
+                rootPackage,
+                unitPath,
+                kind
+            )
+            return UnitSources(
+                kind,
+                layout,
+                mainFiles,
+                parse(testDirectories),
+                projectDirectory
+            )
         }
     }
 }

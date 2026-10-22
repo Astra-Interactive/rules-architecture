@@ -22,7 +22,12 @@ internal class UnitLayout(
         val kindIndex = segments.indexOfLast { segment -> Kind.fromSegment(segment) != null }
         if (kindIndex < 0) {
             val kind = Kind.IMPLEMENTATION.takeIf { unitKind == UnitKind.TECHNOLOGY && segments.isNotEmpty() }
-            return Placement(concepts = segments, kind = kind, kindWord = null, below = emptyList())
+            return Placement(
+                concepts = segments,
+                kind = kind,
+                kindWord = null,
+                below = emptyList()
+            )
         }
         return Placement(
             concepts = segments.take(kindIndex),

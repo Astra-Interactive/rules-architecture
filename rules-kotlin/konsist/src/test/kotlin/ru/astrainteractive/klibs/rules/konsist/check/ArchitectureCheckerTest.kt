@@ -17,7 +17,14 @@ internal class ArchitectureCheckerTest {
     fun GIVEN_checks_for_other_kinds_WHEN_checked_THEN_runs_only_those_of_the_unit_kind(@TempDir directory: File) {
         val contextOnly = FakeArchitectureCheck(
             unitKinds = setOf(UnitKind.CONTEXT),
-            violations = listOf(Violation("ContextRule", "a.kt", "A", "context"))
+            violations = listOf(
+                Violation(
+                    "ContextRule",
+                    "a.kt",
+                    "A",
+                    "context"
+                )
+            )
         )
         val everyKind = FakeArchitectureCheck(unitKinds = UnitKind.entries.toSet(), violations = emptyList())
         val sources = SourceTree(directory).load(UnitKind.LIBRARY)
@@ -36,15 +43,35 @@ internal class ArchitectureCheckerTest {
         val first = FakeArchitectureCheck(
             unitKinds = setOf(UnitKind.CONTEXT),
             violations = listOf(
-                Violation("Zeta", "b.kt", "B", "message"),
-                Violation("Alpha", "b.kt", "C", "message"),
+                Violation(
+                    "Zeta",
+                    "b.kt",
+                    "B",
+                    "message"
+                ),
+                Violation(
+                    "Alpha",
+                    "b.kt",
+                    "C",
+                    "message"
+                ),
             )
         )
         val second = FakeArchitectureCheck(
             unitKinds = setOf(UnitKind.CONTEXT),
             violations = listOf(
-                Violation("Alpha", "b.kt", "A", "message"),
-                Violation("Zeta", "a.kt", "Z", "message"),
+                Violation(
+                    "Alpha",
+                    "b.kt",
+                    "A",
+                    "message"
+                ),
+                Violation(
+                    "Zeta",
+                    "a.kt",
+                    "Z",
+                    "message"
+                ),
             )
         )
         val sources = SourceTree(directory).load(UnitKind.CONTEXT)
@@ -52,6 +79,14 @@ internal class ArchitectureCheckerTest {
         val order = ArchitectureChecker(listOf(first, second)).check(sources)
             .map { violation -> "${violation.path}:${violation.rule}:${violation.subject}" }
 
-        assertEquals(listOf("a.kt:Zeta:Z", "b.kt:Alpha:A", "b.kt:Alpha:C", "b.kt:Zeta:B"), order)
+        assertEquals(
+            listOf(
+                "a.kt:Zeta:Z",
+                "b.kt:Alpha:A",
+                "b.kt:Alpha:C",
+                "b.kt:Zeta:B"
+            ),
+            order
+        )
     }
 }

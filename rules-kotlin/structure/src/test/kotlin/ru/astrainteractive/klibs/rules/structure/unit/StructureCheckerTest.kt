@@ -18,12 +18,32 @@ internal class StructureCheckerTest {
             projectDependencies = emptySet()
         )
         val firstViolations = listOf(
-            StructureViolation("Zeta", "b", "B", "m"),
-            StructureViolation("Alpha", "b", "C", "m")
+            StructureViolation(
+                "Zeta",
+                "b",
+                "B",
+                "m"
+            ),
+            StructureViolation(
+                "Alpha",
+                "b",
+                "C",
+                "m"
+            )
         )
         val secondViolations = listOf(
-            StructureViolation("Alpha", "b", "A", "m"),
-            StructureViolation("Zeta", "a", "Z", "m")
+            StructureViolation(
+                "Alpha",
+                "b",
+                "A",
+                "m"
+            ),
+            StructureViolation(
+                "Zeta",
+                "a",
+                "Z",
+                "m"
+            )
         )
         val first = StructureCheck { firstViolations }
         val second = StructureCheck { secondViolations }
@@ -31,7 +51,15 @@ internal class StructureCheckerTest {
         val order = StructureChecker(listOf(first, second)).check(unit)
             .map { violation -> "${violation.path}:${violation.rule}:${violation.subject}" }
 
-        assertEquals(listOf("a:Zeta:Z", "b:Alpha:A", "b:Alpha:C", "b:Zeta:B"), order)
+        assertEquals(
+            listOf(
+                "a:Zeta:Z",
+                "b:Alpha:A",
+                "b:Alpha:C",
+                "b:Zeta:B"
+            ),
+            order
+        )
         assertEquals("impl", unit.name)
     }
 }

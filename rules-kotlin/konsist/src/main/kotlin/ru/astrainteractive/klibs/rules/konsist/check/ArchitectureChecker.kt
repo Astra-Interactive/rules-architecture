@@ -11,6 +11,12 @@ internal class ArchitectureChecker(private val checks: List<ArchitectureCheck>) 
         return checks
             .filter { check -> sources.kind in check.unitKinds }
             .flatMap { check -> check.check(sources) }
-            .sortedWith(compareBy(Violation::path, Violation::rule, Violation::subject))
+            .sortedWith(
+                compareBy(
+                    Violation::path,
+                    Violation::rule,
+                    Violation::subject
+                )
+            )
     }
 }
