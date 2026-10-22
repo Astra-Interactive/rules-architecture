@@ -5,6 +5,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.direction
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
+import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 import java.io.File
 import kotlin.test.assertEquals
@@ -14,8 +15,16 @@ internal class PlatformImportTest {
     @Test
     fun GIVEN_platform_imports_in_model_api_and_usecase_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
         val sources = SourceTree(directory)
-            .main("x.jail.jail.model", "Jail.kt", "import org.bukkit.Location\n\nclass Jail")
-            .main("x.jail.jail.api", "JailRepository.kt", "import io.ktor.http.*\n\ninterface JailRepository")
+            .main(
+                "x.jail.jail.model",
+                "Jail.kt",
+                "import org.bukkit.Location\n\nclass Jail"
+            )
+            .main(
+                "x.jail.jail.api",
+                "JailRepository.kt",
+                "import io.ktor.http.*\n\ninterface JailRepository"
+            )
             .main(
                 "x.jail.jail.usecase",
                 "JailPlayerUseCase.kt",
@@ -37,9 +46,16 @@ internal class PlatformImportTest {
             )
             .load(UnitKind.CONTEXT, unitPath = ":jail")
 
-        val subjects = PlatformImport().check(sources).map { violation -> violation.subject }.sorted()
+        val subjects = PlatformImport().check(sources).map(Violation::subject).sorted()
 
-        assertEquals(listOf("io.ktor.http.*", "net.minecraft.world.Level", "org.bukkit.Location"), subjects)
+        assertEquals(
+            listOf(
+                "io.ktor.http.*",
+                "net.minecraft.world.Level",
+                "org.bukkit.Location"
+            ),
+            subjects
+        )
     }
 
     @Test
@@ -54,7 +70,7 @@ internal class PlatformImportTest {
 
         assertEquals(
             listOf("org.bukkit.entity.Player"),
-            PlatformImport().check(sources).map { violation -> violation.subject }
+            PlatformImport().check(sources).map(Violation::subject)
         )
     }
 
@@ -86,7 +102,7 @@ internal class PlatformImportTest {
             )
             .load(UnitKind.CONTEXT, unitPath = ":paywall:impl")
 
-        val subjects = PlatformImport().check(sources).map { violation -> violation.subject }.sorted()
+        val subjects = PlatformImport().check(sources).map(Violation::subject).sorted()
 
         assertEquals(listOf("androidx.compose.runtime.State", "androidx.room.Entity"), subjects)
     }
@@ -103,7 +119,7 @@ internal class PlatformImportTest {
 
         assertEquals(
             listOf("androidx.compose.ui.graphics.Color"),
-            PlatformImport().check(sources).map { violation -> violation.subject }
+            PlatformImport().check(sources).map(Violation::subject)
         )
     }
 }

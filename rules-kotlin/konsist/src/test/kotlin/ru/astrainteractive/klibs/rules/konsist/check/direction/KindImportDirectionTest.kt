@@ -5,11 +5,19 @@ package ru.astrainteractive.klibs.rules.konsist.check.direction
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
+import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
+import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 import java.io.File
 import kotlin.test.assertEquals
 
 internal class KindImportDirectionTest {
+
+    private fun formatPaywallReports(sources: UnitSources): List<String> {
+        return KindImportDirection().check(sources)
+            .map { violation -> "${violation.path.substringAfter("x/paywall/impl/")} -> ${violation.subject}" }
+            .sorted()
+    }
 
     private fun SourceTree.withModelAndContracts(): SourceTree {
         return main(
@@ -23,7 +31,11 @@ internal class KindImportDirectionTest {
             data class RatedPlayer(val name: String, val cooldown: Duration, val other: Other)
             """
         )
-            .main("x.gui.api.rating.model", "Other.kt", "class Other")
+            .main(
+                "x.gui.api.rating.model",
+                "Other.kt",
+                "class Other"
+            )
             .main(
                 "x.gui.api.rating.api",
                 "RatingPlayersRepository.kt",
@@ -60,7 +72,11 @@ internal class KindImportDirectionTest {
             class AddRatingUseCase
             """
         )
-            .main("x.gui.api.player.usecase", "LoadPlayerUseCase.kt", "class LoadPlayerUseCase")
+            .main(
+                "x.gui.api.player.usecase",
+                "LoadPlayerUseCase.kt",
+                "class LoadPlayerUseCase"
+            )
             .main(
                 "x.gui.api.rating.memory",
                 "InMemoryRatingPlayersRepository.kt",
@@ -90,7 +106,11 @@ internal class KindImportDirectionTest {
             class RatingComponent
             """
         )
-            .main("x.gui.api.rating.slot", "RatingSlot.kt", "class RatingSlot")
+            .main(
+                "x.gui.api.rating.slot",
+                "RatingSlot.kt",
+                "class RatingSlot"
+            )
             .main(
                 "x.gui.api.di",
                 "GuiModule.kt",
@@ -145,8 +165,16 @@ internal class KindImportDirectionTest {
     @Test
     fun GIVEN_violation_WHEN_reported_THEN_message_names_both_places_and_the_allowed_kinds(@TempDir directory: File) {
         val sources = SourceTree(directory)
-            .main("x.jail.jail.model", "Jail.kt", "import x.jail.jail.api.JailRepository\n\nclass Jail")
-            .main("x.jail.jail.api", "JailRepository.kt", "interface JailRepository")
+            .main(
+                "x.jail.jail.model",
+                "Jail.kt",
+                "import x.jail.jail.api.JailRepository\n\nclass Jail"
+            )
+            .main(
+                "x.jail.jail.api",
+                "JailRepository.kt",
+                "interface JailRepository"
+            )
             .load(UnitKind.CONTEXT, unitPath = ":jail")
 
         val violation = KindImportDirection().check(sources).single()
@@ -175,7 +203,11 @@ internal class KindImportDirectionTest {
                 internal object PaywallMotion
                 """
             )
-            .main("x.paywall.impl.model", "Plan.kt", "class Plan")
+            .main(
+                "x.paywall.impl.model",
+                "Plan.kt",
+                "class Plan"
+            )
             .main(
                 "x.paywall.impl.util",
                 "PlanExt.kt",
@@ -201,9 +233,7 @@ internal class KindImportDirectionTest {
             )
             .load(UnitKind.CONTEXT, unitPath = ":paywall:impl")
 
-        val reported = KindImportDirection().check(sources)
-            .map { violation -> "${violation.path.substringAfter("x/paywall/impl/")} -> ${violation.subject}" }
-            .sorted()
+        val reported = formatPaywallReports(sources)
 
         assertEquals(
             listOf(
@@ -230,15 +260,31 @@ internal class KindImportDirectionTest {
                 internal class FileJailRepository
                 """
             )
-            .main("x.jail.jail.file.table", "JailTable.kt", "object JailTable")
-            .main("x.jail.jail.api", "JailRepository.kt", "interface JailRepository")
-            .main("x.jail.jail.model", "Jail.kt", "class Jail")
-            .main("x.jail.jail.util", "JailExt.kt", "fun isSentenceOver(): Boolean = false")
+            .main(
+                "x.jail.jail.file.table",
+                "JailTable.kt",
+                "object JailTable"
+            )
+            .main(
+                "x.jail.jail.api",
+                "JailRepository.kt",
+                "interface JailRepository"
+            )
+            .main(
+                "x.jail.jail.model",
+                "Jail.kt",
+                "class Jail"
+            )
+            .main(
+                "x.jail.jail.util",
+                "JailExt.kt",
+                "fun isSentenceOver(): Boolean = false"
+            )
             .load(UnitKind.CONTEXT, unitPath = ":jail")
 
         assertEquals(
             listOf("x.jail.jail.util.isSentenceOver"),
-            KindImportDirection().check(sources).map { violation -> violation.subject }
+            KindImportDirection().check(sources).map(Violation::subject)
         )
     }
 
@@ -258,7 +304,11 @@ internal class KindImportDirectionTest {
                 fun splashScreen() = Unit
                 """
             )
-            .main("x.paywall.impl.composable.screen", "SplashContentComposable.kt", "fun splashContent() = Unit")
+            .main(
+                "x.paywall.impl.composable.screen",
+                "SplashContentComposable.kt",
+                "fun splashContent() = Unit"
+            )
             .main(
                 "x.paywall.impl.composable.component",
                 "HeroCopyComposable.kt",
@@ -269,7 +319,11 @@ internal class KindImportDirectionTest {
                 fun heroCopy() = Unit
                 """
             )
-            .main("x.paywall.impl.composable.layout", "ScrollFadeComposable.kt", "fun scrollFade() = Unit")
+            .main(
+                "x.paywall.impl.composable.layout",
+                "ScrollFadeComposable.kt",
+                "fun scrollFade() = Unit"
+            )
             .main(
                 "x.paywall.impl.offer.composable.screen",
                 "OfferScreenComposable.kt",
@@ -287,9 +341,7 @@ internal class KindImportDirectionTest {
             )
             .load(UnitKind.CONTEXT, unitPath = ":paywall:impl")
 
-        val reported = KindImportDirection().check(sources)
-            .map { violation -> "${violation.path.substringAfter("x/paywall/impl/")} -> ${violation.subject}" }
-            .sorted()
+        val reported = formatPaywallReports(sources)
 
         assertEquals(
             listOf(
@@ -304,7 +356,11 @@ internal class KindImportDirectionTest {
     @Test
     fun GIVEN_import_of_a_screen_WHEN_reported_THEN_message_says_only_di_depends_on_it(@TempDir directory: File) {
         val sources = SourceTree(directory)
-            .main("x.paywall.impl.composable.screen", "SplashScreenComposable.kt", "fun splashScreen() = Unit")
+            .main(
+                "x.paywall.impl.composable.screen",
+                "SplashScreenComposable.kt",
+                "fun splashScreen() = Unit"
+            )
             .main(
                 "x.paywall.impl.composable.component",
                 "HeroCopyComposable.kt",

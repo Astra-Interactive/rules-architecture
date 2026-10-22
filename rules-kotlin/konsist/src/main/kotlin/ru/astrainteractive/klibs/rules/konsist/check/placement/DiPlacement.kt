@@ -21,7 +21,12 @@ internal class DiPlacement : ArchitectureCheck {
                     .filter { name -> name.endsWith(MODULE_SUFFIX) }
                     .map { name ->
                         val message = "Move $name to the di package of the level it wires."
-                        Violation(RULE, sources.relativePath(file), name, message)
+                        Violation(
+                            RULE,
+                            sources.relativePath(file),
+                            name,
+                            message
+                        )
                     }
             }
     }

@@ -24,12 +24,12 @@ internal class KindShape : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
 
     private fun packagePath(placement: Placement): String {
-        return (placement.concepts + listOfNotNull(placement.kindWord, placement.subKind) + placement.below)
-            .joinToString("/")
+        val segments = placement.concepts + listOfNotNull(placement.kindWord, placement.subKind) + placement.below
+        return segments.joinToString("/")
     }
 
     private fun kindPath(placement: Placement): String {
-        return (placement.concepts + listOfNotNull(placement.kindWord)).joinToString("/")
+        return placement.concepts.plus(listOfNotNull(placement.kindWord)).joinToString("/")
     }
 
     private fun isPlural(segment: String): Boolean = segment.endsWith("s") && !segment.endsWith("ss")
@@ -58,16 +58,22 @@ internal class KindShape : ArchitectureCheck {
                 "holds only packages."
         }
         val subKind = placement.subKind
-        if (subKind != null) return findComposableMessage(file, placement, subKind)
+        if (subKind != null) {
+            return findComposableMessage(
+                file,
+                placement,
+                subKind
+            )
+        }
         if (placement.below.isEmpty() || kind == Kind.IMPLEMENTATION) return null
         return "Move ${file.baseName} out of '${packagePath(placement)}': a kind package holds only files."
     }
 
     private fun findMixedComposables(sources: UnitSources): List<Violation> {
         val splitComposables = sources.mainFiles
-            .mapNotNull { file -> sources.placementOf(file) }
+            .mapNotNull(sources::placementOf)
             .filter { placement -> placement.subKind != null }
-            .map { placement -> kindPath(placement) }
+            .map(::kindPath)
             .toSet()
         return sources.mainFiles.mapNotNull { file ->
             val placement = sources.placementOf(file) ?: return@mapNotNull null
@@ -75,15 +81,29 @@ internal class KindShape : ArchitectureCheck {
             if (!isComposableFile || kindPath(placement) !in splitComposables) return@mapNotNull null
             val message = "Move ${file.baseName} into a sub-package of ${placement.describe()}: composable holds " +
                 "files or sub-packages, never both."
-            Violation(RULE, sources.relativePath(file), file.baseName, message)
+            Violation(
+                RULE,
+                sources.relativePath(file),
+                file.baseName,
+                message
+            )
         }
     }
 
     override fun check(sources: UnitSources): List<Violation> {
         val shapeViolations = sources.mainFiles.mapNotNull { file ->
             val placement = sources.placementOf(file) ?: return@mapNotNull null
-            val message = findMessage(sources, file, placement) ?: return@mapNotNull null
-            Violation(RULE, sources.relativePath(file), file.baseName, message)
+            val message = findMessage(
+                sources,
+                file,
+                placement
+            ) ?: return@mapNotNull null
+            Violation(
+                RULE,
+                sources.relativePath(file),
+                file.baseName,
+                message
+            )
         }
         return shapeViolations + findMixedComposables(sources)
     }
@@ -92,6 +112,10 @@ internal class KindShape : ArchitectureCheck {
         const val RULE = "KindShape"
 
         @JvmField
-        val LEVEL_KINDS = setOf("model", "util", "theme")
+        val LEVEL_KINDS = setOf(
+            "model",
+            "util",
+            "theme"
+        )
     }
 }

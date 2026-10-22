@@ -71,7 +71,7 @@ internal class UnitSources(
         private val COMPOSE_PACKAGE_PREFIXES = listOf("androidx.compose.", "org.jetbrains.compose.")
 
         fun isComposeImport(importedName: String): Boolean {
-            return COMPOSE_PACKAGE_PREFIXES.any { prefix -> importedName.startsWith(prefix) }
+            return COMPOSE_PACKAGE_PREFIXES.any(importedName::startsWith)
         }
 
         private fun parse(directories: List<File>): List<KoFileDeclaration> {

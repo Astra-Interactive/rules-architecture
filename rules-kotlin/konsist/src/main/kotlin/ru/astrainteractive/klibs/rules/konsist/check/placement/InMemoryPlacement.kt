@@ -1,5 +1,6 @@
 package ru.astrainteractive.klibs.rules.konsist.check.placement
 
+import com.lemonappdev.konsist.api.declaration.KoClassDeclaration
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
@@ -17,8 +18,8 @@ internal class InMemoryPlacement : ArchitectureCheck {
 
     private fun inMemoryNames(file: KoFileDeclaration): List<String> {
         return file.topLevelClasses()
-            .map { declaration -> declaration.name }
-            .filter { name -> IN_MEMORY_NAME.matches(name) }
+            .map(KoClassDeclaration::name)
+            .filter(IN_MEMORY_NAME::matches)
     }
 
     override fun check(sources: UnitSources): List<Violation> {
@@ -27,14 +28,24 @@ internal class InMemoryPlacement : ArchitectureCheck {
             .flatMap { file ->
                 inMemoryNames(file).map { name ->
                     val message = "Move $name to the memory package of its concept."
-                    Violation(RULE, sources.relativePath(file), name, message)
+                    Violation(
+                        RULE,
+                        sources.relativePath(file),
+                        name,
+                        message
+                    )
                 }
             }
         val inTests = sources.testFiles.flatMap { file ->
             inMemoryNames(file).map { name ->
                 val message = "Move $name to a memory package of the main sources: an in-memory implementation " +
                     "is production code."
-                Violation(RULE, sources.relativePath(file), name, message)
+                Violation(
+                    RULE,
+                    sources.relativePath(file),
+                    name,
+                    message
+                )
             }
         }
         return inMain + inTests

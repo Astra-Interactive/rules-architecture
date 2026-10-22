@@ -24,15 +24,37 @@ import ru.astrainteractive.klibs.rules.konsist.layout.util.describe
 internal class KindImportDirection : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
 
-    private fun allowedTargets(from: Kind): Set<Kind> = when (from) {
-        Kind.MODEL -> setOf(Kind.MODEL)
-        Kind.CONTRACT -> setOf(Kind.MODEL, Kind.CONTRACT)
-        Kind.USECASE -> setOf(Kind.MODEL, Kind.CONTRACT, Kind.UTIL)
-        Kind.UTIL -> setOf(Kind.MODEL, Kind.CONTRACT, Kind.UTIL, Kind.THEME)
-        Kind.IMPLEMENTATION -> setOf(Kind.MODEL, Kind.CONTRACT, Kind.IMPLEMENTATION)
-        Kind.ENTRY_POINT -> setOf(Kind.MODEL, Kind.CONTRACT, Kind.UTIL, Kind.USECASE, Kind.ENTRY_POINT, Kind.THEME)
-        Kind.THEME -> setOf(Kind.MODEL, Kind.THEME)
-        Kind.DI -> Kind.entries.toSet()
+    private fun allowedTargets(from: Kind): Set<Kind> {
+        return when (from) {
+            Kind.MODEL -> setOf(Kind.MODEL)
+            Kind.CONTRACT -> setOf(Kind.MODEL, Kind.CONTRACT)
+            Kind.USECASE -> setOf(
+                Kind.MODEL,
+                Kind.CONTRACT,
+                Kind.UTIL
+            )
+            Kind.UTIL -> setOf(
+                Kind.MODEL,
+                Kind.CONTRACT,
+                Kind.UTIL,
+                Kind.THEME
+            )
+            Kind.IMPLEMENTATION -> setOf(
+                Kind.MODEL,
+                Kind.CONTRACT,
+                Kind.IMPLEMENTATION
+            )
+            Kind.ENTRY_POINT -> setOf(
+                Kind.MODEL,
+                Kind.CONTRACT,
+                Kind.UTIL,
+                Kind.USECASE,
+                Kind.ENTRY_POINT,
+                Kind.THEME
+            )
+            Kind.THEME -> setOf(Kind.MODEL, Kind.THEME)
+            Kind.DI -> Kind.entries.toSet()
+        }
     }
 
     private fun isScreen(placement: Placement): Boolean {
@@ -61,10 +83,23 @@ internal class KindImportDirection : ArchitectureCheck {
             val importedName = import.importedName
             val targetPackage = sources.packageOfImport(importedName) ?: return@mapNotNull null
             val to = sources.layout.placementOf(targetPackage) ?: return@mapNotNull null
-            val message = findScreenMessage(from, fromKind, to, importedName)
-                ?: findKindMessage(from, fromKind, to, importedName)
-                ?: return@mapNotNull null
-            Violation(RULE, sources.relativePath(file), importedName, message)
+            val message = findScreenMessage(
+                from,
+                fromKind,
+                to,
+                importedName
+            ) ?: findKindMessage(
+                from,
+                fromKind,
+                to,
+                importedName
+            ) ?: return@mapNotNull null
+            Violation(
+                RULE,
+                sources.relativePath(file),
+                importedName,
+                message
+            )
         }
     }
 

@@ -30,12 +30,12 @@ internal class NestedDataClass : ArchitectureCheck {
             .map { parameter -> parameter.type.simpleName }
         val bodyTypes = declaration.properties(includeNested = false)
             .mapNotNull { property -> property.type?.simpleName }
-        return (constructorTypes + bodyTypes).toSet()
+        return constructorTypes.plus(bodyTypes).toSet()
     }
 
     private fun referencingFiles(name: String, files: List<KoFileDeclaration>): Set<String> {
         val word = Regex("\\b${Regex.escape(name)}\\b")
-        return files.filter { file -> word.containsMatchIn(file.text) }.map { file -> file.path }.toSet()
+        return files.filter { file -> word.containsMatchIn(file.text) }.map(KoFileDeclaration::path).toSet()
     }
 
     private fun findOwner(
@@ -64,10 +64,19 @@ internal class NestedDataClass : ArchitectureCheck {
             .filter { declared -> declared.declaration.hasModifier(KoModifier.DATA) }
             .filterNot { declared -> isFamilyOfItsOwn(declared.declaration) }
             .mapNotNull { dataClass ->
-                val owner = findOwner(dataClass, classes, sources.mainFiles) ?: return@mapNotNull null
+                val owner = findOwner(
+                    dataClass,
+                    classes,
+                    sources.mainFiles
+                ) ?: return@mapNotNull null
                 val name = dataClass.declaration.name
                 val message = "Nest $name in ${owner.declaration.name}: it is the property type of that class only."
-                Violation(RULE, sources.relativePath(dataClass.file), name, message)
+                Violation(
+                    RULE,
+                    sources.relativePath(dataClass.file),
+                    name,
+                    message
+                )
             }
     }
 

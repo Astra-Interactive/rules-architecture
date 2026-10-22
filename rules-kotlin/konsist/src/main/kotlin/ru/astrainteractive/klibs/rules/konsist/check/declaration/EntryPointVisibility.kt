@@ -1,5 +1,7 @@
 package ru.astrainteractive.klibs.rules.konsist.check.declaration
 
+import com.lemonappdev.konsist.api.declaration.KoClassDeclaration
+import com.lemonappdev.konsist.api.declaration.KoObjectDeclaration
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
@@ -21,14 +23,19 @@ internal class EntryPointVisibility : ArchitectureCheck {
             .flatMap { file ->
                 val classes = file.topLevelClasses()
                     .filterNot { declaration -> declaration.hasInternalModifier || declaration.hasPrivateModifier }
-                    .map { declaration -> declaration.name }
+                    .map(KoClassDeclaration::name)
                 val objects = file.objects(includeNested = false)
                     .filterNot { declaration -> declaration.hasInternalModifier || declaration.hasPrivateModifier }
-                    .map { declaration -> declaration.name }
-                (classes + objects).map { name ->
+                    .map(KoObjectDeclaration::name)
+                classes.plus(objects).map { name ->
                     val message = "Make $name internal: other units construct the unit's DI module, " +
                         "not its entry points."
-                    Violation(RULE, sources.relativePath(file), name, message)
+                    Violation(
+                        RULE,
+                        sources.relativePath(file),
+                        name,
+                        message
+                    )
                 }
             }
     }

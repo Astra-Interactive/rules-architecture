@@ -12,14 +12,43 @@ internal class PlacementExtTest {
     @Test
     fun GIVEN_placements_WHEN_described_THEN_names_their_place() {
         val descriptions = listOf(
-            Placement(emptyList(), null, null, null, emptyList()),
-            Placement(listOf("rating", "players"), Kind.ENTRY_POINT, "component", null, emptyList()),
-            Placement(listOf("rating"), Kind.IMPLEMENTATION, null, null, emptyList()),
-            Placement(listOf("paywall"), Kind.ENTRY_POINT, "composable", "screen", emptyList()),
-        ).map { placement -> placement.describe() }
+            Placement(
+                emptyList(),
+                null,
+                null,
+                null,
+                emptyList()
+            ),
+            Placement(
+                listOf("rating", "players"),
+                Kind.ENTRY_POINT,
+                "component",
+                null,
+                emptyList()
+            ),
+            Placement(
+                listOf("rating"),
+                Kind.IMPLEMENTATION,
+                null,
+                null,
+                emptyList()
+            ),
+            Placement(
+                listOf("paywall"),
+                Kind.ENTRY_POINT,
+                "composable",
+                "screen",
+                emptyList()
+            ),
+        ).map(Placement::describe)
 
         assertEquals(
-            listOf("the unit root", "'rating/players/component'", "'rating'", "'paywall/composable/screen'"),
+            listOf(
+                "the unit root",
+                "'rating/players/component'",
+                "'rating'",
+                "'paywall/composable/screen'"
+            ),
             descriptions
         )
     }

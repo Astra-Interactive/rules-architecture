@@ -22,12 +22,17 @@ internal class UtilShape : ArchitectureCheck {
     private fun typesInUtil(sources: UnitSources, file: KoFileDeclaration): List<Violation> {
         return file.topLevelTypeNames().map { name ->
             val message = "Move $name out of util: util holds functions only, a class goes to the kind its role names."
-            Violation(RULE, sources.relativePath(file), name, message)
+            Violation(
+                RULE,
+                sources.relativePath(file),
+                name,
+                message
+            )
         }
     }
 
     private fun findSubject(receiverText: String, receiver: String): String {
-        val typeNames = TYPE_NAME.findAll(receiverText).map { match -> match.value }.toList()
+        val typeNames = TYPE_NAME.findAll(receiverText).map(MatchResult::value).toList()
         if (receiverText.contains(FUNCTION_ARROW)) return typeNames.firstOrNull() ?: receiver
         if (receiver !in CONTAINER_TYPES) return receiver
         return typeNames.drop(1).firstOrNull() ?: receiver
@@ -41,7 +46,12 @@ internal class UtilShape : ArchitectureCheck {
             val message = "Move the extension $receiver.${function.name} to util/${subject}Ext.kt of the level " +
                 "that uses it: the file is named after its subject, the element type of a collection, flow or " +
                 "function type."
-            Violation(RULE, sources.relativePath(file), "$receiver.${function.name}", message)
+            Violation(
+                RULE,
+                sources.relativePath(file),
+                "$receiver.${function.name}",
+                message
+            )
         }
     }
 

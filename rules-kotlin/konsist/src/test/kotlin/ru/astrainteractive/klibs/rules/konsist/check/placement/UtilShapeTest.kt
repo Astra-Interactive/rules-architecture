@@ -5,6 +5,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.placement
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
+import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 import java.io.File
 import kotlin.test.assertEquals
@@ -14,8 +15,16 @@ internal class UtilShapeTest {
     @Test
     fun GIVEN_types_in_util_and_extensions_elsewhere_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
         val sources = SourceTree(directory)
-            .main("x.command.rating.util", "KPlayerExt.kt", "fun String.toPlayer(): String = this\n\nclass Formatter")
-            .main("x.command.rating.util", "Holders.kt", "object Holder\n\ninterface Shape")
+            .main(
+                "x.command.rating.util",
+                "KPlayerExt.kt",
+                "fun String.toPlayer(): String = this\n\nclass Formatter"
+            )
+            .main(
+                "x.command.rating.util",
+                "Holders.kt",
+                "object Holder\n\ninterface Shape"
+            )
             .main(
                 "x.command.rating.model",
                 "RatingCommand.kt",
@@ -27,19 +36,40 @@ internal class UtilShapeTest {
                 fun Int.clamp(): Int = this
                 """
             )
-            .main("x.command.rating.command", "RatingExecutor.kt", "internal class RatingExecutor\n\nfun run() = Unit")
-            .main("x.astrarating.other", "Outside.kt", "fun Int.outside(): Int = this")
+            .main(
+                "x.command.rating.command",
+                "RatingExecutor.kt",
+                "internal class RatingExecutor\n\nfun run() = Unit"
+            )
+            .main(
+                "x.astrarating.other",
+                "Outside.kt",
+                "fun Int.outside(): Int = this"
+            )
             .load(UnitKind.CONTEXT, rootPackage = "x.command")
 
-        val subjects = UtilShape().check(sources).map { violation -> violation.subject }.sorted()
+        val subjects = UtilShape().check(sources).map(Violation::subject).sorted()
 
-        assertEquals(listOf("Formatter", "Holder", "Int.clamp", "RatingCommand.isValid", "Shape"), subjects)
+        assertEquals(
+            listOf(
+                "Formatter",
+                "Holder",
+                "Int.clamp",
+                "RatingCommand.isValid",
+                "Shape"
+            ),
+            subjects
+        )
     }
 
     @Test
     fun GIVEN_entry_point_extensions_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
         val sources = SourceTree(directory)
-            .main("x.gui.bukkit.slot", "RatingsSlot.kt", "internal fun SlotContext.ratingsSlot(): String = \"\"")
+            .main(
+                "x.gui.bukkit.slot",
+                "RatingsSlot.kt",
+                "internal fun SlotContext.ratingsSlot(): String = \"\""
+            )
             .load(UnitKind.CONTEXT, rootPackage = "x.gui.bukkit")
 
         assertEquals(emptyList(), UtilShape().check(sources))
@@ -61,7 +91,7 @@ internal class UtilShapeTest {
 
         assertEquals(
             listOf("Collection.findByRating"),
-            UtilShape().check(sources).map { violation -> violation.subject }
+            UtilShape().check(sources).map(Violation::subject)
         )
     }
 
@@ -89,6 +119,13 @@ internal class UtilShapeTest {
             .map { violation -> violation.message.substringAfter(" to ").substringBefore(" of the level") }
             .sorted()
 
-        assertEquals(listOf("util/ColoringExt.kt", "util/ColoringExt.kt", "util/ColoringExt.kt"), destinations)
+        assertEquals(
+            listOf(
+                "util/ColoringExt.kt",
+                "util/ColoringExt.kt",
+                "util/ColoringExt.kt"
+            ),
+            destinations
+        )
     }
 }

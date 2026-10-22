@@ -12,14 +12,44 @@ internal class UnitLayoutTest {
     fun GIVEN_packages_of_a_unit_WHEN_placed_THEN_resolves_concepts_and_the_last_kind() {
         val layout = UnitLayout("x.gui.api", UnitKind.API)
 
-        assertEquals(Placement(emptyList(), null, null, null, emptyList()), layout.placementOf("x.gui.api"))
-        assertEquals(Placement(listOf("rating"), null, null, null, emptyList()), layout.placementOf("x.gui.api.rating"))
         assertEquals(
-            Placement(listOf("router"), Kind.CONTRACT, "api", null, emptyList()),
+            Placement(
+                emptyList(),
+                null,
+                null,
+                null,
+                emptyList()
+            ),
+            layout.placementOf("x.gui.api")
+        )
+        assertEquals(
+            Placement(
+                listOf("rating"),
+                null,
+                null,
+                null,
+                emptyList()
+            ),
+            layout.placementOf("x.gui.api.rating")
+        )
+        assertEquals(
+            Placement(
+                listOf("router"),
+                Kind.CONTRACT,
+                "api",
+                null,
+                emptyList()
+            ),
             layout.placementOf("x.gui.api.router.api")
         )
         assertEquals(
-            Placement(listOf("rating"), Kind.MODEL, "model", null, listOf("extra")),
+            Placement(
+                listOf("rating"),
+                Kind.MODEL,
+                "model",
+                null,
+                listOf("extra")
+            ),
             layout.placementOf("x.gui.api.rating.model.extra")
         )
         assertNull(layout.placementOf("x.gui.apix"))
@@ -30,10 +60,25 @@ internal class UnitLayoutTest {
         val layout = UnitLayout("x.data.exposed", UnitKind.TECHNOLOGY)
 
         assertEquals(
-            Placement(listOf("rating"), Kind.IMPLEMENTATION, null, null, emptyList()),
+            Placement(
+                listOf("rating"),
+                Kind.IMPLEMENTATION,
+                null,
+                null,
+                emptyList()
+            ),
             layout.placementOf("x.data.exposed.rating")
         )
-        assertEquals(Placement(emptyList(), null, null, null, emptyList()), layout.placementOf("x.data.exposed"))
+        assertEquals(
+            Placement(
+                emptyList(),
+                null,
+                null,
+                null,
+                emptyList()
+            ),
+            layout.placementOf("x.data.exposed")
+        )
     }
 
     @Test
@@ -41,7 +86,13 @@ internal class UnitLayoutTest {
         val layout = UnitLayout("", UnitKind.CONTEXT)
 
         assertEquals(
-            Placement(listOf("jail"), Kind.MODEL, "model", null, emptyList()),
+            Placement(
+                listOf("jail"),
+                Kind.MODEL,
+                "model",
+                null,
+                emptyList()
+            ),
             layout.placementOf("jail.model")
         )
     }
@@ -51,15 +102,33 @@ internal class UnitLayoutTest {
         val layout = UnitLayout("x.paywall.impl", UnitKind.CONTEXT)
 
         assertEquals(
-            Placement(listOf("splash"), Kind.ENTRY_POINT, "composable", "screen", emptyList()),
+            Placement(
+                listOf("splash"),
+                Kind.ENTRY_POINT,
+                "composable",
+                "screen",
+                emptyList()
+            ),
             layout.placementOf("x.paywall.impl.splash.composable.screen")
         )
         assertEquals(
-            Placement(emptyList(), Kind.ENTRY_POINT, "composable", "layout", listOf("frame")),
+            Placement(
+                emptyList(),
+                Kind.ENTRY_POINT,
+                "composable",
+                "layout",
+                listOf("frame")
+            ),
             layout.placementOf("x.paywall.impl.composable.layout.frame")
         )
         assertEquals(
-            Placement(emptyList(), Kind.ENTRY_POINT, "composable", null, emptyList()),
+            Placement(
+                emptyList(),
+                Kind.ENTRY_POINT,
+                "composable",
+                null,
+                emptyList()
+            ),
             layout.placementOf("x.paywall.impl.composable")
         )
     }

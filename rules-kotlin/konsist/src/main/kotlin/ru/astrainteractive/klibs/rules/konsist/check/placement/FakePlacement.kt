@@ -24,8 +24,15 @@ internal class FakePlacement : ArchitectureCheck {
     ): List<Violation> {
         return files.flatMap { file ->
             file.topLevelClassAndObjectNames()
-                .filter { name -> FAKE_NAME.matches(name) }
-                .map { name -> Violation(RULE, sources.relativePath(file), name, message.invoke(name)) }
+                .filter(FAKE_NAME::matches)
+                .map { name ->
+                    Violation(
+                        RULE,
+                        sources.relativePath(file),
+                        name,
+                        message.invoke(name)
+                    )
+                }
         }
     }
 

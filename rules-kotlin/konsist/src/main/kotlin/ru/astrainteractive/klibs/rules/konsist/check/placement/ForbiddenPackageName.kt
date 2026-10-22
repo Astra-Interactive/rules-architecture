@@ -1,5 +1,6 @@
 package ru.astrainteractive.klibs.rules.konsist.check.placement
 
+import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
@@ -25,21 +26,26 @@ internal class ForbiddenPackageName : ArchitectureCheck {
             if (segment in FORBIDDEN) return@filterIndexed true
             if (segment !in TECHNOLOGY_ONLY) return@filterIndexed false
             val isInTechnology = sources.kind == UnitKind.TECHNOLOGY
-            val followsTechnology = segments.take(index).any { previous -> isTechnologyWord(previous) }
+            val followsTechnology = segments.take(index).any(::isTechnologyWord)
             !isInTechnology && !followsTechnology
         }
     }
 
     override fun check(sources: UnitSources): List<Violation> {
         return sources.mainFiles
-            .distinctBy { file -> file.packageName }
+            .distinctBy(KoFileDeclaration::packageName)
             .mapNotNull { file ->
                 val segments = sources.layout.segmentsBelowRoot(file.packageName) ?: return@mapNotNull null
                 val forbidden = findForbidden(sources, segments)
                 if (forbidden.isEmpty()) return@mapNotNull null
                 val message = "Rename the package segments ${forbidden.joinToString { segment -> "'$segment'" }}: " +
                     "a package is named for a concept or a kind, never a layer or a filler word."
-                Violation(RULE, sources.relativePath(file), file.packageName, message)
+                Violation(
+                    RULE,
+                    sources.relativePath(file),
+                    file.packageName,
+                    message
+                )
             }
     }
 
@@ -47,7 +53,11 @@ internal class ForbiddenPackageName : ArchitectureCheck {
         const val RULE = "ForbiddenPackageName"
 
         @JvmField
-        val TECHNOLOGY_ONLY = setOf("database", "entity", "table")
+        val TECHNOLOGY_ONLY = setOf(
+            "database",
+            "entity",
+            "table"
+        )
 
         @JvmField
         val FORBIDDEN = setOf(
