@@ -290,6 +290,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `StateTypePlacement` | a `<Screen>State` nested in another type or declared outside `model` |
 | `NestedEnum` | a top-level enum used as the property type of exactly one class |
 | `UtilFileName` | a `util` file of one receiver's extensions not named `<Receiver>Ext.kt`, a file named `Utils.kt`, `Helpers.kt`, `Extensions.kt` and the like |
+| `UtilFunctionAsExtension` | a `util` function whose one parameter is a model of the unit, instead of an extension |
 
 ### Structure checks
 
