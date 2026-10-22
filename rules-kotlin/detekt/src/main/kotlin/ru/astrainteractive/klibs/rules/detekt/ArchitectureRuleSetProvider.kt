@@ -23,6 +23,7 @@ import ru.astrainteractive.klibs.rules.detekt.formatting.BooleanOperatorWrapping
 import ru.astrainteractive.klibs.rules.detekt.formatting.ExplicitInvoke
 import ru.astrainteractive.klibs.rules.detekt.formatting.ExpressionBodyOnOneLine
 import ru.astrainteractive.klibs.rules.detekt.injection.ConstructorDefaultDependency
+import ru.astrainteractive.klibs.rules.detekt.injection.DiModuleLifecycle
 import ru.astrainteractive.klibs.rules.detekt.kdoc.KDocHtmlTag
 import ru.astrainteractive.klibs.rules.detekt.lambda.ImplicitItParameter
 import ru.astrainteractive.klibs.rules.detekt.multiplatform.ActualFileSuffix
@@ -63,6 +64,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::ConstructorDefaultDependency,
                 ::DataClassDefaultValue,
                 ::DeclarationOrder,
+                ::DiModuleLifecycle,
                 ::ExplicitInvoke,
                 ::ExpressionBodyOnOneLine,
                 ::FunctionVerb,

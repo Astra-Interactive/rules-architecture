@@ -26,6 +26,8 @@ architecture:
     active: true
   DeclarationOrder:
     active: true
+  DiModuleLifecycle:
+    active: true
   ExplicitInvoke:
     active: true
   ExpressionBodyOnOneLine:
