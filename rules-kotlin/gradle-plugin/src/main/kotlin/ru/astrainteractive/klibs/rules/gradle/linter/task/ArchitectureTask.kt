@@ -16,6 +16,7 @@ import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.process.ExecOperations
+import org.gradle.work.DisableCachingByDefault
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import ru.astrainteractive.klibs.rules.structure.buildfile.RootBuildSubprojects
@@ -32,6 +33,7 @@ import ru.astrainteractive.klibs.rules.structure.unit.StructureChecker
 import java.io.File
 import javax.inject.Inject
 
+@DisableCachingByDefault(because = "An abstract base: each concrete task declares its own caching")
 internal abstract class ArchitectureTask : DefaultTask() {
     @get:Classpath
     abstract val konsistClasspath: ConfigurableFileCollection
