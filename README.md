@@ -293,6 +293,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `UtilFunctionAsExtension` | a `util` function whose one parameter is a model of the unit, instead of an extension |
 | `ImplementationVisibility` | a public class in a technology package or a technology unit's concept, outside a library |
 | `UseCaseAbstraction` | an interface or abstract class named `…UseCase` |
+| `ContractName` | an `api` interface named `…Dao`, `…Storage` or `…Krate`, a `…Repository` extending a generic repository or `Crud` base |
 
 ### Structure checks
 

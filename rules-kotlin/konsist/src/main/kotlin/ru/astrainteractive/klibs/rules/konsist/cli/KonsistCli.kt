@@ -3,6 +3,7 @@
 package ru.astrainteractive.klibs.rules.konsist.cli
 
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureChecker
+import ru.astrainteractive.klibs.rules.konsist.check.declaration.ContractName
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.EntryPointVisibility
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.ImplementationVisibility
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.NestedDataClass
@@ -46,6 +47,7 @@ public fun main(args: Array<String>) {
     )
     val checker = ArchitectureChecker(
         listOf(
+            ContractName(),
             ContractPlacement(),
             DiPlacement(),
             EntryPointVisibility(),
