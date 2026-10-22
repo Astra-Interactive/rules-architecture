@@ -288,6 +288,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `InMemoryPlacement`    | an `InMemory*` outside a `memory` package of the main sources                                              |
 | `SealedFamilyFile` | a class or object whose direct supertype is a sealed type declared in another file |
 | `StateTypePlacement` | a `<Screen>State` nested in another type or declared outside `model` |
+| `NestedEnum` | a top-level enum used as the property type of exactly one class |
 
 ### Structure checks
 
