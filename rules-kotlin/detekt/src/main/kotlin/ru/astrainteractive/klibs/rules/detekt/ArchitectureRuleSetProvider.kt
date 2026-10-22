@@ -39,6 +39,7 @@ import ru.astrainteractive.klibs.rules.detekt.ordering.DeclarationOrder
 import ru.astrainteractive.klibs.rules.detekt.result.GetOrThrowInMain
 import ru.astrainteractive.klibs.rules.detekt.result.RunCatchingCancellation
 import ru.astrainteractive.klibs.rules.detekt.result.ThrowInsideRunCatching
+import ru.astrainteractive.klibs.rules.detekt.testing.RunBlockingInTest
 import ru.astrainteractive.klibs.rules.detekt.time.SystemTimeCall
 import ru.astrainteractive.klibs.rules.detekt.time.TimeAsPrimitive
 import ru.astrainteractive.klibs.rules.detekt.tuple.AnonymousTuple
@@ -85,6 +86,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::RememberInName,
                 ::RolelessClassName,
                 ::RootModuleConstruction,
+                ::RunBlockingInTest,
                 ::RunCatchingCancellation,
                 ::SingleJobLaunchMode,
                 ::SystemTimeCall,
