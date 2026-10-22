@@ -42,5 +42,7 @@ architecture:
     active: true
   TestFunctionName:
     active: true
+  ThemeObjectFunction:
+    active: true
   TimeAsPrimitive:
     active: true

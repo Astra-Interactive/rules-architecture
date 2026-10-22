@@ -4,6 +4,7 @@ import dev.detekt.api.RuleSet
 import dev.detekt.api.RuleSetId
 import dev.detekt.api.RuleSetProvider
 import ru.astrainteractive.klibs.rules.detekt.compose.ComposableFileType
+import ru.astrainteractive.klibs.rules.detekt.compose.ThemeObjectFunction
 import ru.astrainteractive.klibs.rules.detekt.declaration.DataClassDefaultValue
 import ru.astrainteractive.klibs.rules.detekt.declaration.LocalOrInnerClass
 import ru.astrainteractive.klibs.rules.detekt.declaration.NamespaceObject
@@ -57,6 +58,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::OneTypeFamilyPerFile,
                 ::PropertyAsFunction,
                 ::TestFunctionName,
+                ::ThemeObjectFunction,
                 ::TimeAsPrimitive,
             )
         )
