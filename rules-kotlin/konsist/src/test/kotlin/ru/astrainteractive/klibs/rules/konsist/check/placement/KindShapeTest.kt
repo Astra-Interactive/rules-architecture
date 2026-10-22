@@ -47,4 +47,14 @@ internal class KindShapeTest {
 
         assertEquals(emptyList(), KindShape().check(technology) + KindShape().check(entryPoint))
     }
+
+    @Test
+    fun GIVEN_file_in_a_compose_theme_package_WHEN_checked_THEN_accepts_it_as_a_kind(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main("x.paywall.impl.splash.theme", "PaywallMotion.kt", "internal object PaywallMotion")
+            .main("x.paywall.impl.splash.model", "Plan.kt", "class Plan")
+            .load(UnitKind.CONTEXT, unitPath = ":paywall:impl")
+
+        assertEquals(emptyList(), KindShape().check(sources))
+    }
 }

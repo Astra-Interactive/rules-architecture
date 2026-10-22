@@ -158,4 +158,60 @@ internal class KindImportDirectionTest {
             violation.message
         )
     }
+
+    @Test
+    fun GIVEN_compose_theme_package_WHEN_checked_THEN_applies_the_theme_rows_of_the_direction_table(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.paywall.impl.theme",
+                "PaywallMotion.kt",
+                """
+                import x.paywall.impl.composable.formatTitle
+                import x.paywall.impl.model.Plan
+                import x.paywall.impl.util.formatPrice
+
+                internal object PaywallMotion
+                """
+            )
+            .main("x.paywall.impl.model", "Plan.kt", "class Plan")
+            .main(
+                "x.paywall.impl.util",
+                "PlanExt.kt",
+                """
+                import x.paywall.impl.theme.PaywallMotion
+
+                fun formatPrice(): String = ""
+                """
+            )
+            .main(
+                "x.paywall.impl.composable",
+                "HeroComposable.kt",
+                """
+                import x.paywall.impl.theme.PaywallMotion
+
+                fun formatTitle(): String = ""
+                """
+            )
+            .main(
+                "x.paywall.impl.usecase",
+                "LoadPlanUseCase.kt",
+                "import x.paywall.impl.theme.PaywallMotion\n\nclass LoadPlanUseCase"
+            )
+            .load(UnitKind.CONTEXT, unitPath = ":paywall:impl")
+
+        val reported = KindImportDirection().check(sources)
+            .map { violation -> "${violation.path.substringAfter("x/paywall/impl/")} -> ${violation.subject}" }
+            .sorted()
+
+        assertEquals(
+            listOf(
+                "theme/PaywallMotion.kt -> x.paywall.impl.composable.formatTitle",
+                "theme/PaywallMotion.kt -> x.paywall.impl.util.formatPrice",
+                "usecase/LoadPlanUseCase.kt -> x.paywall.impl.theme.PaywallMotion",
+            ),
+            reported
+        )
+    }
 }

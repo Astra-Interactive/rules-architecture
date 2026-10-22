@@ -278,8 +278,8 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 
 | Check                  | Reports                                                                                                   |
 |------------------------|-----------------------------------------------------------------------------------------------------------|
-| `KindShape`            | a file loose in the unit root or a concept package, a package below a kind package                        |
-| `KindImportDirection`  | an import against the first table of `arch-context.md`: `model` depends on nothing of its level, ...      |
+| `KindShape`            | a file loose in the unit root or a concept package, a package below a kind package (`theme` included)     |
+| `KindImportDirection`  | an import against the first table of `arch-context.md`: `model` depends on nothing of its level, `theme` on `model` only, ... |
 | `PlatformImport`       | a platform or ORM import in `model`, `api` or `usecase`, or anywhere in an `api` unit                     |
 | `UseCaseShape`         | `*UseCase` outside `usecase`, other names in `usecase`, more than one entry, a use case taking another    |
 | `ContractPlacement`    | a `*Repository` outside `api`, an implementation inside `api`, a `network`/`local`/`remote` package       |
