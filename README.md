@@ -287,6 +287,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `FakePlacement`        | a `Fake*` outside a `fake` package                                                                        |
 | `InMemoryPlacement`    | an `InMemory*` outside a `memory` package of the main sources                                              |
 | `SealedFamilyFile` | a class or object whose direct supertype is a sealed type declared in another file |
+| `StateTypePlacement` | a `<Screen>State` nested in another type or declared outside `model` |
 
 ### Structure checks
 

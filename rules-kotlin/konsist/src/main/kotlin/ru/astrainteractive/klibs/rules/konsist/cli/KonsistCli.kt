@@ -6,6 +6,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureChecker
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.EntryPointVisibility
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.NestedDataClass
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.SealedFamilyFile
+import ru.astrainteractive.klibs.rules.konsist.check.declaration.StateTypePlacement
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.UseCaseShape
 import ru.astrainteractive.klibs.rules.konsist.check.direction.KindImportDirection
 import ru.astrainteractive.klibs.rules.konsist.check.direction.PlatformImport
@@ -52,6 +53,7 @@ public fun main(args: Array<String>) {
             NestedDataClass(),
             PlatformImport(),
             SealedFamilyFile(),
+            StateTypePlacement(),
             TestMirror(),
             UseCaseShape(),
             UtilShape(),
