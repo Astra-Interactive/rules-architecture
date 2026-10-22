@@ -295,6 +295,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `UseCaseAbstraction` | an interface or abstract class named `…UseCase` |
 | `ContractName` | an `api` interface named `…Dao`, `…Storage` or `…Krate`, a `…Repository` extending a generic repository or `Crud` base |
 | `CoreShape` | a `…UseCase` class or a `…Repository` interface in a `core` unit |
+| `RootModulePlacement` | a `RootModule` outside the entry-point unit or its `di` package |
 
 ### Structure checks
 
