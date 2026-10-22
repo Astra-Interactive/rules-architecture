@@ -91,7 +91,8 @@ internal class DetektArchitectureSettingsTest {
     fun GIVEN_platform_and_orm_imports_WHEN_linted_with_model_settings_THEN_reports_each() {
         val code = """
             import android.os.Parcelable
-            import androidx.compose.runtime.Immutable
+            import androidx.lifecycle.ViewModel
+            import androidx.room.Entity
             import io.ktor.http.Url
             import io.papermc.paper.event.player.AsyncChatEvent
             import kotlinx.serialization.Serializable
@@ -105,7 +106,20 @@ internal class DetektArchitectureSettingsTest {
 
         val findings = ForbiddenImport(styleConfig.subConfig("ForbiddenImport/model")).lint(code)
 
-        assertEquals(10, findings.size)
+        assertEquals(11, findings.size)
+    }
+
+    @Test
+    fun GIVEN_compose_imports_WHEN_linted_with_model_settings_THEN_reports_nothing() {
+        val code = """
+            import androidx.compose.runtime.Immutable
+            import androidx.compose.ui.graphics.painter.Painter
+            import org.jetbrains.compose.resources.StringResource
+        """.trimIndent()
+
+        val findings = ForbiddenImport(styleConfig.subConfig("ForbiddenImport/model")).lint(code)
+
+        assertEquals(0, findings.size)
     }
 
     @Test

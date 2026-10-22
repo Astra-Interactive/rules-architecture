@@ -11,7 +11,7 @@ import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 /**
  * Reports a platform, framework or ORM import in `model`, `api` and `usecase`, and anywhere in an `api` unit,
  * which holds platform-free code only. A technology unit is not checked: it is that technology's
- * implementation, its own `model` included.
+ * implementation, its own `model` included. The `model` of a Compose UI unit may import Compose.
  */
 internal class PlatformImport : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet() - UnitKind.TECHNOLOGY
@@ -21,6 +21,11 @@ internal class PlatformImport : ArchitectureCheck {
         return sources.placementOf(file)?.kind in CHECKED_KINDS
     }
 
+    private fun isAllowedCompose(sources: UnitSources, file: KoFileDeclaration, importedName: String): Boolean {
+        val isUiModel = sources.isComposeUnit && sources.placementOf(file)?.kind == Kind.MODEL
+        return isUiModel && UnitSources.isComposeImport(importedName)
+    }
+
     override fun check(sources: UnitSources): List<Violation> {
         return sources.mainFiles
             .filter { file -> isChecked(sources, file) }
@@ -28,6 +33,7 @@ internal class PlatformImport : ArchitectureCheck {
                 file.imports
                     .map { import -> import.importedName }
                     .filter { importedName -> PLATFORM_PREFIXES.any { prefix -> importedName.startsWith(prefix) } }
+                    .filterNot { importedName -> isAllowedCompose(sources, file, importedName) }
                     .map { importedName ->
                         val message = "$importedName is a platform type: keep it in a platform unit or a " +
                             "technology package and map it to the model at their edge."

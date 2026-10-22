@@ -270,7 +270,7 @@ val violations: List<StructureViolation> = checker.check(
 `detekt-architecture.yml` configures detekt's own rules: `ClassOrdering` off, replaced by `DeclarationOrder`,
 which puts `init` blocks after the functions they call; `ForbiddenComment` for region
 markers and separator comments; `ForbiddenImport` for `kotlinx.datetime.Instant`, `kotlinx.datetime.Clock` and `java.util.Date`, for `java.time` types and `java.util.Calendar` outside technology packages (`ForbiddenImport/time`), and for platform and ORM
-types in `model`; `RedundantVisibilityModifier`; `WildcardImport` with no exceptions; ktlint `ImportOrdering`.
+types in `model`, Compose excepted; `RedundantVisibilityModifier`; `WildcardImport` with no exceptions; ktlint `ImportOrdering`.
 `DataClassContainsFunctions`, with no conversion exception, and `DataClassShouldBeImmutable`: a data class
 holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with a lowercase-only pattern.
 
@@ -280,7 +280,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 |------------------------|-----------------------------------------------------------------------------------------------------------|
 | `KindShape`            | a file loose in the unit root or a concept package, a package below a kind package (`theme` included)     |
 | `KindImportDirection`  | an import against the first table of `arch-context.md`: `model` depends on nothing of its level, `theme` on `model` only, ... |
-| `PlatformImport`       | a platform or ORM import in `model`, `api` or `usecase`, or anywhere in an `api` unit                     |
+| `PlatformImport`       | a platform or ORM import in `model`, `api` or `usecase`, or anywhere in an `api` unit; the `model` of a UI unit (a file outside `model` imports Compose) may import Compose |
 | `UseCaseShape`         | `*UseCase` outside `usecase`, other names in `usecase`, more than one entry, a use case taking another    |
 | `ContractPlacement`    | a `*Repository` outside `api`, an implementation inside `api`, a `network`/`local`/`remote` package       |
 | `ForbiddenPackageName` | a forbidden word in a package created inside the unit; the root package may keep its unit's word          |

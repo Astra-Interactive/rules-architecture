@@ -57,4 +57,53 @@ internal class PlatformImportTest {
             PlatformImport().check(sources).map { violation -> violation.subject }
         )
     }
+
+    @Test
+    fun GIVEN_compose_ui_unit_WHEN_checked_THEN_its_model_may_import_compose_but_no_other_platform(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.paywall.impl.model",
+                "BenefitContent.kt",
+                """
+                import androidx.compose.ui.graphics.painter.Painter
+                import androidx.room.Entity
+                import org.jetbrains.compose.resources.StringResource
+
+                class BenefitContent
+                """
+            )
+            .main(
+                "x.paywall.impl.api",
+                "PaywallRepository.kt",
+                "import androidx.compose.runtime.State\n\ninterface PaywallRepository"
+            )
+            .main(
+                "x.paywall.impl.composable",
+                "BenefitComposable.kt",
+                "import androidx.compose.runtime.Composable\n\nfun benefit() = Unit"
+            )
+            .load(UnitKind.CONTEXT, unitPath = ":paywall:impl")
+
+        val subjects = PlatformImport().check(sources).map { violation -> violation.subject }.sorted()
+
+        assertEquals(listOf("androidx.compose.runtime.State", "androidx.room.Entity"), subjects)
+    }
+
+    @Test
+    fun GIVEN_unit_without_composables_WHEN_model_imports_compose_THEN_reports_it(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.paywall.api.model",
+                "Plan.kt",
+                "import androidx.compose.ui.graphics.Color\n\nclass Plan"
+            )
+            .load(UnitKind.CONTEXT, unitPath = ":paywall:api")
+
+        assertEquals(
+            listOf("androidx.compose.ui.graphics.Color"),
+            PlatformImport().check(sources).map { violation -> violation.subject }
+        )
+    }
 }

@@ -41,6 +41,7 @@ style:
         reason: 'Use kotlin.time.Clock.'
       - value: 'java.util.Date'
         reason: 'Use kotlin.time.Instant.'
+  # androidx.compose.* is left out: the model of a Compose UI unit may carry Compose types.
   ForbiddenImport/model:
     active: true
     includes: [ '**/model/**' ]
@@ -48,7 +49,25 @@ style:
     forbiddenImports:
       - value: 'android.*'
         reason: 'The model imports no platform type.'
-      - value: 'androidx.*'
+      - value: 'androidx.activity.*'
+        reason: 'The model imports no platform type.'
+      - value: 'androidx.appcompat.*'
+        reason: 'The model imports no platform type.'
+      - value: 'androidx.core.*'
+        reason: 'The model imports no platform type.'
+      - value: 'androidx.datastore.*'
+        reason: 'The model imports no platform type.'
+      - value: 'androidx.fragment.*'
+        reason: 'The model imports no platform type.'
+      - value: 'androidx.lifecycle.*'
+        reason: 'The model imports no platform type.'
+      - value: 'androidx.navigation.*'
+        reason: 'The model imports no platform type.'
+      - value: 'androidx.room.*'
+        reason: 'The model imports no platform type.'
+      - value: 'androidx.sqlite.*'
+        reason: 'The model imports no platform type.'
+      - value: 'androidx.work.*'
         reason: 'The model imports no platform type.'
       - value: 'io.ktor.*'
         reason: 'The model imports no framework type.'

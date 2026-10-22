@@ -2,6 +2,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.model
 
 import com.lemonappdev.konsist.api.Konsist
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
+import ru.astrainteractive.klibs.rules.konsist.layout.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.Placement
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitLayout
@@ -22,6 +23,16 @@ internal class UnitSources(
     val testFiles: List<KoFileDeclaration>,
     private val projectDirectory: File
 ) {
+    /**
+     * Whether the unit is a Compose UI unit: a main file outside `model` imports Compose, so its build depends
+     * on it. A `model` import alone does not count, as it is the import this fact judges.
+     */
+    val isComposeUnit: Boolean by lazy {
+        mainFiles
+            .filterNot { file -> layout.placementOf(file.packageName)?.kind == Kind.MODEL }
+            .any { file -> file.imports.any { import -> isComposeImport(import.importedName) } }
+    }
+
     /**
      * The package of every top-level declaration of the main sources, by its fully qualified name.
      */
@@ -56,6 +67,12 @@ internal class UnitSources(
     }
 
     companion object {
+        private val COMPOSE_PACKAGE_PREFIXES = listOf("androidx.compose.", "org.jetbrains.compose.")
+
+        fun isComposeImport(importedName: String): Boolean {
+            return COMPOSE_PACKAGE_PREFIXES.any { prefix -> importedName.startsWith(prefix) }
+        }
+
         private fun parse(directories: List<File>): List<KoFileDeclaration> {
             val existing = directories.filter(File::isDirectory)
             if (existing.isEmpty()) return emptyList()
