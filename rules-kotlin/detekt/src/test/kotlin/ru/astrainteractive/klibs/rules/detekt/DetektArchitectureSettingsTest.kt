@@ -4,6 +4,8 @@ package ru.astrainteractive.klibs.rules.detekt
 
 import dev.detekt.api.Config
 import dev.detekt.core.config.YamlConfig
+import dev.detekt.rules.style.DataClassContainsFunctions
+import dev.detekt.rules.style.DataClassShouldBeImmutable
 import dev.detekt.rules.style.ForbiddenComment
 import dev.detekt.rules.style.ForbiddenImport
 import dev.detekt.rules.style.WildcardImport
@@ -12,7 +14,8 @@ import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
 internal class DetektArchitectureSettingsTest {
-    private val styleConfig: Config = loadSettings().subConfig("style")
+    private val settings: Config = loadSettings()
+    private val styleConfig: Config = settings.subConfig("style")
 
     private fun loadSettings(): Config {
         val stream = checkNotNull(javaClass.classLoader.getResourceAsStream("detekt-architecture.yml")) {
@@ -113,5 +116,19 @@ internal class DetektArchitectureSettingsTest {
         val findings = WildcardImport(styleConfig.subConfig("WildcardImport")).lint(code)
 
         assertEquals(1, findings.size)
+    }
+
+    @Test
+    fun GIVEN_data_class_with_a_conversion_and_a_var_WHEN_linted_THEN_reports_both() {
+        val code = """
+            data class Plan(var price: Int) {
+                fun toContent(): String = price.toString()
+            }
+        """.trimIndent()
+
+        val functions = DataClassContainsFunctions(styleConfig.subConfig("DataClassContainsFunctions")).lint(code)
+        val mutable = DataClassShouldBeImmutable(styleConfig.subConfig("DataClassShouldBeImmutable")).lint(code)
+
+        assertEquals(2, functions.size + mutable.size)
     }
 }

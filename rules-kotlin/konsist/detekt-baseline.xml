@@ -2,6 +2,7 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
+    <ID>DataClassContainsFunctions:Placement.kt:Placement$fun describe: String</ID>
     <ID>ArgumentPerLine:ContractPlacement.kt:ContractPlacement$Violation(RULE, path, declaration.name, message)</ID>
     <ID>ArgumentPerLine:ContractPlacement.kt:ContractPlacement$Violation(RULE, sources.relativePath(file), file.packageName, message)</ID>
     <ID>ArgumentPerLine:ContractPlacement.kt:ContractPlacement$checkFile(sources, file, contractNames)</ID>

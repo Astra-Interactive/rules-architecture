@@ -4,6 +4,12 @@ style:
   # Replaced by architecture.DeclarationOrder: the code-ordering rule puts init blocks after the functions they call.
   ClassOrdering:
     active: false
+  # The model is data: a rule is an extension in util, a conversion to<Type> included.
+  DataClassContainsFunctions:
+    active: true
+    conversionFunctionPrefix: [ ]
+  DataClassShouldBeImmutable:
+    active: true
   ForbiddenComment:
     active: true
     comments:
