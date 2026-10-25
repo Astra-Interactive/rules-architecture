@@ -330,7 +330,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `ApiUnitDependency` | an `api` unit depending on a unit that is not `api`, `core` or a storage contracts unit (`dao`, `contract`) |
 | `RootBuildSubprojects` | a `subprojects { }` or `allprojects { }` block in the root build file |
 | `ProjectDirMatchesPath` | a unit whose directory differs from its Gradle path |
-| `ApiConfiguration` | a dependency in an `api` configuration of a unit that exports no Multiplatform framework (Gradle plugin) |
+| `ApiConfiguration` | an `api` dependency that is not exported through a Multiplatform framework (Gradle plugin) |
 | `PublishedLibraryExplicitApi` | a Kotlin unit applying `maven-publish` without strict explicit API mode (Gradle plugin) |
 | `ApiUnitPlatformDependency` | an external platform dependency (Paper, Bukkit, Fabric, Forge, Android, `androidx` but Compose, annotation and collection) in an `api` unit (Gradle plugin) |
 

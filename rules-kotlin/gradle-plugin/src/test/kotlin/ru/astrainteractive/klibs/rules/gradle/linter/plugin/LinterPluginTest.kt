@@ -434,6 +434,39 @@ class LinterPluginTest {
         assertTrue(result.output.contains("Move JailTest to commonTest"), result.output)
     }
 
+    @Test
+    fun GIVEN_inherited_framework_export_WHEN_checked_THEN_only_unrelated_api_dependency_is_reported(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            plugins {
+                id("org.jetbrains.kotlin.multiplatform")
+                id("ru.astrainteractive.klibs.rules.gradle.linter")
+            }
+
+            configurations {
+                val exportedApi by creating
+                val unrelatedApi by creating
+                val frameworkExport by creating { extendsFrom(exportedApi) }
+            }
+
+            dependencies {
+                exportedApi("org.slf4j:slf4j-api:2.0.13")
+                unrelatedApi("org.apache.commons:commons-lang3:3.14.0")
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "library", buildScript = moduleScript)
+            .withSourceFile("library/README.md", "Publishes the library API.")
+
+        val result = build.runAndFail(":library:architectureCheck")
+
+        assertTrue(result.output.contains("org.apache.commons:commons-lang3"), result.output)
+        assertTrue(!result.output.contains("Declare org.slf4j:slf4j-api"), result.output)
+    }
+
     private companion object {
         val JAVA_MODULE_SCRIPT = """
             plugins {

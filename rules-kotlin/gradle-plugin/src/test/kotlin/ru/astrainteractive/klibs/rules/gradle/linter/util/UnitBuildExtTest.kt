@@ -12,7 +12,7 @@ class UnitBuildExtTest {
     private val cleanBuild = UnitBuild(
         unitKind = UnitKind.API,
         apiDependencies = emptyList(),
-        hasFrameworkExport = false,
+        exportedDependencies = emptySet(),
         isPublished = false,
         isKotlin = true,
         explicitApiMode = null,
@@ -34,10 +34,16 @@ class UnitBuildExtTest {
     }
 
     @Test
-    fun GIVEN_api_configuration_with_framework_export_WHEN_checked_THEN_reports_nothing() {
-        val build = cleanBuild.copy(apiDependencies = listOf("api: com.example:core"), hasFrameworkExport = true)
+    fun GIVEN_exported_and_unrelated_api_dependencies_WHEN_checked_THEN_reports_only_unrelated() {
+        val build = cleanBuild.copy(
+            apiDependencies = listOf("api: com.example:core", "api: com.example:other"),
+            exportedDependencies = setOf("com.example:core")
+        )
 
-        assertEquals(emptyList(), build.findBuildFindings())
+        assertEquals(
+            listOf("api: com.example:other"),
+            build.findBuildFindings().map(ArchitectureFinding::subject)
+        )
     }
 
     @Test
