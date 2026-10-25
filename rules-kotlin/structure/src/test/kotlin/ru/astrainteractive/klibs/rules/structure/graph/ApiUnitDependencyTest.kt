@@ -33,7 +33,11 @@ internal class ApiUnitDependencyTest {
         val violations = ApiUnitDependency().check(unit(":modules:gui:api"))
 
         assertEquals(
-            listOf(":modules:command", ":modules:gui:bukkit"),
+            listOf(
+                ":modules:command",
+                ":modules:core:bukkit",
+                ":modules:gui:bukkit"
+            ),
             violations.map(StructureViolation::subject)
         )
         assertEquals(

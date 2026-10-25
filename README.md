@@ -49,7 +49,8 @@ klibs-rules-structure = { module = "ru.astrainteractive.klibs.rules:structure", 
 ### Gradle plugins
 
 Two plugins, both from `ru.astrainteractive.klibs.rules:gradle-plugin`, published to Maven Central. Add
-`mavenCentral()` to the `pluginManagement` repositories, then apply a plugin to every unit:
+`mavenCentral()` to the `pluginManagement` repositories, then apply a plugin to every unit. Apply the linter to the
+root project too when using `architectureGraphCheck`:
 
 ```kotlin
 plugins {
@@ -78,6 +79,9 @@ plugins {
   a separate JVM, and the structure checks of its README, nested units and project dependencies.
 - Registers `architectureBaseline`, which writes the current violations to `architecture-baseline.txt`; the check
   accepts what the file lists, so old code can stay as it is.
+- On the root project, registers `architectureGraphCheck`, which checks the complete unit graph for dependency
+  cycles; root `check` depends on it. Units contribute their dependencies through an isolated-projects-compatible
+  shared build service.
 
 The unit kind decides which layout rules apply. It is detected by convention and can be set:
 
@@ -314,7 +318,8 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 
 | Check            | Reports                                                                                      |
 |------------------|----------------------------------------------------------------------------------------------|
-| `UnitDependency` | a dependency on an `impl` unit or a feature's platform unit (`gui/bukkit`) outside the entry point, `core` depending on a feature, a `contract` unit depending on a project unit |
+| `UnitDependency` | a project dependency outside the allowlist for the unit's kind in `arch-context.md` |
+| `UnitDependencyCycle` | a cycle in the complete project-unit graph (root Gradle plugin) |
 | `UnitReadme`     | a unit without a `README.md` of one sentence                                                 |
 | `NestedUnit`     | a unit inside the directory of another unit                                                  |
 | `RootSources`    | sources in the root project                                                                  |

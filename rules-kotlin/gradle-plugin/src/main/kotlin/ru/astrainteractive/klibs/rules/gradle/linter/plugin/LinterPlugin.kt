@@ -12,14 +12,17 @@ import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
 import org.gradle.api.attributes.java.TargetJvmEnvironment
 import org.gradle.api.file.FileCollection
+import org.gradle.api.provider.Provider
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import ru.astrainteractive.klibs.rules.gradle.detekt.plugin.DetektPlugin
 import ru.astrainteractive.klibs.rules.gradle.detekt.service.DetektConfigService
 import ru.astrainteractive.klibs.rules.gradle.linter.extension.LinterExtension
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
+import ru.astrainteractive.klibs.rules.gradle.linter.service.ArchitectureGraphService
 import ru.astrainteractive.klibs.rules.gradle.linter.task.ArchitectureBaselineTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.ArchitectureCheckTask
+import ru.astrainteractive.klibs.rules.gradle.linter.task.ArchitectureGraphTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.ArchitectureTask
 import ru.astrainteractive.klibs.rules.gradle.linter.util.detectUnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.util.explicitApiMode
@@ -133,10 +136,44 @@ internal class LinterPlugin : Plugin<Project> {
         )
     }
 
+    private fun Project.graphService(): Provider<ArchitectureGraphService> {
+        return gradle.sharedServices.registerIfAbsent(
+            GRAPH_SERVICE_NAME,
+            ArchitectureGraphService::class.java
+        ) { }
+    }
+
+    private fun Project.configureGraphContribution() {
+        val service = graphService()
+        afterEvaluate { project ->
+            val parameters = service.get().parameters
+            synchronized(parameters) {
+                val dependencies = project.productionProjectDependencies()
+                val metadata = listOf(project.path).plus(dependencies).joinToString("\t")
+                parameters.unitMetadata.add(metadata)
+            }
+        }
+    }
+
+    private fun Project.configureGraphCheck() {
+        val service = graphService()
+        tasks.register(GRAPH_CHECK_TASK_NAME, ArchitectureGraphTask::class.java) { task ->
+            task.description = "Checks that the complete unit dependency graph is acyclic"
+            task.usesService(service)
+            task.unitMetadata.set(service.get().parameters.unitMetadata.map { metadata -> metadata })
+        }
+        plugins.withType(LifecycleBasePlugin::class.java) {
+            tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) { task ->
+                task.dependsOn(GRAPH_CHECK_TASK_NAME)
+            }
+        }
+    }
+
     override fun apply(target: Project) {
         target.pluginManager.apply(DetektPlugin::class.java)
         val rulesVersion = readRulesVersion()
         target.configureDetekt(rulesVersion)
+        target.configureGraphContribution()
 
         val extension = target.extensions.create(EXTENSION_NAME, LinterExtension::class.java)
         extension.unitKind.convention(target.provider { target.detectUnitKind().cliName })
@@ -164,10 +201,12 @@ internal class LinterPlugin : Plugin<Project> {
         target.plugins.withType(LifecycleBasePlugin::class.java) {
             target.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) { task -> task.dependsOn(checkTask) }
         }
+        if (target.path == target.isolated.rootProject.path) target.configureGraphCheck()
     }
 
     companion object {
         const val CHECK_TASK_NAME = "architectureCheck"
+        const val GRAPH_CHECK_TASK_NAME = "architectureGraphCheck"
         const val BASELINE_TASK_NAME = "architectureBaseline"
         const val BASELINE_FILE_NAME = "architecture-baseline.txt"
 
@@ -176,6 +215,7 @@ internal class LinterPlugin : Plugin<Project> {
         private const val RULES_VERSION_FILE = "klibs-rules.properties"
         private const val ARCHITECTURE_CONFIG_FILE_NAME = "detekt-architecture.yml"
         private const val CONFIG_SERVICE_NAME = "klibsDetektArchitectureConfig"
+        private const val GRAPH_SERVICE_NAME = "klibsArchitectureGraph"
         private const val KONSIST_CONFIGURATION = "klibsArchitectureKonsist"
     }
 }

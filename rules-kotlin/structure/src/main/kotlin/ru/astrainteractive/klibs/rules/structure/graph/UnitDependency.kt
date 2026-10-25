@@ -25,6 +25,9 @@ public class UnitDependency : StructureCheck {
             dependencyName == IMPL -> "Only the entry point depends on $dependency: depend on the api unit next to it."
             dependencyName in PLATFORMS && !isCore(dependency) ->
                 "Only the entry point depends on the platform unit $dependency: depend on the api unit next to it."
+            dependency in UnitDependencyDirection.findForbidden(unit) ->
+                "The dependency $dependency is not allowed for ${unit.path} by the unit direction table: depend " +
+                    "on an api unit, platform-free core or a storage contracts unit instead."
             else -> null
         }
     }

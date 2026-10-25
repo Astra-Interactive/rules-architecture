@@ -377,6 +377,40 @@ class LinterPluginTest {
         assertEquals("-Xexplicit-api=warning", build.file("library/build/detekt-arguments.txt").readText())
     }
 
+    @Test
+    fun GIVEN_acyclic_unit_graph_WHEN_graph_checked_THEN_passes(@TempDir rootDirectory: File) {
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript(JAVA_MODULE_SCRIPT)
+            .withModule(name = "api", buildScript = JAVA_MODULE_SCRIPT)
+            .withModule(name = "impl", buildScript = JAVA_MODULE_SCRIPT)
+
+        build.run(":architectureGraphCheck")
+    }
+
+    @Test
+    fun GIVEN_unit_dependency_cycle_WHEN_graph_checked_THEN_reports_the_cycle(@TempDir rootDirectory: File) {
+        val aScript = """
+            $JAVA_MODULE_SCRIPT
+
+            dependencies { implementation(project(":b")) }
+        """.trimIndent()
+        val bScript = """
+            $JAVA_MODULE_SCRIPT
+
+            dependencies { implementation(project(":a")) }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript(JAVA_MODULE_SCRIPT)
+            .withModule(name = "a", buildScript = aScript)
+            .withModule(name = "b", buildScript = bScript)
+
+        val result = build.runAndFail(":architectureGraphCheck")
+
+        assertTrue(result.output.contains(":a -> :b -> :a"), result.output)
+    }
+
     private companion object {
         val JAVA_MODULE_SCRIPT = """
             plugins {

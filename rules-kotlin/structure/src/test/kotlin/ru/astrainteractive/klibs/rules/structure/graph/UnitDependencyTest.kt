@@ -93,7 +93,10 @@ internal class UnitDependencyTest {
             )
         )
 
-        assertEquals(listOf(":modules:menu:bukkit"), UnitDependency().check(gui).map(StructureViolation::subject))
+        assertEquals(
+            listOf(":modules:event-bukkit", ":modules:menu:bukkit"),
+            UnitDependency().check(gui).map(StructureViolation::subject)
+        )
     }
 
     @Test

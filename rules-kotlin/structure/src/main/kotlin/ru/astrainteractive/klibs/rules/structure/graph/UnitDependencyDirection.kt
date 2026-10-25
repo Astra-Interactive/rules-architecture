@@ -1,0 +1,101 @@
+package ru.astrainteractive.klibs.rules.structure.graph
+
+import ru.astrainteractive.klibs.rules.structure.unit.BuildUnit
+
+internal object UnitDependencyDirection {
+    private val platforms = setOf(
+        "bukkit",
+        "bungee",
+        "fabric",
+        "forge",
+        "neoforge",
+        "paper",
+        "spigot",
+        "velocity"
+    )
+    private val technologies = setOf(
+        "cache4k",
+        "datastore",
+        "exposed",
+        "file",
+        "krate",
+        "ktor",
+        "memory",
+        "okhttp",
+        "retrofit",
+        "room",
+        "sqldelight"
+    )
+
+    private enum class Kind {
+        ENTRY_POINT,
+        PLATFORM,
+        CONTEXT,
+        API,
+        IMPL,
+        TECHNOLOGY,
+        STORAGE_CONTRACT,
+        CONTRACT,
+        CORE_API,
+        CORE_PLATFORM,
+        FAKE
+    }
+
+    private fun kindOf(path: String, isEntryPoint: Boolean): Kind {
+        val segments = path.split(':')
+        val name = segments.last()
+        val isCore = "core" in segments
+        return when {
+            isEntryPoint -> Kind.ENTRY_POINT
+            isCore && name in platforms -> Kind.CORE_PLATFORM
+            isCore -> Kind.CORE_API
+            name == "api" -> Kind.API
+            name == "impl" -> Kind.IMPL
+            name == "contract" -> Kind.CONTRACT
+            name == "dao" -> Kind.STORAGE_CONTRACT
+            name == "fake" -> Kind.FAKE
+            name in technologies -> Kind.TECHNOLOGY
+            name in platforms -> Kind.PLATFORM
+            else -> Kind.CONTEXT
+        }
+    }
+
+    private fun allowedTargets(source: Kind): Set<Kind> {
+        return when (source) {
+            Kind.ENTRY_POINT -> Kind.entries.toSet()
+            Kind.PLATFORM, Kind.CONTEXT -> setOf(
+                Kind.API,
+                Kind.CORE_API,
+                Kind.CORE_PLATFORM,
+                Kind.STORAGE_CONTRACT,
+                Kind.CONTRACT
+            )
+            Kind.API -> setOf(
+                Kind.API,
+                Kind.CORE_API,
+                Kind.STORAGE_CONTRACT,
+                Kind.CONTRACT
+            )
+            Kind.IMPL -> setOf(Kind.API, Kind.CORE_API)
+            Kind.TECHNOLOGY -> setOf(
+                Kind.STORAGE_CONTRACT,
+                Kind.CONTRACT,
+                Kind.CORE_API
+            )
+            Kind.STORAGE_CONTRACT -> setOf(Kind.CORE_API)
+            Kind.CORE_API, Kind.CONTRACT -> emptySet()
+            Kind.CORE_PLATFORM -> setOf(Kind.CORE_API)
+            Kind.FAKE -> setOf(Kind.API)
+        }
+    }
+
+    fun findForbidden(unit: BuildUnit): List<String> {
+        val source = kindOf(unit.path, unit.isEntryPoint)
+        val allowed = allowedTargets(source)
+        val fakeApi = unit.path.removeSuffix(":fake").plus(":api")
+        return unit.projectDependencies
+            .filter { dependency -> source != Kind.FAKE || dependency != fakeApi }
+            .filter { dependency -> source == Kind.FAKE || kindOf(dependency, isEntryPoint = false) !in allowed }
+            .sorted()
+    }
+}

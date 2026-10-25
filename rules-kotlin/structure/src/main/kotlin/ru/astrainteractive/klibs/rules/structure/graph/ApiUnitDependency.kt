@@ -10,16 +10,12 @@ import ru.astrainteractive.klibs.rules.structure.unit.StructureViolation
  */
 public class ApiUnitDependency : StructureCheck {
 
-    private fun isAllowed(dependency: String): Boolean {
-        val segments = dependency.split(':')
-        return segments.last() in ALLOWED_NAMES || CORE in segments
-    }
-
     override fun check(unit: BuildUnit): List<StructureViolation> {
         if (unit.name != API) return emptyList()
+        val forbidden = UnitDependencyDirection.findForbidden(unit)
         return unit.projectDependencies
             .sorted()
-            .filterNot { dependency -> isAllowed(dependency) || dependency.substringAfterLast(':') == IMPL }
+            .filter { dependency -> dependency in forbidden && dependency.substringAfterLast(':') != IMPL }
             .map { dependency ->
                 val message = "An api unit depends only on other api units, core and the storage contracts unit: " +
                     "drop $dependency or depend on its api unit."
@@ -37,13 +33,5 @@ public class ApiUnitDependency : StructureCheck {
         const val BUILD_FILE = "build.gradle.kts"
         const val API = "api"
         const val IMPL = "impl"
-        const val CORE = "core"
-
-        @JvmField
-        val ALLOWED_NAMES = setOf(
-            API,
-            "dao",
-            "contract"
-        )
     }
 }
