@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package ru.astrainteractive.klibs.rules.gradle.linter.util
 
 import org.gradle.api.Project
@@ -5,6 +7,8 @@ import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
+import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
+import org.jetbrains.kotlin.gradle.dsl.KotlinBaseExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.mpp.Framework
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
@@ -49,6 +53,17 @@ private fun Project.isEntryPointByConvention(): Boolean {
         .or(path.startsWith(ENTRY_POINT_PATH_PREFIX))
 }
 
+/**
+ * Call it only when a Kotlin plugin is applied.
+ */
+internal fun Project.explicitApiMode(): String? {
+    return when (extensions.findByType(KotlinBaseExtension::class.java)?.explicitApi) {
+        ExplicitApiMode.Strict -> "strict"
+        ExplicitApiMode.Warning -> "warning"
+        else -> null
+    }
+}
+
 internal fun Project.detectUnitKind(): UnitKind {
     val unitName = path.substringAfterLast(':')
     return when {
@@ -89,9 +104,9 @@ private fun Project.apiDependencies(): List<String> {
     return configurations
         .filter { configuration -> isApiConfiguration(configuration.name) }
         .flatMap { configuration ->
-            configuration.dependencies.map { dependency ->
-                "${configuration.name}: ${dependencyNotation(dependency)}"
-            }
+            configuration.dependencies
+                .filterNot { dependency -> dependency.group == null && dependency.name == "unspecified" }
+                .map { dependency -> "${configuration.name}: ${dependencyNotation(dependency)}" }
         }
         .sorted()
 }
