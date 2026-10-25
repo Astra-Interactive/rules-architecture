@@ -22,6 +22,8 @@ internal class UnitSources(
     val mainDirectories: List<File>,
     val mainFiles: List<KoFileDeclaration>,
     val testFiles: List<KoFileDeclaration>,
+    private val mainSourceSets: Map<String, File>,
+    private val testSourceSets: Map<String, File>,
     private val projectDirectory: File
 ) {
     /**
@@ -54,6 +56,14 @@ internal class UnitSources(
     }
 
     fun placementOf(file: KoFileDeclaration): Placement? = layout.placementOf(file.packageName)
+
+    private fun sourceSetOf(file: KoFileDeclaration, sourceSets: Map<String, File>): String? {
+        return sourceSets.entries.singleOrNull { entry -> File(file.path).startsWith(entry.value) }?.key
+    }
+
+    fun mainSourceSetOf(file: KoFileDeclaration): String? = sourceSetOf(file, mainSourceSets)
+
+    fun testSourceSetOf(file: KoFileDeclaration): String? = sourceSetOf(file, testSourceSets)
 
     /**
      * Resolves an import of the main sources to the package that declares it, trying shorter prefixes for an
@@ -89,6 +99,8 @@ internal class UnitSources(
             unitPath: String?,
             mainDirectories: List<File>,
             testDirectories: List<File>,
+            mainSourceSets: Map<String, File>,
+            testSourceSets: Map<String, File>,
             projectDirectory: File
         ): UnitSources {
             val mainFiles = parse(mainDirectories)
@@ -106,6 +118,8 @@ internal class UnitSources(
                 mainDirectories = mainDirectories,
                 mainFiles = mainFiles,
                 testFiles = parse(testDirectories),
+                mainSourceSets = mainSourceSets,
+                testSourceSets = testSourceSets,
                 projectDirectory = projectDirectory
             )
         }

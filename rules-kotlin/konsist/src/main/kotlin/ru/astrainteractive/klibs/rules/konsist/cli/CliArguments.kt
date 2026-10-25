@@ -4,7 +4,8 @@ import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 import java.io.File
 
 /**
- * The options of the command line, each written as `--name value`; `--main` and `--test` may repeat.
+ * The options of the command line, each written as `--name value`; `--main` and `--test` may repeat and accept
+ * either a directory or `sourceSet=directory`.
  *
  * @property unitPath the Gradle path of the unit (`:modules:event-bukkit`), which finds the root package when
  * [rootPackage] is not given
@@ -16,6 +17,8 @@ internal data class CliArguments(
     val unitPath: String?,
     val mainDirectories: List<File>,
     val testDirectories: List<File>,
+    val mainSourceSets: Map<String, File>,
+    val testSourceSets: Map<String, File>,
     val reportFile: File
 ) {
     companion object {
@@ -52,6 +55,16 @@ internal data class CliArguments(
             return requireNotNull(UnitKind.fromCliName(name)) { "Unknown unit kind '$name', expected one of $kinds" }
         }
 
+        private fun sourceSets(values: List<String>): Map<String, File> {
+            return buildMap {
+                values.filter { value -> "=" in value }.forEach { value ->
+                    put(value.substringBefore('='), File(value.substringAfter('=')))
+                }
+            }
+        }
+
+        private fun sourceDirectory(value: String): File = File(value.substringAfter('='))
+
         fun parse(arguments: List<String>): CliArguments {
             require(arguments.size % 2 == 0) { "Every option takes exactly one value: $arguments" }
             val options = arguments.chunked(2).groupBy(
@@ -65,8 +78,10 @@ internal data class CliArguments(
                 unitKind = parseUnitKind(options.required(UNIT_KIND)),
                 rootPackage = options.single(ROOT_PACKAGE),
                 unitPath = options.single(UNIT_PATH),
-                mainDirectories = options[MAIN].orEmpty().map(::File),
-                testDirectories = options[TEST].orEmpty().map(::File),
+                mainDirectories = options[MAIN].orEmpty().map(::sourceDirectory),
+                testDirectories = options[TEST].orEmpty().map(::sourceDirectory),
+                mainSourceSets = sourceSets(options[MAIN].orEmpty()),
+                testSourceSets = sourceSets(options[TEST].orEmpty()),
                 reportFile = File(options.required(REPORT))
             )
         }

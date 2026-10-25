@@ -29,6 +29,8 @@ internal class PlatformPackageTest {
             unitPath = null,
             mainDirectories = listOf(tree.mainDirectory, File(directory, "src/androidMain/kotlin")),
             testDirectories = emptyList(),
+            mainSourceSets = emptyMap(),
+            testSourceSets = emptyMap(),
             projectDirectory = directory
         )
 

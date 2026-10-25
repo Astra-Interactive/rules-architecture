@@ -411,6 +411,29 @@ class LinterPluginTest {
         assertTrue(result.output.contains(":a -> :b -> :a"), result.output)
     }
 
+    @Test
+    fun GIVEN_test_in_another_source_set_WHEN_architecture_checked_THEN_reports_the_expected_set(
+        @TempDir rootDirectory: File
+    ) {
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "jail", buildScript = JAVA_MODULE_SCRIPT)
+            .withSourceFile("jail/README.md", "Jails players for a sentence and frees them when it ends.")
+            .withSourceFile(
+                "jail/src/commonMain/kotlin/com/example/jail/model/Jail.kt",
+                "package com.example.jail.model\n\nclass Jail"
+            )
+            .withSourceFile(
+                "jail/src/jvmTest/kotlin/com/example/jail/model/JailTest.kt",
+                "package com.example.jail.model\n\nclass JailTest"
+            )
+
+        val result = build.runAndFail(":jail:architectureCheck")
+
+        assertTrue(result.output.contains("Move JailTest to commonTest"), result.output)
+    }
+
     private companion object {
         val JAVA_MODULE_SCRIPT = """
             plugins {

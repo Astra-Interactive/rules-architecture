@@ -45,9 +45,36 @@ internal class CliArgumentsTest {
                 unitPath = ":instances:bukkit",
                 mainDirectories = listOf(File("/unit/src/main/kotlin"), File("/unit/src/jvmMain/kotlin")),
                 testDirectories = listOf(File("/unit/src/test/kotlin")),
+                mainSourceSets = emptyMap(),
+                testSourceSets = emptyMap(),
                 reportFile = File("/unit/report.tsv")
             ),
             arguments
+        )
+    }
+
+    @Test
+    fun GIVEN_source_set_qualified_directories_WHEN_parsed_THEN_keeps_names_and_files() {
+        val arguments = CliArguments.parse(
+            required + listOf(
+                "--main",
+                "commonMain=/unit/src/commonMain/kotlin",
+                "--test",
+                "commonTest=/unit/src/commonTest/kotlin"
+            )
+        )
+
+        assertEquals(
+            mapOf("commonMain" to File("/unit/src/commonMain/kotlin")),
+            arguments.mainSourceSets
+        )
+        assertEquals(
+            mapOf("commonTest" to File("/unit/src/commonTest/kotlin")),
+            arguments.testSourceSets
+        )
+        assertEquals(
+            listOf(File("/unit/src/commonMain/kotlin")),
+            arguments.mainDirectories
         )
     }
 

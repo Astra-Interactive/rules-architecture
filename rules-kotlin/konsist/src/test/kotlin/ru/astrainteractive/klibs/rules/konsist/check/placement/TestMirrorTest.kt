@@ -65,4 +65,55 @@ internal class TestMirrorTest {
             violations.single().message
         )
     }
+
+    @Test
+    fun GIVEN_common_main_owner_and_jvm_test_WHEN_checked_THEN_reports_the_source_set(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main(
+                "commonMain",
+                "com.example.jail.model",
+                "Jail.kt",
+                "class Jail"
+            )
+            .test(
+                "jvmTest",
+                "com.example.jail.model",
+                "JailTest.kt",
+                "class JailTest"
+            )
+            .loadSourceSets(
+                UnitKind.CONTEXT,
+                "commonMain",
+                "jvmTest"
+            )
+
+        assertEquals(
+            "Move JailTest to commonTest, the test source set of Jail in com.example.jail.model.",
+            TestMirror().check(sources).single().message
+        )
+    }
+
+    @Test
+    fun GIVEN_matching_common_source_sets_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main(
+                "commonMain",
+                "com.example.jail.model",
+                "Jail.kt",
+                "class Jail"
+            )
+            .test(
+                "commonTest",
+                "com.example.jail.model",
+                "JailTest.kt",
+                "class JailTest"
+            )
+            .loadSourceSets(
+                UnitKind.CONTEXT,
+                "commonMain",
+                "commonTest"
+            )
+
+        assertEquals(emptyList(), TestMirror().check(sources))
+    }
 }

@@ -103,11 +103,11 @@ internal abstract class ArchitectureTask : DefaultTask() {
             }
             mainDirectories.forEach { directory ->
                 add("--main")
-                add(directory.absolutePath)
+                add(directory.parentFile.name + "=" + directory.absolutePath)
             }
             sourceDirectories(isTest = true).forEach { directory ->
                 add("--test")
-                add(directory.absolutePath)
+                add(directory.parentFile.name + "=" + directory.absolutePath)
             }
         }
     }

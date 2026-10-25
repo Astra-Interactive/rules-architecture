@@ -42,7 +42,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.placement.UtilShape
  *
  * Options: `--project-dir`, `--unit-kind` (`context`, `library`, `api`, `contract`, `entry-point`,
  * `technology`), `--report`, an optional `--unit-path` or `--root-package`, and any number of `--main` and
- * `--test` source directories.
+ * `--test` source directories, written as `sourceSet=path` when source-set mirroring should be checked.
  */
 public fun main(args: Array<String>) {
     val arguments = CliArguments.parse(args.toList())
@@ -52,6 +52,8 @@ public fun main(args: Array<String>) {
         unitPath = arguments.unitPath,
         mainDirectories = arguments.mainDirectories,
         testDirectories = arguments.testDirectories,
+        mainSourceSets = arguments.mainSourceSets,
+        testSourceSets = arguments.testSourceSets,
         projectDirectory = arguments.projectDirectory
     )
     val checker = ArchitectureChecker(
