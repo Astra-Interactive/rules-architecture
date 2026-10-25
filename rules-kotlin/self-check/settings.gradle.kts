@@ -23,7 +23,3 @@ include(":detekt")
 include(":gradle-plugin")
 include(":konsist")
 include(":structure")
-
-listOf("detekt", "gradle-plugin", "konsist", "structure").forEach { module ->
-    project(":$module").projectDir = file("build/units/$module")
-}

@@ -7,17 +7,15 @@ plugins {
     alias(libs.plugins.kover) apply false
 }
 
-val architectureSelfCheckSources = tasks.register<Sync>("architectureSelfCheckSources") {
-    destinationDir = rootProject.file("self-check/build/units")
+val architectureSelfCheckSources = tasks.register<Copy>("architectureSelfCheckSources") {
+    destinationDir = rootProject.file("self-check")
     listOf("detekt", "gradle-plugin", "konsist", "structure").forEach { module ->
         from("$module/src") { into("$module/src") }
         from("$module/README.md") { into(module) }
-        from("self-check/$module/build.gradle.kts") { into(module) }
-        from("self-check/$module/architecture-baseline.txt") { into(module) }
     }
 }
 
-val architectureSelfCheck = tasks.register<GradleBuild>("architectureSelfCheck") {
+val architectureSelfCheck = tasks.register<Exec>("architectureSelfCheck") {
     group = "verification"
     dependsOn(architectureSelfCheckSources)
     dependsOn(
@@ -26,8 +24,13 @@ val architectureSelfCheck = tasks.register<GradleBuild>("architectureSelfCheck")
         ":konsist:publishToMavenLocal",
         ":structure:publishToMavenLocal"
     )
-    dir = rootProject.file("self-check")
-    tasks = listOf(
+    workingDir = rootProject.file("self-check")
+    commandLine(
+        rootProject.file("gradlew").absolutePath,
+        "-p",
+        rootProject.file("self-check").absolutePath,
+        "-DklibsRulesVersion=${project.property("klibs.project.version.string")}",
+        "-DklibsKotlinVersion=${libs.versions.kotlin.version.get()}",
         ":architectureCheck",
         ":detekt:architectureCheck",
         ":gradle-plugin:architectureCheck",
@@ -35,9 +38,6 @@ val architectureSelfCheck = tasks.register<GradleBuild>("architectureSelfCheck")
         ":structure:architectureCheck",
         ":architectureGraphCheck"
     )
-    startParameter.systemPropertiesArgs["klibsRulesVersion"] =
-        project.property("klibs.project.version.string").toString()
-    startParameter.systemPropertiesArgs["klibsKotlinVersion"] = libs.versions.kotlin.version.get()
 }
 
 tasks.register("check") {

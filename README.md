@@ -352,9 +352,8 @@ cd rules-kotlin
 ./gradlew publishToMavenLocal  # ru.astrainteractive.klibs.rules:{detekt,gradle-plugin,konsist,structure}
 ```
 
-`check` publishes the current artifacts to Maven Local, copies the sources into `self-check/build/units`, and runs
-`architectureCheck` in every unit plus `architectureGraphCheck`. The baselines under `self-check/` accept only the
-legacy tooling-package layout; new violations fail the build.
+`check` publishes the current artifacts to Maven Local, copies the sources into `self-check`, and runs
+`architectureCheck` in every unit plus `architectureGraphCheck`, with no architecture baselines.
 
 ---
 
