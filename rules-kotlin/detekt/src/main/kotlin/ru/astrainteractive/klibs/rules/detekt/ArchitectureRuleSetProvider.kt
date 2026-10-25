@@ -13,6 +13,7 @@ import ru.astrainteractive.klibs.rules.detekt.compose.ThemeObjectFunction
 import ru.astrainteractive.klibs.rules.detekt.coroutine.ImpureUpdateLambda
 import ru.astrainteractive.klibs.rules.detekt.coroutine.MutableStateFlowEmit
 import ru.astrainteractive.klibs.rules.detekt.coroutine.SingleJobLaunchMode
+import ru.astrainteractive.klibs.rules.detekt.coroutine.StateFlowTimeout
 import ru.astrainteractive.klibs.rules.detekt.declaration.BareIdentifier
 import ru.astrainteractive.klibs.rules.detekt.declaration.CompanionFactoryFunction
 import ru.astrainteractive.klibs.rules.detekt.declaration.DataClassDefaultValue
@@ -43,6 +44,7 @@ import ru.astrainteractive.klibs.rules.detekt.ordering.CalleeBeforeCaller
 import ru.astrainteractive.klibs.rules.detekt.ordering.ConstantOutsideCompanion
 import ru.astrainteractive.klibs.rules.detekt.ordering.DeclarationOrder
 import ru.astrainteractive.klibs.rules.detekt.result.GetOrThrowInMain
+import ru.astrainteractive.klibs.rules.detekt.result.ResultConsumption
 import ru.astrainteractive.klibs.rules.detekt.result.RunCatchingCancellation
 import ru.astrainteractive.klibs.rules.detekt.result.ThrowInsideRunCatching
 import ru.astrainteractive.klibs.rules.detekt.testing.RunBlockingInTest
@@ -97,11 +99,13 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::PreviewBlockLast,
                 ::PropertyAsFunction,
                 ::RememberInName,
+                ::ResultConsumption,
                 ::RolelessClassName,
                 ::RootModuleConstruction,
                 ::RunBlockingInTest,
                 ::RunCatchingCancellation,
                 ::SingleJobLaunchMode,
+                ::StateFlowTimeout,
                 ::SystemTimeCall,
                 ::TestFunctionName,
                 ::ThemeObjectFunction,

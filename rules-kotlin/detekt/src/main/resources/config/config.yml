@@ -72,6 +72,8 @@ architecture:
     active: true
   RememberInName:
     active: true
+  ResultConsumption:
+    active: true
   RolelessClassName:
     active: true
   RootModuleConstruction:
@@ -81,6 +83,8 @@ architecture:
   RunCatchingCancellation:
     active: true
   SingleJobLaunchMode:
+    active: true
+  StateFlowTimeout:
     active: true
   SystemTimeCall:
     active: true

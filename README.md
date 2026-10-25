@@ -10,7 +10,7 @@ sources and tell you which file breaks which rule and how to fix it.
 
 ## ✨ Features
 
-- **Per-file rules for detekt**: 47 custom rules plus settings for detekt's own rules, with IDE support and
+- **Per-file rules for detekt**: 49 custom rules plus settings for detekt's own rules, with IDE support and
   `@Suppress`.
 - **Cross-file checks with Konsist**: role import direction, use case shape, contract and implementation
   levels, DI placement, test mirroring and more.
@@ -251,14 +251,16 @@ val violations: List<StructureViolation> = checker.check(
 | `MutableStateFlowEmit` | `emit`/`tryEmit` on a property declared or initialised as a `MutableStateFlow` |
 | `ImpureUpdateLambda` | an assignment to an outer name inside the lambda of `update`, `getAndUpdate` or `updateAndGet` |
 | `SingleJobLaunchMode` | a launch on a single-job scope without a `SingleJobMode`, an unguarded launch in an `on…` handler of a view model or component |
+| `StateFlowTimeout` | `StateFlow.first()` inside `withTimeout` or `withTimeoutOrNull` |
 | `ThrowInsideRunCatching` | a `throw` inside the lambda of `runCatching`, `mapCatching` or `recoverCatching` |
 | `RunCatchingCancellation` | a `runCatching` in a `suspend` function or coroutine lambda not followed by `.propagateCancellationException()` |
+| `ResultConsumption` | a `Result` discarded as a statement without consuming its success or failure |
 | `GetOrThrowInMain` | `getOrThrow()` outside the test sources |
 | `BareIdentifier` | a property named `id`/`…Id` typed `String`, `Int`, `Long` or `UUID` outside a `@Serializable` class or technology package, a `…Id` class that is not a value class |
 | `CompanionFactoryFunction` | a `create…`, `of` or `from` function in a companion object |
 | `RolelessClassName` | a `…Validator` or `…Factory` class, `…WarmUp`/`…Migration`/`…ViewModel` outside its `warmup`/`migration`/`viewmodel` package |
 | `DiModuleLifecycle` | a `…Module` that declares `enable`, `disable`, `reload`, `onEnable`, `onDisable` or `onReload` |
-| `RootModuleConstruction` | a `RootModule` property that constructs anything but a `…Module` or a `Lifecycle` |
+| `RootModuleConstruction` | a `RootModule` constructor call that constructs anything but a `…Module` or a `Lifecycle` |
 | `SystemTimeCall` | `System.currentTimeMillis()` and `System.nanoTime()` |
 | `RunBlockingInTest` | `runBlocking` in a test source set |
 | `KDocFiller` | a KDoc filler phrase, a `@return` of "the result", a `@param` that repeats its name, a summary of more than four sentences |
