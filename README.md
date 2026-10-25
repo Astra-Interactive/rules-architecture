@@ -342,14 +342,19 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `rules-kotlin/gradle-plugin` | the detekt and linter Gradle plugins                                    |
 | `rules-kotlin/konsist`     | the Konsist checks and their command-line entry point                     |
 | `rules-kotlin/structure`   | the structure checks                                                      |
+| `rules-kotlin/self-check`  | the isolated build that runs the real linter on every unit and the graph   |
 
 Build and test locally:
 
 ```shell
 cd rules-kotlin
-./gradlew check                # tests, 100% line coverage, detekt with these very rules
+./gradlew check                # tests, 100% line coverage, detekt and architecture self-checks
 ./gradlew publishToMavenLocal  # ru.astrainteractive.klibs.rules:{detekt,gradle-plugin,konsist,structure}
 ```
+
+`check` publishes the current artifacts to Maven Local, copies the sources into `self-check/build/units`, and runs
+`architectureCheck` in every unit plus `architectureGraphCheck`. The baselines under `self-check/` accept only the
+legacy tooling-package layout; new violations fail the build.
 
 ---
 

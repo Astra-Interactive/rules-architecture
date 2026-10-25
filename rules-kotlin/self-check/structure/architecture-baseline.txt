@@ -1,0 +1,16 @@
+KindShape	src/main/kotlin/ru/astrainteractive/klibs/rules/structure/buildfile/RootBuildSubprojects.kt	RootBuildSubprojects
+KindShape	src/main/kotlin/ru/astrainteractive/klibs/rules/structure/graph/ApiUnitDependency.kt	ApiUnitDependency
+KindShape	src/main/kotlin/ru/astrainteractive/klibs/rules/structure/graph/EntryPointDependency.kt	EntryPointDependency
+KindShape	src/main/kotlin/ru/astrainteractive/klibs/rules/structure/graph/TechnologyDependency.kt	TechnologyDependency
+KindShape	src/main/kotlin/ru/astrainteractive/klibs/rules/structure/graph/UnitDependency.kt	UnitDependency
+KindShape	src/main/kotlin/ru/astrainteractive/klibs/rules/structure/graph/UnitDependencyCycle.kt	UnitDependencyCycle
+KindShape	src/main/kotlin/ru/astrainteractive/klibs/rules/structure/graph/UnitDependencyDirection.kt	UnitDependencyDirection
+KindShape	src/main/kotlin/ru/astrainteractive/klibs/rules/structure/nesting/NestedUnit.kt	NestedUnit
+KindShape	src/main/kotlin/ru/astrainteractive/klibs/rules/structure/nesting/ProjectDirMatchesPath.kt	ProjectDirMatchesPath
+KindShape	src/main/kotlin/ru/astrainteractive/klibs/rules/structure/nesting/RootSources.kt	RootSources
+KindShape	src/main/kotlin/ru/astrainteractive/klibs/rules/structure/readme/UnitReadme.kt	UnitReadme
+KindShape	src/main/kotlin/ru/astrainteractive/klibs/rules/structure/unit/BuildUnit.kt	BuildUnit
+KindShape	src/main/kotlin/ru/astrainteractive/klibs/rules/structure/unit/StructureCheck.kt	StructureCheck
+KindShape	src/main/kotlin/ru/astrainteractive/klibs/rules/structure/unit/StructureChecker.kt	StructureChecker
+KindShape	src/main/kotlin/ru/astrainteractive/klibs/rules/structure/unit/StructureViolation.kt	StructureViolation
+ProjectDirMatchesPath	.	:structure

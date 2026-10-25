@@ -25,7 +25,7 @@ internal class DetektPlugin : Plugin<Project> {
     }
 
     override fun apply(target: Project) {
-        target.pluginManager.apply("dev.detekt")
+        target.pluginManager.apply(dev.detekt.gradle.plugin.DetektPlugin::class.java)
 
         val configService = target.gradle.sharedServices.registerIfAbsent(
             CONFIG_SERVICE_NAME,
