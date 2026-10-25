@@ -11,6 +11,7 @@ private val NON_CODE = Regex(
     """\"\"\"[\s\S]*?\"\"\"|//[^\n]*|/\*[\s\S]*?\*/|\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'"""
 )
 private val QUALIFIED_REFERENCE = Regex("""\b(?:[a-z_]\w*\.)+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*""")
+private val TYPE_NAME = Regex("""\b[A-Z]\w*\b""")
 
 internal val KoFileDeclaration.qualifiedReferences: Set<String>
     get() = QUALIFIED_REFERENCE.findAll(text.replace(NON_CODE, "")).map(MatchResult::value).toSet()
@@ -32,6 +33,9 @@ internal val KoFileDeclaration.baseName: String
  */
 internal val KoTypeDeclaration.simpleName: String
     get() = text.removeSuffix("?").substringBefore('<').substringAfterLast('.')
+
+internal val KoTypeDeclaration.typeNames: Set<String>
+    get() = TYPE_NAME.findAll(text).map(MatchResult::value).toSet()
 
 internal fun KoFileDeclaration.sourceReferences(): Set<String> {
     val wildcardPackages = imports.filter(KoImportDeclaration::isWildcard).map(KoImportDeclaration::name)

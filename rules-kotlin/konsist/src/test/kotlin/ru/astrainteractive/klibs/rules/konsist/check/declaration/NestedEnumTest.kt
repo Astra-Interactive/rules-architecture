@@ -16,7 +16,7 @@ internal class NestedEnumTest {
     fun GIVEN_enum_used_through_one_type_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
         val sources = SourceTree(directory)
             .main("com.example.paywall.model/FadeSide.kt", "enum class FadeSide { TOP, BOTTOM }")
-            .main("com.example.paywall.model/SoftEdge.kt", "data class SoftEdge(val side: FadeSide)")
+            .main("com.example.paywall.model/SoftEdge.kt", "data class SoftEdge(val sides: List<FadeSide>)")
             .load(UnitKind.CONTEXT)
 
         assertEquals(

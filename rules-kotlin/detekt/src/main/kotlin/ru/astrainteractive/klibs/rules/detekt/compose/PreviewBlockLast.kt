@@ -26,8 +26,7 @@ internal class PreviewBlockLast(config: Config) : Rule(config, DESCRIPTION) {
         val isPreviewFunction = declaration is KtNamedFunction && PREVIEW in name
         val hasPreviewPrefix = PREVIEW_VALUE_PREFIXES.any(name::startsWith)
         val isPreviewValue = declaration is KtProperty && hasPreviewPrefix
-        val isOther = declaration !is KtNamedFunction && declaration !is KtProperty
-        if (isPreviewFunction || isPreviewValue || isOther || isPreview(declaration)) return null
+        if (isPreviewFunction || isPreviewValue || isPreview(declaration)) return null
         return "Move '$name' above the previews, or name it for the preview block: the previews close the file " +
             "and hold only preview functions and PREVIEW_/Preview values."
     }

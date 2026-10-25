@@ -4,6 +4,7 @@ import dev.detekt.api.Config
 import dev.detekt.api.Entity
 import dev.detekt.api.Finding
 import dev.detekt.api.Rule
+import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
 
@@ -20,11 +21,16 @@ internal class NamespaceObject(config: Config) : Rule(config, DESCRIPTION) {
         return members.all { member -> member is KtNamedFunction }
     }
 
+    private fun isPublicDefaults(declaration: KtObjectDeclaration): Boolean {
+        val isPublic = listOf(KtTokens.PRIVATE_KEYWORD, KtTokens.INTERNAL_KEYWORD).none(declaration::hasModifier)
+        return isPublic && declaration.name.orEmpty().endsWith(DEFAULTS_SUFFIX)
+    }
+
     override fun visitObjectDeclaration(declaration: KtObjectDeclaration) {
         super.visitObjectDeclaration(declaration)
         if (declaration.isCompanion() || declaration.isObjectLiteral()) return
         if (declaration.superTypeListEntries.isNotEmpty()) return
-        if (declaration.name.orEmpty().endsWith(DEFAULTS_SUFFIX)) return
+        if (isPublicDefaults(declaration)) return
         if (!holdsOnlyFunctions(declaration)) return
         val message = "Make the functions of '${declaration.name}' top-level functions in a file named after them."
         report(Finding(Entity.from(declaration), message))

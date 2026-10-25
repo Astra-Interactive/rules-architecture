@@ -51,6 +51,8 @@ internal class PreviewBlockLastTest {
                     "file and hold only preview functions and PREVIEW_/Preview values.",
                 "Move 'HeroCopyFooter' above the previews, or name it for the preview block: the previews close " +
                     "the file and hold only preview functions and PREVIEW_/Preview values.",
+                "Move 'Plans' above the previews, or name it for the preview block: the previews close the file " +
+                    "and hold only preview functions and PREVIEW_/Preview values.",
             ),
             messages
         )

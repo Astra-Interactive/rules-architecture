@@ -18,7 +18,7 @@ internal class NestedDataClassTest {
             .main(
                 "com.example.jail.model",
                 "Jail.kt",
-                "data class Jail(val cell: Cell)"
+                "data class Jail(val cells: List<Cell>)"
             )
             .main(
                 "com.example.jail.model",

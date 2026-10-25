@@ -10,27 +10,18 @@ import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtUserType
-import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 
 /**
  * Reports a file that holds more than one type family: a top-level function beside a top-level class, interface
- * or object (a composable beside a class included, since a composable file declares no class), and a second
- * top-level class with behaviour. A class has behaviour unless it is a data, value, enum, annotation or sealed
- * class, an interface, an object, or a direct subtype of a sealed type declared in the same file.
+ * or object (a composable beside a class included, since a composable file declares no class), and any type beside
+ * another family. One sealed type and its variants form one family; unrelated data and value types do not.
  */
 internal class OneTypeFamilyPerFile(config: Config) : Rule(config, DESCRIPTION) {
 
-    private fun superTypeNames(declaration: KtClass): List<String?> {
+    private fun superTypeNames(declaration: KtClassOrObject): List<String?> {
         return declaration.superTypeListEntries.map { entry ->
             (entry.typeReference?.typeElement as? KtUserType)?.referencedName
         }
-    }
-
-    private fun hasBehaviour(declaration: KtClass, sealedNames: Set<String?>): Boolean {
-        val isDataHolder = declaration.isData() || declaration.isValue() || declaration.isInline()
-        val isSpecial = declaration.isEnum() || declaration.isAnnotation() || declaration.isInterface()
-        if (isDataHolder || isSpecial || declaration.isSealed()) return false
-        return superTypeNames(declaration).none { name -> name in sealedNames }
     }
 
     private fun reportFunctions(functions: List<KtNamedFunction>, typeName: String?) {
@@ -51,17 +42,15 @@ internal class OneTypeFamilyPerFile(config: Config) : Rule(config, DESCRIPTION) 
         val types = file.declarations.filterIsInstance<KtClassOrObject>()
         val functions = file.declarations.filterIsInstance<KtNamedFunction>()
         if (types.isNotEmpty()) reportFunctions(functions, types.first().name)
-        val sealedNames = file.collectDescendantsOfType<KtClass>(KtClass::isSealed)
-            .map(KtClass::getName)
-            .toSet()
-        types.filterIsInstance<KtClass>()
-            .filter { declaration -> hasBehaviour(declaration, sealedNames) }
-            .drop(1)
-            .forEach { declaration ->
-                val message = "Move '${declaration.name}' to its own file: a class with behaviour always has its " +
-                    "own file."
-                report(Finding(Entity.atName(declaration), message))
-            }
+        val sealedRoot = types.filterIsInstance<KtClass>().firstOrNull(KtClass::isSealed)
+        types.forEachIndexed { index, declaration ->
+            val isRoot = declaration === sealedRoot
+            val isVariant = sealedRoot?.name in superTypeNames(declaration)
+            val isSealedFamily = sealedRoot != null && (isRoot || isVariant)
+            if (isSealedFamily || (sealedRoot == null && index == 0)) return@forEachIndexed
+            val message = "Move '${declaration.name}' to its own file: a file holds one type family."
+            report(Finding(Entity.atName(declaration), message))
+        }
     }
 
     private companion object {

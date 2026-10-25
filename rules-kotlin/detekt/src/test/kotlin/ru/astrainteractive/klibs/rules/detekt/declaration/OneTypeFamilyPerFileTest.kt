@@ -50,7 +50,10 @@ internal class OneTypeFamilyPerFileTest {
         val messages = rule.lint(code).map(Finding::message)
 
         assertEquals(
-            listOf("Move 'RefreshingCache' to its own file: a class with behaviour always has its own file."),
+            listOf(
+                "Move 'RefreshingCache' to its own file: a file holds one type family.",
+                "Move 'Entry' to its own file: a file holds one type family."
+            ),
             messages
         )
     }
@@ -64,27 +67,25 @@ internal class OneTypeFamilyPerFileTest {
 
             class OrderLoadError(message: String) : OrderError(message)
 
-            sealed interface Result
+            object Unknown : OrderError("unknown")
+        """.trimIndent()
 
-            object Done : Result
+        assertEquals(0, rule.lint(code).size)
+    }
 
-            class Failed(val reason: String) : Result
-
+    @Test
+    fun GIVEN_unrelated_data_and_behavior_types_WHEN_linted_THEN_reports_each_extra_family() {
+        val code = """
             data class Order(val id: Int)
 
-            @JvmInline
             value class OrderId(val value: Int)
 
-            inline class LegacyId(val value: Int)
-
             enum class Stage { OFFER }
-
-            annotation class Marker
 
             interface Source
         """.trimIndent()
 
-        assertEquals(0, rule.lint(code).size)
+        assertEquals(3, rule.lint(code).size)
     }
 
     @Test

@@ -5,6 +5,7 @@ import dev.detekt.api.Entity
 import dev.detekt.api.Finding
 import dev.detekt.api.Rule
 import dev.detekt.psi.hasAnnotation
+import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -18,7 +19,8 @@ import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 internal class ComposableFileType(config: Config) : Rule(config, DESCRIPTION) {
 
     private fun isDefaultsObject(declaration: KtClassOrObject): Boolean {
-        return declaration is KtObjectDeclaration && declaration.name.orEmpty().endsWith(DEFAULTS_SUFFIX)
+        val isPublic = listOf(KtTokens.PRIVATE_KEYWORD, KtTokens.INTERNAL_KEYWORD).none(declaration::hasModifier)
+        return declaration is KtObjectDeclaration && isPublic && declaration.name.orEmpty().endsWith(DEFAULTS_SUFFIX)
     }
 
     override fun visitKtFile(file: KtFile) {

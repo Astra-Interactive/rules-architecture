@@ -22,6 +22,8 @@ internal class ComposableFileTypeTest {
 
             object ButtonDefaults
 
+            private object InternalButtonDefaults
+
             interface Fade
 
             @Composable
@@ -30,7 +32,7 @@ internal class ComposableFileTypeTest {
 
         val messages = rule.lint(code).map(Finding::message)
 
-        assertEquals(4, messages.size)
+        assertEquals(5, messages.size)
         assertEquals(
             "Move 'SoftEdge' out of this composable file: a composable file declares no class; a data class goes " +
                 "to model/, shared values to theme/.",

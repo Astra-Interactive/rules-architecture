@@ -6,8 +6,8 @@ import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
-import ru.astrainteractive.klibs.rules.konsist.check.model.simpleName
 import ru.astrainteractive.klibs.rules.konsist.check.model.topLevelClasses
+import ru.astrainteractive.klibs.rules.konsist.check.model.typeNames
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 
 /**
@@ -27,9 +27,9 @@ internal class NestedDataClass : ArchitectureCheck {
     private fun propertyTypeNames(declaration: KoClassDeclaration): Set<String> {
         val constructorTypes = declaration.primaryConstructor?.parameters.orEmpty()
             .filter { parameter -> parameter.isVal || parameter.isVar }
-            .map { parameter -> parameter.type.simpleName }
+            .flatMap { parameter -> parameter.type.typeNames }
         val bodyTypes = declaration.properties(includeNested = false)
-            .mapNotNull { property -> property.type?.simpleName }
+            .flatMap { property -> property.type?.typeNames.orEmpty() }
         return constructorTypes.plus(bodyTypes).toSet()
     }
 

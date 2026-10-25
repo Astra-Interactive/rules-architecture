@@ -36,6 +36,7 @@ internal class NestedOwnerExtTest {
             setOf(
                 "Cell",
                 "List",
+                "Stage",
                 "String"
             ),
             jail.propertyTypeNames()

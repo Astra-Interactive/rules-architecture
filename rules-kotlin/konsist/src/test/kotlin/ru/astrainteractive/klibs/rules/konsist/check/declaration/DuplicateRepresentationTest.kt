@@ -29,6 +29,19 @@ internal class DuplicateRepresentationTest {
     }
 
     @Test
+    fun GIVEN_one_field_technology_copy_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main("x.jail.model/Cell.kt", "data class Cell(val id: Long)")
+            .main("x.jail.memory/CellEntry.kt", "data class CellEntry(val id: Long)")
+            .load(UnitKind.CONTEXT, rootPackage = "x")
+
+        assertEquals(
+            listOf("CellEntry"),
+            DuplicateRepresentation().check(sources).map(Violation::subject)
+        )
+    }
+
+    @Test
     fun GIVEN_technology_shapes_of_their_own_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
         val sources = SourceTree(directory)
             .main(
@@ -43,7 +56,7 @@ internal class DuplicateRepresentationTest {
             .main(
                 "x.jail.memory/CellEntry.kt",
                 """
-                data class CellEntry(val id: Long)
+                data class CellEntry(val id: String)
 
                 class Store(val id: Long, val name: String)
                 """

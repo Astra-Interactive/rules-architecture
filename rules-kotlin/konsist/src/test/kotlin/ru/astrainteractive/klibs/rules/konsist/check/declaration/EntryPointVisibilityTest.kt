@@ -37,6 +37,16 @@ internal class EntryPointVisibilityTest {
                 "class RatingComponent"
             )
             .main(
+                "x.command.rating.gui",
+                "RatingMenu.kt",
+                "class RatingMenu"
+            )
+            .main(
+                "x.command.rating.menu",
+                "RatingScreen.kt",
+                "class RatingScreen"
+            )
+            .main(
                 "x.command.di",
                 "CommandsModule.kt",
                 "class CommandsModule"
@@ -59,7 +69,9 @@ internal class EntryPointVisibilityTest {
             listOf(
                 "CommandExceptionHandler",
                 "RatingCommand",
-                "RatingExpansion"
+                "RatingExpansion",
+                "RatingMenu",
+                "RatingScreen"
             ),
             subjects
         )

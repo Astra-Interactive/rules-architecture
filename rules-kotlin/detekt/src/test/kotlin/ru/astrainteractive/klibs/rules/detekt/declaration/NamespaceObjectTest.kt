@@ -76,6 +76,17 @@ internal class NamespaceObjectTest {
     }
 
     @Test
+    fun GIVEN_private_defaults_namespace_WHEN_linted_THEN_reports_it() {
+        val code = """
+            private object ButtonDefaults {
+                fun colors(): ButtonColors = ButtonColors()
+            }
+        """.trimIndent()
+
+        assertEquals(1, rule.lint(code).size)
+    }
+
+    @Test
     fun GIVEN_component_defaults_object_holding_only_functions_WHEN_linted_THEN_reports_nothing() {
         val code = """
             object ButtonDefaults {
