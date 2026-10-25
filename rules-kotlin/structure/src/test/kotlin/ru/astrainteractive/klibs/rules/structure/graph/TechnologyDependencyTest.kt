@@ -33,17 +33,21 @@ internal class TechnologyDependencyTest {
             violations.map(StructureViolation::subject)
         )
         assertEquals(
-            "Depend on the contracts unit instead of the technology unit :core:cache4k: only the technology unit " +
-                "and the entry point depend on the technology.",
+            "Depend on storage contracts and platform-free core instead of the technology unit :core:cache4k: " +
+                "only compatible technology units and the entry point may depend on it.",
             violations.first().message
         )
     }
 
     @Test
-    fun GIVEN_entry_point_or_technology_unit_WHEN_checked_THEN_reports_nothing() {
+    fun GIVEN_entry_point_or_unrelated_technology_dependency_WHEN_checked_THEN_applies_the_direction_table() {
         val entryPoint = TechnologyDependency().check(unit(":instances:bukkit", isEntryPoint = true))
         val technology = TechnologyDependency().check(unit(":modules:data:room", isEntryPoint = false))
 
-        assertEquals(emptyList(), entryPoint + technology)
+        assertEquals(emptyList(), entryPoint)
+        assertEquals(
+            listOf(":core:cache4k", ":modules:data:exposed"),
+            technology.map(StructureViolation::subject)
+        )
     }
 }

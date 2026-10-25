@@ -3,8 +3,13 @@ package ru.astrainteractive.klibs.rules.detekt.injection
 import dev.detekt.api.Config
 import dev.detekt.api.Entity
 import dev.detekt.api.Finding
+import dev.detekt.api.RequiresAnalysisApi
 import dev.detekt.api.Rule
 import dev.detekt.psi.hasAnnotation
+import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.symbols.KaClassKind
+import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
+import org.jetbrains.kotlin.analysis.api.types.symbol
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtConstructor
@@ -17,15 +22,20 @@ import org.jetbrains.kotlin.psi.KtSecondaryConstructor
 /**
  * Reports a constructor parameter whose default value constructs an object, such as `= Foo()` or `= foo.Bar()`.
  *
- * Works on syntax only: a call counts as a construction when its callee starts with an upper-case letter, so a
- * factory function (`= createFoo()`) is not seen. `Clock.System` is a concrete clock dependency, not a value default.
- * A `@Serializable` class is exempt, because serialization needs its defaults; other data classes are left to
- * [ru.astrainteractive.klibs.rules.detekt.declaration.DataClassDefaultValue].
+ * A call counts as a construction when its callee starts with an upper-case letter, so a factory function
+ * (`= createFoo()`) is not seen. Resolved object references, `Clock.System` and other singleton dependencies, count
+ * too; enum entries and primitive constants do not. A `@Serializable` class is exempt, because serialization needs
+ * its defaults; other data classes are left to [ru.astrainteractive.klibs.rules.detekt.declaration.DataClassDefaultValue].
  */
-internal class ConstructorDefaultDependency(config: Config) : Rule(config, DESCRIPTION) {
+internal class ConstructorDefaultDependency(config: Config) : Rule(config, DESCRIPTION), RequiresAnalysisApi {
+    private fun isObjectReference(expression: KtExpression): Boolean {
+        return analyze(expression) {
+            (expression.expressionType?.symbol as? KaClassSymbol)?.classKind == KaClassKind.OBJECT
+        }
+    }
 
     private fun isConstruction(expression: KtExpression?): Boolean {
-        if (expression?.text in CLOCK_SYSTEM_REFERENCES) return true
+        if (expression != null && isObjectReference(expression)) return true
         val call = when (expression) {
             is KtCallExpression -> expression
             is KtQualifiedExpression -> expression.selectorExpression as? KtCallExpression
@@ -61,8 +71,5 @@ internal class ConstructorDefaultDependency(config: Config) : Rule(config, DESCR
     private companion object {
         const val SERIALIZABLE = "Serializable"
         const val DESCRIPTION = "Dependencies are constructed at the composition root, never in a constructor default."
-
-        @JvmField
-        val CLOCK_SYSTEM_REFERENCES = setOf("Clock.System", "kotlin.time.Clock.System")
     }
 }

@@ -5,6 +5,9 @@ import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
+import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.plugin.mpp.Framework
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
@@ -32,8 +35,6 @@ private const val MULTIPLATFORM_PLUGIN_ID = "org.jetbrains.kotlin.multiplatform"
 private const val PUBLISH_PLUGIN_ID = "maven-publish"
 
 private const val API_CONFIGURATION = "api"
-
-private const val EXPORT_MARKER = "Export"
 
 private val PRODUCTION_CONFIGURATION_SUFFIXES = listOf(
     "implementation",
@@ -101,8 +102,13 @@ private fun Configuration.dependencyClosure(): Set<Dependency> {
 
 private fun Project.exportedDependencies(): Set<String> {
     if (!pluginManager.hasPlugin(MULTIPLATFORM_PLUGIN_ID)) return emptySet()
+    val kotlin = extensions.findByType(KotlinMultiplatformExtension::class.java) ?: return emptySet()
+    val exportNames = kotlin.targets.withType(KotlinNativeTarget::class.java)
+        .flatMap { target -> target.binaries.withType(Framework::class.java) }
+        .map(Framework::exportConfigurationName)
+        .toSet()
     return configurations
-        .filter { configuration -> configuration.name.contains(EXPORT_MARKER) }
+        .filter { configuration -> configuration.name in exportNames }
         .flatMap(Configuration::dependencyClosure)
         .map(::dependencyNotation)
         .toSet()

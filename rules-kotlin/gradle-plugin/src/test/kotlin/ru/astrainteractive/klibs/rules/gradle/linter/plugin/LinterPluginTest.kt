@@ -447,12 +447,56 @@ class LinterPluginTest {
             configurations {
                 val exportedApi by creating
                 val unrelatedApi by creating
-                val frameworkExport by creating { extendsFrom(exportedApi) }
+            }
+
+            kotlin {
+                iosX64()
+                binaries {
+                    framework {
+                        configurations.getByName(exportConfigurationName)
+                            .extendsFrom(configurations.getByName("exportedApi"))
+                    }
+                }
             }
 
             dependencies {
-                exportedApi("org.slf4j:slf4j-api:2.0.13")
+                add("exportedApi", "org.slf4j:slf4j-api:2.0.13")
+                exportedApi(project(":core"))
                 unrelatedApi("org.apache.commons:commons-lang3:3.14.0")
+                unrelatedApi(project(":core"))
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "library", buildScript = moduleScript)
+            .withModule(name = "core", buildScript = JAVA_MODULE_SCRIPT)
+            .withSourceFile("library/README.md", "Publishes the library API.")
+            .withSourceFile("core/README.md", "Provides shared models.")
+
+        val result = build.runAndFail(":library:architectureCheck")
+
+        assertTrue(result.output.contains("org.apache.commons:commons-lang3"), result.output)
+        assertTrue(!result.output.contains("Declare org.slf4j:slf4j-api"), result.output)
+    }
+
+    @Test
+    fun GIVEN_configuration_named_export_without_framework_WHEN_checked_THEN_does_not_exempt_api(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            plugins {
+                id("org.jetbrains.kotlin.multiplatform")
+                id("ru.astrainteractive.klibs.rules.gradle.linter")
+            }
+
+            configurations {
+                val exportedApi by creating
+                val customExport by creating { extendsFrom(exportedApi) }
+            }
+
+            dependencies {
+                add("exportedApi", "org.slf4j:slf4j-api:2.0.13")
             }
         """.trimIndent()
         val build = IsolatedProjectsBuild(rootDirectory)
@@ -463,8 +507,7 @@ class LinterPluginTest {
 
         val result = build.runAndFail(":library:architectureCheck")
 
-        assertTrue(result.output.contains("org.apache.commons:commons-lang3"), result.output)
-        assertTrue(!result.output.contains("Declare org.slf4j:slf4j-api"), result.output)
+        assertTrue(result.output.contains("Declare org.slf4j:slf4j-api"), result.output)
     }
 
     private companion object {

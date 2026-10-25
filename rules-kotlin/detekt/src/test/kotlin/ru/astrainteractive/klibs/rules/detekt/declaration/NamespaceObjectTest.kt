@@ -4,6 +4,7 @@ package ru.astrainteractive.klibs.rules.detekt.declaration
 
 import dev.detekt.api.Config
 import dev.detekt.test.lint
+import dev.detekt.test.utils.compileContentForTest
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
@@ -95,6 +96,17 @@ internal class NamespaceObjectTest {
             }
         """.trimIndent()
 
-        assertEquals(0, rule.lint(code).size)
+        assertEquals(0, rule.lint(compileContentForTest(code, filename = "Button.kt")).size)
+    }
+
+    @Test
+    fun GIVEN_unrelated_public_defaults_object_WHEN_linted_THEN_reports_it() {
+        val code = """
+            object ButtonDefaults {
+                fun colors(): ButtonColors = ButtonColors()
+            }
+        """.trimIndent()
+
+        assertEquals(1, rule.lint(compileContentForTest(code, filename = "Other.kt")).size)
     }
 }

@@ -27,6 +27,7 @@ internal class StateFlowTimeoutTest {
                 shared: SharedFlow<Int>
             ) {
                 withTimeout(10) { state.first() }
+                withTimeout(10) { kotlinx.coroutines.coroutineScope { state.first() } }
                 withTimeoutOrNull(10) { mutable.first() }
                 withTimeout(10) { shared.first() }
                 withTimeout(10) { state.first { value -> value > 0 } }
@@ -34,7 +35,7 @@ internal class StateFlowTimeoutTest {
             }
         """.trimIndent()
 
-        assertEquals(2, rule.lintWithContext(environment, code).size)
+        assertEquals(3, rule.lintWithContext(environment, code).size)
     }
 
     @Test

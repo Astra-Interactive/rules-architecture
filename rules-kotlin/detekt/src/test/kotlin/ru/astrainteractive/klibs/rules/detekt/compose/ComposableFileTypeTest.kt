@@ -5,6 +5,7 @@ package ru.astrainteractive.klibs.rules.detekt.compose
 import dev.detekt.api.Config
 import dev.detekt.api.Finding
 import dev.detekt.test.lint
+import dev.detekt.test.utils.compileContentForTest
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
@@ -30,7 +31,7 @@ internal class ComposableFileTypeTest {
             fun ScrollFadeComposable() = Unit
         """.trimIndent()
 
-        val messages = rule.lint(code).map(Finding::message)
+        val messages = rule.lint(compileContentForTest(code, filename = "Button.kt")).map(Finding::message)
 
         assertEquals(5, messages.size)
         assertEquals(

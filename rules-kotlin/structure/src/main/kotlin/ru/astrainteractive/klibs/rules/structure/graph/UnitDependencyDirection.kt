@@ -48,6 +48,7 @@ internal object UnitDependencyDirection {
         return when {
             isEntryPoint -> Kind.ENTRY_POINT
             isCore && name in platforms -> Kind.CORE_PLATFORM
+            isCore && name in technologies -> Kind.TECHNOLOGY
             isCore -> Kind.CORE_API
             name == "api" -> Kind.API
             name == "impl" -> Kind.IMPL
@@ -97,5 +98,23 @@ internal object UnitDependencyDirection {
             .filter { dependency -> source != Kind.FAKE || dependency != fakeApi }
             .filter { dependency -> source == Kind.FAKE || kindOf(dependency, isEntryPoint = false) !in allowed }
             .sorted()
+    }
+
+    fun message(unit: BuildUnit, dependency: String): String {
+        val dependencyName = dependency.substringAfterLast(':')
+        val isCoreDependency = "core" in dependency.split(':')
+        return when {
+            unit.name == "contract" -> "A contract unit depends on nothing of the project: drop $dependency."
+            "core" in unit.path.split(':') && !isCoreDependency -> "core depends on no feature unit: drop $dependency."
+            dependencyName == "impl" && unit.name == "api" ->
+                "An api unit never depends on an impl unit: depend on the api unit next to $dependency."
+            dependencyName == "impl" ->
+                "Only the entry point depends on $dependency: depend on the api unit next to it."
+            dependencyName in platforms && !isCoreDependency ->
+                "Only the entry point depends on the platform unit $dependency: depend on the api unit next to it."
+            else ->
+                "The dependency $dependency is not allowed for ${unit.path} by the unit direction table: depend " +
+                    "on an api unit, platform-free core or a storage contracts unit instead."
+        }
     }
 }

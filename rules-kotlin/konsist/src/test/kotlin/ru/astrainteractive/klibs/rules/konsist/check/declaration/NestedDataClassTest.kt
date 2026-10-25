@@ -28,7 +28,7 @@ internal class NestedDataClassTest {
             .main(
                 "com.example.jail.model",
                 "Shop.kt",
-                "class Shop {\n    val address: Address? = null\n}"
+                "class Shop {\n    val addresses: Map<String, Address?>? = null\n}"
             )
             .main(
                 "com.example.jail.model",

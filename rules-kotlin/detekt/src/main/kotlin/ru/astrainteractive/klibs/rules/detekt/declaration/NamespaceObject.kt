@@ -23,7 +23,11 @@ internal class NamespaceObject(config: Config) : Rule(config, DESCRIPTION) {
 
     private fun isPublicDefaults(declaration: KtObjectDeclaration): Boolean {
         val isPublic = listOf(KtTokens.PRIVATE_KEYWORD, KtTokens.INTERNAL_KEYWORD).none(declaration::hasModifier)
-        return isPublic && declaration.name.orEmpty().endsWith(DEFAULTS_SUFFIX)
+        val componentName = declaration.name.orEmpty().removeSuffix(DEFAULTS_SUFFIX)
+        val componentFiles = setOf("$componentName.kt", "${componentName}Composable.kt")
+        val hasDefaultsName = declaration.name.orEmpty().endsWith(DEFAULTS_SUFFIX)
+        val isComponentFile = declaration.containingKtFile.name in componentFiles
+        return isPublic && hasDefaultsName && isComponentFile
     }
 
     override fun visitObjectDeclaration(declaration: KtObjectDeclaration) {

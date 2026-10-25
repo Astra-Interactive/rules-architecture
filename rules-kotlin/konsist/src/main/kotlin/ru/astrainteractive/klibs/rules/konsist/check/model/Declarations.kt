@@ -5,6 +5,7 @@ import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import com.lemonappdev.konsist.api.declaration.KoImportDeclaration
 import com.lemonappdev.konsist.api.declaration.type.KoTypeDeclaration
 import com.lemonappdev.konsist.api.provider.KoNameProvider
+import com.lemonappdev.konsist.api.provider.KoTextProvider
 import java.io.File
 
 private val NON_CODE = Regex(
@@ -14,7 +15,11 @@ private val QUALIFIED_REFERENCE = Regex("""\b(?:[a-z_]\w*\.)+[A-Za-z_]\w*(?:\.[A
 private val TYPE_NAME = Regex("""\b[A-Z]\w*\b""")
 
 internal val KoFileDeclaration.qualifiedReferences: Set<String>
-    get() = QUALIFIED_REFERENCE.findAll(text.replace(NON_CODE, "")).map(MatchResult::value).toSet()
+    get() {
+        val declarationsText = declarations().filterIsInstance<KoTextProvider>()
+            .joinToString(separator = "\n", transform = KoTextProvider::text)
+        return QUALIFIED_REFERENCE.findAll(declarationsText.replace(NON_CODE, "")).map(MatchResult::value).toSet()
+    }
 
 internal val KoFileDeclaration.packageName: String
     get() = packagee?.name.orEmpty()

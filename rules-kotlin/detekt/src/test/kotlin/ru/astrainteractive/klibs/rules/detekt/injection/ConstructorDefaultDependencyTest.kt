@@ -3,18 +3,25 @@
 package ru.astrainteractive.klibs.rules.detekt.injection
 
 import dev.detekt.api.Config
-import dev.detekt.test.lint
+import dev.detekt.test.lintWithContext
+import dev.detekt.test.utils.createEnvironment
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
 internal class ConstructorDefaultDependencyTest {
     private val rule = ConstructorDefaultDependency(Config.empty)
+    private val environment = createEnvironment()
 
     @Test
     fun GIVEN_primary_constructor_creating_dependencies_WHEN_linted_THEN_reports_each_parameter() {
         val code = """
+            import kotlin.time.Clock
+
+            object DefaultRepository
+
             class LivePredictionService(
                 private val repo: MarketDataRepository,
+                private val repository: Repository = DefaultRepository,
                 private val pipeline: FeatureLabelPipeline = FeatureLabelPipeline(),
                 private val model: DirectionModel = models.TemperatureCalibratedDirectionModel(),
                 private val clock: Clock = Clock.System,
@@ -22,7 +29,7 @@ internal class ConstructorDefaultDependencyTest {
             )
         """.trimIndent()
 
-        assertEquals(4, rule.lint(code).size)
+        assertEquals(5, rule.lintWithContext(environment, code).size)
     }
 
     @Test
@@ -33,12 +40,14 @@ internal class ConstructorDefaultDependencyTest {
             }
         """.trimIndent()
 
-        assertEquals(1, rule.lint(code).size)
+        assertEquals(1, rule.lintWithContext(environment, code).size)
     }
 
     @Test
     fun GIVEN_defaults_that_are_values_WHEN_linted_THEN_reports_nothing() {
         val code = """
+            enum class Mode { Default }
+
             class Pager(
                 val size: Int = 20,
                 val items: List<String> = emptyList(),
@@ -48,7 +57,7 @@ internal class ConstructorDefaultDependencyTest {
             )
         """.trimIndent()
 
-        assertEquals(0, rule.lint(code).size)
+        assertEquals(0, rule.lintWithContext(environment, code).size)
     }
 
     @Test
@@ -57,7 +66,7 @@ internal class ConstructorDefaultDependencyTest {
             data class Settings(val theme: Theme = Theme())
         """.trimIndent()
 
-        assertEquals(0, rule.lint(code).size)
+        assertEquals(0, rule.lintWithContext(environment, code).size)
     }
 
     @Test
@@ -69,6 +78,6 @@ internal class ConstructorDefaultDependencyTest {
             class AstraRatingConfig(val killPlayer: KillPlayer = KillPlayer())
         """.trimIndent()
 
-        assertEquals(0, rule.lint(code).size)
+        assertEquals(0, rule.lintWithContext(environment, code).size)
     }
 }

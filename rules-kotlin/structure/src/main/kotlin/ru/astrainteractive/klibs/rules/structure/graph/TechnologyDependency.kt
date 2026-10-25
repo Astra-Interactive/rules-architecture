@@ -5,21 +5,19 @@ import ru.astrainteractive.klibs.rules.structure.unit.StructureCheck
 import ru.astrainteractive.klibs.rules.structure.unit.StructureViolation
 
 /**
- * Reports a dependency on a technology unit (`data/exposed`, `room`, `ktor`, …) from a unit that is neither the
- * entry point nor a technology unit itself: storage is reached through its contracts unit.
+ * Reports a technology dependency outside the unit direction table: storage is reached through contracts, and an
+ * unrelated technology unit may not implement another technology's unit.
  */
 public class TechnologyDependency : StructureCheck {
 
     private fun isTechnology(path: String): Boolean = path.substringAfterLast(':') in TECHNOLOGIES
 
     override fun check(unit: BuildUnit): List<StructureViolation> {
-        if (unit.isEntryPoint || isTechnology(unit.path)) return emptyList()
-        return unit.projectDependencies
-            .sorted()
+        return UnitDependencyDirection.findForbidden(unit)
             .filter(::isTechnology)
             .map { dependency ->
-                val message = "Depend on the contracts unit instead of the technology unit $dependency: only the " +
-                    "technology unit and the entry point depend on the technology."
+                val message = "Depend on storage contracts and platform-free core instead of the technology unit " +
+                    "$dependency: only compatible technology units and the entry point may depend on it."
                 StructureViolation(
                     RULE,
                     BUILD_FILE,
