@@ -1,8 +1,17 @@
+@file:Suppress("TooManyFunctions")
+
 package ru.astrainteractive.klibs.rules.gradle.linter.util
 
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
+import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
+import org.jetbrains.kotlin.gradle.dsl.KotlinBaseExtension
+import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.plugin.mpp.Framework
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
@@ -31,8 +40,6 @@ private const val PUBLISH_PLUGIN_ID = "maven-publish"
 
 private const val API_CONFIGURATION = "api"
 
-private const val EXPORT_MARKER = "Export"
-
 private val PRODUCTION_CONFIGURATION_SUFFIXES = listOf(
     "implementation",
     "api",
@@ -44,6 +51,17 @@ private fun Project.isEntryPointByConvention(): Boolean {
     return ENTRY_POINT_PLUGIN_IDS
         .any(pluginManager::hasPlugin)
         .or(path.startsWith(ENTRY_POINT_PATH_PREFIX))
+}
+
+/**
+ * Call it only when a Kotlin plugin is applied.
+ */
+internal fun Project.explicitApiMode(): String? {
+    return when (extensions.findByType(KotlinBaseExtension::class.java)?.explicitApi) {
+        ExplicitApiMode.Strict -> "strict"
+        ExplicitApiMode.Warning -> "warning"
+        else -> null
+    }
 }
 
 internal fun Project.detectUnitKind(): UnitKind {
@@ -78,23 +96,37 @@ private fun isApiConfiguration(name: String): Boolean {
     return isApi && !name.contains("test", ignoreCase = true)
 }
 
+private fun dependencyNotation(dependency: Dependency): String {
+    return (dependency as? ProjectDependency)?.path ?: "${dependency.group}:${dependency.name}"
+}
+
 private fun Project.apiDependencies(): List<String> {
     return configurations
         .filter { configuration -> isApiConfiguration(configuration.name) }
         .flatMap { configuration ->
-            configuration.dependencies.map { dependency ->
-                val notation = (dependency as? ProjectDependency)?.path ?: "${dependency.group}:${dependency.name}"
-                "${configuration.name}: $notation"
-            }
+            configuration.dependencies
+                .filterNot { dependency -> dependency.group == null && dependency.name == "unspecified" }
+                .map { dependency -> "${configuration.name}: ${dependencyNotation(dependency)}" }
         }
         .sorted()
 }
 
-private fun Project.hasFrameworkExport(): Boolean {
-    if (!pluginManager.hasPlugin(MULTIPLATFORM_PLUGIN_ID)) return false
+private fun Configuration.dependencyClosure(): Set<Dependency> {
+    return dependencies.plus(extendsFrom.flatMap(Configuration::dependencyClosure)).toSet()
+}
+
+private fun Project.exportedDependencies(): Set<String> {
+    if (!pluginManager.hasPlugin(MULTIPLATFORM_PLUGIN_ID)) return emptySet()
+    val kotlin = extensions.findByType(KotlinMultiplatformExtension::class.java) ?: return emptySet()
+    val exportNames = kotlin.targets.withType(KotlinNativeTarget::class.java)
+        .flatMap { target -> target.binaries.withType(Framework::class.java) }
+        .map(Framework::exportConfigurationName)
+        .toSet()
     return configurations
-        .filter { configuration -> configuration.name.contains(EXPORT_MARKER) }
-        .any { configuration -> configuration.dependencies.isNotEmpty() }
+        .filter { configuration -> configuration.name in exportNames }
+        .flatMap(Configuration::dependencyClosure)
+        .map(::dependencyNotation)
+        .toSet()
 }
 
 private fun Project.externalProductionDependencies(): List<String> {
@@ -111,7 +143,7 @@ internal fun Project.readUnitBuild(unitKind: UnitKind): UnitBuild {
     return UnitBuild(
         unitKind = unitKind,
         apiDependencies = apiDependencies(),
-        hasFrameworkExport = hasFrameworkExport(),
+        exportedDependencies = exportedDependencies(),
         isPublished = pluginManager.hasPlugin(PUBLISH_PLUGIN_ID),
         isKotlin = isKotlin,
         explicitApiMode = if (isKotlin) explicitApiMode() else null,

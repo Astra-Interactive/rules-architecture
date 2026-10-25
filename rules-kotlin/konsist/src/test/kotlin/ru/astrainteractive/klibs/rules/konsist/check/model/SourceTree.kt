@@ -1,6 +1,7 @@
 package ru.astrainteractive.klibs.rules.konsist.check.model
 
-import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
+import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
+import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 import java.io.File
 
 /**
@@ -59,6 +60,39 @@ internal class SourceTree(private val projectDirectory: File) {
         )
     }
 
+    fun main(sourceSet: String, packageName: String, fileName: String, code: String): SourceTree {
+        return write(
+            File(projectDirectory, "src/$sourceSet/kotlin"),
+            packageName,
+            fileName,
+            code
+        )
+    }
+
+    fun test(sourceSet: String, packageName: String, fileName: String, code: String): SourceTree {
+        return write(
+            File(projectDirectory, "src/$sourceSet/kotlin"),
+            packageName,
+            fileName,
+            code
+        )
+    }
+
+    fun loadSourceSets(kind: UnitKind, mainSourceSet: String, testSourceSet: String): UnitSources {
+        val main = File(projectDirectory, "src/$mainSourceSet/kotlin")
+        val test = File(projectDirectory, "src/$testSourceSet/kotlin")
+        return UnitSources.load(
+            kind = kind,
+            rootPackage = null,
+            unitPath = null,
+            mainDirectories = listOf(main),
+            testDirectories = listOf(test),
+            mainSourceSets = mapOf(mainSourceSet to main),
+            testSourceSets = mapOf(testSourceSet to test),
+            projectDirectory = projectDirectory
+        )
+    }
+
     fun load(kind: UnitKind, rootPackage: String? = null, unitPath: String? = null): UnitSources {
         return UnitSources.load(
             kind = kind,
@@ -66,6 +100,8 @@ internal class SourceTree(private val projectDirectory: File) {
             unitPath = unitPath,
             mainDirectories = listOf(mainDirectory),
             testDirectories = listOf(testDirectory),
+            mainSourceSets = mapOf("main" to mainDirectory),
+            testSourceSets = mapOf("test" to testDirectory),
             projectDirectory = projectDirectory
         )
     }

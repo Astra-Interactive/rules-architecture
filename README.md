@@ -10,7 +10,7 @@ sources and tell you which file breaks which rule and how to fix it.
 
 ## ✨ Features
 
-- **Per-file rules for detekt**: 47 custom rules plus settings for detekt's own rules, with IDE support and
+- **Per-file rules for detekt**: 49 custom rules plus settings for detekt's own rules, with IDE support and
   `@Suppress`.
 - **Cross-file checks with Konsist**: role import direction, use case shape, contract and implementation
   levels, DI placement, test mirroring and more.
@@ -49,7 +49,8 @@ klibs-rules-structure = { module = "ru.astrainteractive.klibs.rules:structure", 
 ### Gradle plugins
 
 Two plugins, both from `ru.astrainteractive.klibs.rules:gradle-plugin`, published to Maven Central. Add
-`mavenCentral()` to the `pluginManagement` repositories, then apply a plugin to every unit:
+`mavenCentral()` to the `pluginManagement` repositories, then apply a plugin to every unit. Apply the linter to the
+root project too when using `architectureGraphCheck`:
 
 ```kotlin
 plugins {
@@ -78,6 +79,9 @@ plugins {
   a separate JVM, and the structure checks of its README, nested units and project dependencies.
 - Registers `architectureBaseline`, which writes the current violations to `architecture-baseline.txt`; the check
   accepts what the file lists, so old code can stay as it is.
+- On the root project, registers `architectureGraphCheck`, which checks the complete unit graph for dependency
+  cycles; root `check` depends on it. Units contribute their dependencies through an isolated-projects-compatible
+  shared build service.
 
 The unit kind decides which layout rules apply. It is detected by convention and can be set:
 
@@ -176,8 +180,8 @@ tasks.named("check") { dependsOn(konsistCheck) }
 | `--project-dir`  | the unit's directory; report paths are relative to it                              |
 | `--unit-kind`    | `context`, `library`, `api`, `contract`, `entry-point` or `technology`, see below  |
 | `--unit-path`    | the unit's Gradle path; finds the root package (`:modules:event-bukkit` → `…event`) |
-| `--main`         | a main source directory; repeat it for every source set (`src/commonMain/kotlin`)  |
-| `--test`         | a test source directory (`src/test/kotlin`, `src/testFixtures/kotlin`); repeatable |
+| `--main`         | a main source directory, optionally `sourceSet=path`; repeat for every source set |
+| `--test`         | a test source directory, optionally `sourceSet=path`; repeatable                  |
 | `--report`       | the file the violations are written to                                             |
 | `--root-package` | the unit's root package, when the unit path does not find it                       |
 
@@ -247,14 +251,16 @@ val violations: List<StructureViolation> = checker.check(
 | `MutableStateFlowEmit` | `emit`/`tryEmit` on a property declared or initialised as a `MutableStateFlow` |
 | `ImpureUpdateLambda` | an assignment to an outer name inside the lambda of `update`, `getAndUpdate` or `updateAndGet` |
 | `SingleJobLaunchMode` | a launch on a single-job scope without a `SingleJobMode`, an unguarded launch in an `on…` handler of a view model or component |
+| `StateFlowTimeout` | `StateFlow.first()` inside `withTimeout` or `withTimeoutOrNull` |
 | `ThrowInsideRunCatching` | a `throw` inside the lambda of `runCatching`, `mapCatching` or `recoverCatching` |
 | `RunCatchingCancellation` | a `runCatching` in a `suspend` function or coroutine lambda not followed by `.propagateCancellationException()` |
+| `ResultConsumption` | a `Result` discarded as a statement without consuming its success or failure |
 | `GetOrThrowInMain` | `getOrThrow()` outside the test sources |
 | `BareIdentifier` | a property named `id`/`…Id` typed `String`, `Int`, `Long` or `UUID` outside a `@Serializable` class or technology package, a `…Id` class that is not a value class |
 | `CompanionFactoryFunction` | a `create…`, `of` or `from` function in a companion object |
 | `RolelessClassName` | a `…Validator` or `…Factory` class, `…WarmUp`/`…Migration`/`…ViewModel` outside its `warmup`/`migration`/`viewmodel` package |
 | `DiModuleLifecycle` | a `…Module` that declares `enable`, `disable`, `reload`, `onEnable`, `onDisable` or `onReload` |
-| `RootModuleConstruction` | a `RootModule` property that constructs anything but a `…Module` or a `Lifecycle` |
+| `RootModuleConstruction` | a `RootModule` constructor call that constructs anything but a `…Module` or a `Lifecycle` |
 | `SystemTimeCall` | `System.currentTimeMillis()` and `System.nanoTime()` |
 | `RunBlockingInTest` | `runBlocking` in a test source set |
 | `KDocFiller` | a KDoc filler phrase, a `@return` of "the result", a `@param` that repeats its name, a summary of more than four sentences |
@@ -289,7 +295,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `ErrorPlacement`       | an error type outside a `model` package                                                                   |
 | `DiPlacement`          | a `*Module` outside a `di` package                                                                        |
 | `NestedDataClass`      | a top-level data class used as a property type by exactly one class, except a sealed variant or a `*State` |
-| `TestMirror`           | a test in another package than its owner                                                                  |
+| `TestMirror`           | a test in another package or source set than its owner                                                    |
 | `FakePlacement`        | a `Fake*` outside a `fake` package of the tests, or in the main sources outside a `<feature>/fake` unit    |
 | `InMemoryPlacement`    | an `InMemory*` outside a `memory` package of the main sources                                              |
 | `SealedFamilyFile` | a class or object whose direct supertype is a sealed type declared in another file |
@@ -314,16 +320,17 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 
 | Check            | Reports                                                                                      |
 |------------------|----------------------------------------------------------------------------------------------|
-| `UnitDependency` | a dependency on an `impl` unit or a feature's platform unit (`gui/bukkit`) outside the entry point, `core` depending on a feature, a `contract` unit depending on a project unit |
+| `UnitDependency` | a project dependency outside the allowlist for the unit's kind in `arch-context.md` |
+| `UnitDependencyCycle` | a cycle in the complete project-unit graph (root Gradle plugin) |
 | `UnitReadme`     | a unit without a `README.md` of one sentence                                                 |
 | `NestedUnit`     | a unit inside the directory of another unit                                                  |
 | `RootSources`    | sources in the root project                                                                  |
 | `EntryPointDependency` | a dependency on an entry-point unit (a path with the segment `instances`) |
-| `TechnologyDependency` | a dependency on a technology unit (`exposed`, `room`, `ktor`, …) outside the entry point and other technology units |
+| `TechnologyDependency` | a technology dependency forbidden by the unit direction table, including unrelated technology units |
 | `ApiUnitDependency` | an `api` unit depending on a unit that is not `api`, `core` or a storage contracts unit (`dao`, `contract`) |
 | `RootBuildSubprojects` | a `subprojects { }` or `allprojects { }` block in the root build file |
 | `ProjectDirMatchesPath` | a unit whose directory differs from its Gradle path |
-| `ApiConfiguration` | a dependency in an `api` configuration of a unit that exports no Multiplatform framework (Gradle plugin) |
+| `ApiConfiguration` | an `api` dependency that is not exported through a Multiplatform framework (Gradle plugin) |
 | `PublishedLibraryExplicitApi` | a Kotlin unit applying `maven-publish` without strict explicit API mode (Gradle plugin) |
 | `ApiUnitPlatformDependency` | an external platform dependency (Paper, Bukkit, Fabric, Forge, Android, `androidx` but Compose, annotation and collection) in an `api` unit (Gradle plugin) |
 
@@ -335,14 +342,18 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `rules-kotlin/gradle-plugin` | the detekt and linter Gradle plugins                                    |
 | `rules-kotlin/konsist`     | the Konsist checks and their command-line entry point                     |
 | `rules-kotlin/structure`   | the structure checks                                                      |
+| `rules-kotlin/self-check`  | the isolated build that runs the real linter on every unit and the graph   |
 
 Build and test locally:
 
 ```shell
 cd rules-kotlin
-./gradlew check                # tests, 100% line coverage, detekt with these very rules
+./gradlew check                # tests, 100% line coverage, detekt and architecture self-checks
 ./gradlew publishToMavenLocal  # ru.astrainteractive.klibs.rules:{detekt,gradle-plugin,konsist,structure}
 ```
+
+`check` publishes the current artifacts to Maven Local, copies the sources into `self-check`, and runs
+`architectureCheck` in every unit plus `architectureGraphCheck`, with no architecture baselines.
 
 ---
 

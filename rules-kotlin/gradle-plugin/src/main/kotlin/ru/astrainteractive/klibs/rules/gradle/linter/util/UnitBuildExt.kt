@@ -27,16 +27,17 @@ private val PLATFORM_FREE_ANDROIDX_PREFIXES = listOf(
 )
 
 private fun UnitBuild.findApiConfigurationFindings(): List<ArchitectureFinding> {
-    if (hasFrameworkExport) return emptyList()
-    return apiDependencies.map { dependency ->
-        ArchitectureFinding(
-            rule = "ApiConfiguration",
-            path = BUILD_FILE,
-            subject = dependency,
-            message = "Declare ${dependency.substringAfter(": ")} with implementation: api is only for a type " +
-                "exported through a Multiplatform framework."
-        )
-    }
+    return apiDependencies
+        .filterNot { dependency -> dependency.substringAfter(": ") in exportedDependencies }
+        .map { dependency ->
+            ArchitectureFinding(
+                rule = "ApiConfiguration",
+                path = BUILD_FILE,
+                subject = dependency,
+                message = "Declare ${dependency.substringAfter(": ")} with implementation: api is only for a type " +
+                    "exported through a Multiplatform framework."
+            )
+        }
 }
 
 private fun UnitBuild.findExplicitApiFindings(): List<ArchitectureFinding> {

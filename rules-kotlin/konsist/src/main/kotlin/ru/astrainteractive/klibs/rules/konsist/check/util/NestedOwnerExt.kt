@@ -2,17 +2,17 @@ package ru.astrainteractive.klibs.rules.konsist.check.util
 
 import com.lemonappdev.konsist.api.declaration.KoClassDeclaration
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
-import ru.astrainteractive.klibs.rules.konsist.check.model.simpleName
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.typeNames
 
 /**
- * The simple type names of the properties this class declares, in its primary constructor or its body.
+ * The type names of the properties this class declares, generic arguments included.
  */
 internal fun KoClassDeclaration.propertyTypeNames(): Set<String> {
     val constructorTypes = primaryConstructor?.parameters.orEmpty()
         .filter { parameter -> parameter.isVal || parameter.isVar }
-        .map { parameter -> parameter.type.simpleName }
+        .flatMap { parameter -> parameter.type.typeNames }
     val bodyTypes = properties(includeNested = false)
-        .mapNotNull { property -> property.type?.simpleName }
+        .flatMap { property -> property.type?.typeNames.orEmpty() }
     return constructorTypes.plus(bodyTypes).toSet()
 }
 
