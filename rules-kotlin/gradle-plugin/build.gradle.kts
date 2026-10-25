@@ -4,10 +4,10 @@ plugins {
     id("org.jetbrains.kotlin.jvm")
     id("java-gradle-plugin")
     id("org.jetbrains.kotlinx.kover")
-    id("ru.astrainteractive.gradleplugin.detekt")
     id("ru.astrainteractive.gradleplugin.java.version")
     id("ru.astrainteractive.gradleplugin.publication")
     id("ru.astrainteractive.gradleplugin.rootinfo")
+    id("ru.astrainteractive.gradleplugin.detekt")
 }
 
 kotlin {
@@ -78,7 +78,7 @@ gradlePlugin {
     plugins {
         create("detekt") {
             id = "ru.astrainteractive.klibs.rules.gradle.detekt"
-            implementationClass = "ru.astrainteractive.klibs.rules.gradle.detekt.plugin.DetektPlugin"
+            implementationClass = "ru.astrainteractive.klibs.rules.gradle.detekt.plugin.gradle.DetektPlugin"
             displayName = "Detekt Code Analysis Plugin"
             description =
                 "Automatically applies detekt with KLibs configuration for static code analysis with Kotlin linting rules"
@@ -92,7 +92,7 @@ gradlePlugin {
         }
         create("linter") {
             id = "ru.astrainteractive.klibs.rules.gradle.linter"
-            implementationClass = "ru.astrainteractive.klibs.rules.gradle.linter.plugin.LinterPlugin"
+            implementationClass = "ru.astrainteractive.klibs.rules.gradle.linter.plugin.gradle.LinterPlugin"
             displayName = "Architecture Linter Plugin"
             description = "Applies detekt with the architecture rules and checks the package layout and unit graph"
             tags.set(

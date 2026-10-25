@@ -1,6 +1,7 @@
 package ru.astrainteractive.klibs.rules.konsist.check.model
 
-import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
+import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
+import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 import java.io.File
 
 /**

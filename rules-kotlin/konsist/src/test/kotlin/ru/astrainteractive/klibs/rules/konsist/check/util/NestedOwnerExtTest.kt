@@ -6,7 +6,7 @@ import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
-import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
+import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 import java.io.File
 import kotlin.test.assertEquals
 

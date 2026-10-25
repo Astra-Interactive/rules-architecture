@@ -2,7 +2,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.util
 
 import com.lemonappdev.konsist.api.declaration.KoClassDeclaration
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
-import ru.astrainteractive.klibs.rules.konsist.check.model.typeNames
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.typeNames
 
 /**
  * The type names of the properties this class declares, generic arguments included.

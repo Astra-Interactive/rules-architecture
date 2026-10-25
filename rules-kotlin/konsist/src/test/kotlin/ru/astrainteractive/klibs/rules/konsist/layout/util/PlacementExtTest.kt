@@ -3,8 +3,8 @@
 package ru.astrainteractive.klibs.rules.konsist.layout.util
 
 import org.junit.jupiter.api.Test
-import ru.astrainteractive.klibs.rules.konsist.layout.Kind
-import ru.astrainteractive.klibs.rules.konsist.layout.Placement
+import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
+import ru.astrainteractive.klibs.rules.konsist.layout.model.Placement
 import kotlin.test.assertEquals
 
 internal class PlacementExtTest {

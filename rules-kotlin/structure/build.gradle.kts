@@ -3,10 +3,10 @@ import dev.detekt.gradle.Detekt
 plugins {
     id("org.jetbrains.kotlin.jvm")
     id("org.jetbrains.kotlinx.kover")
-    id("ru.astrainteractive.gradleplugin.detekt")
     id("ru.astrainteractive.gradleplugin.java.version")
     id("ru.astrainteractive.gradleplugin.publication")
     id("ru.astrainteractive.gradleplugin.rootinfo")
+    id("ru.astrainteractive.gradleplugin.detekt")
 }
 
 kotlin {
