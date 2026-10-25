@@ -18,12 +18,20 @@ internal class RootModuleConstructionTest {
                 val coreModule = CoreModule(dispatchers = DefaultDispatchers())
                 val repository by lazy { ExposedRatingRepository(coreModule.database) }
                 val other = Other.Lambda()
+
+                init {
+                    val initRepository = InMemoryRatingRepository()
+                }
+
+                fun configure() {
+                    FileRatingRepository()
+                }
             }
         """.trimIndent()
 
         val messages = rule.lint(code).map(Finding::message)
 
-        assertEquals(3, messages.size)
+        assertEquals(5, messages.size)
         assertEquals(
             "RootModule constructs 'DefaultDispatchers': construct it in the DI module that owns it and pass that " +
                 "module; RootModule only builds the root DI modules.",

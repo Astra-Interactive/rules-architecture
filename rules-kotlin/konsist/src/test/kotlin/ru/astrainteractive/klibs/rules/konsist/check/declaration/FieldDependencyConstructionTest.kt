@@ -15,7 +15,10 @@ internal class FieldDependencyConstructionTest {
     @Test
     fun GIVEN_fields_constructing_dependencies_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
         val sources = SourceTree(directory)
-            .main("x.rating.api/RatingRepository.kt", "class ExposedRatingRepository(val database: Database)")
+            .main(
+                "x.rating.api/RatingRepository.kt",
+                "class ExposedRatingRepository(val database: Database)\n\nclass InMemoryRatingRepository"
+            )
             .main("x.rating.model/Rating.kt", "class Rating")
             .main(
                 "x.rating.command/RatingCommand.kt",
@@ -26,6 +29,14 @@ internal class FieldDependencyConstructionTest {
                     private val rating = Rating()
                     private val name = "rating"
                     private val external = Json(true)
+
+                    fun reload() {
+                        val repository = InMemoryRatingRepository()
+                    }
+
+                    fun start() {
+                        InMemoryRatingRepository()
+                    }
                 }
                 """
             )
@@ -33,12 +44,12 @@ internal class FieldDependencyConstructionTest {
 
         assertEquals(
             listOf(
-                "RatingCommand constructs ExposedRatingRepository in a field: construct it in the DI module and pass " +
-                    "it in through the constructor.",
-                "RatingCommand constructs ExposedRatingRepository in a field: construct it in the DI module and pass " +
-                    "it in through the constructor.",
+                "RatingCommand.ExposedRatingRepository",
+                "RatingCommand.ExposedRatingRepository",
+                "RatingCommand.InMemoryRatingRepository",
+                "RatingCommand.InMemoryRatingRepository"
             ),
-            FieldDependencyConstruction().check(sources).map(Violation::message)
+            FieldDependencyConstruction().check(sources).map(Violation::subject)
         )
     }
 

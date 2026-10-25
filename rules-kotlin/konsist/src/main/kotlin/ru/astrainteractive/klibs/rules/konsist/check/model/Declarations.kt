@@ -7,6 +7,14 @@ import com.lemonappdev.konsist.api.declaration.type.KoTypeDeclaration
 import com.lemonappdev.konsist.api.provider.KoNameProvider
 import java.io.File
 
+private val NON_CODE = Regex(
+    """\"\"\"[\s\S]*?\"\"\"|//[^\n]*|/\*[\s\S]*?\*/|\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'"""
+)
+private val QUALIFIED_REFERENCE = Regex("""\b(?:[a-z_]\w*\.)+[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*""")
+
+internal val KoFileDeclaration.qualifiedReferences: Set<String>
+    get() = QUALIFIED_REFERENCE.findAll(text.replace(NON_CODE, "")).map(MatchResult::value).toSet()
+
 internal val KoFileDeclaration.packageName: String
     get() = packagee?.name.orEmpty()
 
@@ -24,6 +32,14 @@ internal val KoFileDeclaration.baseName: String
  */
 internal val KoTypeDeclaration.simpleName: String
     get() = text.removeSuffix("?").substringBefore('<').substringAfterLast('.')
+
+internal fun KoFileDeclaration.sourceReferences(): Set<String> {
+    val wildcardPackages = imports.filter(KoImportDeclaration::isWildcard).map(KoImportDeclaration::name)
+    val qualified = qualifiedReferences.filterNot { reference ->
+        wildcardPackages.any(reference::startsWith)
+    }
+    return imports.map(KoImportDeclaration::importedName).plus(qualified).toSet()
+}
 
 internal fun KoFileDeclaration.topLevelClasses(): List<KoClassDeclaration> {
     return classes(includeNested = false, includeLocal = false)

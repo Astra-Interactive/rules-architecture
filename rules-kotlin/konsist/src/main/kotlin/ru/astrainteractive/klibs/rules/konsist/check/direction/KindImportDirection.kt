@@ -4,14 +4,14 @@ import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
-import ru.astrainteractive.klibs.rules.konsist.check.model.importedName
+import ru.astrainteractive.klibs.rules.konsist.check.model.sourceReferences
 import ru.astrainteractive.klibs.rules.konsist.layout.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.Placement
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.layout.util.describe
 
 /**
- * Checks the direction table of `arch-context.md` through the imports between the kind packages of a unit:
+ * Checks the direction table of `arch-context.md` through imports and fully qualified references between kinds:
  * `model` depends on nothing of its level, contracts on `model`, use cases on contracts and `model`,
  * implementations on the contracts they implement and `model` (and on their own `table` or `entity` package),
  * entry points on use cases and contracts, `theme` on `model`, and nothing depends on `di`. A use case also
@@ -79,8 +79,7 @@ internal class KindImportDirection : ArchitectureCheck {
     private fun checkFile(sources: UnitSources, file: KoFileDeclaration): List<Violation> {
         val from = sources.placementOf(file) ?: return emptyList()
         val fromKind = from.kind ?: return emptyList()
-        return file.imports.mapNotNull { import ->
-            val importedName = import.importedName
+        return file.sourceReferences().mapNotNull { importedName ->
             val targetPackage = sources.packageOfImport(importedName) ?: return@mapNotNull null
             val to = sources.layout.placementOf(targetPackage) ?: return@mapNotNull null
             val message = findScreenMessage(

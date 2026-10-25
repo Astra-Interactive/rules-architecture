@@ -122,4 +122,28 @@ internal class PlatformImportTest {
             PlatformImport().check(sources).map(Violation::subject)
         )
     }
+
+    @Test
+    fun GIVEN_fully_qualified_platform_types_WHEN_checked_THEN_reports_them_but_not_text(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.jail.jail.model",
+                "Jail.kt",
+                """
+                // io.ktor.http.URLBuilder
+                class Jail(
+                    val location: org.bukkit.Location,
+                    val server: org.spigotmc.Server
+                ) {
+                    val text = "io.papermc.paper.Server"
+                }
+                """
+            )
+            .load(UnitKind.CONTEXT, unitPath = ":jail")
+
+        assertEquals(
+            listOf("org.bukkit.Location", "org.spigotmc.Server"),
+            PlatformImport().check(sources).map(Violation::subject).sorted()
+        )
+    }
 }

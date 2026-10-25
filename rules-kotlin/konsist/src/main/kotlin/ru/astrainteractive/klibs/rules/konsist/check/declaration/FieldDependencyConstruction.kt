@@ -1,37 +1,38 @@
 package ru.astrainteractive.klibs.rules.konsist.check.declaration
 
+import com.lemonappdev.konsist.api.KoModifier
 import com.lemonappdev.konsist.api.declaration.KoClassDeclaration
+import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import com.lemonappdev.konsist.api.provider.KoNameProvider
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
+import ru.astrainteractive.klibs.rules.konsist.check.model.topLevelClasses
 import ru.astrainteractive.klibs.rules.konsist.layout.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 
 /**
- * Reports a property of a class outside `di` initialised with `X(…)` or `by lazy { X(…) }`, where `X` is a class of
- * the unit whose primary constructor takes something: a dependency is constructed in the DI module and passed in.
+ * Reports construction of a concrete behaviour class of the unit outside `di`, in a property, constructor body or
+ * method, with zero-argument constructors included. Models and value holders are not dependencies.
  */
 internal class FieldDependencyConstruction : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
 
-    private fun constructedName(propertyText: String): String? {
-        val match = DIRECT_CONSTRUCTION.find(propertyText) ?: LAZY_CONSTRUCTION.find(propertyText) ?: return null
-        return match.groupValues[1]
-    }
-
     private fun dependencyClassNames(sources: UnitSources): Set<String> {
         return sources.mainFiles
-            .flatMap { file -> file.classes(includeNested = false, includeLocal = false) }
-            .filter { declaration -> declaration.primaryConstructor?.parameters.orEmpty().isNotEmpty() }
+            .filter { file -> sources.placementOf(file)?.kind != Kind.MODEL }
+            .flatMap(KoFileDeclaration::topLevelClasses)
+            .filterNot { declaration -> declaration.hasModifier(KoModifier.DATA) }
+            .filterNot { declaration -> declaration.hasModifier(KoModifier.ENUM) }
             .map(KoNameProvider::name)
             .toSet()
     }
 
     private fun constructedDependencies(declaration: KoClassDeclaration, dependencies: Set<String>): List<String> {
-        return declaration.properties(includeNested = false)
-            .mapNotNull { property -> constructedName(property.text) }
-            .filter { name -> name in dependencies }
+        return CONSTRUCTION.findAll(declaration.text)
+            .map { match -> match.groupValues[1] }
+            .filter { name -> name != declaration.name && name in dependencies }
+            .toList()
     }
 
     override fun check(sources: UnitSources): List<Violation> {
@@ -41,7 +42,7 @@ internal class FieldDependencyConstruction : ArchitectureCheck {
             .flatMap { file ->
                 file.classes(includeNested = true, includeLocal = false).flatMap { declaration ->
                     constructedDependencies(declaration, dependencies).map { name ->
-                        val message = "${declaration.name} constructs $name in a field: construct it in the DI " +
+                        val message = "${declaration.name} constructs $name outside di: construct it in the DI " +
                             "module and pass it in through the constructor."
                         Violation(
                             RULE,
@@ -58,9 +59,6 @@ internal class FieldDependencyConstruction : ArchitectureCheck {
         const val RULE = "FieldDependencyConstruction"
 
         @JvmField
-        val DIRECT_CONSTRUCTION = Regex("""=\s*([A-Z]\w*)\s*\(""")
-
-        @JvmField
-        val LAZY_CONSTRUCTION = Regex("""by\s+lazy\s*\{\s*([A-Z]\w*)\s*\(""")
+        val CONSTRUCTION = Regex("""\b([A-Z]\w*)\s*\(""")
     }
 }

@@ -374,4 +374,25 @@ internal class KindImportDirectionTest {
             KindImportDirection().check(sources).single().message
         )
     }
+
+    @Test
+    fun GIVEN_fully_qualified_cross_kind_reference_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.paywall.impl.model",
+                "Paywall.kt",
+                "class Paywall(val module: x.paywall.impl.di.PaywallModule)"
+            )
+            .main(
+                "x.paywall.impl.di",
+                "PaywallModule.kt",
+                "class PaywallModule"
+            )
+            .load(UnitKind.CONTEXT, unitPath = ":paywall:impl")
+
+        assertEquals(
+            listOf("x.paywall.impl.di.PaywallModule"),
+            KindImportDirection().check(sources).map(Violation::subject)
+        )
+    }
 }

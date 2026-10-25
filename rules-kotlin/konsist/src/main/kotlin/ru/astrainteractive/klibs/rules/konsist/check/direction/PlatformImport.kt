@@ -1,11 +1,10 @@
 package ru.astrainteractive.klibs.rules.konsist.check.direction
 
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
-import com.lemonappdev.konsist.api.declaration.KoImportDeclaration
 import ru.astrainteractive.klibs.rules.konsist.check.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.model.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
-import ru.astrainteractive.klibs.rules.konsist.check.model.importedName
+import ru.astrainteractive.klibs.rules.konsist.check.model.sourceReferences
 import ru.astrainteractive.klibs.rules.konsist.layout.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.UnitKind
 
@@ -31,8 +30,7 @@ internal class PlatformImport : ArchitectureCheck {
         return sources.mainFiles
             .filter { file -> isChecked(sources, file) }
             .flatMap { file ->
-                file.imports
-                    .map(KoImportDeclaration::importedName)
+                file.sourceReferences()
                     .filter { importedName -> PLATFORM_PREFIXES.any(importedName::startsWith) }
                     .filterNot { importedName ->
                         isAllowedCompose(
@@ -78,6 +76,7 @@ internal class PlatformImport : ArchitectureCheck {
             "net.neoforged.",
             "org.bukkit.",
             "org.jetbrains.exposed.",
+            "org.spigotmc.",
         )
     }
 }

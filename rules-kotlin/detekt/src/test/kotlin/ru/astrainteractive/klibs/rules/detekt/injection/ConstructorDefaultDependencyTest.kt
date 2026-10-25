@@ -16,11 +16,13 @@ internal class ConstructorDefaultDependencyTest {
             class LivePredictionService(
                 private val repo: MarketDataRepository,
                 private val pipeline: FeatureLabelPipeline = FeatureLabelPipeline(),
-                private val model: DirectionModel = models.TemperatureCalibratedDirectionModel()
+                private val model: DirectionModel = models.TemperatureCalibratedDirectionModel(),
+                private val clock: Clock = Clock.System,
+                private val qualifiedClock: Clock = kotlin.time.Clock.System
             )
         """.trimIndent()
 
-        assertEquals(2, rule.lint(code).size)
+        assertEquals(4, rule.lint(code).size)
     }
 
     @Test
@@ -41,7 +43,7 @@ internal class ConstructorDefaultDependencyTest {
                 val size: Int = 20,
                 val items: List<String> = emptyList(),
                 val factory: () -> Unit = {},
-                val clock: Clock = Clock.System,
+                val mode: Mode = Mode.Default,
                 val formatter: Formatter = formatters.create()
             )
         """.trimIndent()
