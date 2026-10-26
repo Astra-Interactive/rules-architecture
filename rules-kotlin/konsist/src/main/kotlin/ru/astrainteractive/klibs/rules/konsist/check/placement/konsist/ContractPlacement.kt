@@ -20,15 +20,15 @@ internal class ContractPlacement : ArchitectureCheck {
 
     private fun checkFile(sources: UnitSources, file: KoFileDeclaration, contractNames: Set<String>): List<Violation> {
         val kind = sources.placementOf(file)?.kind
-        val path = sources.relativePath(file)
         val repositories = file.interfaces(includeNested = false)
             .filter { declaration -> declaration.name.endsWith(REPOSITORY_SUFFIX) }
             .filterNot { kind == Kind.CONTRACT }
             .map { declaration ->
                 val message = "Move ${declaration.name} to the api package of the concept it stores."
-                Violation(
+                sources.createViolation(
                     RULE,
-                    path,
+                    file,
+                    declaration,
                     declaration.name,
                     message
                 )
@@ -38,9 +38,10 @@ internal class ContractPlacement : ArchitectureCheck {
             .filter { declaration -> declaration.parents().any { parent -> parent.name in contractNames } }
             .map { declaration ->
                 val message = "Move ${declaration.name} out of api, into the package of the technology it uses."
-                Violation(
+                sources.createViolation(
                     RULE,
-                    path,
+                    file,
+                    declaration,
                     declaration.name,
                     message
                 )
@@ -56,9 +57,9 @@ internal class ContractPlacement : ArchitectureCheck {
                 val segment = file.packageName.substringAfterLast('.')
                 val message = "Rename the package '$segment' after the library it uses: " +
                     "network, local and remote are not technology names."
-                Violation(
+                sources.createViolation(
                     RULE,
-                    sources.relativePath(file),
+                    file,
                     file.packageName,
                     message
                 )

@@ -93,9 +93,9 @@ internal class KindImportDirection : ArchitectureCheck {
                 to,
                 importedName
             ) ?: return@mapNotNull null
-            Violation(
+            sources.createViolation(
                 RULE,
-                sources.relativePath(file),
+                file,
                 importedName,
                 message
             )

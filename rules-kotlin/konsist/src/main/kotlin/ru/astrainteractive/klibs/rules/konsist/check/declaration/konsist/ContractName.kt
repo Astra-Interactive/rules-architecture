@@ -31,9 +31,10 @@ internal class ContractName : ArchitectureCheck {
                             "generic base."
                     else -> null
                 } ?: return@mapNotNull null
-                Violation(
+                sources.createViolation(
                     RULE,
-                    sources.relativePath(file),
+                    file,
+                    declaration,
                     name,
                     message
                 )

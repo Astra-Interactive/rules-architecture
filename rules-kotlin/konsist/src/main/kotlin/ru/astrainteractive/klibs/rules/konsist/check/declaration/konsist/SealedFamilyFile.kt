@@ -32,21 +32,21 @@ internal class SealedFamilyFile : ArchitectureCheck {
         val sealedByName = sealedFiles(sources.mainFiles)
         return sources.mainFiles.flatMap { file ->
             val classes = file.classes(includeNested = true, includeLocal = false)
-                .map { declaration -> Subtype(declaration.name, declaration.parents().map(KoNameProvider::name)) }
             val objects = file.objects(includeNested = true)
-                .map { declaration -> Subtype(declaration.name, declaration.parents().map(KoNameProvider::name)) }
-            classes.plus(objects).mapNotNull { subtype ->
-                val parentName = subtype.parentNames
+            classes.plus(objects).mapNotNull { declaration ->
+                val parentName = declaration.parents()
+                    .map(KoNameProvider::name)
                     .map { name -> name.substringBefore('<') }
                     .firstOrNull { name -> sealedByName[name]?.path.let { path -> path != null && path != file.path } }
                     ?: return@mapNotNull null
                 val sealedFile = File(sealedByName.getValue(parentName).path).name
-                val message = "Move ${subtype.name} into $sealedFile: a sealed hierarchy is one file with all its " +
-                    "variants."
-                Violation(
+                val message = "Move ${declaration.name} into $sealedFile: a sealed hierarchy is one file with all " +
+                    "its variants."
+                sources.createViolation(
                     RULE,
-                    sources.relativePath(file),
-                    subtype.name,
+                    file,
+                    declaration,
+                    declaration.name,
                     message
                 )
             }
@@ -54,8 +54,6 @@ internal class SealedFamilyFile : ArchitectureCheck {
     }
 
     private class SealedType(val name: String, val file: KoFileDeclaration)
-
-    private class Subtype(val name: String, val parentNames: List<String>)
 
     private companion object {
         const val RULE = "SealedFamilyFile"

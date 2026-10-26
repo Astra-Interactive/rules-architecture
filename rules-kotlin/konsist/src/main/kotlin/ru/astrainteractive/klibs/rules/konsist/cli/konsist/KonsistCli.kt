@@ -16,6 +16,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.UseCase
 import ru.astrainteractive.klibs.rules.konsist.check.direction.konsist.KindImportDirection
 import ru.astrainteractive.klibs.rules.konsist.check.direction.konsist.PlatformImport
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureChecker
+import ru.astrainteractive.klibs.rules.konsist.check.konsist.SuppressionPolicy
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.ComposeKindWithoutCompose
 import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.ContractPlacement
@@ -90,7 +91,8 @@ public fun main(args: Array<String>) {
             UtilFileName(),
             UtilFunctionAsExtension(),
             UtilShape(),
-        )
+        ),
+        SuppressionPolicy()
     )
     writeReport(checker.check(sources), arguments.reportFile)
 }

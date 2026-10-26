@@ -40,9 +40,9 @@ internal class TestMirror : ArchitectureCheck {
     }
 
     private fun violation(sources: UnitSources, file: KoFileDeclaration, message: String): Violation {
-        return Violation(
+        return sources.createViolation(
             RULE,
-            sources.relativePath(file),
+            file,
             file.baseName,
             message
         )

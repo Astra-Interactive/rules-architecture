@@ -2,7 +2,6 @@ package ru.astrainteractive.klibs.rules.konsist.check.placement.konsist
 
 import com.lemonappdev.konsist.api.declaration.KoClassDeclaration
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
-import com.lemonappdev.konsist.api.provider.KoNameProvider
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
@@ -32,15 +31,15 @@ internal class FakePlacement : ArchitectureCheck {
             val declarations = file.topLevelClasses().filterNot(::isArchitectureCheck) +
                 file.objects(includeNested = false)
             declarations
-                .map(KoNameProvider::name)
-                .filterNot { name -> name.endsWith(TEST_SUFFIX) }
-                .filter(FAKE_NAME::matches)
-                .map { name ->
-                    Violation(
+                .filterNot { declaration -> declaration.name.endsWith(TEST_SUFFIX) }
+                .filter { declaration -> FAKE_NAME.matches(declaration.name) }
+                .map { declaration ->
+                    sources.createViolation(
                         RULE,
-                        sources.relativePath(file),
-                        name,
-                        message.invoke(name)
+                        file,
+                        declaration,
+                        declaration.name,
+                        message.invoke(declaration.name)
                     )
                 }
         }

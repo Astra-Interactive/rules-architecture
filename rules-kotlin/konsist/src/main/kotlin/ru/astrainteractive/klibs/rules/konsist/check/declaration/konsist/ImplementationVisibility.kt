@@ -27,9 +27,10 @@ internal class ImplementationVisibility : ArchitectureCheck {
                     .filterNot { declaration -> NON_PUBLIC.any(declaration::hasModifier) }
                     .map { declaration ->
                         val message = "Make ${declaration.name} internal: the DI module of the unit constructs it."
-                        Violation(
+                        sources.createViolation(
                             RULE,
-                            sources.relativePath(file),
+                            file,
+                            declaration,
                             declaration.name,
                             message
                         )

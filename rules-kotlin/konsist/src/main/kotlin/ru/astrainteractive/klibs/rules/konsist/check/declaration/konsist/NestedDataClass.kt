@@ -71,9 +71,10 @@ internal class NestedDataClass : ArchitectureCheck {
                 ) ?: return@mapNotNull null
                 val name = dataClass.declaration.name
                 val message = "Nest $name in ${owner.declaration.name}: it is the property type of that class only."
-                Violation(
+                sources.createViolation(
                     RULE,
-                    sources.relativePath(dataClass.file),
+                    dataClass.file,
+                    dataClass.declaration,
                     name,
                     message
                 )

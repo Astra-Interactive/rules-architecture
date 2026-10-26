@@ -38,9 +38,9 @@ internal class UtilFileName : ArchitectureCheck {
                 null
             }
             message?.let { text ->
-                Violation(
+                sources.createViolation(
                     RULE,
-                    sources.relativePath(file),
+                    file,
                     file.baseName,
                     text
                 )

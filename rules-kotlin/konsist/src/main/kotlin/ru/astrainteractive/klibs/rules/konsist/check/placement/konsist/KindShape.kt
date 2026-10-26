@@ -81,9 +81,9 @@ internal class KindShape : ArchitectureCheck {
             if (!isComposableFile || kindPath(placement) !in splitComposables) return@mapNotNull null
             val message = "Move ${file.baseName} into a sub-package of ${placement.describe()}: composable holds " +
                 "files or sub-packages, never both."
-            Violation(
+            sources.createViolation(
                 RULE,
-                sources.relativePath(file),
+                file,
                 file.baseName,
                 message
             )
@@ -98,9 +98,9 @@ internal class KindShape : ArchitectureCheck {
                 file,
                 placement
             ) ?: return@mapNotNull null
-            Violation(
+            sources.createViolation(
                 RULE,
-                sources.relativePath(file),
+                file,
                 file.baseName,
                 message
             )

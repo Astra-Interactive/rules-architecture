@@ -3,7 +3,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.placement.konsist
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
-import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelClassAndObjectNames
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelClasses
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
@@ -17,14 +17,16 @@ internal class DiPlacement : ArchitectureCheck {
         return sources.mainFiles
             .filter { file -> sources.placementOf(file)?.kind != Kind.DI }
             .flatMap { file ->
-                file.topLevelClassAndObjectNames()
-                    .filter { name -> name.endsWith(MODULE_SUFFIX) }
-                    .map { name ->
-                        val message = "Move $name to the di package of the level it wires."
-                        Violation(
+                file.topLevelClasses()
+                    .plus(file.objects(includeNested = false))
+                    .filter { declaration -> declaration.name.endsWith(MODULE_SUFFIX) }
+                    .map { declaration ->
+                        val message = "Move ${declaration.name} to the di package of the level it wires."
+                        sources.createViolation(
                             RULE,
-                            sources.relativePath(file),
-                            name,
+                            file,
+                            declaration,
+                            declaration.name,
                             message
                         )
                     }

@@ -73,6 +73,20 @@ class LinterPluginTest {
     }
 
     @Test
+    fun GIVEN_suppressed_violation_WHEN_architecture_checked_THEN_passes_without_baseline(
+        @TempDir rootDirectory: File
+    ) {
+        val build = jailBuild(rootDirectory)
+        val loose = build.file("jail/src/main/kotlin/com/example/jail/Jail.kt")
+        val suppression = """@file:Suppress("KindShape")"""
+        loose.writeText(suppression + System.lineSeparator().repeat(2) + loose.readText())
+
+        build.run(":jail:architectureCheck")
+
+        assertTrue(!build.file("jail/architecture-baseline.txt").exists(), "a baseline was created")
+    }
+
+    @Test
     fun GIVEN_violations_fixed_WHEN_baseline_written_again_THEN_removes_the_baseline(@TempDir rootDirectory: File) {
         val build = jailBuild(rootDirectory)
         build.run(":jail:architectureBaseline")

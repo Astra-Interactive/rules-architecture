@@ -40,9 +40,9 @@ internal class ForbiddenPackageName : ArchitectureCheck {
                 if (forbidden.isEmpty()) return@mapNotNull null
                 val message = "Rename the package segments ${forbidden.joinToString { segment -> "'$segment'" }}: " +
                     "a package is named for a concept or a kind, never a layer or a filler word."
-                Violation(
+                sources.createViolation(
                     RULE,
-                    sources.relativePath(file),
+                    file,
                     file.packageName,
                     message
                 )

@@ -23,9 +23,9 @@ internal class PlatformPackage : ArchitectureCheck {
                     ?: return@mapNotNull null
                 val message = "Move the code of the package '$platform' to the ${platform}Main source set at the " +
                     "same package path: platform code is a source set, never a package."
-                Violation(
+                sources.createViolation(
                     RULE,
-                    sources.relativePath(file),
+                    file,
                     file.packageName,
                     message
                 )

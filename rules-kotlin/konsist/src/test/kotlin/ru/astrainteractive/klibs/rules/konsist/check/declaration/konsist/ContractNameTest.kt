@@ -4,6 +4,8 @@ package ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureChecker
+import ru.astrainteractive.klibs.rules.konsist.check.konsist.SuppressionPolicy
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
@@ -46,5 +48,22 @@ internal class ContractNameTest {
             .load(UnitKind.CONTEXT, rootPackage = "x.data.dao")
 
         assertEquals(emptyList(), ContractName().check(sources))
+    }
+
+    @Test
+    fun GIVEN_suppressed_contract_WHEN_checked_THEN_reports_only_unsuppressed_contract(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.data.dao.rating.api/RatingDao.kt",
+                """
+                @Suppress("ContractName")
+                interface RatingDao
+                """
+            )
+            .main("x.data.dao.rating.api/UserStorage.kt", "interface UserStorage")
+            .load(UnitKind.CONTEXT, rootPackage = "x.data.dao")
+        val checker = ArchitectureChecker(listOf(ContractName()), SuppressionPolicy())
+
+        assertEquals(listOf("UserStorage"), checker.check(sources).map(Violation::subject))
     }
 }

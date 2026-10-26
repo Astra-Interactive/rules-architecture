@@ -24,9 +24,9 @@ internal class EntryPointShape : ArchitectureCheck {
             .map { file ->
                 val message = "Move ${file.baseName} out of the entry point: the entry point holds the platform main " +
                     "class and RootModule, nothing else; the code goes to the unit of its sub-context or to core."
-                Violation(
+                sources.createViolation(
                     RULE,
-                    sources.relativePath(file),
+                    file,
                     file.baseName,
                     message
                 )

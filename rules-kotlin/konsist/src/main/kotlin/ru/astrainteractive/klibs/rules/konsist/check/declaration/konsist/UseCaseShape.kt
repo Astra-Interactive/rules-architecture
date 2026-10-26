@@ -56,9 +56,10 @@ internal class UseCaseShape : ArchitectureCheck {
             val placement = sources.placementOf(file)
             file.topLevelClasses().flatMap { declaration ->
                 findMessages(declaration, placement).map { message ->
-                    Violation(
+                    sources.createViolation(
                         RULE,
-                        sources.relativePath(file),
+                        file,
+                        declaration,
                         declaration.name,
                         message
                     )

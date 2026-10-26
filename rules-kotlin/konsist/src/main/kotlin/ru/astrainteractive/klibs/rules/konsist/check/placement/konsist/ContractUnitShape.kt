@@ -2,7 +2,6 @@ package ru.astrainteractive.klibs.rules.konsist.check.placement.konsist
 
 import com.lemonappdev.konsist.api.KoModifier
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
-import com.lemonappdev.konsist.api.provider.KoNameProvider
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
@@ -16,46 +15,54 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 internal class ContractUnitShape : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = setOf(UnitKind.CONTRACT)
 
-    private fun unserializableTypes(file: KoFileDeclaration): List<String> {
+    private fun unserializableTypes(sources: UnitSources, file: KoFileDeclaration): List<Violation> {
         val classes = file.topLevelClasses()
             .filterNot { declaration -> declaration.hasModifier(KoModifier.ENUM) }
             .filterNot { declaration -> declaration.hasAnnotationWithName(SERIALIZABLE) }
-            .map(KoNameProvider::name)
+            .map { declaration ->
+                sources.createViolation(
+                    RULE,
+                    file,
+                    declaration,
+                    declaration.name,
+                    "Annotate ${declaration.name} @Serializable or move it out: a contract unit holds only wire types."
+                )
+            }
         val interfaces = file.interfaces(includeNested = false)
             .filterNot { declaration -> declaration.hasAnnotationWithName(SERIALIZABLE) }
-            .map(KoNameProvider::name)
+            .map { declaration ->
+                sources.createViolation(
+                    RULE,
+                    file,
+                    declaration,
+                    declaration.name,
+                    "Annotate ${declaration.name} @Serializable or move it out: a contract unit holds only wire types."
+                )
+            }
         return classes + interfaces
     }
 
-    private fun functionsWithBody(file: KoFileDeclaration): List<String> {
+    private fun functionsWithBody(sources: UnitSources, file: KoFileDeclaration): List<Violation> {
         val topLevel = file.functions(includeNested = false, includeLocal = false)
         val inClasses = file.classes(includeNested = true, includeLocal = false)
             .flatMap { declaration -> declaration.functions(includeNested = false, includeLocal = false) }
         return topLevel.plus(inClasses)
             .filter { function -> function.hasBlockBody || function.hasExpressionBody }
-            .map(KoNameProvider::name)
+            .map { function ->
+                sources.createViolation(
+                    RULE,
+                    file,
+                    function,
+                    function.name,
+                    "Move ${function.name} out of the contract unit: a wire type carries no behaviour; map it at " +
+                        "each side."
+                )
+            }
     }
 
     override fun check(sources: UnitSources): List<Violation> {
         return sources.mainFiles.flatMap { file ->
-            val path = sources.relativePath(file)
-            val types = unserializableTypes(file).map { name ->
-                Violation(
-                    RULE,
-                    path,
-                    name,
-                    "Annotate $name @Serializable or move it out: a contract unit holds only wire types."
-                )
-            }
-            val functions = functionsWithBody(file).map { name ->
-                Violation(
-                    RULE,
-                    path,
-                    name,
-                    "Move $name out of the contract unit: a wire type carries no behaviour; map it at each side."
-                )
-            }
-            types + functions
+            unserializableTypes(sources, file) + functionsWithBody(sources, file)
         }
     }
 

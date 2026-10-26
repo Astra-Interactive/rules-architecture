@@ -1,6 +1,5 @@
 package ru.astrainteractive.klibs.rules.konsist.check.placement.konsist
 
-import com.lemonappdev.konsist.api.provider.KoNameProvider
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
@@ -19,18 +18,17 @@ internal class CoreShape : ArchitectureCheck {
         if (!isCore) return emptyList()
         return sources.mainFiles.flatMap { file ->
             val useCases = file.topLevelClasses()
-                .map(KoNameProvider::name)
-                .filter { name -> name.endsWith(USE_CASE_SUFFIX) }
+                .filter { declaration -> declaration.name.endsWith(USE_CASE_SUFFIX) }
             val repositories = file.interfaces(includeNested = false)
-                .map(KoNameProvider::name)
-                .filter { name -> name.endsWith(REPOSITORY_SUFFIX) }
-            useCases.plus(repositories).map { name ->
-                val message = "Move $name out of core: a use case goes to the api unit of the sub-context that " +
-                    "owns the operation, a repository to the storage contracts unit."
-                Violation(
+                .filter { declaration -> declaration.name.endsWith(REPOSITORY_SUFFIX) }
+            useCases.plus(repositories).map { declaration ->
+                val message = "Move ${declaration.name} out of core: a use case goes to the api unit of the " +
+                    "sub-context that owns the operation, a repository to the storage contracts unit."
+                sources.createViolation(
                     RULE,
-                    sources.relativePath(file),
-                    name,
+                    file,
+                    declaration,
+                    declaration.name,
                     message
                 )
             }
