@@ -40,9 +40,10 @@ internal class NestedEnum : ArchitectureCheck {
                         sources
                     ) ?: return@mapNotNull null
                     val message = "Nest ${enum.name} in $owner: an enum used only through one type is nested in it."
-                    Violation(
+                    sources.createViolation(
                         RULE,
-                        sources.relativePath(file),
+                        file,
+                        enum,
                         enum.name,
                         message
                     )

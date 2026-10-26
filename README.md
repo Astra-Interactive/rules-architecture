@@ -76,9 +76,10 @@ plugins {
 - Adds the architecture detekt rules and their `detekt-architecture.yml`, listed after `detekt.yml` so they win,
   and passes the module's explicit API mode to the `detekt` task.
 - Registers `architectureCheck`, which `check` depends on: the Konsist checks of the unit's package layout, run in
-  a separate JVM, and the structure checks of its README, nested units and project dependencies.
+  a separate JVM, and the structure checks of its README, nested units and project dependencies. Konsist findings
+  accept `@Suppress("RuleName")` on a declaration or `@file:Suppress("RuleName")` on a whole file.
 - Registers `architectureBaseline`, which writes the current violations to `architecture-baseline.txt`; the check
-  accepts what the file lists, so old code can stay as it is.
+  accepts what the file lists for findings that cannot carry a Kotlin suppression.
 - On the root project, registers `architectureGraphCheck`, which checks the complete unit graph for dependency
   cycles; root `check` depends on it. Units contribute their dependencies through an isolated-projects-compatible
   shared build service.
@@ -184,6 +185,25 @@ tasks.named("check") { dependsOn(konsistCheck) }
 | `--test`         | a test source directory, optionally `sourceSet=path`; repeatable                  |
 | `--report`       | the file the violations are written to                                             |
 | `--root-package` | the unit's root package, when the unit path does not find it                       |
+
+Suppress a rule in Kotlin instead of adding its finding to a baseline. Use a declaration annotation for one
+class, interface, function or property, including all declarations nested in it:
+
+```kotlin
+@Suppress("ContractName")
+interface UserDao
+```
+
+Use a file annotation for every finding of that rule in the file, including import, package and file-shape rules:
+
+```kotlin
+@file:Suppress("KindShape", "PlatformImport")
+
+package com.example.feature
+```
+
+Suppression applies to the named rules only. `architectureBaseline` remains available for structure and Gradle
+build findings, and for findings about missing files or directories that cannot carry an annotation.
 
 Every unit has the shape `<unit root>[/<concept>]/<kind>/<File>`. The unit kind decides the exceptions:
 

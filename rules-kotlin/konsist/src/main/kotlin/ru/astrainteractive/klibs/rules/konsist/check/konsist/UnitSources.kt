@@ -1,7 +1,12 @@
 package ru.astrainteractive.klibs.rules.konsist.check.konsist
 
 import com.lemonappdev.konsist.api.Konsist
+import com.lemonappdev.konsist.api.declaration.KoBaseDeclaration
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
+import ru.astrainteractive.klibs.rules.konsist.check.model.DeclarationOrigin
+import ru.astrainteractive.klibs.rules.konsist.check.model.ExternalOrigin
+import ru.astrainteractive.klibs.rules.konsist.check.model.FileOrigin
+import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.importedName
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.packageName
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelNames
@@ -55,6 +60,51 @@ internal class UnitSources(
 
     fun relativePath(file: KoFileDeclaration): String {
         return File(file.path).relativeTo(projectDirectory).invariantSeparatorsPath
+    }
+
+    fun createViolation(
+        rule: String,
+        file: KoFileDeclaration,
+        declaration: KoBaseDeclaration,
+        subject: String,
+        message: String
+    ): Violation {
+        val origin = DeclarationOrigin(declaration, relativePath(file))
+        return Violation(
+            rule,
+            subject,
+            message,
+            origin
+        )
+    }
+
+    fun createViolation(
+        rule: String,
+        file: KoFileDeclaration,
+        subject: String,
+        message: String
+    ): Violation {
+        val origin = FileOrigin(file, relativePath(file))
+        return Violation(
+            rule,
+            subject,
+            message,
+            origin
+        )
+    }
+
+    fun createExternalViolation(
+        rule: String,
+        path: String,
+        subject: String,
+        message: String
+    ): Violation {
+        return Violation(
+            rule,
+            subject,
+            message,
+            ExternalOrigin(path)
+        )
     }
 
     fun placementOf(file: KoFileDeclaration): Placement? = layout.placementOf(file.packageName)

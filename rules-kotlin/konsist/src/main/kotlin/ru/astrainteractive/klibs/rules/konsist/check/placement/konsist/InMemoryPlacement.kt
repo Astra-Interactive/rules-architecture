@@ -16,36 +16,37 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 internal class InMemoryPlacement : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
 
-    private fun inMemoryNames(file: KoFileDeclaration): List<String> {
+    private fun inMemoryDeclarations(file: KoFileDeclaration): List<KoClassDeclaration> {
         return file.topLevelClasses()
             .filterNot { declaration -> declaration.parents().any { parent -> parent.name == ARCHITECTURE_CHECK } }
-            .map(KoClassDeclaration::name)
-            .filterNot { name -> name.endsWith(TEST_SUFFIX) }
-            .filter(IN_MEMORY_NAME::matches)
+            .filterNot { declaration -> declaration.name.endsWith(TEST_SUFFIX) }
+            .filter { declaration -> IN_MEMORY_NAME.matches(declaration.name) }
     }
 
     override fun check(sources: UnitSources): List<Violation> {
         val inMain = sources.mainFiles
             .filterNot { file -> file.packageName.substringAfterLast('.') == MEMORY_SEGMENT }
             .flatMap { file ->
-                inMemoryNames(file).map { name ->
-                    val message = "Move $name to the memory package of its concept."
-                    Violation(
+                inMemoryDeclarations(file).map { declaration ->
+                    val message = "Move ${declaration.name} to the memory package of its concept."
+                    sources.createViolation(
                         RULE,
-                        sources.relativePath(file),
-                        name,
+                        file,
+                        declaration,
+                        declaration.name,
                         message
                     )
                 }
             }
         val inTests = sources.testFiles.flatMap { file ->
-            inMemoryNames(file).map { name ->
-                val message = "Move $name to a memory package of the main sources: an in-memory implementation " +
-                    "is production code."
-                Violation(
+            inMemoryDeclarations(file).map { declaration ->
+                val message = "Move ${declaration.name} to a memory package of the main sources: an in-memory " +
+                    "implementation is production code."
+                sources.createViolation(
                     RULE,
-                    sources.relativePath(file),
-                    name,
+                    file,
+                    declaration,
+                    declaration.name,
                     message
                 )
             }

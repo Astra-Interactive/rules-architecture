@@ -31,9 +31,10 @@ internal class UtilFunctionAsExtension : ArchitectureCheck {
                         if (typeName !in modelNames) return@mapNotNull null
                         val message = "Write ${function.name} as an extension of $typeName: " +
                             "fun $typeName.${function.name}(), a rule about one type extends that type."
-                        Violation(
+                        sources.createViolation(
                             RULE,
-                            sources.relativePath(file),
+                            file,
+                            function,
                             function.name,
                             message
                         )

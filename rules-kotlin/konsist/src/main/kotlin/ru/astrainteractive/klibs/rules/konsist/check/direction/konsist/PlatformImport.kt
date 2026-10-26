@@ -42,9 +42,9 @@ internal class PlatformImport : ArchitectureCheck {
                     .map { importedName ->
                         val message = "$importedName is a platform type: keep it in a platform unit or a " +
                             "technology package and map it to the model at their edge."
-                        Violation(
+                        sources.createViolation(
                             RULE,
-                            sources.relativePath(file),
+                            file,
                             importedName,
                             message
                         )

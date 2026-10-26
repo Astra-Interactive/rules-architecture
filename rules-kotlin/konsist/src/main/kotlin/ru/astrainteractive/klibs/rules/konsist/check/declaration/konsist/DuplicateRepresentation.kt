@@ -1,6 +1,8 @@
 package ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist
 
 import com.lemonappdev.konsist.api.KoModifier
+import com.lemonappdev.konsist.api.declaration.KoClassDeclaration
+import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
@@ -18,7 +20,12 @@ internal class DuplicateRepresentation : ArchitectureCheck {
 
     private data class FieldShape(val name: String, val type: String)
 
-    private class DataClassShape(val name: String, val fields: Set<FieldShape>, val path: String)
+    private class DataClassShape(
+        val declaration: KoClassDeclaration,
+        val file: KoFileDeclaration,
+        val name: String,
+        val fields: Set<FieldShape>
+    )
 
     private fun dataClasses(sources: UnitSources, kind: Kind): List<DataClassShape> {
         return sources.mainFiles
@@ -31,9 +38,10 @@ internal class DuplicateRepresentation : ArchitectureCheck {
                             .map { parameter -> FieldShape(parameter.name, parameter.type.simpleName) }
                             .toSet()
                         DataClassShape(
+                            declaration,
+                            file,
                             declaration.name,
-                            fields,
-                            sources.relativePath(file)
+                            fields
                         )
                     }
             }
@@ -47,9 +55,10 @@ internal class DuplicateRepresentation : ArchitectureCheck {
                 ?: return@mapNotNull null
             val message = "${technology.name} copies the fields of ${model.name}: one representation per thing; " +
                 "keep a technology shape only when the technology dictates it, and map at its edge."
-            Violation(
+            sources.createViolation(
                 RULE,
-                technology.path,
+                technology.file,
+                technology.declaration,
                 technology.name,
                 message
             )

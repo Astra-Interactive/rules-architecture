@@ -36,7 +36,8 @@ internal abstract class ArchitectureCheckTask : ArchitectureTask() {
             appendLine("Architecture check found ${findings.size} violation(s) in ${projectPath.get()}:")
             findings.forEach { finding -> appendLine("  ${finding.describe()}") }
             val baselineTask = "${projectPath.get().removeSuffix(":")}:${LinterPlugin.BASELINE_TASK_NAME}"
-            append("Fix them, or run $baselineTask to accept the current ones.")
+            appendLine("Fix them, or suppress a Kotlin rule with @Suppress(\"RuleName\").")
+            append("For findings without a Kotlin declaration, run $baselineTask to accept the current ones.")
         }
     }
 

@@ -29,7 +29,7 @@ internal class ArchitectureCheckerTest {
         val everyKind = FakeArchitectureCheck(unitKinds = UnitKind.entries.toSet(), violations = emptyList())
         val sources = SourceTree(directory).load(UnitKind.LIBRARY)
 
-        val violations = ArchitectureChecker(listOf(contextOnly, everyKind)).check(sources)
+        val violations = ArchitectureChecker(listOf(contextOnly, everyKind), SuppressionPolicy()).check(sources)
 
         assertEquals(emptyList(), violations)
         assertEquals(0, contextOnly.runs)
@@ -76,7 +76,7 @@ internal class ArchitectureCheckerTest {
         )
         val sources = SourceTree(directory).load(UnitKind.CONTEXT)
 
-        val order = ArchitectureChecker(listOf(first, second)).check(sources)
+        val order = ArchitectureChecker(listOf(first, second), SuppressionPolicy()).check(sources)
             .map { violation -> "${violation.path}:${violation.rule}:${violation.subject}" }
 
         assertEquals(
@@ -88,5 +88,39 @@ internal class ArchitectureCheckerTest {
             ),
             order
         )
+    }
+
+    @Test
+    fun GIVEN_suppressed_finding_WHEN_checked_THEN_filters_it_before_returning(@TempDir directory: File) {
+        val sourceFile = File(directory, "src/main/kotlin/com/example/Suppressed.kt")
+        sourceFile.parentFile.mkdirs()
+        sourceFile.writeText(
+            """
+            @file:Suppress("SuppressedRule")
+            package com.example
+            class Suppressed
+            """.trimIndent()
+        )
+        val sources = SourceTree(directory).load(UnitKind.CONTEXT)
+        val file = sources.mainFiles.single()
+        val findings = listOf(
+            sources.createViolation(
+                "SuppressedRule",
+                file,
+                "Suppressed",
+                "message"
+            ),
+            sources.createViolation(
+                "VisibleRule",
+                file,
+                "Suppressed",
+                "message"
+            )
+        )
+        val check = FakeArchitectureCheck(UnitKind.entries.toSet(), findings)
+
+        val remaining = ArchitectureChecker(listOf(check), SuppressionPolicy()).check(sources)
+
+        assertEquals(listOf("VisibleRule"), remaining.map(Violation::rule))
     }
 }

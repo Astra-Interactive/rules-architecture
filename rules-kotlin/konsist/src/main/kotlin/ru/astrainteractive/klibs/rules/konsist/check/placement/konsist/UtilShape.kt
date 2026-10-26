@@ -5,7 +5,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.simpleName
-import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelTypeNames
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelClasses
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
@@ -20,12 +20,16 @@ internal class UtilShape : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
 
     private fun typesInUtil(sources: UnitSources, file: KoFileDeclaration): List<Violation> {
-        return file.topLevelTypeNames().map { name ->
-            val message = "Move $name out of util: util holds functions only, a class goes to the kind its role names."
-            Violation(
+        val declarations = file.topLevelClasses() + file.interfaces(includeNested = false) +
+            file.objects(includeNested = false)
+        return declarations.map { declaration ->
+            val message = "Move ${declaration.name} out of util: util holds functions only, a class goes to the " +
+                "kind its role names."
+            sources.createViolation(
                 RULE,
-                sources.relativePath(file),
-                name,
+                file,
+                declaration,
+                declaration.name,
                 message
             )
         }
@@ -46,9 +50,10 @@ internal class UtilShape : ArchitectureCheck {
             val message = "Move the extension $receiver.${function.name} to util/${subject}Ext.kt of the level " +
                 "that uses it: the file is named after its subject, the element type of a collection, flow or " +
                 "function type."
-            Violation(
+            sources.createViolation(
                 RULE,
-                sources.relativePath(file),
+                file,
+                function,
                 "$receiver.${function.name}",
                 message
             )

@@ -26,9 +26,9 @@ internal class ComposeKindWithoutCompose : ArchitectureCheck {
                     ?: return@mapNotNull null
                 val message = "Rename the package '$word': it means Kotlin Compose, and this unit does not use " +
                     "Compose; name the kind after the UI framework's own classes."
-                Violation(
+                sources.createViolation(
                     RULE,
-                    sources.relativePath(file),
+                    file,
                     file.packageName,
                     message
                 )

@@ -27,9 +27,10 @@ internal class RootModulePlacement : ArchitectureCheck {
                         !isDi -> "Move RootModule to the di package of the entry-point unit."
                         else -> null
                     } ?: return@mapNotNull null
-                    Violation(
+                    sources.createViolation(
                         RULE,
-                        sources.relativePath(file),
+                        file,
+                        declaration,
                         declaration.name,
                         message
                     )

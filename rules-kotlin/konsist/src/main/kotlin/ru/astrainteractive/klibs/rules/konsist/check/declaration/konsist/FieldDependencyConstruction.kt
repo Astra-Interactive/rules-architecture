@@ -44,9 +44,10 @@ internal class FieldDependencyConstruction : ArchitectureCheck {
                     constructedDependencies(declaration, dependencies).map { name ->
                         val message = "${declaration.name} constructs $name outside di: construct it in the DI " +
                             "module and pass it in through the constructor."
-                        Violation(
+                        sources.createViolation(
                             RULE,
-                            sources.relativePath(file),
+                            file,
+                            declaration,
                             "${declaration.name}.$name",
                             message
                         )

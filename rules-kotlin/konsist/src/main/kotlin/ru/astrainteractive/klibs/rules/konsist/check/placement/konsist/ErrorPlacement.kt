@@ -35,9 +35,10 @@ internal class ErrorPlacement : ArchitectureCheck {
                     .map { declaration ->
                         val message = "Move ${declaration.name} to the model package of the level that uses it: " +
                             "every error type is its own file in model."
-                        Violation(
+                        sources.createViolation(
                             RULE,
-                            sources.relativePath(file),
+                            file,
+                            declaration,
                             declaration.name,
                             message
                         )

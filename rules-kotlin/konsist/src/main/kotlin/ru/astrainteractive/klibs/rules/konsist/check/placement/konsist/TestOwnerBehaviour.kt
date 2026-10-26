@@ -36,9 +36,9 @@ internal class TestOwnerBehaviour : ArchitectureCheck {
                 val owner = file.baseName.removeSuffix(TEST_SUFFIX)
                 val message = "Delete or rename ${file.baseName}: $owner has no behaviour of its own; test its rules " +
                     "in the test of their util file."
-                Violation(
+                sources.createViolation(
                     RULE,
-                    sources.relativePath(file),
+                    file,
                     file.baseName,
                     message
                 )
