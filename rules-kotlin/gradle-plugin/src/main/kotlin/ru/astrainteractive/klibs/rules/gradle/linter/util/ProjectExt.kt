@@ -7,6 +7,7 @@ import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.internal.artifacts.configurations.ConfigurationInternal
 import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 import org.jetbrains.kotlin.gradle.dsl.KotlinBaseExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
@@ -82,10 +83,16 @@ private fun isProductionConfiguration(name: String): Boolean {
         .and(!name.contains("test", ignoreCase = true))
 }
 
+private fun Configuration.readDeclaredDependencies(): Set<Dependency> {
+    // Public accessors skip withDependencies until resolution, which dependency-scope configurations cannot perform.
+    (this as ConfigurationInternal).runDependencyActions()
+    return dependencies
+}
+
 internal fun Project.productionProjectDependencies(): Set<String> {
     return configurations
         .filter { configuration -> isProductionConfiguration(configuration.name) }
-        .flatMap { configuration -> configuration.dependencies.withType(ProjectDependency::class.java) }
+        .flatMap { configuration -> configuration.readDeclaredDependencies().filterIsInstance<ProjectDependency>() }
         .map(ProjectDependency::getPath)
         .filter { dependencyPath -> dependencyPath != path }
         .toSet()
@@ -104,7 +111,7 @@ private fun Project.apiDependencies(): List<String> {
     return configurations
         .filter { configuration -> isApiConfiguration(configuration.name) }
         .flatMap { configuration ->
-            configuration.dependencies
+            configuration.readDeclaredDependencies()
                 .filterNot { dependency -> dependency.group == null && dependency.name == "unspecified" }
                 .map { dependency -> "${configuration.name}: ${dependencyNotation(dependency)}" }
         }
@@ -112,7 +119,7 @@ private fun Project.apiDependencies(): List<String> {
 }
 
 private fun Configuration.dependencyClosure(): Set<Dependency> {
-    return dependencies.plus(extendsFrom.flatMap(Configuration::dependencyClosure)).toSet()
+    return readDeclaredDependencies().plus(extendsFrom.flatMap(Configuration::dependencyClosure)).toSet()
 }
 
 private fun Project.exportedDependencies(): Set<String> {
@@ -132,7 +139,9 @@ private fun Project.exportedDependencies(): Set<String> {
 private fun Project.externalProductionDependencies(): List<String> {
     return configurations
         .filter { configuration -> isProductionConfiguration(configuration.name) }
-        .flatMap { configuration -> configuration.dependencies.withType(ExternalModuleDependency::class.java) }
+        .flatMap { configuration ->
+            configuration.readDeclaredDependencies().filterIsInstance<ExternalModuleDependency>()
+        }
         .map { dependency -> "${dependency.group}:${dependency.name}" }
         .distinct()
         .sorted()

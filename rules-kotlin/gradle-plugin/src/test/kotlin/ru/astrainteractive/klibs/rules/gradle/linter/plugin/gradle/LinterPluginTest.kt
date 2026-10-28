@@ -161,6 +161,64 @@ class LinterPluginTest {
     }
 
     @Test
+    fun GIVEN_kotlin_jvm_module_WHEN_compilation_and_architecture_run_THEN_ignores_automatic_stdlib(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            plugins {
+                `java-library`
+                id("org.jetbrains.kotlin.jvm")
+                id("ru.astrainteractive.klibs.rules.gradle.linter")
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "library", buildScript = moduleScript)
+            .withSourceFile("library/README.md", "Publishes the library API.")
+
+        build.run(":library:compileKotlin", ":library:architectureCheck")
+    }
+
+    @Test
+    fun GIVEN_deferred_build_dependencies_WHEN_baseline_written_THEN_captures_all_findings(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            $JAVA_MODULE_SCRIPT
+
+            val slf4jApi = dependencies.create("org.slf4j:slf4j-api:2.0.13")
+            val paperApi = dependencies.create("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
+            val impl = dependencies.create(project(":impl"))
+            configurations.getByName("api").withDependencies {
+                add(slf4jApi)
+            }
+            configurations.getByName("implementation").withDependencies {
+                add(paperApi)
+                add(impl)
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "api", buildScript = moduleScript)
+            .withModule(name = "impl", buildScript = JAVA_MODULE_SCRIPT)
+            .withSourceFile("api/README.md", "Publishes what other contexts may call.")
+
+        build.run(":api:architectureBaseline")
+
+        val baseline = build.file("api/architecture-baseline.txt").readLines()
+        assertEquals(
+            listOf(
+                "ApiConfiguration\tbuild.gradle.kts\tapi: org.slf4j:slf4j-api",
+                "ApiUnitPlatformDependency\tbuild.gradle.kts\tio.papermc.paper:paper-api",
+                "UnitDependency\tbuild.gradle.kts\t:impl"
+            ),
+            baseline
+        )
+    }
+
+    @Test
     fun GIVEN_kotlin_library_with_explicit_api_WHEN_configured_THEN_detekt_runs_the_architecture_rules(
         @TempDir rootDirectory: File
     ) {
@@ -451,7 +509,7 @@ class LinterPluginTest {
     }
 
     @Test
-    fun GIVEN_inherited_framework_export_WHEN_checked_THEN_only_unrelated_api_dependency_is_reported(
+    fun GIVEN_deferred_inherited_framework_export_WHEN_checked_THEN_only_unrelated_api_is_reported(
         @TempDir rootDirectory: File
     ) {
         val moduleScript = """
@@ -475,9 +533,13 @@ class LinterPluginTest {
                 }
             }
 
+            val slf4jApi = dependencies.create("org.slf4j:slf4j-api:2.0.13")
+            val core = dependencies.create(project(":core"))
+            configurations.getByName("exportedApi").withDependencies {
+                add(slf4jApi)
+                add(core)
+            }
             dependencies {
-                add("exportedApi", "org.slf4j:slf4j-api:2.0.13")
-                exportedApi(project(":core"))
                 unrelatedApi("org.apache.commons:commons-lang3:3.14.0")
                 unrelatedApi(project(":core"))
             }
