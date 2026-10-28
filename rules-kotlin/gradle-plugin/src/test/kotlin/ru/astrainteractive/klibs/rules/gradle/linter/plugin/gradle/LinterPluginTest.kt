@@ -170,6 +170,10 @@ class LinterPluginTest {
                 id("org.jetbrains.kotlin.jvm")
                 id("ru.astrainteractive.klibs.rules.gradle.linter")
             }
+
+            afterEvaluate {
+                configurations.getByName("compileClasspath").incoming.resolutionResult
+            }
         """.trimIndent()
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
