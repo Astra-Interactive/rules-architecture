@@ -181,12 +181,15 @@ class LinterPluginTest {
     }
 
     @Test
-    fun GIVEN_deferred_build_dependencies_WHEN_baseline_written_THEN_captures_all_findings(
+    fun GIVEN_deferred_and_direct_dependencies_WHEN_baseline_written_THEN_distinguishes_api_declarations(
         @TempDir rootDirectory: File
     ) {
         val moduleScript = """
             $JAVA_MODULE_SCRIPT
 
+            dependencies {
+                api("org.apache.commons:commons-lang3:3.14.0")
+            }
             val slf4jApi = dependencies.create("org.slf4j:slf4j-api:2.0.13")
             val paperApi = dependencies.create("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
             val impl = dependencies.create(project(":impl"))
@@ -210,7 +213,7 @@ class LinterPluginTest {
         val baseline = build.file("api/architecture-baseline.txt").readLines()
         assertEquals(
             listOf(
-                "ApiConfiguration\tbuild.gradle.kts\tapi: org.slf4j:slf4j-api",
+                "ApiConfiguration\tbuild.gradle.kts\tapi: org.apache.commons:commons-lang3",
                 "ApiUnitPlatformDependency\tbuild.gradle.kts\tio.papermc.paper:paper-api",
                 "UnitDependency\tbuild.gradle.kts\t:impl"
             ),
@@ -509,7 +512,7 @@ class LinterPluginTest {
     }
 
     @Test
-    fun GIVEN_deferred_inherited_framework_export_WHEN_checked_THEN_only_unrelated_api_is_reported(
+    fun GIVEN_inherited_framework_export_WHEN_checked_THEN_only_unrelated_api_dependency_is_reported(
         @TempDir rootDirectory: File
     ) {
         val moduleScript = """
@@ -533,13 +536,9 @@ class LinterPluginTest {
                 }
             }
 
-            val slf4jApi = dependencies.create("org.slf4j:slf4j-api:2.0.13")
-            val core = dependencies.create(project(":core"))
-            configurations.getByName("exportedApi").withDependencies {
-                add(slf4jApi)
-                add(core)
-            }
             dependencies {
+                add("exportedApi", "org.slf4j:slf4j-api:2.0.13")
+                exportedApi(project(":core"))
                 unrelatedApi("org.apache.commons:commons-lang3:3.14.0")
                 unrelatedApi(project(":core"))
             }

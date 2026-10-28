@@ -111,7 +111,7 @@ private fun Project.apiDependencies(): List<String> {
     return configurations
         .filter { configuration -> isApiConfiguration(configuration.name) }
         .flatMap { configuration ->
-            configuration.readDeclaredDependencies()
+            configuration.dependencies
                 .filterNot { dependency -> dependency.group == null && dependency.name == "unspecified" }
                 .map { dependency -> "${configuration.name}: ${dependencyNotation(dependency)}" }
         }

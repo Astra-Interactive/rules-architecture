@@ -6,7 +6,6 @@ import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 
 private const val BUILD_FILE = "build.gradle.kts"
 private const val STRICT = "strict"
-private const val KOTLIN_STDLIB = "org.jetbrains.kotlin:kotlin-stdlib"
 
 private val PLATFORM_GROUP_PREFIXES = listOf(
     "io.papermc",
@@ -29,7 +28,6 @@ private val PLATFORM_FREE_ANDROIDX_PREFIXES = listOf(
 
 private fun UnitBuild.findApiConfigurationFindings(): List<ArchitectureFinding> {
     return apiDependencies
-        .filterNot { dependency -> dependency.substringAfter(": ") == KOTLIN_STDLIB }
         .filterNot { dependency -> dependency.substringAfter(": ") in exportedDependencies }
         .map { dependency ->
             ArchitectureFinding(

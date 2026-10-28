@@ -34,18 +34,6 @@ class UnitBuildExtTest {
     }
 
     @Test
-    fun GIVEN_kotlin_stdlib_in_api_configuration_WHEN_checked_THEN_ignores_it() {
-        val build = cleanBuild.copy(
-            apiDependencies = listOf("api: org.jetbrains.kotlin:kotlin-stdlib", "api: com.example:core")
-        )
-
-        assertEquals(
-            listOf("api: com.example:core"),
-            build.findBuildFindings().map(ArchitectureFinding::subject)
-        )
-    }
-
-    @Test
     fun GIVEN_exported_and_unrelated_api_dependencies_WHEN_checked_THEN_reports_only_unrelated() {
         val build = cleanBuild.copy(
             apiDependencies = listOf("api: com.example:core", "api: com.example:other"),
