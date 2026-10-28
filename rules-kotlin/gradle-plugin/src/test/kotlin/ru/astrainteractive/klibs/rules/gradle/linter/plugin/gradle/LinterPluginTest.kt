@@ -178,10 +178,13 @@ class LinterPluginTest {
             .withSourceFile("library/README.md", "Publishes the library API.")
 
         build.run(":library:compileKotlin", ":library:architectureCheck")
+        val cachedResult = build.run(":library:compileKotlin", ":library:architectureCheck")
+
+        assertTrue(cachedResult.output.contains("Reusing configuration cache"), cachedResult.output)
     }
 
     @Test
-    fun GIVEN_deferred_and_direct_dependencies_WHEN_baseline_written_THEN_distinguishes_api_declarations(
+    fun GIVEN_deferred_and_direct_dependencies_WHEN_baseline_written_THEN_checks_only_direct_declarations(
         @TempDir rootDirectory: File
     ) {
         val moduleScript = """
@@ -209,16 +212,15 @@ class LinterPluginTest {
             .withSourceFile("api/README.md", "Publishes what other contexts may call.")
 
         build.run(":api:architectureBaseline")
+        val cachedResult = build.run(":api:architectureBaseline")
 
+        assertTrue(cachedResult.output.contains("Reusing configuration cache"), cachedResult.output)
         val baseline = build.file("api/architecture-baseline.txt").readLines()
         assertEquals(
-            listOf(
-                "ApiConfiguration\tbuild.gradle.kts\tapi: org.apache.commons:commons-lang3",
-                "ApiUnitPlatformDependency\tbuild.gradle.kts\tio.papermc.paper:paper-api",
-                "UnitDependency\tbuild.gradle.kts\t:impl"
-            ),
+            listOf("ApiConfiguration\tbuild.gradle.kts\tapi: org.apache.commons:commons-lang3"),
             baseline
         )
+        build.run(":api:architectureCheck")
     }
 
     @Test
