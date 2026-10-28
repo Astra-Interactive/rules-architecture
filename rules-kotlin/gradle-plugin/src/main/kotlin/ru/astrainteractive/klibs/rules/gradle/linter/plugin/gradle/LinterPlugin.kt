@@ -128,12 +128,6 @@ internal class LinterPlugin : Plugin<Project> {
         rootPackage.set(extension.rootPackage)
         rootOfBuild.set(project.path == project.isolated.rootProject.path)
         projectDependencies.set(project.provider { project.productionProjectDependencies() })
-        buildFindings.set(
-            extension.unitKind.map { cliName ->
-                val kind = UnitKind.fromCliName(cliName) ?: UnitKind.CONTEXT
-                project.readUnitBuild(kind).findBuildFindings().map(ArchitectureFinding::toLine)
-            }
-        )
     }
 
     private fun Project.graphService(): Provider<ArchitectureGraphService> {
@@ -189,7 +183,7 @@ internal class LinterPlugin : Plugin<Project> {
             task.baseline.from(target.layout.projectDirectory.file(BASELINE_FILE_NAME))
             task.reportFile.set(target.layout.buildDirectory.file("reports/architecture/violations.txt"))
         }
-        target.tasks.register(BASELINE_TASK_NAME, ArchitectureBaselineTask::class.java) { task ->
+        val baselineTask = target.tasks.register(BASELINE_TASK_NAME, ArchitectureBaselineTask::class.java) { task ->
             task.description = "Accepts the current architecture violations in $BASELINE_FILE_NAME"
             task.configureFrom(
                 target,
@@ -197,6 +191,12 @@ internal class LinterPlugin : Plugin<Project> {
                 classpath
             )
             task.baselineFile.set(target.layout.projectDirectory.file(BASELINE_FILE_NAME))
+        }
+        target.afterEvaluate { project ->
+            val kind = UnitKind.fromCliName(extension.unitKind.get()) ?: UnitKind.CONTEXT
+            val findings = project.readUnitBuild(kind).findBuildFindings().map(ArchitectureFinding::toLine)
+            checkTask.configure { task -> task.buildFindings.set(findings) }
+            baselineTask.configure { task -> task.buildFindings.set(findings) }
         }
         target.plugins.withType(LifecycleBasePlugin::class.java) {
             target.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) { task -> task.dependsOn(checkTask) }

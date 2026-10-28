@@ -161,6 +161,73 @@ class LinterPluginTest {
     }
 
     @Test
+    fun GIVEN_kotlin_jvm_module_WHEN_compilation_and_architecture_run_THEN_ignores_automatic_stdlib(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            plugins {
+                `java-library`
+                id("org.jetbrains.kotlin.jvm")
+                id("ru.astrainteractive.klibs.rules.gradle.linter")
+            }
+
+            afterEvaluate {
+                configurations.getByName("compileClasspath").incoming.resolutionResult
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "library", buildScript = moduleScript)
+            .withSourceFile("library/README.md", "Publishes the library API.")
+
+        build.run(":library:compileKotlin", ":library:architectureCheck")
+        val cachedResult = build.run(":library:compileKotlin", ":library:architectureCheck")
+
+        assertTrue(cachedResult.output.contains("Reusing configuration cache"), cachedResult.output)
+    }
+
+    @Test
+    fun GIVEN_deferred_and_direct_dependencies_WHEN_baseline_written_THEN_checks_only_direct_declarations(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            $JAVA_MODULE_SCRIPT
+
+            dependencies {
+                api("org.apache.commons:commons-lang3:3.14.0")
+            }
+            val slf4jApi = dependencies.create("org.slf4j:slf4j-api:2.0.13")
+            val paperApi = dependencies.create("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
+            val impl = dependencies.create(project(":impl"))
+            configurations.getByName("api").withDependencies {
+                add(slf4jApi)
+            }
+            configurations.getByName("implementation").withDependencies {
+                add(paperApi)
+                add(impl)
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "api", buildScript = moduleScript)
+            .withModule(name = "impl", buildScript = JAVA_MODULE_SCRIPT)
+            .withSourceFile("api/README.md", "Publishes what other contexts may call.")
+
+        build.run(":api:architectureBaseline")
+        val cachedResult = build.run(":api:architectureBaseline")
+
+        assertTrue(cachedResult.output.contains("Reusing configuration cache"), cachedResult.output)
+        val baseline = build.file("api/architecture-baseline.txt").readLines()
+        assertEquals(
+            listOf("ApiConfiguration\tbuild.gradle.kts\tapi: org.apache.commons:commons-lang3"),
+            baseline
+        )
+        build.run(":api:architectureCheck")
+    }
+
+    @Test
     fun GIVEN_kotlin_library_with_explicit_api_WHEN_configured_THEN_detekt_runs_the_architecture_rules(
         @TempDir rootDirectory: File
     ) {
