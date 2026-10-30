@@ -1,4 +1,4 @@
-@file:Suppress("FunctionNaming")
+@file:Suppress("FunctionNaming", "FileLength")
 
 package ru.astrainteractive.klibs.rules.gradle.linter.plugin.gradle
 

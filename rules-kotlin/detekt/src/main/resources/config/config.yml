@@ -42,6 +42,8 @@ architecture:
     active: true
   ExpressionBodyOnOneLine:
     active: true
+  FileLength:
+    active: true
   FunctionVerb:
     active: true
   GetOrThrowInMain:

@@ -25,6 +25,7 @@ import ru.astrainteractive.klibs.rules.declaration.detekt.BareIdentifier
 import ru.astrainteractive.klibs.rules.declaration.detekt.CallbackDeclaration
 import ru.astrainteractive.klibs.rules.declaration.detekt.CompanionFactoryFunction
 import ru.astrainteractive.klibs.rules.declaration.detekt.DataClassDefaultValue
+import ru.astrainteractive.klibs.rules.declaration.detekt.FileLength
 import ru.astrainteractive.klibs.rules.declaration.detekt.LocalOrInnerClass
 import ru.astrainteractive.klibs.rules.declaration.detekt.NamespaceObject
 import ru.astrainteractive.klibs.rules.declaration.detekt.OneTypeFamilyPerFile
@@ -100,6 +101,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::DurationOverloadCall,
             ::ExplicitInvoke,
             ::ExpressionBodyOnOneLine,
+            ::FileLength,
             ::FunctionVerb,
             ::GetOrThrowInMain,
             ::ImplementationName,
