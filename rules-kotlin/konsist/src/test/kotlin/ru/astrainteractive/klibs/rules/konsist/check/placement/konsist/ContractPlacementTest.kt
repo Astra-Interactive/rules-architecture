@@ -58,4 +58,28 @@ internal class ContractPlacementTest {
             subjects
         )
     }
+
+    @Test
+    fun GIVEN_interfaces_across_kinds_WHEN_checked_THEN_reports_each_outside_their_homes(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main("x.offer.api/OfferApi.kt", "interface OfferGateway")
+            .main("x.offer.usecase/LoadOfferUseCase.kt", "interface LoadOfferUseCase")
+            .main("x.offer.component/OfferComponent.kt", "interface OfferComponent")
+            .main("x.offer.viewmodel/OfferViewModel.kt", "interface OfferViewModel")
+            .main("x.di/OfferModule.kt", "interface OfferModule")
+            .main("x.offer.model/OfferResult.kt", "sealed interface OfferResult")
+            .main("x.offer.model/Priced.kt", "interface Priced")
+            .main("x.offer.ktor/Http.kt", "fun interface HttpEngine")
+            .load(UnitKind.CONTEXT, rootPackage = "x")
+
+        val messages = ContractPlacement().check(sources).map(Violation::message).sorted()
+
+        assertEquals(
+            listOf(
+                "Move HttpEngine to the api package of its concept: a contract sits in api.",
+                "Move Priced to the api package of its concept: a contract sits in api.",
+            ),
+            messages
+        )
+    }
 }
