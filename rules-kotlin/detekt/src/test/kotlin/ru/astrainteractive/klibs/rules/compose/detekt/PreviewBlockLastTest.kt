@@ -59,6 +59,39 @@ internal class PreviewBlockLastTest {
     }
 
     @Test
+    fun GIVEN_preview_helpers_above_the_code_of_the_file_WHEN_linted_THEN_reports_each() {
+        val code = """
+            private const val PREVIEW_TITLE = "Unlock more control."
+
+            @Composable
+            private fun HeroCopyPreviewSheet() = Unit
+
+            private val CardSpacing = 4
+
+            @Composable
+            internal fun HeroCopyComposable() = Unit
+
+            private val PreviewPlans = listOf(1)
+
+            @Preview
+            @Composable
+            private fun HeroCopyCenterPreview() = Unit
+        """.trimIndent()
+
+        val messages = rule.lint(code).map(Finding::message)
+
+        assertEquals(
+            listOf(
+                "Move 'PREVIEW_TITLE' down into the preview block, before the first function that uses it: what " +
+                    "only previews use never sits at the top of the file.",
+                "Move 'HeroCopyPreviewSheet' down into the preview block, before the first function that uses it: " +
+                    "what only previews use never sits at the top of the file.",
+            ),
+            messages
+        )
+    }
+
+    @Test
     fun GIVEN_file_without_previews_WHEN_linted_THEN_reports_nothing() {
         val code = """
             @Composable

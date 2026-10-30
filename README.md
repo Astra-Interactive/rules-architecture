@@ -273,7 +273,7 @@ val violations: List<StructureViolation> = checker.check(
 | `ComposableName` | a `@Composable` that emits UI and whose name does not end in `Composable`, except previews, the theme function and an override such as `Render()`; a `…ScreenComposable` in a file of another name; a theme function outside `<Theme>Composable.kt` |
 | `ThemeObjectFunction` | a function inside an object of a `theme` package |
 | `ComposeConstantCase` | a `const val` not `UPPER_SNAKE` or a `val` not `PascalCase` in a composable or `theme` file |
-| `PreviewBlockLast` | a non-preview declaration after the first `@Preview`, a `@Preview` not named `…Preview` |
+| `PreviewBlockLast` | a non-preview declaration after the first `@Preview`, a preview helper above the code of the file, a `@Preview` not named `…Preview` |
 | `RememberInName` | a `remember…` function whose body calls no `remember` |
 | `ActualFileSuffix` | a file with an `actual` declaration whose name has no platform suffix (`Name.android.kt`) |
 | `MutableStateFlowEmit` | `emit`/`tryEmit` on a property declared or initialised as a `MutableStateFlow` |
