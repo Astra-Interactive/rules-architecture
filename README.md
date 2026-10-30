@@ -336,6 +336,7 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `UtilShape`            | a class or object in `util`, an extension function outside `util`, its receiver's file and entry-point kinds included, except a `private` one in a composable file; names `util/<Subject>Ext.kt`, the element type for a collection |
 | `EntryPointVisibility` | a public class in a kind the platform invokes (`command`, `event`, `expansion`, `route`, `service`, `warmup`, ...), outside a `library` unit |
 | `ErrorPlacement`       | an error type outside a `model` package                                                                   |
+| `DiModuleVisibility` | a public DI module that a file of its own unit constructs, outside a library |
 | `DiPlacement`          | a `*Module` outside a `di` package                                                                        |
 | `NestedDataClass`      | a top-level data class used as a property type by exactly one class, except a sealed variant or a `*State` |
 | `TestMirror`           | a test in another package or source set than its owner                                                    |
