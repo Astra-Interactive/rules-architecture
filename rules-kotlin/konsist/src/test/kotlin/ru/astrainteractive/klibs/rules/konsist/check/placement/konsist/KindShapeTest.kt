@@ -227,7 +227,6 @@ internal class KindShapeTest {
                     "composable.",
                 "Move PaywallMotion out of 'composable/theme': theme is a kind of the level, never a sub-package of " +
                     "composable.",
-                "Rename 'composable/components' to the singular: a composable sub-package is named like a kind.",
             ),
             messages
         )

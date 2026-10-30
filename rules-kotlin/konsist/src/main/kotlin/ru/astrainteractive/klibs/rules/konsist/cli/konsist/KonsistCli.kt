@@ -30,6 +30,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.Forbidden
 import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.InMemoryPlacement
 import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.KindShape
 import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.PlatformPackage
+import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.PluralPackageName
 import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.RootModulePlacement
 import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.TestMirror
 import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.TestOwnerBehaviour
@@ -81,6 +82,7 @@ public fun main(args: Array<String>) {
             NestedEnum(),
             PlatformImport(),
             PlatformPackage(),
+            PluralPackageName(),
             RootModulePlacement(),
             SealedFamilyFile(),
             StateTypePlacement(),

@@ -307,7 +307,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 
 | Check                  | Reports                                                                                                   |
 |------------------------|-----------------------------------------------------------------------------------------------------------|
-| `KindShape`            | a file loose in the unit root or a concept package, a package below a kind package (`theme` included); below `composable`, a second level, a plural or `model`/`util`/`theme` sub-package, or files next to sub-packages |
+| `KindShape`            | a file loose in the unit root or a concept package, a package below a kind package (`theme` included); below `composable`, a second level, a `model`/`util`/`theme` sub-package, or files next to sub-packages |
 | `KindImportDirection`  | an import against the first table of `arch-context.md`: `model` depends on nothing of its level, implementations on contracts and `model` only, `theme` on `model` only, nothing but `di` on `composable/screen`, ... |
 | `PlatformImport`       | a platform or ORM import in `model`, `api` or `usecase`, or anywhere in an `api` unit; the `model` of a UI unit (a file outside `model` imports Compose) may import Compose |
 | `UseCaseShape`         | `*UseCase` outside `usecase`, other names in `usecase`, more than one entry, a use case taking another, a pass-through `invoke` that is one call on one of its properties |
@@ -335,6 +335,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `ContractUnitShape` | in a `contract` unit, a class or interface that is not `@Serializable`, a function with a body outside an object |
 | `ComposeKindWithoutCompose` | a `composable`, `viewmodel` or `theme` package in a unit that imports no Compose |
 | `PlatformPackage` | a package named after a platform (`android`, `ios`, `jvm`, …) in a unit with several main source sets |
+| `PluralPackageName` | a plural package name below the unit root, except an inherently plural concept (`news`, `settings`) |
 | `DuplicateRepresentation` | a technology data class with the same constructor parameter names as a `model` data class |
 | `FieldDependencyConstruction` | a field outside `di` that constructs a class of the unit taking constructor parameters, except the entry point building its DI modules |
 | `TestOwnerBehaviour` | a `<Owner>Test.kt` whose owner is a data class without a body or an enum without functions |
