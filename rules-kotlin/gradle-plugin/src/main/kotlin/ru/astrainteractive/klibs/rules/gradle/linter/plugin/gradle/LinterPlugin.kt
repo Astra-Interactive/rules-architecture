@@ -159,7 +159,10 @@ internal class LinterPlugin : Plugin<Project> {
 
     private fun Project.configureGraphCheck() {
         val service = graphService()
-        tasks.register(GRAPH_CHECK_TASK_NAME, ArchitectureGraphTask::class.java) { task ->
+        tasks.register(
+            GRAPH_CHECK_TASK_NAME,
+            ArchitectureGraphTask::class.java
+        ) { task ->
             task.description = "Checks that the unit graph is acyclic and that nothing depends on an entry point"
             task.usesService(service)
             task.unitMetadata.set(service.get().parameters.unitMetadata.map { metadata -> metadata })
@@ -181,7 +184,10 @@ internal class LinterPlugin : Plugin<Project> {
         target.configureGraphContribution(extension)
         val classpath = target.konsistClasspath(rulesVersion)
 
-        val checkTask = target.tasks.register(CHECK_TASK_NAME, ArchitectureCheckTask::class.java) { task ->
+        val checkTask = target.tasks.register(
+            CHECK_TASK_NAME,
+            ArchitectureCheckTask::class.java
+        ) { task ->
             task.description = "Checks the package layout and the unit structure against the architecture rules"
             task.configureFrom(
                 target,
@@ -191,7 +197,10 @@ internal class LinterPlugin : Plugin<Project> {
             task.baseline.from(target.layout.projectDirectory.file(BASELINE_FILE_NAME))
             task.reportFile.set(target.layout.buildDirectory.file("reports/architecture/violations.txt"))
         }
-        val baselineTask = target.tasks.register(BASELINE_TASK_NAME, ArchitectureBaselineTask::class.java) { task ->
+        val baselineTask = target.tasks.register(
+            BASELINE_TASK_NAME,
+            ArchitectureBaselineTask::class.java
+        ) { task ->
             task.description = "Accepts the current architecture violations in $BASELINE_FILE_NAME"
             task.configureFrom(
                 target,

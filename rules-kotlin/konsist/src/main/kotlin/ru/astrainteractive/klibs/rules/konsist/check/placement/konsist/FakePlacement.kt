@@ -43,14 +43,20 @@ internal class FakePlacement : ArchitectureCheck {
 
     private fun findTestFakes(sources: UnitSources): List<Violation> {
         val files = sources.testFiles.filterNot { file -> file.packageName.substringAfterLast('.') == FAKE_SEGMENT }
-        return findFakes(sources, files) { name ->
+        return findFakes(
+            sources,
+            files
+        ) { name ->
             "Move $name to a fake package inside the concept of the contract it replaces."
         }
     }
 
     private fun findMainFakes(sources: UnitSources): List<Violation> {
         if (sources.layout.rootPackage.substringAfterLast('.') == FAKE_SEGMENT) return emptyList()
-        return findFakes(sources, sources.mainFiles) { name ->
+        return findFakes(
+            sources,
+            sources.mainFiles
+        ) { name ->
             "Move $name out of the main sources: a fake lives in the test tree, in a fake package inside the " +
                 "concept of the contract it replaces, or in testFixtures of the unit that owns the contract."
         }

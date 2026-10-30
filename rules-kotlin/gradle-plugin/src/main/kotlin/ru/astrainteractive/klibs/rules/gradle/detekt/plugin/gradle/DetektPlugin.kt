@@ -43,7 +43,10 @@ internal class DetektPlugin : Plugin<Project> {
         )
         val projectSource = target.files(target.projectDir)
 
-        target.tasks.register("detektFormat", Detekt::class.java) { task ->
+        target.tasks.register(
+            "detektFormat",
+            Detekt::class.java
+        ) { task ->
             task.autoCorrect.set(true)
         }
 
