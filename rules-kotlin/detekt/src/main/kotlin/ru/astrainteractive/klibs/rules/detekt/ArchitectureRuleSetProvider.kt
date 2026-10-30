@@ -1,5 +1,7 @@
 package ru.astrainteractive.klibs.rules.detekt
 
+import dev.detekt.api.Config
+import dev.detekt.api.Rule
 import dev.detekt.api.RuleSet
 import dev.detekt.api.RuleSetId
 import dev.detekt.api.RuleSetProvider
@@ -10,11 +12,16 @@ import ru.astrainteractive.klibs.rules.compose.detekt.NonComposableFileInComposa
 import ru.astrainteractive.klibs.rules.compose.detekt.PreviewBlockLast
 import ru.astrainteractive.klibs.rules.compose.detekt.RememberInName
 import ru.astrainteractive.klibs.rules.compose.detekt.ThemeObjectFunction
+import ru.astrainteractive.klibs.rules.coroutine.detekt.CallbackFlowShape
 import ru.astrainteractive.klibs.rules.coroutine.detekt.ImpureUpdateLambda
 import ru.astrainteractive.klibs.rules.coroutine.detekt.MutableStateFlowEmit
+import ru.astrainteractive.klibs.rules.coroutine.detekt.RunBlockingOutsideBoundary
+import ru.astrainteractive.klibs.rules.coroutine.detekt.SharedFlowEvent
 import ru.astrainteractive.klibs.rules.coroutine.detekt.SingleJobLaunchMode
 import ru.astrainteractive.klibs.rules.coroutine.detekt.StateFlowTimeout
+import ru.astrainteractive.klibs.rules.coroutine.detekt.ThreadPrimitive
 import ru.astrainteractive.klibs.rules.declaration.detekt.BareIdentifier
+import ru.astrainteractive.klibs.rules.declaration.detekt.CallbackDeclaration
 import ru.astrainteractive.klibs.rules.declaration.detekt.CompanionFactoryFunction
 import ru.astrainteractive.klibs.rules.declaration.detekt.DataClassDefaultValue
 import ru.astrainteractive.klibs.rules.declaration.detekt.LocalOrInnerClass
@@ -62,61 +69,68 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
     override fun instance(): RuleSet {
         return RuleSet(
             ruleSetId,
-            listOf(
-                ::ActualFileSuffix,
-                ::AnonymousTuple,
-                ::ArgumentPerLine,
-                ::BareIdentifier,
-                ::BooleanOperatorWrapping,
-                ::CalleeBeforeCaller,
-                ::CompanionFactoryFunction,
-                ::ComposableFileType,
-                ::ComposableWhenBranch,
-                ::ComposeConstantCase,
-                ::ConstantOutsideCompanion,
-                ::ConstructorDefaultDependency,
-                ::DataClassDefaultValue,
-                ::DeclarationOrder,
-                ::DiModuleLifecycle,
-                ::DurationOverloadCall,
-                ::ExplicitInvoke,
-                ::ExpressionBodyOnOneLine,
-                ::FunctionVerb,
-                ::GetOrThrowInMain,
-                ::ImplementationName,
-                ::ImplicitItParameter,
-                ::ImpureUpdateLambda,
-                ::KDocFiller,
-                ::KDocHtmlTag,
-                ::KindNameInPackage,
-                ::LambdaSingleIfGuard,
-                ::LocalOrInnerClass,
-                ::MutableStateFlowEmit,
-                ::NamespaceObject,
-                ::NonComposableFileInComposable,
-                ::OneTypeFamilyPerFile,
-                ::OperatorBeforeTrailingCall,
-                ::PreviewBlockLast,
-                ::PropertyAsFunction,
-                ::RememberInName,
-                ::ResultConsumption,
-                ::RolelessClassName,
-                ::RootModuleConstruction,
-                ::RunBlockingInTest,
-                ::RunCatchingCancellation,
-                ::SingleJobLaunchMode,
-                ::StateFlowTimeout,
-                ::SystemTimeCall,
-                ::TestFunctionName,
-                ::ThemeObjectFunction,
-                ::ThrowInsideRunCatching,
-                ::TimeAsPrimitive,
-                ::TrivialLambdaReference,
-            )
+            RULES
         )
     }
 
     internal companion object {
         const val RULE_SET_ID = "architecture"
+
+        private val RULES: List<(Config) -> Rule> = listOf(
+            ::ActualFileSuffix,
+            ::AnonymousTuple,
+            ::ArgumentPerLine,
+            ::BareIdentifier,
+            ::BooleanOperatorWrapping,
+            ::CallbackDeclaration,
+            ::CallbackFlowShape,
+            ::CalleeBeforeCaller,
+            ::CompanionFactoryFunction,
+            ::ComposableFileType,
+            ::ComposableWhenBranch,
+            ::ComposeConstantCase,
+            ::ConstantOutsideCompanion,
+            ::ConstructorDefaultDependency,
+            ::DataClassDefaultValue,
+            ::DeclarationOrder,
+            ::DiModuleLifecycle,
+            ::DurationOverloadCall,
+            ::ExplicitInvoke,
+            ::ExpressionBodyOnOneLine,
+            ::FunctionVerb,
+            ::GetOrThrowInMain,
+            ::ImplementationName,
+            ::ImplicitItParameter,
+            ::ImpureUpdateLambda,
+            ::KDocFiller,
+            ::KDocHtmlTag,
+            ::KindNameInPackage,
+            ::LambdaSingleIfGuard,
+            ::LocalOrInnerClass,
+            ::MutableStateFlowEmit,
+            ::NamespaceObject,
+            ::NonComposableFileInComposable,
+            ::OneTypeFamilyPerFile,
+            ::OperatorBeforeTrailingCall,
+            ::PreviewBlockLast,
+            ::PropertyAsFunction,
+            ::RememberInName,
+            ::ResultConsumption,
+            ::RolelessClassName,
+            ::RootModuleConstruction,
+            ::RunBlockingInTest,
+            ::RunBlockingOutsideBoundary,
+            ::RunCatchingCancellation,
+            ::SharedFlowEvent,
+            ::SingleJobLaunchMode,
+            ::StateFlowTimeout,
+            ::SystemTimeCall,
+            ::TestFunctionName,
+            ::ThemeObjectFunction,
+            ::ThreadPrimitive,
+            ::ThrowInsideRunCatching,
+            ::TimeAsPrimitive,
+            ::TrivialLambdaReference,
+        )
     }
 }

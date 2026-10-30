@@ -3,6 +3,7 @@
 package ru.astrainteractive.klibs.rules.konsist.layout.model
 
 import org.junit.jupiter.api.Test
+import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
@@ -10,7 +11,11 @@ internal class UnitLayoutTest {
 
     @Test
     fun GIVEN_packages_of_a_unit_WHEN_placed_THEN_resolves_concepts_and_the_last_kind() {
-        val layout = UnitLayout("x.gui.api", UnitKind.API)
+        val layout = UnitLayout(
+            "x.gui.api",
+            UnitKind.API,
+            SourceTree.NO_PROJECT_WORDS
+        )
 
         assertEquals(
             Placement(
@@ -57,7 +62,11 @@ internal class UnitLayoutTest {
 
     @Test
     fun GIVEN_technology_unit_WHEN_placed_THEN_concept_packages_hold_implementations() {
-        val layout = UnitLayout("x.data.exposed", UnitKind.TECHNOLOGY)
+        val layout = UnitLayout(
+            "x.data.exposed",
+            UnitKind.TECHNOLOGY,
+            SourceTree.NO_PROJECT_WORDS
+        )
 
         assertEquals(
             Placement(
@@ -83,7 +92,11 @@ internal class UnitLayoutTest {
 
     @Test
     fun GIVEN_default_root_package_WHEN_placed_THEN_every_package_is_below_it() {
-        val layout = UnitLayout("", UnitKind.CONTEXT)
+        val layout = UnitLayout(
+            "",
+            UnitKind.CONTEXT,
+            SourceTree.NO_PROJECT_WORDS
+        )
 
         assertEquals(
             Placement(
@@ -99,7 +112,11 @@ internal class UnitLayoutTest {
 
     @Test
     fun GIVEN_composable_sub_packages_WHEN_placed_THEN_composable_is_the_kind_and_the_segment_below_its_sub_kind() {
-        val layout = UnitLayout("x.paywall.impl", UnitKind.CONTEXT)
+        val layout = UnitLayout(
+            "x.paywall.impl",
+            UnitKind.CONTEXT,
+            SourceTree.NO_PROJECT_WORDS
+        )
 
         assertEquals(
             Placement(

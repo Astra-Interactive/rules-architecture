@@ -12,8 +12,9 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
 /**
- * Reports a technology data class with the same constructor field names and types as a model data class, including
- * a one-field copy: one representation per thing.
+ * Reports a technology data class with the same constructor field names and types as a model data class of this
+ * unit or of a unit it depends on (`data/exposed` copying `data/dao`), including a one-field copy: one
+ * representation per thing.
  */
 internal class DuplicateRepresentation : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
@@ -27,9 +28,8 @@ internal class DuplicateRepresentation : ArchitectureCheck {
         val fields: Set<FieldShape>
     )
 
-    private fun dataClasses(sources: UnitSources, kind: Kind): List<DataClassShape> {
-        return sources.mainFiles
-            .filter { file -> sources.placementOf(file)?.kind == kind }
+    private fun dataClasses(files: List<KoFileDeclaration>): List<DataClassShape> {
+        return files
             .flatMap { file ->
                 file.topLevelClasses()
                     .filter { declaration -> declaration.hasModifier(KoModifier.DATA) }
@@ -49,8 +49,10 @@ internal class DuplicateRepresentation : ArchitectureCheck {
     }
 
     override fun check(sources: UnitSources): List<Violation> {
-        val models = dataClasses(sources, Kind.MODEL)
-        return dataClasses(sources, Kind.IMPLEMENTATION).mapNotNull { technology ->
+        val ownModels = sources.mainFiles.filter { file -> sources.placementOf(file)?.kind == Kind.MODEL }
+        val models = dataClasses(ownModels + sources.dependencyModelFiles)
+        val technologies = sources.mainFiles.filter { file -> sources.placementOf(file)?.kind == Kind.IMPLEMENTATION }
+        return dataClasses(technologies).mapNotNull { technology ->
             val model = models.firstOrNull { model -> model.fields == technology.fields }
                 ?: return@mapNotNull null
             val message = "${technology.name} copies the fields of ${model.name}: one representation per thing; " +

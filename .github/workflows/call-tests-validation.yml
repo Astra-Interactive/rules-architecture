@@ -4,7 +4,7 @@ on:
 
 jobs:
   tests:
-    name: "Run tests and verify coverage"
+    name: "Run tests, coverage and the architecture self-check"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -20,4 +20,4 @@ jobs:
         uses: gradle/gradle-build-action@ac2d340dc04d9e1113182899e983b5400c17cda1 # v3
         with:
           build-root-directory: rules-kotlin
-          arguments: test koverVerify --stacktrace
+          arguments: check koverVerify --stacktrace

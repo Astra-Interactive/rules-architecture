@@ -61,6 +61,12 @@ internal class RolelessClassNameTest {
             class SplashViewModel
 
             class Validation
+
+            interface CheckoutComponent {
+                fun interface Factory {
+                    operator fun invoke(onPaidCallback: OnPaidCallback): CheckoutComponent
+                }
+            }
         """.trimIndent()
 
         val findings = listOf(

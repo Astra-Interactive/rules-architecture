@@ -16,9 +16,9 @@ import ru.astrainteractive.klibs.rules.konsist.layout.util.describe
  * implementations, technology packages may hold their own kinds (`table`), and the entry point keeps its main
  * class at the root.
  *
- * Compose's `composable` is the one kind that may hold sub-packages, one level of them, each holding files only:
- * named in the singular (`screen`, `component`, `layout`), never `model`, `util` or `theme`, and never next to
- * files of `composable` itself.
+ * Compose's `composable` is the one kind that may hold sub-packages, one level of them, each holding files only
+ * (`screen`, `component`, `layout`), never `model`, `util` or `theme`, and never next to files of `composable`
+ * itself. `PluralPackageName` judges their number.
  */
 internal class KindShape : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
@@ -32,16 +32,11 @@ internal class KindShape : ArchitectureCheck {
         return placement.concepts.plus(listOfNotNull(placement.kindWord)).joinToString("/")
     }
 
-    private fun isPlural(segment: String): Boolean = segment.endsWith("s") && !segment.endsWith("ss")
-
     private fun findComposableMessage(file: KoFileDeclaration, placement: Placement, subKind: String): String? {
         val path = packagePath(placement)
         if (subKind in LEVEL_KINDS) {
             return "Move ${file.baseName} out of '$path': $subKind is a kind of the level, never a sub-package of " +
                 "composable."
-        }
-        if (isPlural(subKind)) {
-            return "Rename '$path' to the singular: a composable sub-package is named like a kind."
         }
         if (placement.below.isEmpty()) return null
         return "Move ${file.baseName} out of '$path': a composable sub-package holds only files."

@@ -4,6 +4,11 @@ coroutines:
   # A DI module never reaches for a global singleton: scopes are constructed and passed in.
   GlobalCoroutineUsage:
     active: true
+  # The no-callbacks rule: CancellationException is rethrown and cleanup that suspends runs in NonCancellable.
+  SuspendFunInFinallySection:
+    active: true
+  SuspendFunSwallowedCancellation:
+    active: true
 naming:
   # A package name is lowercase, one word per segment.
   PackageNaming:
@@ -41,6 +46,62 @@ style:
         reason: 'Use kotlin.time.Clock.'
       - value: 'java.util.Date'
         reason: 'Use kotlin.time.Instant.'
+      - value: 'kotlin.coroutines.suspendCoroutine'
+        reason: 'Use suspendCancellableCoroutine: suspendCoroutine cannot be cancelled.'
+      - value: 'kotlinx.coroutines.channels.trySendBlocking'
+        reason: 'Use trySend from the callback: trySendBlocking blocks the library thread.'
+      - value: 'java.util.Timer'
+        reason: 'Launch a coroutine with delay instead of a Timer.'
+      - value: 'java.util.TimerTask'
+        reason: 'Launch a coroutine with delay instead of a TimerTask.'
+      - value: 'android.os.Handler'
+        reason: 'Launch a coroutine instead of posting to a Handler.'
+      - value: 'kotlin.concurrent.thread'
+        reason: 'Launch a coroutine instead of starting a thread.'
+      - value: 'org.koin.*'
+        reason: 'Dependencies are injected by hand through constructors, without a DI framework.'
+      - value: 'org.kodein.di.*'
+        reason: 'Dependencies are injected by hand through constructors, without a DI framework.'
+      - value: 'dagger.*'
+        reason: 'Dependencies are injected by hand through constructors, without a DI framework.'
+      - value: 'com.squareup.anvil.*'
+        reason: 'Dependencies are injected by hand through constructors, without a DI framework.'
+      - value: 'dev.zacsweers.metro.*'
+        reason: 'Dependencies are injected by hand through constructors, without a DI framework.'
+      - value: 'me.tatarka.inject.*'
+        reason: 'Dependencies are injected by hand through constructors, without a DI framework.'
+      - value: 'software.amazon.lastmile.kotlin.inject.anvil.*'
+        reason: 'Dependencies are injected by hand through constructors, without a DI framework.'
+  # Executors only build a coroutine dispatcher in core (asCoroutineDispatcher()); test sources are not
+  # application code.
+  ForbiddenImport/executor:
+    active: true
+    includes: [ '**' ]
+    excludes: [ '**/core/**', '**/test/**', '**/testFixtures/**', '**/*Test/**' ]
+    forbiddenImports:
+      - value: 'java.util.concurrent.Executor'
+        reason: 'Use a coroutine dispatcher: an Executor is used only to build one in core.'
+      - value: 'java.util.concurrent.Executors'
+        reason: 'Use a coroutine dispatcher: Executors is used only to build one in core.'
+  # A library's CompletableFuture is awaited in its technology package and never returned from project code.
+  ForbiddenImport/future:
+    active: true
+    includes: [ '**' ]
+    excludes:
+      - '**/exposed/**'
+      - '**/room/**'
+      - '**/ktor/**'
+      - '**/krate/**'
+      - '**/sqldelight/**'
+      - '**/datastore/**'
+      - '**/retrofit/**'
+      - '**/okhttp/**'
+      - '**/test/**'
+      - '**/testFixtures/**'
+      - '**/*Test/**'
+    forbiddenImports:
+      - value: 'java.util.concurrent.CompletableFuture'
+        reason: 'Return a suspend result: await the CompletableFuture in the technology package of its library.'
   # androidx.compose.* is left out: the model of a Compose UI unit may carry Compose types.
   ForbiddenImport/model:
     active: true
@@ -123,6 +184,11 @@ style:
         reason: 'kotlin.time at the boundary only: use kotlin.time.Instant.'
       - value: 'java.util.Calendar'
         reason: 'kotlin.time at the boundary only: use kotlin.time.Instant.'
+  # The Compose rule names a value in a val (`private val PreviewCanvasColor = Color(0xFF1F1F1F)`) and keeps a
+  # value used once inline (`Modifier.size(28.dp)`).
+  MagicNumber:
+    active: true
+    ignorePropertyDeclaration: true
   RedundantVisibilityModifier:
     active: true
   WildcardImport:

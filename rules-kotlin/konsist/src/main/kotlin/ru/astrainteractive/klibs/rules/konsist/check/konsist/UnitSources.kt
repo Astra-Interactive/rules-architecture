@@ -14,6 +14,7 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Placement
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitLayout
+import ru.astrainteractive.klibs.rules.konsist.layout.model.Vocabulary
 import java.io.File
 
 /**
@@ -29,6 +30,8 @@ internal class UnitSources(
     val mainDirectories: List<File>,
     val mainFiles: List<KoFileDeclaration>,
     val testFiles: List<KoFileDeclaration>,
+    val dependencyFiles: List<KoFileDeclaration>,
+    val androidNamespace: String?,
     private val mainSourceSets: Map<String, File>,
     private val testSourceSets: Map<String, File>,
     private val projectDirectory: File
@@ -41,6 +44,18 @@ internal class UnitSources(
         mainFiles
             .filterNot { file -> layout.placementOf(file.packageName)?.kind == Kind.MODEL }
             .any { file -> file.imports.any { import -> isComposeImport(import.importedName) } }
+    }
+
+    /**
+     * The files of the units this one depends on that sit in a `model` package outside any technology package: the
+     * models a type of this unit may copy or extend.
+     */
+    val dependencyModelFiles: List<KoFileDeclaration> by lazy {
+        dependencyFiles.filter { file ->
+            val segments = file.packageName.split('.')
+            val kinds = segments.map { segment -> Kind.fromSegment(segment, layout.vocabulary) }
+            Kind.MODEL in kinds && Kind.IMPLEMENTATION !in kinds
+        }
     }
 
     /**
@@ -167,14 +182,14 @@ internal class UnitSources(
                 ?.let { start -> start + sequence.size }
         }
 
-        private fun detectRootPackage(packages: Collection<String>, unitPath: String?): String {
+        private fun detectRootPackage(packages: Collection<String>, unitPath: String?, vocabulary: Vocabulary): String {
             if (packages.isEmpty()) return ""
             val prefix = commonPrefix(packages)
             val unitEnd = unitPath?.let { path ->
                 unitNameCandidates(path).firstNotNullOfOrNull { sequence -> firstEndOf(prefix, sequence) }
             }
             if (unitEnd != null) return prefix.take(unitEnd).joinToString(".")
-            val lastKind = prefix.lastOrNull()?.let(Kind::fromSegment)
+            val lastKind = prefix.lastOrNull()?.let { segment -> Kind.fromSegment(segment, vocabulary) }
             val isSingleKindPackage = packages.toSet().size == 1 && lastKind != null
             val root = if (isSingleKindPackage) prefix.dropLast(1) else prefix
             return root.joinToString(".")
@@ -189,10 +204,19 @@ internal class UnitSources(
             packages: Collection<String>,
             rootPackage: String?,
             unitPath: String?,
-            unitKind: UnitKind
+            unitKind: UnitKind,
+            vocabulary: Vocabulary
         ): UnitLayout {
-            val root = rootPackage ?: detectRootPackage(packages, unitPath)
-            return UnitLayout(root, unitKind)
+            val root = rootPackage ?: detectRootPackage(
+                packages,
+                unitPath,
+                vocabulary
+            )
+            return UnitLayout(
+                root,
+                unitKind,
+                vocabulary
+            )
         }
 
         private fun parse(directories: List<File>): List<KoFileDeclaration> {
@@ -212,7 +236,10 @@ internal class UnitSources(
             testDirectories: List<File>,
             mainSourceSets: Map<String, File>,
             testSourceSets: Map<String, File>,
-            projectDirectory: File
+            projectDirectory: File,
+            vocabulary: Vocabulary,
+            dependencyDirectories: List<File>,
+            androidNamespace: String?
         ): UnitSources {
             val mainFiles = parse(mainDirectories)
             val packages = mainFiles.map(KoFileDeclaration::packageName).distinct()
@@ -220,7 +247,8 @@ internal class UnitSources(
                 packages,
                 rootPackage,
                 unitPath,
-                kind
+                kind,
+                vocabulary
             )
             return UnitSources(
                 kind = kind,
@@ -229,6 +257,8 @@ internal class UnitSources(
                 mainDirectories = mainDirectories,
                 mainFiles = mainFiles,
                 testFiles = parse(testDirectories),
+                dependencyFiles = parse(dependencyDirectories),
+                androidNamespace = androidNamespace,
                 mainSourceSets = mainSourceSets,
                 testSourceSets = testSourceSets,
                 projectDirectory = projectDirectory

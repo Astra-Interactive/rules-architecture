@@ -19,6 +19,7 @@ internal class ContractNameTest {
         val sources = SourceTree(directory)
             .main("x.data.dao.rating.api/RatingDao.kt", "interface RatingDao")
             .main("x.data.dao.rating.api/UserStorage.kt", "interface UserStorage")
+            .main("x.data.dao.rating.api/MonetizationApi.kt", "interface MonetizationApi")
             .main(
                 "x.data.dao.rating.api/RatingRepository.kt",
                 "interface RatingRepository : CrudRepository<Rating, Long>"
@@ -32,8 +33,9 @@ internal class ContractNameTest {
                     "generic base.",
                 "Drop CrudRepository from RatingRepository: a repository speaks the context's words and extends no " +
                     "generic base.",
-                "Rename RatingDao to <Aggregate>Repository: Dao names a technology, not the contract.",
-                "Rename UserStorage to <Aggregate>Repository: Storage names a technology, not the contract.",
+                "Rename MonetizationApi to <Aggregate>Repository: Api is not a name for the contract.",
+                "Rename RatingDao to <Aggregate>Repository: Dao is not a name for the contract.",
+                "Rename UserStorage to <Aggregate>Repository: Storage is not a name for the contract.",
             ),
             ContractName().check(sources).map(Violation::message).sorted()
         )
@@ -43,7 +45,7 @@ internal class ContractNameTest {
     fun GIVEN_contracts_in_context_words_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
         val sources = SourceTree(directory)
             .main("x.data.dao.rating.api/RatingRepository.kt", "interface RatingRepository : AutoCloseable")
-            .main("x.data.dao.rating.api/RatingApi.kt", "interface RatingApi")
+            .main("x.data.dao.rating.api/GuiRouter.kt", "interface GuiRouter")
             .main("x.data.dao.rating.krate/SettingsKrate.kt", "interface SettingsKrate")
             .load(UnitKind.CONTEXT, rootPackage = "x.data.dao")
 

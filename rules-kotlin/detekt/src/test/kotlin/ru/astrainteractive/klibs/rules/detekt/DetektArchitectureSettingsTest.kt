@@ -10,6 +10,7 @@ import dev.detekt.rules.style.DataClassContainsFunctions
 import dev.detekt.rules.style.DataClassShouldBeImmutable
 import dev.detekt.rules.style.ForbiddenComment
 import dev.detekt.rules.style.ForbiddenImport
+import dev.detekt.rules.style.MagicNumber
 import dev.detekt.rules.style.WildcardImport
 import dev.detekt.test.lint
 import org.junit.jupiter.api.Test
@@ -143,6 +144,67 @@ internal class DetektArchitectureSettingsTest {
                 "**/entity/**",
             ),
             excludes
+        )
+    }
+
+    @Test
+    fun GIVEN_compose_values_in_vals_and_inline_WHEN_linted_THEN_reports_only_the_bare_number() {
+        val code = """
+            private val PreviewCanvasColor = Color(0xFF1F1F1F)
+            private val CardTopSpacing = 64.dp
+
+            fun computeShift(offset: Int): Int = offset * 37
+        """.trimIndent()
+
+        val findings = MagicNumber(styleConfig.subConfig("MagicNumber")).lint(code)
+
+        assertEquals(1, findings.size)
+    }
+
+    @Test
+    fun GIVEN_callback_thread_and_di_framework_imports_WHEN_linted_THEN_reports_each() {
+        val code = """
+            import android.os.Handler
+            import dagger.Module
+            import dev.zacsweers.metro.Inject
+            import java.util.Timer
+            import java.util.TimerTask
+            import javax.inject.Inject
+            import kotlin.concurrent.thread
+            import kotlin.coroutines.suspendCoroutine
+            import kotlinx.coroutines.channels.trySendBlocking
+            import kotlinx.coroutines.suspendCancellableCoroutine
+            import org.koin.core.module.Module
+        """.trimIndent()
+
+        val findings = ForbiddenImport(styleConfig.subConfig("ForbiddenImport")).lint(code)
+
+        assertEquals(9, findings.size)
+    }
+
+    @Test
+    fun GIVEN_executor_and_future_imports_WHEN_linted_THEN_reports_each_outside_their_boundary() {
+        val code = """
+            import java.util.concurrent.CompletableFuture
+            import java.util.concurrent.Executor
+            import java.util.concurrent.Executors
+        """.trimIndent()
+
+        val executors = ForbiddenImport(styleConfig.subConfig("ForbiddenImport/executor")).lint(code)
+        val futures = ForbiddenImport(styleConfig.subConfig("ForbiddenImport/future")).lint(code)
+
+        assertEquals(2, executors.size)
+        assertEquals(1, futures.size)
+    }
+
+    @Test
+    fun GIVEN_coroutine_settings_WHEN_read_THEN_cancellation_rules_are_active() {
+        val coroutines = settings.subConfig("coroutines")
+
+        assertEquals(
+            listOf(true, true),
+            listOf("SuspendFunInFinallySection", "SuspendFunSwallowedCancellation")
+                .map { rule -> coroutines.subConfig(rule).valueOrDefault("active", false) }
         )
     }
 

@@ -17,8 +17,8 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 internal class ForbiddenPackageName : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
 
-    private fun isTechnologyWord(segment: String): Boolean {
-        return Kind.fromSegment(segment) == Kind.IMPLEMENTATION
+    private fun isTechnologyWord(sources: UnitSources, segment: String): Boolean {
+        return Kind.fromSegment(segment, sources.layout.vocabulary) == Kind.IMPLEMENTATION
     }
 
     private fun findForbidden(sources: UnitSources, segments: List<String>): List<String> {
@@ -26,7 +26,7 @@ internal class ForbiddenPackageName : ArchitectureCheck {
             if (segment in FORBIDDEN) return@filterIndexed true
             if (segment !in TECHNOLOGY_ONLY) return@filterIndexed false
             val isInTechnology = sources.kind == UnitKind.TECHNOLOGY
-            val followsTechnology = segments.take(index).any(::isTechnologyWord)
+            val followsTechnology = segments.take(index).any { previous -> isTechnologyWord(sources, previous) }
             !isInTechnology && !followsTechnology
         }
     }

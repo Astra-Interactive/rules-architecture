@@ -7,6 +7,7 @@ import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.file.FileCollection
 import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 import org.jetbrains.kotlin.gradle.dsl.KotlinBaseExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
@@ -15,30 +16,22 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
+import ru.astrainteractive.klibs.rules.structure.unit.structure.isTechnologyUnitName
+import java.io.File
 
 private const val ENTRY_POINT_PATH_PREFIX = ":instances:"
 
 private val ENTRY_POINT_PLUGIN_IDS = listOf("application", "com.android.application")
-
-private val TECHNOLOGY_UNIT_NAMES = setOf(
-    "cache4k",
-    "datastore",
-    "exposed",
-    "file",
-    "krate",
-    "ktor",
-    "memory",
-    "okhttp",
-    "retrofit",
-    "room",
-    "sqldelight",
-)
 
 private const val MULTIPLATFORM_PLUGIN_ID = "org.jetbrains.kotlin.multiplatform"
 
 private const val PUBLISH_PLUGIN_ID = "maven-publish"
 
 private const val API_CONFIGURATION = "api"
+
+private const val ANDROID_EXTENSION = "android"
+
+private const val NAMESPACE_GETTER = "getNamespace"
 
 private val PRODUCTION_CONFIGURATION_SUFFIXES = listOf(
     "implementation",
@@ -69,7 +62,7 @@ internal fun Project.detectUnitKind(): UnitKind {
     return when {
         unitName == UnitKind.API.cliName -> UnitKind.API
         unitName == UnitKind.CONTRACT.cliName -> UnitKind.CONTRACT
-        unitName in TECHNOLOGY_UNIT_NAMES -> UnitKind.TECHNOLOGY
+        isTechnologyUnitName(unitName) -> UnitKind.TECHNOLOGY
         isEntryPointByConvention() -> UnitKind.ENTRY_POINT
         hasKotlinPlugin() && explicitApiMode() == "strict" -> UnitKind.LIBRARY
         else -> UnitKind.CONTEXT
@@ -149,4 +142,29 @@ internal fun Project.readUnitBuild(unitKind: UnitKind): UnitBuild {
         explicitApiMode = if (isKotlin) explicitApiMode() else null,
         platformDependencies = externalProductionDependencies()
     )
+}
+
+/**
+ * The Kotlin sources of the units this one depends on, for the architecture check's up-to-date state.
+ */
+internal fun Project.dependencyInputs(): List<FileCollection> {
+    val root = isolated.rootProject.projectDirectory.asFile
+    return productionProjectDependencies().map { path ->
+        fileTree(File(root, path.removePrefix(":").replace(':', '/'))) { tree ->
+            tree.include("src/**/*.kt")
+            tree.exclude("src/*[Tt]est*/**", "**/build/**")
+        }
+    }
+}
+
+/**
+ * The `namespace` of an Android unit, read from the `android` extension by reflection so that the plugin does not
+ * depend on the Android Gradle plugin; `null` outside Android.
+ */
+internal fun Project.androidNamespace(): String? {
+    val android = extensions.findByName(ANDROID_EXTENSION) ?: return null
+    val getter = android.javaClass.methods
+        .firstOrNull { method -> method.name == NAMESPACE_GETTER && method.parameterCount == 0 }
+        ?: return null
+    return getter.invoke(android) as? String
 }

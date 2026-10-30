@@ -2,14 +2,19 @@ package ru.astrainteractive.klibs.rules.konsist.check.model
 
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
+import ru.astrainteractive.klibs.rules.konsist.layout.model.Vocabulary
 import java.io.File
 
 /**
  * A build unit written to disk for a test: Kotlin files under `src/main/kotlin` and `src/test/kotlin`.
  */
-internal class SourceTree(private val projectDirectory: File) {
+internal class SourceTree(
+    private val projectDirectory: File,
+    private val androidNamespace: String? = null
+) {
     val mainDirectory: File = File(projectDirectory, "src/main/kotlin")
     val testDirectory: File = File(projectDirectory, "src/test/kotlin")
+    private val dependencyDirectory: File = File(projectDirectory, "dependency/src/main/kotlin")
 
     private fun write(directory: File, packageName: String, fileName: String, code: String): SourceTree {
         val file = File(directory, "${packageName.replace('.', '/')}/$fileName")
@@ -28,6 +33,18 @@ internal class SourceTree(private val projectDirectory: File) {
             mainDirectory,
             packageName,
             fileName,
+            code
+        )
+    }
+
+    /**
+     * Writes [code] to a unit this one depends on, at [path] written as for [main].
+     */
+    fun dependency(path: String, code: String): SourceTree {
+        return write(
+            dependencyDirectory,
+            path.substringBefore('/'),
+            path.substringAfter('/'),
             code
         )
     }
@@ -79,6 +96,7 @@ internal class SourceTree(private val projectDirectory: File) {
     }
 
     fun loadSourceSets(kind: UnitKind, mainSourceSet: String, testSourceSet: String): UnitSources {
+        val vocabulary = NO_PROJECT_WORDS
         val main = File(projectDirectory, "src/$mainSourceSet/kotlin")
         val test = File(projectDirectory, "src/$testSourceSet/kotlin")
         return UnitSources.load(
@@ -89,11 +107,19 @@ internal class SourceTree(private val projectDirectory: File) {
             testDirectories = listOf(test),
             mainSourceSets = mapOf(mainSourceSet to main),
             testSourceSets = mapOf(testSourceSet to test),
-            projectDirectory = projectDirectory
+            projectDirectory = projectDirectory,
+            vocabulary = vocabulary,
+            dependencyDirectories = listOf(dependencyDirectory),
+            androidNamespace = androidNamespace
         )
     }
 
-    fun load(kind: UnitKind, rootPackage: String? = null, unitPath: String? = null): UnitSources {
+    fun load(
+        kind: UnitKind,
+        rootPackage: String? = null,
+        unitPath: String? = null,
+        vocabulary: Vocabulary = NO_PROJECT_WORDS
+    ): UnitSources {
         return UnitSources.load(
             kind = kind,
             rootPackage = rootPackage,
@@ -102,7 +128,18 @@ internal class SourceTree(private val projectDirectory: File) {
             testDirectories = listOf(testDirectory),
             mainSourceSets = mapOf("main" to mainDirectory),
             testSourceSets = mapOf("test" to testDirectory),
-            projectDirectory = projectDirectory
+            projectDirectory = projectDirectory,
+            vocabulary = vocabulary,
+            dependencyDirectories = listOf(dependencyDirectory),
+            androidNamespace = androidNamespace
+        )
+    }
+
+    companion object {
+        val NO_PROJECT_WORDS = Vocabulary(
+            entryPointWords = emptySet(),
+            technologyWords = emptySet(),
+            pluralConcepts = emptySet()
         )
     }
 }

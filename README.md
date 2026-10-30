@@ -10,7 +10,7 @@ sources and tell you which file breaks which rule and how to fix it.
 
 ## ✨ Features
 
-- **Per-file rules for detekt**: 49 custom rules plus settings for detekt's own rules, with IDE support and
+- **Per-file rules for detekt**: 54 custom rules plus settings for detekt's own rules, with IDE support and
   `@Suppress`.
 - **Cross-file checks with Konsist**: role import direction, use case shape, contract and implementation
   levels, DI placement, test mirroring and more.
@@ -67,21 +67,23 @@ plugins {
 
 - Applies `dev.detekt` and registers a `detektFormat` task with auto-correction on.
 - Writes the bundled `detekt.yml` to the root project's `build/detekt` once for the whole build, and enables
-  HTML reports, parallel execution and `allRules`.
+  HTML reports, parallel execution and `allRules`. The project's own detekt config (`config/detekt/detekt.yml`
+  or `detekt { config }`) is read after the bundled one, so its settings win.
 - Resolves types against the Kotlin JVM target of the project, or the JVM that runs Gradle when there is none.
   Set another target with `detektRules { jvmTarget.set("21") }`.
 
 **Linter plugin.** Apply it instead of the detekt plugin.
 
-- Adds the architecture detekt rules and their `detekt-architecture.yml`, listed after `detekt.yml` so they win,
-  and passes the module's explicit API mode to the `detekt` task.
+- Adds the architecture detekt rules and their `detekt-architecture.yml`, listed after `detekt.yml` and before the
+  project's own config, and passes the module's explicit API mode to the `detekt` task.
 - Registers `architectureCheck`, which `check` depends on: the Konsist checks of the unit's package layout, run in
   a separate JVM, and the structure checks of its README, nested units and project dependencies. Konsist findings
   accept `@Suppress("RuleName")` on a declaration or `@file:Suppress("RuleName")` on a whole file.
 - Registers `architectureBaseline`, which writes the current violations to `architecture-baseline.txt`; the check
   accepts what the file lists for findings that cannot carry a Kotlin suppression.
 - On the root project, registers `architectureGraphCheck`, which checks the complete unit graph for dependency
-  cycles; root `check` depends on it. Units contribute their dependencies through an isolated-projects-compatible
+  cycles and for dependencies on an entry point, a unit detected or set as `entry-point` (an `application`
+  plugin, an `instances` path); root `check` depends on it. Units contribute their dependencies through an isolated-projects-compatible
   shared build service.
 
 The unit kind decides which layout rules apply. It is detected by convention and can be set:
@@ -90,6 +92,10 @@ The unit kind decides which layout rules apply. It is detected by convention and
 linter {
     unitKind.set("library") // context, library, api, contract, entry-point or technology
     rootPackage.set("ru.astrainteractive.aspekt.module.jail")
+    // The project's own words, added to those of the package-layout rule
+    entryPointWords.addAll("slot", "router")
+    technologyWords.add("mongo")
+    pluralConcepts.add("goods")
 }
 ```
 
@@ -273,21 +279,26 @@ val violations: List<StructureViolation> = checker.check(
 | `SingleJobLaunchMode` | a launch on a single-job scope without a `SingleJobMode`, an unguarded launch in an `on…` handler of a view model or component |
 | `StateFlowTimeout` | `StateFlow.first()` inside `withTimeout` or `withTimeoutOrNull` |
 | `ThrowInsideRunCatching` | a `throw` inside the lambda of `runCatching`, `mapCatching` or `recoverCatching` |
-| `RunCatchingCancellation` | a `runCatching` in a `suspend` function or coroutine lambda not followed by `.propagateCancellationException()` |
+| `RunCatchingCancellation` | a `runCatching` in a `suspend` function or coroutine lambda not followed by `.propagateCancellationException()` or the inline `onFailure` check for `CancellationException` |
 | `ResultConsumption` | a `Result` discarded as a statement without consuming its success or failure |
 | `GetOrThrowInMain` | `getOrThrow()` outside the test sources |
 | `BareIdentifier` | a property named `id`/`…Id` typed `String`, `Int`, `Long` or `UUID` outside a `@Serializable` class or technology package, a `…Id` class that is not a value class |
 | `CompanionFactoryFunction` | a `create…`, `of` or `from` function in a companion object |
-| `RolelessClassName` | a `…Validator` or `…Factory` class, `…WarmUp`/`…Migration`/`…ViewModel` outside its `warmup`/`migration`/`viewmodel` package |
+| `RolelessClassName` | a `…Validator` or `…Factory` class (a Decompose `fun interface Factory` is allowed), `…WarmUp`/`…Migration`/`…ViewModel` outside its `warmup`/`migration`/`viewmodel` package |
 | `DiModuleLifecycle` | a `…Module` that declares `enable`, `disable`, `reload`, `onEnable`, `onDisable` or `onReload` |
 | `RootModuleConstruction` | a `RootModule` constructor call that constructs anything but a `…Module` or a `Lifecycle` |
 | `SystemTimeCall` | `System.currentTimeMillis()` and `System.nanoTime()` |
 | `RunBlockingInTest` | `runBlocking` in a test source set |
-| `KDocFiller` | a KDoc filler phrase, a `@return` of "the result", a `@param` that repeats its name, a summary of more than four sentences |
-| `LambdaSingleIfGuard` | a lambda whose whole body is one `if` without `else` |
+| `RunBlockingOutsideBoundary` | `runBlocking` in the main sources outside a top-level `main` function and outside a technology package |
+| `ThreadPrimitive` | `Thread` constructed or used through its static members in the main sources |
+| `CallbackFlowShape` | a `callbackFlow` without `awaitClose`, a `launch { send(…) }` inside one, a `buffer(Channel.RENDEZVOUS)` or `buffer(0)` |
+| `SharedFlowEvent` | a `SharedFlow` property of a view model, a `MutableSharedFlow` without `extraBufferCapacity` fed through `tryEmit` |
+| `CallbackDeclaration` | an `on…` parameter or property of a function type outside a `@Composable` and a `Modifier` factory, an `…Listener` interface, an `…Callback` interface other than a Decompose `fun interface On…Callback` |
+| `KDocFiller` | a KDoc filler phrase, a `@return` of "the result" or of the return type's own words, a `@param` whose words only repeat its name, a summary of more than four sentences |
+| `LambdaSingleIfGuard` | a lambda whose whole body is one `if` without `else`, unless the `if` only throws |
 | `OperatorBeforeTrailingCall` | arithmetic in parentheses before a call or property (`(a * b).sp`), a chain of `plus`/`minus`/`times`/`div`/`rem` calls |
 | `TrivialLambdaReference` | a lambda that only passes its parameters to one function, or a `{ obj.foo() }` callback, instead of a function reference |
-| `ComposableWhenBranch` | a `when` branch of a `@Composable` function that spans several lines |
+| `ComposableWhenBranch` | a `when` branch of a `@Composable` function that spans several lines, except a block of several statements |
 | `NonComposableFileInComposable` | a file in a `composable` package with no `@Composable` function |
 | `DurationOverloadCall` | `.inWholeMilliseconds`/`.inWholeSeconds`/`.inWholeNanoseconds` passed to `delay`, `withTimeout`, `debounce` and other calls with a `Duration` overload |
 
@@ -299,18 +310,24 @@ markers and separator comments; `ForbiddenImport` for `kotlinx.datetime.Instant`
 types in `model`, Compose excepted, outside technology packages (`exposed`, `room`, ...); `RedundantVisibilityModifier`; `WildcardImport` with no exceptions; ktlint `ImportOrdering`.
 `DataClassContainsFunctions`, with no conversion exception, and `DataClassShouldBeImmutable`: a data class
 holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with a lowercase-only pattern.
+`MagicNumber` accepts a number in a property declaration, where the Compose rule names a value.
+`ForbiddenImport` also bans DI frameworks (Koin, Dagger, Anvil, Metro, kotlin-inject, Kodein) and
+the callback and thread tools of the no-callbacks rule: `suspendCoroutine`, `trySendBlocking`, `Timer`, `TimerTask`,
+`Handler`, `thread`; `Executor`/`Executors` outside `core` (`ForbiddenImport/executor`) and `CompletableFuture`
+outside technology packages (`ForbiddenImport/future`). `SuspendFunSwallowedCancellation` and
+`SuspendFunInFinallySection` are active.
 
 ### Konsist checks
 
 | Check                  | Reports                                                                                                   |
 |------------------------|-----------------------------------------------------------------------------------------------------------|
-| `KindShape`            | a file loose in the unit root or a concept package, a package below a kind package (`theme` included); below `composable`, a second level, a plural or `model`/`util`/`theme` sub-package, or files next to sub-packages |
+| `KindShape`            | a file loose in the unit root or a concept package, a package below a kind package (`theme` included); below `composable`, a second level, a `model`/`util`/`theme` sub-package, or files next to sub-packages |
 | `KindImportDirection`  | an import against the first table of `arch-context.md`: `model` depends on nothing of its level, implementations on contracts and `model` only, `theme` on `model` only, nothing but `di` on `composable/screen`, ... |
 | `PlatformImport`       | a platform or ORM import in `model`, `api` or `usecase`, or anywhere in an `api` unit; the `model` of a UI unit (a file outside `model` imports Compose) may import Compose |
-| `UseCaseShape`         | `*UseCase` outside `usecase`, other names in `usecase`, more than one entry, a use case taking another    |
+| `UseCaseShape`         | `*UseCase` outside `usecase`, other names in `usecase`, more than one entry, a use case taking another, a pass-through `invoke` that is one call on one of its properties |
 | `ContractPlacement`    | a `*Repository` outside `api`, an implementation inside `api`, a `network`/`local`/`remote` package       |
 | `ForbiddenPackageName` | a forbidden word in a package created inside the unit; the root package may keep its unit's word; `table`, `entity` and `database` outside a technology unit or package |
-| `UtilShape`            | a class or object in `util`, an extension function outside `util`, its receiver's file included; names `util/<Subject>Ext.kt`, the element type for a collection |
+| `UtilShape`            | a class or object in `util`, an extension function outside `util`, its receiver's file and entry-point kinds included, except a `private` one in a composable file; names `util/<Subject>Ext.kt`, the element type for a collection |
 | `EntryPointVisibility` | a public class in a kind the platform invokes (`command`, `event`, `expansion`, `route`, `service`, `warmup`, ...), outside a `library` unit |
 | `ErrorPlacement`       | an error type outside a `model` package                                                                   |
 | `DiPlacement`          | a `*Module` outside a `di` package                                                                        |
@@ -322,18 +339,21 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `StateTypePlacement` | a `<Screen>State` nested in another type or declared outside `model` |
 | `NestedEnum` | a top-level enum used as the property type of exactly one class |
 | `UtilFileName` | a `util` file of one receiver's extensions not named `<Receiver>Ext.kt`, a file named `Utils.kt`, `Helpers.kt`, `Extensions.kt` and the like |
-| `UtilFunctionAsExtension` | a `util` function whose one parameter is a model of the unit, instead of an extension |
-| `ImplementationVisibility` | a public class in a technology package or a technology unit's concept, outside a library |
+| `UtilFunctionAsExtension` | a `util` function whose one parameter is a model of the unit or of a unit it depends on, instead of an extension |
+| `ImplementationVisibility` | a public class in a technology package or a technology unit's concept, outside a library, `core`, `stub` and `memory` |
 | `UseCaseAbstraction` | an interface or abstract class named `…UseCase` |
-| `ContractName` | an `api` interface named `…Dao`, `…Storage` or `…Krate`, a `…Repository` extending a generic repository or `Crud` base |
+| `AndroidNamespace` | an Android unit whose `namespace` differs from its root package |
+| `ApplicationKDoc` | KDoc outside a published library, other than a contract's failure case (`@return failure`, `@throws`) or a reason outside the code (a link, an issue key, a bug, workaround or quirk) |
+| `ContractName` | an `api` interface named `…Api`, `…Dao`, `…Storage` or `…Krate`, a `…Repository` extending a generic repository or `Crud` base |
 | `CoreShape` | a `…UseCase` class or a `…Repository` interface in a `core` unit |
 | `RootModulePlacement` | a `RootModule` outside the entry-point unit or its `di` package |
 | `EntryPointShape` | a file of an entry-point unit outside its root and its `di` package |
 | `ContractUnitShape` | in a `contract` unit, a class or interface that is not `@Serializable`, a function with a body outside an object |
 | `ComposeKindWithoutCompose` | a `composable`, `viewmodel` or `theme` package in a unit that imports no Compose |
 | `PlatformPackage` | a package named after a platform (`android`, `ios`, `jvm`, …) in a unit with several main source sets |
-| `DuplicateRepresentation` | a technology data class with the same constructor parameter names as a `model` data class |
-| `FieldDependencyConstruction` | a field outside `di` that constructs a class of the unit taking constructor parameters |
+| `PluralPackageName` | a plural package name below the unit root, except an inherently plural concept (`news`, `settings`) |
+| `DuplicateRepresentation` | a technology data class with the same constructor parameter names as a `model` data class of the unit or of a unit it depends on |
+| `FieldDependencyConstruction` | a field outside `di` that constructs a class of the unit taking constructor parameters, except the entry point building its DI modules |
 | `TestOwnerBehaviour` | a `<Owner>Test.kt` whose owner is a data class without a body or an enum without functions |
 
 ### Structure checks

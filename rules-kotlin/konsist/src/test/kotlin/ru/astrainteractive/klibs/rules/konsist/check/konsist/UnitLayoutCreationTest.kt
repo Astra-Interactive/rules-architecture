@@ -3,6 +3,7 @@
 package ru.astrainteractive.klibs.rules.konsist.check.konsist
 
 import org.junit.jupiter.api.Test
+import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 import kotlin.test.assertEquals
 
@@ -13,7 +14,8 @@ internal class UnitLayoutCreationTest {
             packages,
             rootPackage = null,
             unitPath = unitPath,
-            unitKind = UnitKind.CONTEXT
+            unitKind = UnitKind.CONTEXT,
+            vocabulary = SourceTree.NO_PROJECT_WORDS
         )
             .rootPackage
     }
@@ -62,7 +64,8 @@ internal class UnitLayoutCreationTest {
             listOf("x.jail.model"),
             rootPackage = "x",
             unitPath = ":jail",
-            unitKind = UnitKind.CONTEXT
+            unitKind = UnitKind.CONTEXT,
+            vocabulary = SourceTree.NO_PROJECT_WORDS
         )
 
         assertEquals("x", layout.rootPackage)

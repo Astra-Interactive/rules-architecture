@@ -14,6 +14,7 @@ import org.gradle.api.attributes.java.TargetJvmEnvironment
 import org.gradle.api.file.FileCollection
 import org.gradle.api.provider.Provider
 import org.gradle.language.base.plugins.LifecycleBasePlugin
+import ru.astrainteractive.klibs.rules.gradle.detekt.extension.model.DetektRulesExtension
 import ru.astrainteractive.klibs.rules.gradle.detekt.plugin.gradle.DetektPlugin
 import ru.astrainteractive.klibs.rules.gradle.detekt.service.DetektConfigService
 import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
@@ -24,6 +25,8 @@ import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureBas
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureCheckTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureGraphTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureTask
+import ru.astrainteractive.klibs.rules.gradle.linter.util.androidNamespace
+import ru.astrainteractive.klibs.rules.gradle.linter.util.dependencyInputs
 import ru.astrainteractive.klibs.rules.gradle.linter.util.detectUnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.util.explicitApiMode
 import ru.astrainteractive.klibs.rules.gradle.linter.util.findBuildFindings
@@ -64,10 +67,10 @@ internal class LinterPlugin : Plugin<Project> {
             )
         }
         val architectureConfigFile = configService.map(DetektConfigService::configFile)
+        extensions.getByType(DetektRulesExtension::class.java).ruleConfigs.from(architectureConfigFile)
         val explicitApiArguments = provider { explicitApiArguments() }
         tasks.withType(Detekt::class.java).configureEach { task ->
             task.usesService(configService)
-            task.config.from(architectureConfigFile)
             task.freeCompilerArgs.addAll(explicitApiArguments)
         }
     }
@@ -121,11 +124,16 @@ internal class LinterPlugin : Plugin<Project> {
         group = LifecycleBasePlugin.VERIFICATION_GROUP
         konsistClasspath.from(classpath)
         sources.from(project.architectureInputs())
+        dependencySources.from(project.provider { project.dependencyInputs() })
         projectDirectory.set(project.layout.projectDirectory)
         rootDirectory.set(project.isolated.rootProject.projectDirectory)
         projectPath.set(project.path)
         unitKind.set(extension.unitKind)
         rootPackage.set(extension.rootPackage)
+        androidNamespace.set(project.provider { project.androidNamespace() })
+        entryPointWords.set(extension.entryPointWords)
+        technologyWords.set(extension.technologyWords)
+        pluralConcepts.set(extension.pluralConcepts)
         rootOfBuild.set(project.path == project.isolated.rootProject.path)
         projectDependencies.set(project.provider { project.productionProjectDependencies() })
     }
@@ -137,13 +145,13 @@ internal class LinterPlugin : Plugin<Project> {
         ) { }
     }
 
-    private fun Project.configureGraphContribution() {
+    private fun Project.configureGraphContribution(extension: LinterExtension) {
         val service = graphService()
         afterEvaluate { project ->
             val parameters = service.get().parameters
             synchronized(parameters) {
                 val dependencies = project.productionProjectDependencies()
-                val metadata = listOf(project.path).plus(dependencies).joinToString("\t")
+                val metadata = listOf(project.path, extension.unitKind.get()).plus(dependencies).joinToString("\t")
                 parameters.unitMetadata.add(metadata)
             }
         }
@@ -152,7 +160,7 @@ internal class LinterPlugin : Plugin<Project> {
     private fun Project.configureGraphCheck() {
         val service = graphService()
         tasks.register(GRAPH_CHECK_TASK_NAME, ArchitectureGraphTask::class.java) { task ->
-            task.description = "Checks that the complete unit dependency graph is acyclic"
+            task.description = "Checks that the unit graph is acyclic and that nothing depends on an entry point"
             task.usesService(service)
             task.unitMetadata.set(service.get().parameters.unitMetadata.map { metadata -> metadata })
         }
@@ -167,10 +175,10 @@ internal class LinterPlugin : Plugin<Project> {
         target.pluginManager.apply(DetektPlugin::class.java)
         val rulesVersion = readRulesVersion()
         target.configureDetekt(rulesVersion)
-        target.configureGraphContribution()
 
         val extension = target.extensions.create(EXTENSION_NAME, LinterExtension::class.java)
         extension.unitKind.convention(target.provider { target.detectUnitKind().cliName })
+        target.configureGraphContribution(extension)
         val classpath = target.konsistClasspath(rulesVersion)
 
         val checkTask = target.tasks.register(CHECK_TASK_NAME, ArchitectureCheckTask::class.java) { task ->

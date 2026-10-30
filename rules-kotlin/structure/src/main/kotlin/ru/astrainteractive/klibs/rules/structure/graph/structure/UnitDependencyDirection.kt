@@ -1,6 +1,7 @@
 package ru.astrainteractive.klibs.rules.structure.graph.structure
 
 import ru.astrainteractive.klibs.rules.structure.unit.model.BuildUnit
+import ru.astrainteractive.klibs.rules.structure.unit.structure.isTechnologyUnitName
 
 internal object UnitDependencyDirection {
     private val platforms = setOf(
@@ -12,19 +13,6 @@ internal object UnitDependencyDirection {
         "paper",
         "spigot",
         "velocity"
-    )
-    private val technologies = setOf(
-        "cache4k",
-        "datastore",
-        "exposed",
-        "file",
-        "krate",
-        "ktor",
-        "memory",
-        "okhttp",
-        "retrofit",
-        "room",
-        "sqldelight"
     )
 
     private enum class Kind {
@@ -42,28 +30,29 @@ internal object UnitDependencyDirection {
         FAKE
     }
 
+    private fun coreKindOf(name: String): Kind {
+        return when {
+            name in platforms -> Kind.CORE_PLATFORM
+            isTechnologyUnitName(name) -> Kind.TECHNOLOGY
+            else -> Kind.CORE_API
+        }
+    }
+
     private fun kindOf(path: String, isEntryPoint: Boolean, isLibrary: Boolean = false): Kind {
         val segments = path.split(':')
         val name = segments.last()
         val isCore = "core" in segments
-        if (isLibrary) return Kind.LIBRARY
+        if (isLibrary && !isCore) return Kind.LIBRARY
         if (isEntryPoint) return Kind.ENTRY_POINT
-        if (isCore) {
-            return when (name) {
-                in platforms -> Kind.CORE_PLATFORM
-                in technologies -> Kind.TECHNOLOGY
-                else -> Kind.CORE_API
-            }
-        }
+        if (isCore) return coreKindOf(name)
         return when (name) {
             "api" -> Kind.API
             "impl" -> Kind.IMPL
             "contract" -> Kind.CONTRACT
             "dao" -> Kind.STORAGE_CONTRACT
             "fake" -> Kind.FAKE
-            in technologies -> Kind.TECHNOLOGY
             in platforms -> Kind.PLATFORM
-            else -> Kind.CONTEXT
+            else -> if (isTechnologyUnitName(name)) Kind.TECHNOLOGY else Kind.CONTEXT
         }
     }
 

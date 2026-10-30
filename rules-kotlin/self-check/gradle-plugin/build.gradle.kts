@@ -10,3 +10,8 @@ kotlin {
 dependencies {
     implementation(project(":structure"))
 }
+
+linter {
+    entryPointWords.addAll("detekt", "gradle", "konsist")
+    technologyWords.add("structure")
+}

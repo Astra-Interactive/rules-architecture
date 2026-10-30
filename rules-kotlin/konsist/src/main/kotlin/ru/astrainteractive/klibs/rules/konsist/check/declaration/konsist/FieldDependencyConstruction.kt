@@ -13,7 +13,8 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
 /**
  * Reports construction of a concrete behaviour class of the unit outside `di`, in a property, constructor body or
- * method, with zero-argument constructors included. Models and value holders are not dependencies.
+ * method, with zero-argument constructors included. Models and value holders are not dependencies. In an entry-point
+ * unit the platform main class builds `RootModule`, so the DI modules there are not dependencies either.
  */
 internal class FieldDependencyConstruction : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
@@ -21,6 +22,7 @@ internal class FieldDependencyConstruction : ArchitectureCheck {
     private fun dependencyClassNames(sources: UnitSources): Set<String> {
         return sources.mainFiles
             .filter { file -> sources.placementOf(file)?.kind != Kind.MODEL }
+            .filterNot { file -> sources.kind == UnitKind.ENTRY_POINT && sources.placementOf(file)?.kind == Kind.DI }
             .flatMap(KoFileDeclaration::topLevelClasses)
             .filterNot { declaration -> declaration.hasModifier(KoModifier.DATA) }
             .filterNot { declaration -> declaration.hasModifier(KoModifier.ENUM) }

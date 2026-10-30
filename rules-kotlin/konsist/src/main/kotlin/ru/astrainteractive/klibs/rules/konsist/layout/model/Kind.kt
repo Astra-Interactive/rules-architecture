@@ -31,7 +31,6 @@ internal enum class Kind(val words: Set<String>) {
             "retrofit",
             "room",
             "sqldelight",
-            "structure",
             "stub",
             "table",
         )
@@ -42,13 +41,10 @@ internal enum class Kind(val words: Set<String>) {
             "component",
             "composable",
             "context",
-            "detekt",
             "error",
             "event",
             "expansion",
-            "gradle",
             "gui",
-            "konsist",
             "job",
             "menu",
             "migration",
@@ -68,6 +64,16 @@ internal enum class Kind(val words: Set<String>) {
          */
         const val COMPOSABLE_WORD = "composable"
 
-        fun fromSegment(segment: String): Kind? = entries.find { kind -> segment in kind.words }
+        /**
+         * The kind a package segment names, from the project's own words in [vocabulary] first, then from the
+         * defaults.
+         */
+        fun fromSegment(segment: String, vocabulary: Vocabulary): Kind? {
+            return when (segment) {
+                in vocabulary.entryPointWords -> ENTRY_POINT
+                in vocabulary.technologyWords -> IMPLEMENTATION
+                else -> entries.find { kind -> segment in kind.words }
+            }
+        }
     }
 }

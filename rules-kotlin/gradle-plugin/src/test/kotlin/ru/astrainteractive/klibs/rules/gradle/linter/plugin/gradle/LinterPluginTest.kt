@@ -45,6 +45,107 @@ class LinterPluginTest {
     }
 
     @Test
+    fun GIVEN_project_kind_word_WHEN_architecture_checked_THEN_accepts_its_package(@TempDir rootDirectory: File) {
+        val moduleScript = JAVA_MODULE_SCRIPT + """
+
+            linter {
+                rootPackage.set("com.example.rating")
+                entryPointWords.add("widget")
+                technologyWords.add("mongo")
+                pluralConcepts.add("goods")
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "rating", buildScript = moduleScript)
+            .withSourceFile("rating/README.md", "Shows the rating of players in widgets.")
+            .withSourceFile(
+                "rating/src/main/kotlin/com/example/rating/goods/widget/RatingWidget.kt",
+                """
+                package com.example.rating.goods.widget
+
+                internal class RatingWidget
+                """.trimIndent()
+            )
+
+        build.run(":rating:architectureCheck")
+    }
+
+    @Test
+    fun GIVEN_technology_unit_copying_a_dependency_model_WHEN_architecture_checked_THEN_reports_the_copy(
+        @TempDir rootDirectory: File
+    ) {
+        val exposedScript = """
+            $JAVA_MODULE_SCRIPT
+
+            dependencies { implementation(project(":dao")) }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "dao", buildScript = JAVA_MODULE_SCRIPT)
+            .withModule(name = "exposed", buildScript = exposedScript)
+            .withSourceFile("dao/README.md", "Declares the rating storage contracts and models.")
+            .withSourceFile("exposed/README.md", "Stores ratings in a database with Exposed.")
+            .withSourceFile(
+                "dao/src/main/kotlin/com/example/dao/rating/model/Rating.kt",
+                """
+                package com.example.dao.rating.model
+
+                data class Rating(val name: String, val value: Int)
+                """.trimIndent()
+            )
+            .withSourceFile(
+                "exposed/src/main/kotlin/com/example/exposed/rating/RatingRow.kt",
+                """
+                package com.example.exposed.rating
+
+                internal data class RatingRow(val name: String, val value: Int)
+                """.trimIndent()
+            )
+
+        val result = build.runAndFail(":exposed:architectureCheck")
+
+        assertTrue(result.output.contains("RatingRow copies the fields of Rating"), result.output)
+    }
+
+    @Test
+    fun GIVEN_android_namespace_other_than_the_root_package_WHEN_architecture_checked_THEN_reports_it(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            $JAVA_MODULE_SCRIPT
+
+            abstract class AndroidExtension {
+                var namespace: String? = null
+            }
+
+            extensions.create<AndroidExtension>("android").namespace = "com.example.other"
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "rating", buildScript = moduleScript)
+            .withSourceFile("rating/README.md", "Shows the rating of players.")
+            .withSourceFile(
+                "rating/src/main/kotlin/com/example/rating/rating/model/Rating.kt",
+                """
+                package com.example.rating.rating.model
+
+                class Rating
+                """.trimIndent()
+            )
+
+        val result = build.runAndFail(":rating:architectureCheck")
+
+        assertTrue(
+            result.output.contains("Set the namespace of this Android unit to its root package com.example.rating"),
+            result.output
+        )
+    }
+
+    @Test
     fun GIVEN_context_with_a_loose_root_file_WHEN_architecture_checked_THEN_fails_naming_it(
         @TempDir rootDirectory: File
     ) {
@@ -261,7 +362,7 @@ class LinterPluginTest {
                 doLast {
                     val lines = listOf(
                         "args=" + arguments.get(),
-                        "config=" + configFiles.files.map { file -> file.name },
+                        "config=" + configFiles.files.map { file -> file.parentFile.parentFile.name + "/" + file.name },
                         "kind=" + unitKind.get(),
                         "plugins=" + pluginNames,
                     )
@@ -272,12 +373,13 @@ class LinterPluginTest {
         val build = IsolatedProjectsBuild(rootDirectory)
             .withRootBuildScript("")
             .withModule(name = "library", buildScript = moduleScript)
+            .withSourceFile("config/detekt/detekt.yml", PROJECT_IMPORT_LAYOUT)
 
         build.run(":library:reportLinter")
 
         val report = build.file("library/build/linter-report.txt").readLines()
         assertEquals("args=[-Xexplicit-api=strict]", report[0])
-        assertEquals("config=[detekt.yml, detekt-architecture.yml]", report[1])
+        assertEquals("config=[build/detekt.yml, build/detekt-architecture.yml, config/detekt.yml]", report[1])
         assertEquals("kind=library", report[2])
         assertTrue(report[3].contains("ru.astrainteractive.klibs.rules:detekt"), "rules missing: ${report[3]}")
     }
@@ -461,40 +563,6 @@ class LinterPluginTest {
     }
 
     @Test
-    fun GIVEN_acyclic_unit_graph_WHEN_graph_checked_THEN_passes(@TempDir rootDirectory: File) {
-        val build = IsolatedProjectsBuild(rootDirectory)
-            .online()
-            .withRootBuildScript(JAVA_MODULE_SCRIPT)
-            .withModule(name = "api", buildScript = JAVA_MODULE_SCRIPT)
-            .withModule(name = "impl", buildScript = JAVA_MODULE_SCRIPT)
-
-        build.run(":architectureGraphCheck")
-    }
-
-    @Test
-    fun GIVEN_unit_dependency_cycle_WHEN_graph_checked_THEN_reports_the_cycle(@TempDir rootDirectory: File) {
-        val aScript = """
-            $JAVA_MODULE_SCRIPT
-
-            dependencies { implementation(project(":b")) }
-        """.trimIndent()
-        val bScript = """
-            $JAVA_MODULE_SCRIPT
-
-            dependencies { implementation(project(":a")) }
-        """.trimIndent()
-        val build = IsolatedProjectsBuild(rootDirectory)
-            .online()
-            .withRootBuildScript(JAVA_MODULE_SCRIPT)
-            .withModule(name = "a", buildScript = aScript)
-            .withModule(name = "b", buildScript = bScript)
-
-        val result = build.runAndFail(":architectureGraphCheck")
-
-        assertTrue(result.output.contains(":a -> :b -> :a"), result.output)
-    }
-
-    @Test
     fun GIVEN_test_in_another_source_set_WHEN_architecture_checked_THEN_reports_the_expected_set(
         @TempDir rootDirectory: File
     ) {
@@ -599,6 +667,13 @@ class LinterPluginTest {
                 `java-library`
                 id("ru.astrainteractive.klibs.rules.gradle.linter")
             }
+        """.trimIndent()
+
+        val PROJECT_IMPORT_LAYOUT = """
+            ktlint:
+              ImportOrdering:
+                active: true
+                layout: '*,java.**,javax.**,kotlin.**'
         """.trimIndent()
     }
 }

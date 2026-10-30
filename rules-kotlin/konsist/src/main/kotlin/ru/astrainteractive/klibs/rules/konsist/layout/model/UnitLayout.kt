@@ -1,11 +1,12 @@
 package ru.astrainteractive.klibs.rules.konsist.layout.model
 
 /**
- * The package layout of one build unit: its root package and its kind.
+ * The package layout of one build unit: its root package, its kind and the project's own kind words.
  */
 internal class UnitLayout(
     val rootPackage: String,
-    val unitKind: UnitKind
+    val unitKind: UnitKind,
+    val vocabulary: Vocabulary
 ) {
     fun segmentsBelowRoot(packageName: String): List<String>? {
         if (packageName == rootPackage) return emptyList()
@@ -26,7 +27,7 @@ internal class UnitLayout(
         val kindIndex = if (composableIndex >= 0) {
             composableIndex
         } else {
-            segments.indexOfLast { segment -> Kind.fromSegment(segment) != null }
+            segments.indexOfLast { segment -> Kind.fromSegment(segment, vocabulary) != null }
         }
         if (kindIndex < 0) {
             val kind = Kind.IMPLEMENTATION.takeIf { unitKind == UnitKind.TECHNOLOGY && segments.isNotEmpty() }
@@ -42,7 +43,7 @@ internal class UnitLayout(
         val belowIndex = if (subKind == null) kindIndex + 1 else kindIndex + 2
         return Placement(
             concepts = segments.take(kindIndex),
-            kind = Kind.fromSegment(segments[kindIndex]),
+            kind = Kind.fromSegment(segments[kindIndex], vocabulary),
             kindWord = segments[kindIndex],
             subKind = subKind,
             below = segments.drop(belowIndex)

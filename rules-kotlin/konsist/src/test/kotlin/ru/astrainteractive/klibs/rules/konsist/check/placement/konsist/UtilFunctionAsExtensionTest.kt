@@ -41,4 +41,20 @@ internal class UtilFunctionAsExtensionTest {
             UtilFunctionAsExtension().check(sources).map(Violation::message)
         )
     }
+
+    @Test
+    fun GIVEN_util_function_taking_a_dependency_model_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .dependency("x.core.settings.model/AstraRatingConfig.kt", "data class AstraRatingConfig(val max: Int)")
+            .main(
+                "x.gui.api.rating.util/RatingMessage.kt",
+                "fun isMessageAllowed(config: AstraRatingConfig): Boolean = config.max > 0"
+            )
+            .load(UnitKind.API, rootPackage = "x.gui.api")
+
+        assertEquals(
+            listOf("isMessageAllowed"),
+            UtilFunctionAsExtension().check(sources).map(Violation::subject)
+        )
+    }
 }

@@ -10,6 +10,10 @@ architecture:
     active: true
   BooleanOperatorWrapping:
     active: true
+  CallbackDeclaration:
+    active: true
+  CallbackFlowShape:
+    active: true
   CalleeBeforeCaller:
     active: true
   CompanionFactoryFunction:
@@ -80,7 +84,11 @@ architecture:
     active: true
   RunBlockingInTest:
     active: true
+  RunBlockingOutsideBoundary:
+    active: true
   RunCatchingCancellation:
+    active: true
+  SharedFlowEvent:
     active: true
   SingleJobLaunchMode:
     active: true
@@ -91,6 +99,8 @@ architecture:
   TestFunctionName:
     active: true
   ThemeObjectFunction:
+    active: true
+  ThreadPrimitive:
     active: true
   ThrowInsideRunCatching:
     active: true
