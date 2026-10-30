@@ -29,6 +29,10 @@ private const val PUBLISH_PLUGIN_ID = "maven-publish"
 
 private const val API_CONFIGURATION = "api"
 
+private const val ANDROID_EXTENSION = "android"
+
+private const val NAMESPACE_GETTER = "getNamespace"
+
 private val PRODUCTION_CONFIGURATION_SUFFIXES = listOf(
     "implementation",
     "api",
@@ -151,4 +155,16 @@ internal fun Project.dependencyInputs(): List<FileCollection> {
             tree.exclude("src/*[Tt]est*/**", "**/build/**")
         }
     }
+}
+
+/**
+ * The `namespace` of an Android unit, read from the `android` extension by reflection so that the plugin does not
+ * depend on the Android Gradle plugin; `null` outside Android.
+ */
+internal fun Project.androidNamespace(): String? {
+    val android = extensions.findByName(ANDROID_EXTENSION) ?: return null
+    val getter = android.javaClass.methods
+        .firstOrNull { method -> method.name == NAMESPACE_GETTER && method.parameterCount == 0 }
+        ?: return null
+    return getter.invoke(android) as? String
 }

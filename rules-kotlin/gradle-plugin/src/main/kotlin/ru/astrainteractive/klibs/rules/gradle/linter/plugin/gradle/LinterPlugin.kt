@@ -25,6 +25,7 @@ import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureBas
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureCheckTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureGraphTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureTask
+import ru.astrainteractive.klibs.rules.gradle.linter.util.androidNamespace
 import ru.astrainteractive.klibs.rules.gradle.linter.util.dependencyInputs
 import ru.astrainteractive.klibs.rules.gradle.linter.util.detectUnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.util.explicitApiMode
@@ -129,6 +130,7 @@ internal class LinterPlugin : Plugin<Project> {
         projectPath.set(project.path)
         unitKind.set(extension.unitKind)
         rootPackage.set(extension.rootPackage)
+        androidNamespace.set(project.provider { project.androidNamespace() })
         entryPointWords.set(extension.entryPointWords)
         technologyWords.set(extension.technologyWords)
         pluralConcepts.set(extension.pluralConcepts)

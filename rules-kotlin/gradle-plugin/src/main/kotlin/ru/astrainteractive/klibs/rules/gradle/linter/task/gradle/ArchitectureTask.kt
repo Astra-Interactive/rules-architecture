@@ -72,6 +72,10 @@ internal abstract class ArchitectureTask : DefaultTask() {
     abstract val rootOfBuild: Property<Boolean>
 
     @get:Input
+    @get:Optional
+    abstract val androidNamespace: Property<String>
+
+    @get:Input
     abstract val entryPointWords: SetProperty<String>
 
     @get:Input
@@ -136,6 +140,10 @@ internal abstract class ArchitectureTask : DefaultTask() {
             rootPackage.orNull?.let { packageName ->
                 add("--root-package")
                 add(packageName)
+            }
+            androidNamespace.orNull?.let { namespace ->
+                add("--android-namespace")
+                add(namespace)
             }
             mainDirectories.forEach { directory ->
                 add("--main")

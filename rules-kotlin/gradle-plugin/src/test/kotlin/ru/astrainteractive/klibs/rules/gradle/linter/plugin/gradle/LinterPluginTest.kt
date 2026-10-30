@@ -111,6 +111,41 @@ class LinterPluginTest {
     }
 
     @Test
+    fun GIVEN_android_namespace_other_than_the_root_package_WHEN_architecture_checked_THEN_reports_it(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            $JAVA_MODULE_SCRIPT
+
+            abstract class AndroidExtension {
+                var namespace: String? = null
+            }
+
+            extensions.create<AndroidExtension>("android").namespace = "com.example.other"
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "rating", buildScript = moduleScript)
+            .withSourceFile("rating/README.md", "Shows the rating of players.")
+            .withSourceFile(
+                "rating/src/main/kotlin/com/example/rating/rating/model/Rating.kt",
+                """
+                package com.example.rating.rating.model
+
+                class Rating
+                """.trimIndent()
+            )
+
+        val result = build.runAndFail(":rating:architectureCheck")
+
+        assertTrue(
+            result.output.contains("Set the namespace of this Android unit to its root package com.example.rating"),
+            result.output
+        )
+    }
+
+    @Test
     fun GIVEN_context_with_a_loose_root_file_WHEN_architecture_checked_THEN_fails_naming_it(
         @TempDir rootDirectory: File
     ) {

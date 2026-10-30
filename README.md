@@ -342,6 +342,7 @@ outside technology packages (`ForbiddenImport/future`). `SuspendFunSwallowedCanc
 | `UtilFunctionAsExtension` | a `util` function whose one parameter is a model of the unit or of a unit it depends on, instead of an extension |
 | `ImplementationVisibility` | a public class in a technology package or a technology unit's concept, outside a library, `core`, `stub` and `memory` |
 | `UseCaseAbstraction` | an interface or abstract class named `…UseCase` |
+| `AndroidNamespace` | an Android unit whose `namespace` differs from its root package |
 | `ApplicationKDoc` | KDoc outside a published library, other than a contract's failure case (`@return failure`, `@throws`) or a reason outside the code (a link, an issue key, a bug, workaround or quirk) |
 | `ContractName` | an `api` interface named `…Api`, `…Dao`, `…Storage` or `…Krate`, a `…Repository` extending a generic repository or `Crud` base |
 | `CoreShape` | a `…UseCase` class or a `…Repository` interface in a `core` unit |
