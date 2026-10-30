@@ -94,6 +94,8 @@ architecture:
     active: true
   ThemeObjectFunction:
     active: true
+  ThreadPrimitive:
+    active: true
   ThrowInsideRunCatching:
     active: true
   TimeAsPrimitive:

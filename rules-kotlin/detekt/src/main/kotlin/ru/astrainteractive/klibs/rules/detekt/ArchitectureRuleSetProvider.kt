@@ -15,6 +15,7 @@ import ru.astrainteractive.klibs.rules.coroutine.detekt.MutableStateFlowEmit
 import ru.astrainteractive.klibs.rules.coroutine.detekt.RunBlockingOutsideBoundary
 import ru.astrainteractive.klibs.rules.coroutine.detekt.SingleJobLaunchMode
 import ru.astrainteractive.klibs.rules.coroutine.detekt.StateFlowTimeout
+import ru.astrainteractive.klibs.rules.coroutine.detekt.ThreadPrimitive
 import ru.astrainteractive.klibs.rules.declaration.detekt.BareIdentifier
 import ru.astrainteractive.klibs.rules.declaration.detekt.CompanionFactoryFunction
 import ru.astrainteractive.klibs.rules.declaration.detekt.DataClassDefaultValue
@@ -111,6 +112,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::SystemTimeCall,
                 ::TestFunctionName,
                 ::ThemeObjectFunction,
+                ::ThreadPrimitive,
                 ::ThrowInsideRunCatching,
                 ::TimeAsPrimitive,
                 ::TrivialLambdaReference,
