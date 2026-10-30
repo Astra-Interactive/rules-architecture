@@ -7,9 +7,9 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
 /**
- * Reports a data contract named for its technology instead of `<Aggregate>Repository` (an `api` interface named
- * `…Dao`, `…Storage` or `…Krate`), and a `…Repository` interface that extends a generic base (a supertype named
- * `…Repository` or `…Crud…`).
+ * Reports a data contract named `…Api`, `…Dao`, `…Storage` or `…Krate` instead of `<Aggregate>Repository` (an
+ * interface in `api`), and a `…Repository` interface that extends a generic base (a supertype named `…Repository` or
+ * `…Crud…`).
  */
 internal class ContractName : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
@@ -25,7 +25,7 @@ internal class ContractName : ArchitectureCheck {
                     .firstOrNull { parent -> parent.endsWith(REPOSITORY) || CRUD in parent }
                 val message = when {
                     isContract && technologySuffix != null ->
-                        "Rename $name to <Aggregate>Repository: $technologySuffix names a technology, not the contract."
+                        "Rename $name to <Aggregate>Repository: $technologySuffix is not a name for the contract."
                     name.endsWith(REPOSITORY) && genericBase != null ->
                         "Drop $genericBase from $name: a repository speaks the context's words and extends no " +
                             "generic base."
@@ -49,6 +49,7 @@ internal class ContractName : ArchitectureCheck {
 
         @JvmField
         val TECHNOLOGY_SUFFIXES = listOf(
+            "Api",
             "Dao",
             "Storage",
             "Krate"
