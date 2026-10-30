@@ -45,7 +45,7 @@ internal class InMemoryPlacementTest {
     }
 
     @Test
-    fun GIVEN_architecture_check_and_test_class_names_WHEN_checked_THEN_does_not_treat_them_as_in_memory(
+    fun GIVEN_main_class_and_test_class_named_alike_WHEN_checked_THEN_reports_only_the_main_class(
         @TempDir directory: File
     ) {
         val sources = SourceTree(directory)
@@ -61,6 +61,6 @@ internal class InMemoryPlacementTest {
             )
             .load(UnitKind.CONTEXT, rootPackage = "x")
 
-        assertEquals(emptyList(), InMemoryPlacement().check(sources))
+        assertEquals(listOf("InMemoryPlacement"), InMemoryPlacement().check(sources).map(Violation::subject))
     }
 }

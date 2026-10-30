@@ -90,7 +90,7 @@ internal class FakePlacementTest {
     }
 
     @Test
-    fun GIVEN_architecture_check_and_test_class_names_WHEN_checked_THEN_does_not_treat_them_as_fakes(
+    fun GIVEN_main_class_and_test_class_named_alike_WHEN_checked_THEN_reports_only_the_main_class(
         @TempDir directory: File
     ) {
         val sources = SourceTree(directory)
@@ -106,6 +106,6 @@ internal class FakePlacementTest {
             )
             .load(UnitKind.CONTEXT, rootPackage = "x")
 
-        assertEquals(emptyList(), FakePlacement().check(sources))
+        assertEquals(listOf("FakePlacement"), FakePlacement().check(sources).map(Violation::subject))
     }
 }

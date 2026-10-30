@@ -1,6 +1,5 @@
 package ru.astrainteractive.klibs.rules.konsist.check.placement.konsist
 
-import com.lemonappdev.konsist.api.declaration.KoClassDeclaration
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
@@ -15,12 +14,9 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
  * `<feature>/fake` unit, whose root package ends with `fake`, holds the shared fakes of a Multiplatform unit in
  * its main sources.
  */
+@Suppress("FakePlacement")
 internal class FakePlacement : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
-
-    private fun isArchitectureCheck(declaration: KoClassDeclaration): Boolean {
-        return declaration.parents().any { parent -> parent.name == ARCHITECTURE_CHECK }
-    }
 
     private fun findFakes(
         sources: UnitSources,
@@ -28,7 +24,7 @@ internal class FakePlacement : ArchitectureCheck {
         message: (String) -> String
     ): List<Violation> {
         return files.flatMap { file ->
-            val declarations = file.topLevelClasses().filterNot(::isArchitectureCheck) +
+            val declarations = file.topLevelClasses() +
                 file.objects(includeNested = false)
             declarations
                 .filterNot { declaration -> declaration.name.endsWith(TEST_SUFFIX) }
@@ -67,7 +63,6 @@ internal class FakePlacement : ArchitectureCheck {
     private companion object {
         const val RULE = "FakePlacement"
         const val FAKE_SEGMENT = "fake"
-        const val ARCHITECTURE_CHECK = "ArchitectureCheck"
         const val TEST_SUFFIX = "Test"
 
         @JvmField

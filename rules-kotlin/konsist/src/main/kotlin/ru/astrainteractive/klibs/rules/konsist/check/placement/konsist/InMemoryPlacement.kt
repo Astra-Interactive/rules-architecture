@@ -13,12 +13,12 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
  * Reports an in-memory implementation (`InMemory*`) outside a `memory` package of the main sources: it is
  * production code that tests and demos share, not a test double.
  */
+@Suppress("InMemoryPlacement")
 internal class InMemoryPlacement : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
 
     private fun inMemoryDeclarations(file: KoFileDeclaration): List<KoClassDeclaration> {
         return file.topLevelClasses()
-            .filterNot { declaration -> declaration.parents().any { parent -> parent.name == ARCHITECTURE_CHECK } }
             .filterNot { declaration -> declaration.name.endsWith(TEST_SUFFIX) }
             .filter { declaration -> IN_MEMORY_NAME.matches(declaration.name) }
     }
@@ -57,7 +57,6 @@ internal class InMemoryPlacement : ArchitectureCheck {
     private companion object {
         const val RULE = "InMemoryPlacement"
         const val MEMORY_SEGMENT = "memory"
-        const val ARCHITECTURE_CHECK = "ArchitectureCheck"
         const val TEST_SUFFIX = "Test"
 
         @JvmField
