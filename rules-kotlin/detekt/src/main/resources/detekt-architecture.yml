@@ -123,6 +123,11 @@ style:
         reason: 'kotlin.time at the boundary only: use kotlin.time.Instant.'
       - value: 'java.util.Calendar'
         reason: 'kotlin.time at the boundary only: use kotlin.time.Instant.'
+  # The Compose rule names a value in a val (`private val PreviewCanvasColor = Color(0xFF1F1F1F)`) and keeps a
+  # value used once inline (`Modifier.size(28.dp)`).
+  MagicNumber:
+    active: true
+    ignorePropertyDeclaration: true
   RedundantVisibilityModifier:
     active: true
   WildcardImport:

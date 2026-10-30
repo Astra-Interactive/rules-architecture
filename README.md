@@ -300,6 +300,7 @@ markers and separator comments; `ForbiddenImport` for `kotlinx.datetime.Instant`
 types in `model`, Compose excepted, outside technology packages (`exposed`, `room`, ...); `RedundantVisibilityModifier`; `WildcardImport` with no exceptions; ktlint `ImportOrdering`.
 `DataClassContainsFunctions`, with no conversion exception, and `DataClassShouldBeImmutable`: a data class
 holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with a lowercase-only pattern.
+`MagicNumber` accepts a number in a property declaration, where the Compose rule names a value.
 
 ### Konsist checks
 

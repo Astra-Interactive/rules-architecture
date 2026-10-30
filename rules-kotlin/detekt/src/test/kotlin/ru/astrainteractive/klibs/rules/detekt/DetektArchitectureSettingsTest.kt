@@ -10,6 +10,7 @@ import dev.detekt.rules.style.DataClassContainsFunctions
 import dev.detekt.rules.style.DataClassShouldBeImmutable
 import dev.detekt.rules.style.ForbiddenComment
 import dev.detekt.rules.style.ForbiddenImport
+import dev.detekt.rules.style.MagicNumber
 import dev.detekt.rules.style.WildcardImport
 import dev.detekt.test.lint
 import org.junit.jupiter.api.Test
@@ -144,6 +145,20 @@ internal class DetektArchitectureSettingsTest {
             ),
             excludes
         )
+    }
+
+    @Test
+    fun GIVEN_compose_values_in_vals_and_inline_WHEN_linted_THEN_reports_only_the_bare_number() {
+        val code = """
+            private val PreviewCanvasColor = Color(0xFF1F1F1F)
+            private val CardTopSpacing = 64.dp
+
+            fun computeShift(offset: Int): Int = offset * 37
+        """.trimIndent()
+
+        val findings = MagicNumber(styleConfig.subConfig("MagicNumber")).lint(code)
+
+        assertEquals(1, findings.size)
     }
 
     @Test
