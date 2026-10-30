@@ -26,14 +26,56 @@ internal class CallbackFlowShapeTest {
 
         assertEquals(
             listOf(
-                "Unregister the callback in awaitClose { } at the end of this callbackFlow: the builder fails " +
-                    "without it and the listener leaks.",
+                "End this callbackFlow block with awaitClose { unregister }: the builder throws " +
+                    "IllegalStateException at run time when the block completes without it, and the listener leaks.",
                 "Call trySend(value) from the callback instead of launch { send(value) }: a coroutine per event " +
                     "loses their order.",
                 "Keep the default buffer, Channel.UNLIMITED or conflate() instead of a rendezvous buffer: the " +
                     "producer can deadlock and trySend fails while the collector is busy.",
                 "Keep the default buffer, Channel.UNLIMITED or conflate() instead of a rendezvous buffer: the " +
                     "producer can deadlock and trySend fails while the collector is busy.",
+            ),
+            rule.lint(code).map(Finding::message)
+        )
+    }
+
+    @Test
+    fun GIVEN_await_close_that_does_not_end_the_block_WHEN_linted_THEN_reports_each_bridge() {
+        val code = """
+            fun ExoPlayer.inLaunch(): Flow<Int> = callbackFlow {
+                addListener(listener)
+                launch { awaitClose { removeListener(listener) } }
+            }
+
+            fun ExoPlayer.inBranch(): Flow<Int> = callbackFlow {
+                addListener(listener)
+                if (isReady) awaitClose { removeListener(listener) }
+            }
+
+            fun ExoPlayer.beforeRegistration(): Flow<Int> = callbackFlow {
+                awaitClose { removeListener(listener) }
+                addListener(listener)
+            }
+        """.trimIndent()
+
+        assertEquals(3, rule.lint(code).size)
+    }
+
+    @Test
+    fun GIVEN_bridge_shared_eagerly_WHEN_linted_THEN_reports_the_start() {
+        val code = """
+            fun ExoPlayer.asShared(scope: CoroutineScope): Flow<Int> = callbackFlow { awaitClose { } }
+                .conflate()
+                .shareIn(scope, SharingStarted.Eagerly)
+
+            fun ExoPlayer.asState(scope: CoroutineScope): StateFlow<Int> = callbackFlow { awaitClose { } }
+                .stateIn(scope = scope, started = SharingStarted.WhileSubscribed(), initialValue = 0)
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "Share this bridge with SharingStarted.WhileSubscribed(): it registers the callback while someone " +
+                    "collects and unregisters after the last collector leaves.",
             ),
             rule.lint(code).map(Finding::message)
         )
@@ -50,6 +92,15 @@ internal class CallbackFlowShapeTest {
                     addListener(listener)
                     awaitClose { removeListener(listener) }
                 }.buffer(Channel.UNLIMITED)
+            }
+
+            fun ExoPlayer.asGuarded(): Flow<Int> = callbackFlow {
+                addListener(listener)
+                try {
+                    awaitClose()
+                } finally {
+                    removeListener(listener)
+                }
             }
 
             fun build() = callbackFlow(block)
