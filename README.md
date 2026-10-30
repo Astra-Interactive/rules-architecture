@@ -306,7 +306,7 @@ types in `model`, Compose excepted, outside technology packages (`exposed`, `roo
 `DataClassContainsFunctions`, with no conversion exception, and `DataClassShouldBeImmutable`: a data class
 holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with a lowercase-only pattern.
 `MagicNumber` accepts a number in a property declaration, where the Compose rule names a value.
-`ForbiddenImport` also bans DI frameworks (Koin, Dagger, `javax.inject`, Anvil, Metro, kotlin-inject, Kodein) and
+`ForbiddenImport` also bans DI frameworks (Koin, Dagger, Anvil, Metro, kotlin-inject, Kodein) and
 the callback and thread tools of the no-callbacks rule: `suspendCoroutine`, `trySendBlocking`, `Timer`, `TimerTask`,
 `Handler`, `thread`; `Executor`/`Executors` outside `core` (`ForbiddenImport/executor`) and `CompletableFuture`
 outside technology packages (`ForbiddenImport/future`). `SuspendFunSwallowedCancellation` and

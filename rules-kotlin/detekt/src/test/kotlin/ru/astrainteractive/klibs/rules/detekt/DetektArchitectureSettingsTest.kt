@@ -179,7 +179,7 @@ internal class DetektArchitectureSettingsTest {
 
         val findings = ForbiddenImport(styleConfig.subConfig("ForbiddenImport")).lint(code)
 
-        assertEquals(10, findings.size)
+        assertEquals(9, findings.size)
     }
 
     @Test
