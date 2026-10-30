@@ -23,9 +23,22 @@ internal class ImplementationVisibilityTest {
             .load(UnitKind.API, rootPackage = "x.jail.api")
 
         assertEquals(
-            listOf("FileJailRepository", "InMemoryJailRepository"),
+            listOf("FileJailRepository"),
             ImplementationVisibility().check(sources).map(Violation::subject).sorted()
         )
+    }
+
+    @Test
+    fun GIVEN_public_generic_class_in_core_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main("x.core.cache.cache4k/RefreshingCache.kt", "class RefreshingCache")
+            .load(
+                UnitKind.CONTEXT,
+                rootPackage = "x.core",
+                unitPath = ":modules:core:api"
+            )
+
+        assertEquals(emptyList(), ImplementationVisibility().check(sources))
     }
 
     @Test
