@@ -285,7 +285,7 @@ val violations: List<StructureViolation> = checker.check(
 | `ResultConsumption` | a `Result` discarded as a statement without consuming its success or failure |
 | `GetOrThrowInMain` | `getOrThrow()` outside the test sources |
 | `BareIdentifier` | a property named `id`/`…Id` typed `String`, `Int`, `Long` or `UUID` outside a `@Serializable` class or technology package, a `…Id` class that is not a value class |
-| `CompanionFactoryFunction` | a `create…`, `of` or `from` function in a companion object |
+| `CompanionFactoryFunction` | a `create…` function in a companion object |
 | `RolelessClassName` | a `…Validator` or `…Factory` class (a Decompose `fun interface Factory` is allowed), `…WarmUp`/`…Migration`/`…ViewModel` outside its `warmup`/`migration`/`viewmodel` package |
 | `DiModuleLifecycle` | a `…Module` that declares `enable`, `disable`, `reload`, `onEnable`, `onDisable` or `onReload` |
 | `RootModuleConstruction` | a `RootModule` constructor call that constructs anything but a `…Module` or a `Lifecycle` |

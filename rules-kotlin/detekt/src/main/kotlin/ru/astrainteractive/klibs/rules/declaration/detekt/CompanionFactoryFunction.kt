@@ -9,8 +9,8 @@ import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 
 /**
- * Reports a factory in a companion object: a function named `create…`, `of` or `from`. The model is data; a
- * factory with a rule is a top-level `create<Aggregate>()` in `util` returning `Result`.
+ * Reports a factory in a companion object, a function named `create…`: the model is data, and a factory with a rule
+ * is a top-level `create<Aggregate>()` in `util` returning `Result`.
  */
 internal class CompanionFactoryFunction(config: Config) : Rule(config, DESCRIPTION) {
 
@@ -19,7 +19,7 @@ internal class CompanionFactoryFunction(config: Config) : Rule(config, DESCRIPTI
         val owner = function.containingClassOrObject as? KtObjectDeclaration ?: return
         if (!owner.isCompanion()) return
         val name = function.name.orEmpty()
-        if (!name.startsWith(CREATE_PREFIX) && name !in FACTORY_NAMES) return
+        if (!name.startsWith(CREATE_PREFIX)) return
         val message = "Move the factory '$name' out of the companion object: write a top-level " +
             "create<Aggregate>() in util returning Result, never a companion factory."
         report(Finding(Entity.atName(function), message))
@@ -27,9 +27,6 @@ internal class CompanionFactoryFunction(config: Config) : Rule(config, DESCRIPTI
 
     private companion object {
         const val CREATE_PREFIX = "create"
-
-        @JvmField
-        val FACTORY_NAMES = setOf("of", "from")
         const val DESCRIPTION = "A factory is a top-level create<Aggregate>() in util, never a companion function."
     }
 }

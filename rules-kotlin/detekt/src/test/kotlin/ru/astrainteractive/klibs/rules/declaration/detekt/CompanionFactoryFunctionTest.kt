@@ -18,15 +18,13 @@ internal class CompanionFactoryFunctionTest {
                 companion object {
                     fun create(name: String): Jail = Jail(name)
                     fun createEmpty(): Jail = Jail("")
-                    fun of(name: String): Jail = Jail(name)
-                    fun from(name: String): Jail = Jail(name)
                 }
             }
         """.trimIndent()
 
         val messages = rule.lint(code).map(Finding::message)
 
-        assertEquals(4, messages.size)
+        assertEquals(2, messages.size)
         assertEquals(
             "Move the factory 'create' out of the companion object: write a top-level create<Aggregate>() in util " +
                 "returning Result, never a companion factory.",
@@ -43,6 +41,8 @@ internal class CompanionFactoryFunctionTest {
                 companion object {
                     fun fromCliName(name: String): UnitKind? = null
                     fun offset(): Int = 0
+                    fun of(name: String): UnitKind = CONTEXT
+                    fun from(name: String): UnitKind = CONTEXT
                 }
             }
 
