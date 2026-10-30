@@ -343,7 +343,7 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `FakePlacement`        | a `Fake*` outside a `fake` package of the tests, or in the main sources outside a `<feature>/fake` unit, and a test fake of another unit's contract outside `testFixtures` |
 | `InMemoryPlacement`    | an `InMemory*` outside a `memory` package of the main sources                                              |
 | `SealedFamilyFile` | a class or object whose direct supertype is a sealed type declared in another file |
-| `StateTypePlacement` | a `<Screen>State` nested in another type or declared outside `model` |
+| `StateTypePlacement`   | a `<Screen>State` declared in a UI kind (a state holder, a composable, a menu), nested in a type there or beside it, instead of its own file in `model` |
 | `NestedEnum` | a top-level enum used as the property type of exactly one class |
 | `UtilFileName` | a `util` file of one receiver's extensions not named `<Receiver>Ext.kt`, a file named `Utils.kt`, `Helpers.kt`, `Extensions.kt` and the like |
 | `UtilFunctionAsExtension` | a `util` function whose one parameter is a model of the unit or of a unit it depends on, instead of an extension |

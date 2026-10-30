@@ -11,8 +11,9 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
 /**
  * Reports the state type of a screen or a menu (`<Screen>State`, a name of at least three letters before
- * `State`) nested inside another type or declared outside a `model` package: the view reads it, so it is its own
- * file in `model/`.
+ * `State`) declared in a UI kind, a state holder, a composable or a menu, nested in a type there or beside it: the
+ * view reads it, so it is its own file in `model/`. A `…State` of a technology package or a use case is not a
+ * screen's state and is not judged.
  */
 internal class StateTypePlacement : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
@@ -33,37 +34,40 @@ internal class StateTypePlacement : ArchitectureCheck {
             .filterNot { declaration -> declaration.name in topLevelNames }
     }
 
+    private fun findViolations(sources: UnitSources, file: KoFileDeclaration): List<Violation> {
+        val nested = nestedStateDeclarations(file)
+            .filter { declaration -> STATE_NAME.matches(declaration.name) }
+            .map { declaration ->
+                val message = "Move ${declaration.name} to its own file in model/: a screen state is never " +
+                    "nested in its view model or state holder."
+                sources.createViolation(
+                    RULE,
+                    file,
+                    declaration.declaration,
+                    declaration.name,
+                    message
+                )
+            }
+        val misplaced = stateDeclarations(file, includeNested = false)
+            .filter { declaration -> STATE_NAME.matches(declaration.name) }
+            .map { declaration ->
+                val message = "Move ${declaration.name} to the model package of its level: the view reads the " +
+                    "screen state."
+                sources.createViolation(
+                    RULE,
+                    file,
+                    declaration.declaration,
+                    declaration.name,
+                    message
+                )
+            }
+        return nested + misplaced
+    }
+
     override fun check(sources: UnitSources): List<Violation> {
-        return sources.mainFiles.flatMap { file ->
-            val nested = nestedStateDeclarations(file)
-                .filter { declaration -> STATE_NAME.matches(declaration.name) }
-                .map { declaration ->
-                    val message = "Move ${declaration.name} to its own file in model/: a screen state is never " +
-                        "nested in its view model or state holder."
-                    sources.createViolation(
-                        RULE,
-                        file,
-                        declaration.declaration,
-                        declaration.name,
-                        message
-                    )
-                }
-            val isModel = sources.placementOf(file)?.kind == Kind.MODEL
-            val misplaced = stateDeclarations(file, includeNested = false)
-                .filter { declaration -> STATE_NAME.matches(declaration.name) && !isModel }
-                .map { declaration ->
-                    val message = "Move ${declaration.name} to the model package of its level: the view reads the " +
-                        "screen state."
-                    sources.createViolation(
-                        RULE,
-                        file,
-                        declaration.declaration,
-                        declaration.name,
-                        message
-                    )
-                }
-            nested + misplaced
-        }
+        return sources.mainFiles
+            .filter { file -> sources.placementOf(file)?.kind == Kind.ENTRY_POINT }
+            .flatMap { file -> findViolations(sources, file) }
     }
 
     private class StateDeclaration(val declaration: KoBaseDeclaration, val name: String)
