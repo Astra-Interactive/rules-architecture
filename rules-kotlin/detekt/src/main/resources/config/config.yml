@@ -11,6 +11,8 @@ architecture:
     technologyWords: [ ]
   BooleanOperatorWrapping:
     active: true
+  BridgeCleanup:
+    active: true
   CallbackDeclaration:
     active: true
   CallbackFlowShape:

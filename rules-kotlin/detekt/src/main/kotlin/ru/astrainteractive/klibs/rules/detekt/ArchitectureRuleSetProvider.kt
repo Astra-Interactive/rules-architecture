@@ -13,6 +13,7 @@ import ru.astrainteractive.klibs.rules.compose.detekt.NonComposableFileInComposa
 import ru.astrainteractive.klibs.rules.compose.detekt.PreviewBlockLast
 import ru.astrainteractive.klibs.rules.compose.detekt.RememberInName
 import ru.astrainteractive.klibs.rules.compose.detekt.ThemeObjectFunction
+import ru.astrainteractive.klibs.rules.coroutine.detekt.BridgeCleanup
 import ru.astrainteractive.klibs.rules.coroutine.detekt.CallbackFlowShape
 import ru.astrainteractive.klibs.rules.coroutine.detekt.ChannelFlowShape
 import ru.astrainteractive.klibs.rules.coroutine.detekt.ImpureUpdateLambda
@@ -87,6 +88,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::ArgumentPerLine,
             ::BareIdentifier,
             ::BooleanOperatorWrapping,
+            ::BridgeCleanup,
             ::CallbackDeclaration,
             ::CallbackFlowShape,
             ::CalleeBeforeCaller,
