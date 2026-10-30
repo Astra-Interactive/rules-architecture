@@ -66,6 +66,24 @@ class DetektPluginTest {
     }
 
     @Test
+    fun GIVEN_project_detekt_config_WHEN_detekt_configured_THEN_it_follows_the_bundled_config(
+        @TempDir rootDirectory: File
+    ) {
+        val build = buildWithTwoModules(rootDirectory)
+            .withSourceFile("config/detekt/detekt.yml", PROJECT_CONFIG)
+        build.run(":moduleA:reportDetektConfig")
+
+        val reported = build.file("moduleA/build/$CONFIG_REPORT_NAME").readLines().map(::File)
+        assertEquals(
+            listOf(
+                build.file("build/detekt/detekt.yml").canonicalFile,
+                build.file("config/detekt/detekt.yml").canonicalFile
+            ),
+            reported.map(File::getCanonicalFile)
+        )
+    }
+
+    @Test
     fun GIVEN_two_modules_WHEN_detekt_configured_THEN_one_config_file_exists_in_the_whole_build(
         @TempDir rootDirectory: File
     ) {
@@ -187,6 +205,12 @@ class DetektPluginTest {
 
     private companion object {
         const val CONFIG_REPORT_NAME = "detekt-config-path.txt"
+
+        val PROJECT_CONFIG = """
+            style:
+              MagicNumber:
+                active: false
+        """.trimIndent()
         const val JVM_TARGET_REPORT_NAME = "detekt-jvm-target.txt"
     }
 }

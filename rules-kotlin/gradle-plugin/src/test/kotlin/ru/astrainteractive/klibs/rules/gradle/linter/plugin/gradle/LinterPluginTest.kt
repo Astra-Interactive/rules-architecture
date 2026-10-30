@@ -261,7 +261,7 @@ class LinterPluginTest {
                 doLast {
                     val lines = listOf(
                         "args=" + arguments.get(),
-                        "config=" + configFiles.files.map { file -> file.name },
+                        "config=" + configFiles.files.map { file -> file.parentFile.parentFile.name + "/" + file.name },
                         "kind=" + unitKind.get(),
                         "plugins=" + pluginNames,
                     )
@@ -272,12 +272,13 @@ class LinterPluginTest {
         val build = IsolatedProjectsBuild(rootDirectory)
             .withRootBuildScript("")
             .withModule(name = "library", buildScript = moduleScript)
+            .withSourceFile("config/detekt/detekt.yml", PROJECT_IMPORT_LAYOUT)
 
         build.run(":library:reportLinter")
 
         val report = build.file("library/build/linter-report.txt").readLines()
         assertEquals("args=[-Xexplicit-api=strict]", report[0])
-        assertEquals("config=[detekt.yml, detekt-architecture.yml]", report[1])
+        assertEquals("config=[build/detekt.yml, build/detekt-architecture.yml, config/detekt.yml]", report[1])
         assertEquals("kind=library", report[2])
         assertTrue(report[3].contains("ru.astrainteractive.klibs.rules:detekt"), "rules missing: ${report[3]}")
     }
@@ -599,6 +600,13 @@ class LinterPluginTest {
                 `java-library`
                 id("ru.astrainteractive.klibs.rules.gradle.linter")
             }
+        """.trimIndent()
+
+        val PROJECT_IMPORT_LAYOUT = """
+            ktlint:
+              ImportOrdering:
+                active: true
+                layout: '*,java.**,javax.**,kotlin.**'
         """.trimIndent()
     }
 }

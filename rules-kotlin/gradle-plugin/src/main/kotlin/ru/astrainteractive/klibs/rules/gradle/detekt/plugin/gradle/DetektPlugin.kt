@@ -1,6 +1,7 @@
 package ru.astrainteractive.klibs.rules.gradle.detekt.plugin.gradle
 
 import dev.detekt.gradle.Detekt
+import dev.detekt.gradle.extensions.DetektExtension
 import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
@@ -36,6 +37,7 @@ internal class DetektPlugin : Plugin<Project> {
         }
         val detektConfigFile = configService.map(DetektConfigService::configFile)
         val extension = target.extensions.create(EXTENSION_NAME, DetektRulesExtension::class.java)
+        val detektExtension = target.extensions.getByType(DetektExtension::class.java)
         extension.jvmTarget.convention(
             target.provider { target.kotlinJvmTarget() ?: JavaVersion.current().majorVersion }
         )
@@ -54,7 +56,11 @@ internal class DetektPlugin : Plugin<Project> {
             }
 
             task.usesService(configService)
-            task.config.setFrom(detektConfigFile)
+            task.config.setFrom(
+                detektConfigFile,
+                extension.ruleConfigs,
+                detektExtension.config
+            )
             task.setSource(projectSource)
 
             task.include("**/*.kt", "**/*.kts")

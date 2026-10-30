@@ -14,6 +14,7 @@ import org.gradle.api.attributes.java.TargetJvmEnvironment
 import org.gradle.api.file.FileCollection
 import org.gradle.api.provider.Provider
 import org.gradle.language.base.plugins.LifecycleBasePlugin
+import ru.astrainteractive.klibs.rules.gradle.detekt.extension.model.DetektRulesExtension
 import ru.astrainteractive.klibs.rules.gradle.detekt.plugin.gradle.DetektPlugin
 import ru.astrainteractive.klibs.rules.gradle.detekt.service.DetektConfigService
 import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
@@ -64,10 +65,10 @@ internal class LinterPlugin : Plugin<Project> {
             )
         }
         val architectureConfigFile = configService.map(DetektConfigService::configFile)
+        extensions.getByType(DetektRulesExtension::class.java).ruleConfigs.from(architectureConfigFile)
         val explicitApiArguments = provider { explicitApiArguments() }
         tasks.withType(Detekt::class.java).configureEach { task ->
             task.usesService(configService)
-            task.config.from(architectureConfigFile)
             task.freeCompilerArgs.addAll(explicitApiArguments)
         }
     }

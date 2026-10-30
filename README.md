@@ -67,14 +67,15 @@ plugins {
 
 - Applies `dev.detekt` and registers a `detektFormat` task with auto-correction on.
 - Writes the bundled `detekt.yml` to the root project's `build/detekt` once for the whole build, and enables
-  HTML reports, parallel execution and `allRules`.
+  HTML reports, parallel execution and `allRules`. The project's own detekt config (`config/detekt/detekt.yml`
+  or `detekt { config }`) is read after the bundled one, so its settings win.
 - Resolves types against the Kotlin JVM target of the project, or the JVM that runs Gradle when there is none.
   Set another target with `detektRules { jvmTarget.set("21") }`.
 
 **Linter plugin.** Apply it instead of the detekt plugin.
 
-- Adds the architecture detekt rules and their `detekt-architecture.yml`, listed after `detekt.yml` so they win,
-  and passes the module's explicit API mode to the `detekt` task.
+- Adds the architecture detekt rules and their `detekt-architecture.yml`, listed after `detekt.yml` and before the
+  project's own config, and passes the module's explicit API mode to the `detekt` task.
 - Registers `architectureCheck`, which `check` depends on: the Konsist checks of the unit's package layout, run in
   a separate JVM, and the structure checks of its README, nested units and project dependencies. Konsist findings
   accept `@Suppress("RuleName")` on a declaration or `@file:Suppress("RuleName")` on a whole file.
