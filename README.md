@@ -10,7 +10,7 @@ sources and tell you which file breaks which rule and how to fix it.
 
 ## ✨ Features
 
-- **Per-file rules for detekt**: 55 custom rules plus settings for detekt's own rules, with IDE support and
+- **Per-file rules for detekt**: 56 custom rules plus settings for detekt's own rules, with IDE support and
   `@Suppress`.
 - **Cross-file checks with Konsist**: role import direction, use case shape, contract and implementation
   levels, DI placement, test mirroring and more.
@@ -290,6 +290,7 @@ val violations: List<StructureViolation> = checker.check(
 | `RootModuleConstruction` | a `RootModule` constructor call that constructs anything but a `…Module` or a `Lifecycle` |
 | `SystemTimeCall` | `System.currentTimeMillis()` and `System.nanoTime()` |
 | `RunBlockingInTest` | `runBlocking` in a test source set |
+| `RunTestResult` | a `@Test` that calls `runTest` without declaring `TestResult` and returning `runTest { … }` |
 | `RunBlockingOutsideBoundary` | `runBlocking` in the main sources outside a top-level `main` function and outside a technology package |
 | `ThreadPrimitive` | `Thread` constructed or used through its static members in the main sources |
 | `CallbackFlowShape` | a `callbackFlow` without `awaitClose`, a `launch { send(…) }` inside one, a `buffer(Channel.RENDEZVOUS)` or `buffer(0)` |

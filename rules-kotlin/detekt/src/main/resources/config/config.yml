@@ -90,6 +90,8 @@ architecture:
     active: true
   RunCatchingCancellation:
     active: true
+  RunTestResult:
+    active: true
   SharedFlowEvent:
     active: true
   SingleJobLaunchMode:

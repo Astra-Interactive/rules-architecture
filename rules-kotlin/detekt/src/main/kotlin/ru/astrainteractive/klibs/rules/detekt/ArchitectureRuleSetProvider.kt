@@ -56,6 +56,7 @@ import ru.astrainteractive.klibs.rules.result.detekt.ResultConsumption
 import ru.astrainteractive.klibs.rules.result.detekt.RunCatchingCancellation
 import ru.astrainteractive.klibs.rules.result.detekt.ThrowInsideRunCatching
 import ru.astrainteractive.klibs.rules.testing.detekt.RunBlockingInTest
+import ru.astrainteractive.klibs.rules.testing.detekt.RunTestResult
 import ru.astrainteractive.klibs.rules.time.detekt.DurationOverloadCall
 import ru.astrainteractive.klibs.rules.time.detekt.SystemTimeCall
 import ru.astrainteractive.klibs.rules.time.detekt.TimeAsPrimitive
@@ -123,6 +124,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::RunBlockingInTest,
             ::RunBlockingOutsideBoundary,
             ::RunCatchingCancellation,
+            ::RunTestResult,
             ::SharedFlowEvent,
             ::SingleJobLaunchMode,
             ::StateFlowTimeout,
