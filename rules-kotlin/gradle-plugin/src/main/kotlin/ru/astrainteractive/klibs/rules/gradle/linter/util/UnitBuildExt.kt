@@ -41,7 +41,18 @@ private fun UnitBuild.findApiConfigurationFindings(): List<ArchitectureFinding> 
 }
 
 private fun UnitBuild.findExplicitApiFindings(): List<ArchitectureFinding> {
-    if (!isPublished || !isKotlin || explicitApiMode == STRICT) return emptyList()
+    if (!isKotlin) return emptyList()
+    if (!isPublished && explicitApiMode != null) {
+        val finding = ArchitectureFinding(
+            rule = "UnpublishedExplicitApi",
+            path = BUILD_FILE,
+            subject = "explicitApi",
+            message = "Switch off explicit API mode in this unit: only a published library uses it, application " +
+                "and plugin units never do."
+        )
+        return listOf(finding)
+    }
+    if (!isPublished || explicitApiMode == STRICT) return emptyList()
     val finding = ArchitectureFinding(
         rule = "PublishedLibraryExplicitApi",
         path = BUILD_FILE,

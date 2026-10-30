@@ -104,7 +104,7 @@ linter {
 | `api`, `contract` | the last segment of the project path                                                     |
 | `technology`      | a technology name as the last segment of the project path (`data/exposed`, `data/room`, `data/memory`), or a platform name outside `core` and the entry points (`gui/bukkit`) |
 | `entry-point`     | the `application` or `com.android.application` plugin, or a path under `:instances`      |
-| `library`         | Kotlin explicit API mode strict                                                          |
+| `library`         | Kotlin explicit API mode strict in a unit applying `maven-publish`                       |
 | `context`         | anything else                                                                            |
 
 The plugins use the rules of their own version, so a version of the plugin brings the same version of the
@@ -376,6 +376,7 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `ProjectDirMatchesPath` | a unit whose directory differs from its Gradle path |
 | `ApiConfiguration` | a directly declared `api` dependency that is not exported through a Multiplatform framework (Gradle plugin) |
 | `PublishedLibraryExplicitApi` | a Kotlin unit applying `maven-publish` without strict explicit API mode (Gradle plugin) |
+| `UnpublishedExplicitApi` | a Kotlin unit with explicit API mode that does not apply `maven-publish` (Gradle plugin) |
 | `ApiUnitPlatformDependency` | an external platform dependency (Paper, Bukkit, Fabric, Forge, Android, `androidx` but Compose, annotation and collection) in an `api` unit (Gradle plugin) |
 
 ## 🗂️ Repository

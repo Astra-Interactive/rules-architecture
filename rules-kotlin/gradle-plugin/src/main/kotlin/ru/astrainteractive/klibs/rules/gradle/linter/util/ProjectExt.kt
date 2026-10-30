@@ -69,6 +69,15 @@ internal fun Project.explicitApiMode(): String? {
     }
 }
 
+/**
+ * A published library is a unit applying `maven-publish` with strict explicit API mode; explicit API mode alone does
+ * not make an application unit a library.
+ */
+private fun Project.isPublishedLibrary(): Boolean {
+    val isStrict = hasKotlinPlugin() && explicitApiMode() == "strict"
+    return isStrict && pluginManager.hasPlugin(PUBLISH_PLUGIN_ID)
+}
+
 internal fun Project.detectUnitKind(): UnitKind {
     val unitName = path.substringAfterLast(':')
     return when {
@@ -77,7 +86,7 @@ internal fun Project.detectUnitKind(): UnitKind {
         isTechnologyUnitName(unitName) -> UnitKind.TECHNOLOGY
         isEntryPointByConvention() -> UnitKind.ENTRY_POINT
         isPlatformUnit() -> UnitKind.TECHNOLOGY
-        hasKotlinPlugin() && explicitApiMode() == "strict" -> UnitKind.LIBRARY
+        isPublishedLibrary() -> UnitKind.LIBRARY
         else -> UnitKind.CONTEXT
     }
 }

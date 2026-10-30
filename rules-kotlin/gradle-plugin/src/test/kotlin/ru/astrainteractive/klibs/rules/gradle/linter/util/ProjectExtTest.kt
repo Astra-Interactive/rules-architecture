@@ -76,4 +76,32 @@ internal class ProjectExtTest {
             kinds
         )
     }
+
+    @Test
+    fun GIVEN_kotlin_units_with_explicit_api_WHEN_configured_THEN_only_the_published_one_is_a_library(
+        @TempDir rootDirectory: File
+    ) {
+        val explicitApi = """
+
+            kotlin {
+                explicitApi()
+            }
+        """.trimIndent()
+        val kotlinPlugin = """id("org.jetbrains.kotlin.jvm")"""
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .withRootBuildScript("")
+            .withModule(
+                name = "published",
+                buildScript = unitKindScript("$kotlinPlugin; `maven-publish`") + explicitApi
+            )
+            .withModule(
+                name = "jail",
+                buildScript = unitKindScript(kotlinPlugin) + explicitApi
+            )
+
+        build.run(":published:reportUnitKind", ":jail:reportUnitKind")
+
+        assertEquals("library", build.file("published/build/unit-kind.txt").readText())
+        assertEquals("context", build.file("jail/build/unit-kind.txt").readText())
+    }
 }

@@ -58,6 +58,25 @@ class UnitBuildExtTest {
     }
 
     @Test
+    fun GIVEN_unpublished_kotlin_unit_with_explicit_api_WHEN_checked_THEN_reports_it() {
+        val strict = cleanBuild.copy(explicitApiMode = "strict")
+        val warning = cleanBuild.copy(explicitApiMode = "warning")
+        val java = cleanBuild.copy(isKotlin = false, explicitApiMode = "strict")
+
+        val findings = strict.findBuildFindings() + warning.findBuildFindings() + java.findBuildFindings()
+
+        assertEquals(
+            listOf("UnpublishedExplicitApi", "UnpublishedExplicitApi"),
+            findings.map(ArchitectureFinding::rule)
+        )
+        assertEquals(
+            "Switch off explicit API mode in this unit: only a published library uses it, application and plugin " +
+                "units never do.",
+            findings.first().message
+        )
+    }
+
+    @Test
     fun GIVEN_api_unit_with_platform_dependencies_WHEN_checked_THEN_reports_each() {
         val build = cleanBuild.copy(
             platformDependencies = listOf(
