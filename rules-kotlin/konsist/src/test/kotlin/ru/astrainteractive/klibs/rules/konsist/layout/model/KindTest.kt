@@ -22,6 +22,7 @@ internal class KindTest {
                 Kind.ENTRY_POINT,
                 Kind.MODEL,
                 null,
+                null,
                 null
             ),
             listOf(
@@ -30,7 +31,8 @@ internal class KindTest {
                 "command",
                 "model",
                 "rating",
-                "jail"
+                "jail",
+                "konsist"
             ).map { segment -> Kind.fromSegment(segment, vocabulary) }
         )
     }

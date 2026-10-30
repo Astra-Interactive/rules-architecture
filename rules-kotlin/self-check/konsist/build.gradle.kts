@@ -6,3 +6,8 @@ plugins {
 kotlin {
     explicitApi()
 }
+
+linter {
+    entryPointWords.addAll("detekt", "gradle", "konsist")
+    technologyWords.add("structure")
+}
