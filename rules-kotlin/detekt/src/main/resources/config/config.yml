@@ -80,6 +80,8 @@ architecture:
     active: true
   RunBlockingInTest:
     active: true
+  RunBlockingOutsideBoundary:
+    active: true
   RunCatchingCancellation:
     active: true
   SingleJobLaunchMode:

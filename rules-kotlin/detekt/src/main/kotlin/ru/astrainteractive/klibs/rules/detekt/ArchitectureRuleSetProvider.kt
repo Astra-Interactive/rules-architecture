@@ -12,6 +12,7 @@ import ru.astrainteractive.klibs.rules.compose.detekt.RememberInName
 import ru.astrainteractive.klibs.rules.compose.detekt.ThemeObjectFunction
 import ru.astrainteractive.klibs.rules.coroutine.detekt.ImpureUpdateLambda
 import ru.astrainteractive.klibs.rules.coroutine.detekt.MutableStateFlowEmit
+import ru.astrainteractive.klibs.rules.coroutine.detekt.RunBlockingOutsideBoundary
 import ru.astrainteractive.klibs.rules.coroutine.detekt.SingleJobLaunchMode
 import ru.astrainteractive.klibs.rules.coroutine.detekt.StateFlowTimeout
 import ru.astrainteractive.klibs.rules.declaration.detekt.BareIdentifier
@@ -103,6 +104,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::RolelessClassName,
                 ::RootModuleConstruction,
                 ::RunBlockingInTest,
+                ::RunBlockingOutsideBoundary,
                 ::RunCatchingCancellation,
                 ::SingleJobLaunchMode,
                 ::StateFlowTimeout,
