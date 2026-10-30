@@ -89,4 +89,16 @@ internal class UnitDependencyDirectionTest {
             )
         )
     }
+
+    @Test
+    fun GIVEN_core_unit_with_strict_explicit_api_WHEN_classified_THEN_still_depends_on_no_feature() {
+        assertEquals(
+            listOf(":gui:api"),
+            forbidden(
+                ":core:api",
+                setOf(":gui:api"),
+                isLibrary = true
+            )
+        )
+    }
 }

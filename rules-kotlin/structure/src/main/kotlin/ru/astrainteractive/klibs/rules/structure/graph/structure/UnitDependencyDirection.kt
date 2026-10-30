@@ -42,19 +42,21 @@ internal object UnitDependencyDirection {
         FAKE
     }
 
+    private fun coreKindOf(name: String): Kind {
+        return when (name) {
+            in platforms -> Kind.CORE_PLATFORM
+            in technologies -> Kind.TECHNOLOGY
+            else -> Kind.CORE_API
+        }
+    }
+
     private fun kindOf(path: String, isEntryPoint: Boolean, isLibrary: Boolean = false): Kind {
         val segments = path.split(':')
         val name = segments.last()
         val isCore = "core" in segments
-        if (isLibrary) return Kind.LIBRARY
+        if (isLibrary && !isCore) return Kind.LIBRARY
         if (isEntryPoint) return Kind.ENTRY_POINT
-        if (isCore) {
-            return when (name) {
-                in platforms -> Kind.CORE_PLATFORM
-                in technologies -> Kind.TECHNOLOGY
-                else -> Kind.CORE_API
-            }
-        }
+        if (isCore) return coreKindOf(name)
         return when (name) {
             "api" -> Kind.API
             "impl" -> Kind.IMPL
