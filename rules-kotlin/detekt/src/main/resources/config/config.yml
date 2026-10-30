@@ -25,6 +25,8 @@ architecture:
     active: true
   CompanionFactoryFunction:
     active: true
+  CompletableDeferredUse:
+    active: true
   ComposableFileType:
     active: true
   ComposableName:

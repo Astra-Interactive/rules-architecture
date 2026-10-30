@@ -16,6 +16,7 @@ import ru.astrainteractive.klibs.rules.compose.detekt.ThemeObjectFunction
 import ru.astrainteractive.klibs.rules.coroutine.detekt.BridgeCleanup
 import ru.astrainteractive.klibs.rules.coroutine.detekt.CallbackFlowShape
 import ru.astrainteractive.klibs.rules.coroutine.detekt.ChannelFlowShape
+import ru.astrainteractive.klibs.rules.coroutine.detekt.CompletableDeferredUse
 import ru.astrainteractive.klibs.rules.coroutine.detekt.ImpureUpdateLambda
 import ru.astrainteractive.klibs.rules.coroutine.detekt.MutableStateFlowEmit
 import ru.astrainteractive.klibs.rules.coroutine.detekt.RunBlockingOutsideBoundary
@@ -95,6 +96,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::ChannelFlowShape,
             ::ClockSystemOutsideDi,
             ::CompanionFactoryFunction,
+            ::CompletableDeferredUse,
             ::ComposableFileType,
             ::ComposableName,
             ::ComposableWhenBranch,
