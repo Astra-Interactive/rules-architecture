@@ -54,6 +54,19 @@ internal class FieldDependencyConstructionTest {
     }
 
     @Test
+    fun GIVEN_platform_main_class_building_root_module_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main(
+                "x/AstraRating.kt",
+                "class AstraRating : JavaPlugin() {\n    private val rootModule = RootModule(this)\n}"
+            )
+            .main("x.di/RootModule.kt", "internal class RootModule(plugin: JavaPlugin)")
+            .load(UnitKind.ENTRY_POINT, rootPackage = "x")
+
+        assertEquals(emptyList(), FieldDependencyConstruction().check(sources))
+    }
+
+    @Test
     fun GIVEN_di_module_constructing_dependencies_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
         val sources = SourceTree(directory)
             .main("x.rating.api/RatingRepository.kt", "class ExposedRatingRepository(val database: Database)")

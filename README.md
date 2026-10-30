@@ -336,7 +336,7 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 | `ComposeKindWithoutCompose` | a `composable`, `viewmodel` or `theme` package in a unit that imports no Compose |
 | `PlatformPackage` | a package named after a platform (`android`, `ios`, `jvm`, …) in a unit with several main source sets |
 | `DuplicateRepresentation` | a technology data class with the same constructor parameter names as a `model` data class |
-| `FieldDependencyConstruction` | a field outside `di` that constructs a class of the unit taking constructor parameters |
+| `FieldDependencyConstruction` | a field outside `di` that constructs a class of the unit taking constructor parameters, except the entry point building its DI modules |
 | `TestOwnerBehaviour` | a `<Owner>Test.kt` whose owner is a data class without a body or an enum without functions |
 
 ### Structure checks
