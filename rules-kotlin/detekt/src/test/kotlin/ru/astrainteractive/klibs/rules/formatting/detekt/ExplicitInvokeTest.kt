@@ -69,4 +69,17 @@ internal class ExplicitInvokeTest {
 
         assertEquals(0, rule.lint(code).size)
     }
+
+    @Test
+    fun GIVEN_imported_function_named_like_a_constructor_parameter_WHEN_linted_THEN_reports_nothing() {
+        val code = """
+            import dev.detekt.api.config
+
+            class RatingRule(config: Config) : Rule(config) {
+                private val technologyWords: List<String> by config(emptyList())
+            }
+        """.trimIndent()
+
+        assertEquals(0, rule.lint(code).size)
+    }
 }

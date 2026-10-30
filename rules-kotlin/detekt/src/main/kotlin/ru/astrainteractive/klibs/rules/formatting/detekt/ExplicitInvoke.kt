@@ -22,7 +22,8 @@ import org.jetbrains.kotlin.psi.psiUtil.parents
 /**
  * Reports a call `name(…)` without a receiver where `name` is a value: a parameter of an enclosing function or
  * lambda, a constructor parameter or property of an enclosing class, or a local `val`/`var` declared above the
- * call. A function of that name declared anywhere in the file wins, so its calls are left alone.
+ * call. A function of that name declared anywhere in the file or imported into it wins, so its calls are left alone
+ * (`by config(…)` in a detekt rule whose constructor takes `config`).
  */
 internal class ExplicitInvoke(config: Config) : Rule(config, DESCRIPTION) {
     private var functionNames: Set<String> = emptySet()
@@ -56,8 +57,10 @@ internal class ExplicitInvoke(config: Config) : Rule(config, DESCRIPTION) {
     }
 
     override fun visitKtFile(file: KtFile) {
+        val importedNames = file.importDirectives.mapNotNull { directive -> directive.importedName?.asString() }
         functionNames = file.collectDescendantsOfType<KtNamedFunction>()
             .mapNotNull(KtNamedFunction::getName)
+            .plus(importedNames)
             .toSet()
         super.visitKtFile(file)
     }
