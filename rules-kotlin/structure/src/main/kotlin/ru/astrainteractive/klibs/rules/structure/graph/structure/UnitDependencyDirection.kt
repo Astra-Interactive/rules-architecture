@@ -1,21 +1,11 @@
 package ru.astrainteractive.klibs.rules.structure.graph.structure
 
 import ru.astrainteractive.klibs.rules.structure.unit.model.BuildUnit
+import ru.astrainteractive.klibs.rules.structure.unit.structure.isPlatformUnitName
 import ru.astrainteractive.klibs.rules.structure.unit.structure.isTechnologyUnitName
 
 internal object UnitDependencyDirection {
     private const val DESIGN_SYSTEM_NAME = "ui"
-
-    private val platforms = setOf(
-        "bukkit",
-        "bungee",
-        "fabric",
-        "forge",
-        "neoforge",
-        "paper",
-        "spigot",
-        "velocity"
-    )
 
     private enum class Kind {
         ENTRY_POINT,
@@ -35,7 +25,7 @@ internal object UnitDependencyDirection {
 
     private fun coreKindOf(name: String): Kind {
         return when {
-            name in platforms -> Kind.CORE_PLATFORM
+            isPlatformUnitName(name) -> Kind.CORE_PLATFORM
             name == DESIGN_SYSTEM_NAME -> Kind.CORE_UI
             isTechnologyUnitName(name) -> Kind.TECHNOLOGY
             else -> Kind.CORE_API
@@ -49,14 +39,15 @@ internal object UnitDependencyDirection {
         if (isLibrary && !isCore) return Kind.LIBRARY
         if (isEntryPoint) return Kind.ENTRY_POINT
         if (isCore) return coreKindOf(name)
-        return when (name) {
-            "api" -> Kind.API
-            "impl" -> Kind.IMPL
-            "contract" -> Kind.CONTRACT
-            "dao" -> Kind.STORAGE_CONTRACT
-            "fake" -> Kind.FAKE
-            in platforms -> Kind.PLATFORM
-            else -> if (isTechnologyUnitName(name)) Kind.TECHNOLOGY else Kind.CONTEXT
+        return when {
+            name == "api" -> Kind.API
+            name == "impl" -> Kind.IMPL
+            name == "contract" -> Kind.CONTRACT
+            name == "dao" -> Kind.STORAGE_CONTRACT
+            name == "fake" -> Kind.FAKE
+            isPlatformUnitName(name) -> Kind.PLATFORM
+            isTechnologyUnitName(name) -> Kind.TECHNOLOGY
+            else -> Kind.CONTEXT
         }
     }
 
@@ -119,7 +110,7 @@ internal object UnitDependencyDirection {
                 "An api unit never depends on an impl unit: depend on the api unit next to $dependency."
             dependencyName == "impl" ->
                 "Only the entry point depends on $dependency: depend on the api unit next to it."
-            dependencyName in platforms && !isCoreDependency ->
+            isPlatformUnitName(dependencyName) && !isCoreDependency ->
                 "Only the entry point depends on the platform unit $dependency: depend on the api unit next to it."
             else ->
                 "The dependency $dependency is not allowed for ${unit.path} by the unit direction table: depend " +
