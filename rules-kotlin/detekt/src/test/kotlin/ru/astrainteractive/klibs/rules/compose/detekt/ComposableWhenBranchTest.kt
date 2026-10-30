@@ -44,6 +44,10 @@ internal class ComposableWhenBranchTest {
             fun SplashComposable(stage: Stage) {
                 when (stage) {
                     Stage.SUCCESS -> SuccessComposable()
+                    Stage.OFFER -> {
+                        val offer = rememberOffer()
+                        OfferComposable(offer)
+                    }
                     else -> {}
                 }
             }
