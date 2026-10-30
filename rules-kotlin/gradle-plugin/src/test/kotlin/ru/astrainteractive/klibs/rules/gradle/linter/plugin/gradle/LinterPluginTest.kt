@@ -45,6 +45,34 @@ class LinterPluginTest {
     }
 
     @Test
+    fun GIVEN_project_kind_word_WHEN_architecture_checked_THEN_accepts_its_package(@TempDir rootDirectory: File) {
+        val moduleScript = JAVA_MODULE_SCRIPT + """
+
+            linter {
+                rootPackage.set("com.example.rating")
+                entryPointWords.add("widget")
+                technologyWords.add("mongo")
+                pluralConcepts.add("goods")
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "rating", buildScript = moduleScript)
+            .withSourceFile("rating/README.md", "Shows the rating of players in widgets.")
+            .withSourceFile(
+                "rating/src/main/kotlin/com/example/rating/goods/widget/RatingWidget.kt",
+                """
+                package com.example.rating.goods.widget
+
+                internal class RatingWidget
+                """.trimIndent()
+            )
+
+        build.run(":rating:architectureCheck")
+    }
+
+    @Test
     fun GIVEN_context_with_a_loose_root_file_WHEN_architecture_checked_THEN_fails_naming_it(
         @TempDir rootDirectory: File
     ) {

@@ -91,6 +91,10 @@ The unit kind decides which layout rules apply. It is detected by convention and
 linter {
     unitKind.set("library") // context, library, api, contract, entry-point or technology
     rootPackage.set("ru.astrainteractive.aspekt.module.jail")
+    // The project's own words, added to those of the package-layout rule
+    entryPointWords.addAll("slot", "router")
+    technologyWords.add("mongo")
+    pluralConcepts.add("goods")
 }
 ```
 

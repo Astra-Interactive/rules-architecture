@@ -63,6 +63,15 @@ internal abstract class ArchitectureTask : DefaultTask() {
     abstract val rootOfBuild: Property<Boolean>
 
     @get:Input
+    abstract val entryPointWords: SetProperty<String>
+
+    @get:Input
+    abstract val technologyWords: SetProperty<String>
+
+    @get:Input
+    abstract val pluralConcepts: SetProperty<String>
+
+    @get:Input
     abstract val projectDependencies: SetProperty<String>
 
     /**
@@ -81,6 +90,15 @@ internal abstract class ArchitectureTask : DefaultTask() {
             .flatMap { sourceSet -> LANGUAGE_DIRECTORIES.map { language -> File(sourceSet, language) } }
             .filter(File::isDirectory)
             .sortedBy(File::getPath)
+    }
+
+    private fun wordArguments(): List<String> {
+        val words = mapOf(
+            "--entry-point-word" to entryPointWords.get(),
+            "--technology-word" to technologyWords.get(),
+            "--plural-concept" to pluralConcepts.get()
+        )
+        return words.flatMap { (option, values) -> values.sorted().flatMap { value -> listOf(option, value) } }
     }
 
     private fun konsistArguments(
@@ -109,6 +127,7 @@ internal abstract class ArchitectureTask : DefaultTask() {
                 add("--test")
                 add(directory.parentFile.name + "=" + directory.absolutePath)
             }
+            addAll(wordArguments())
         }
     }
 
