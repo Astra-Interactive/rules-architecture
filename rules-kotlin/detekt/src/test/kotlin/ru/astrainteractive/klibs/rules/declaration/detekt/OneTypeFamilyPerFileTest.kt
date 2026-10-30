@@ -5,6 +5,7 @@ package ru.astrainteractive.klibs.rules.declaration.detekt
 import dev.detekt.api.Config
 import dev.detekt.api.Finding
 import dev.detekt.test.lint
+import dev.detekt.test.utils.compileContentForTest
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
@@ -97,5 +98,44 @@ internal class OneTypeFamilyPerFileTest {
         """.trimIndent()
 
         assertEquals(0, rule.lint(code).size)
+    }
+
+    @Test
+    fun GIVEN_component_defaults_beside_its_composable_WHEN_linted_THEN_reports_only_the_other_type() {
+        val code = """
+            object GlassButtonDefaults {
+                fun colors(): Int = 0
+            }
+
+            class GlassButtonState
+
+            @Composable
+            fun GlassButtonComposable() = Unit
+        """.trimIndent()
+
+        val file = compileContentForTest(code, filename = "GlassButtonComposable.kt")
+        val messages = rule.lint(file).map(Finding::message)
+
+        assertEquals(
+            listOf(
+                "'GlassButtonComposable' is a composable beside the type 'GlassButtonState': a composable file " +
+                    "declares no class; move 'GlassButtonState' to its own file.",
+            ),
+            messages
+        )
+    }
+
+    @Test
+    fun GIVEN_defaults_object_in_a_file_of_another_name_WHEN_linted_THEN_reports_the_composable() {
+        val code = """
+            object GlassButtonDefaults
+
+            @Composable
+            fun GlassButtonComposable() = Unit
+        """.trimIndent()
+
+        val file = compileContentForTest(code, filename = "Buttons.kt")
+
+        assertEquals(1, rule.lint(file).size)
     }
 }
