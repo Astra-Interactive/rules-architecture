@@ -51,7 +51,10 @@ internal class CalleeBeforeCaller(config: Config) : Rule(config, DESCRIPTION) {
         val firstIndexByName = functions
             .withIndex()
             .reversed()
-            .associate { indexed -> indexed.value.name to indexed.index }
+            .associateBy(
+                keySelector = { indexed -> indexed.value.name },
+                valueTransform = IndexedValue<KtNamedFunction>::index
+            )
         val calls = functions.map { function -> calledNames(function, extensionNames) }
 
         fun callsBack(calleeName: String, callerName: String): Boolean {
