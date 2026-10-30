@@ -12,9 +12,11 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
 /**
- * Reports construction of a concrete behaviour class of the unit outside `di`, in a property, constructor body or
- * method, with zero-argument constructors included. Models and value holders are not dependencies. In an entry-point
- * unit the platform main class builds `RootModule`, so the DI modules there are not dependencies either.
+ * Reports construction of a dependency outside `di`, in a property, constructor body or method, with zero-argument
+ * constructors included: a concrete behaviour class of the unit, or a class of a library named for a dependency's
+ * role (`HttpClient`, `…Repository`, `…Gateway`, `…Database`, `…DataSource`). Models and value holders are not
+ * dependencies. In an entry-point unit the platform main class builds `RootModule`, so the DI modules there are not
+ * dependencies either.
  */
 internal class FieldDependencyConstruction : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
@@ -33,7 +35,8 @@ internal class FieldDependencyConstruction : ArchitectureCheck {
     private fun constructedDependencies(declaration: KoClassDeclaration, dependencies: Set<String>): List<String> {
         return CONSTRUCTION.findAll(declaration.text.substringAfter('{', missingDelimiterValue = ""))
             .map { match -> match.groupValues[1] }
-            .filter { name -> name != declaration.name && name in dependencies }
+            .filter { name -> name != declaration.name }
+            .filter { name -> name in dependencies || DEPENDENCY_ROLE.matches(name) }
             .toList()
     }
 
@@ -60,6 +63,9 @@ internal class FieldDependencyConstruction : ArchitectureCheck {
 
     private companion object {
         const val RULE = "FieldDependencyConstruction"
+
+        @JvmField
+        val DEPENDENCY_ROLE = Regex("""\w*(Client|Repository|Gateway|Database|DataSource)""")
 
         @JvmField
         val CONSTRUCTION = Regex("""\b([A-Z]\w*)\s*\(""")

@@ -29,6 +29,7 @@ internal class FieldDependencyConstructionTest {
                     private val rating = Rating()
                     private val name = "rating"
                     private val external = Json(true)
+                    private val client = HttpClient(OkHttp)
 
                     fun reload() {
                         val repository = InMemoryRatingRepository()
@@ -45,7 +46,10 @@ internal class FieldDependencyConstructionTest {
         assertEquals(
             listOf(
                 "RatingCommand.ExposedRatingRepository",
+                "RatingCommand.Database",
                 "RatingCommand.ExposedRatingRepository",
+                "RatingCommand.Database",
+                "RatingCommand.HttpClient",
                 "RatingCommand.InMemoryRatingRepository",
                 "RatingCommand.InMemoryRatingRepository"
             ),
