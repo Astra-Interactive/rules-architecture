@@ -5,27 +5,17 @@ import dev.detekt.api.Entity
 import dev.detekt.api.Finding
 import dev.detekt.api.Rule
 import dev.detekt.psi.hasAnnotation
-import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNamedFunction
-import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
+import ru.astrainteractive.klibs.rules.detekt.util.isComponentDefaults
 
 /**
  * Reports a top-level class, interface or object in a file that holds a `@Composable` function. The public
  * `<Component>Defaults` object of a design-system component is the one declaration allowed beside composables.
  */
 internal class ComposableFileType(config: Config) : Rule(config, DESCRIPTION) {
-
-    private fun isDefaultsObject(declaration: KtClassOrObject): Boolean {
-        val isPublic = listOf(KtTokens.PRIVATE_KEYWORD, KtTokens.INTERNAL_KEYWORD).none(declaration::hasModifier)
-        val componentName = declaration.name.orEmpty().removeSuffix(DEFAULTS_SUFFIX)
-        val componentFiles = setOf("$componentName.kt", "${componentName}Composable.kt")
-        val hasDefaultsName = declaration.name.orEmpty().endsWith(DEFAULTS_SUFFIX)
-        val isComponentFile = declaration.containingKtFile.name in componentFiles
-        return declaration is KtObjectDeclaration && isPublic && hasDefaultsName && isComponentFile
-    }
 
     override fun visitKtFile(file: KtFile) {
         super.visitKtFile(file)
@@ -34,7 +24,7 @@ internal class ComposableFileType(config: Config) : Rule(config, DESCRIPTION) {
         if (!hasComposable) return
         file.declarations
             .filterIsInstance<KtClassOrObject>()
-            .filterNot(::isDefaultsObject)
+            .filterNot(KtClassOrObject::isComponentDefaults)
             .forEach { declaration ->
                 val message = "Move '${declaration.name}' out of this composable file: a composable file declares " +
                     "no class; a data class goes to model/, shared values to theme/."
@@ -44,7 +34,6 @@ internal class ComposableFileType(config: Config) : Rule(config, DESCRIPTION) {
 
     private companion object {
         const val COMPOSABLE = "Composable"
-        const val DEFAULTS_SUFFIX = "Defaults"
         const val DESCRIPTION = "A composable file declares no class, except a design-system <Component>Defaults."
     }
 }
