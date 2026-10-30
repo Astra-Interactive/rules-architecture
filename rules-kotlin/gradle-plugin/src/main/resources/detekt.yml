@@ -295,12 +295,12 @@ naming:
   FunctionNameMinLength:
     active: false
     minimumFunctionNameLength: 3
+  # Test names break this rule on purpose: a test file suppresses it with @file:Suppress("FunctionNaming").
   FunctionNaming:
     active: true
-    excludes: [ '**/test/**','**/jvmSharedTest/**', '**/androidUnitTest/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
     functionPattern: '[a-z][a-zA-Z0-9]*'
     excludeClassPattern: '$^'
-    ignoreAnnotated: [ 'Composable', 'Test' ]
+    ignoreAnnotated: [ 'Composable' ]
   FunctionParameterNaming:
     active: true
     parameterPattern: '[a-z][A-Za-z0-9]*'
