@@ -73,6 +73,44 @@ class LinterPluginTest {
     }
 
     @Test
+    fun GIVEN_technology_unit_copying_a_dependency_model_WHEN_architecture_checked_THEN_reports_the_copy(
+        @TempDir rootDirectory: File
+    ) {
+        val exposedScript = """
+            $JAVA_MODULE_SCRIPT
+
+            dependencies { implementation(project(":dao")) }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "dao", buildScript = JAVA_MODULE_SCRIPT)
+            .withModule(name = "exposed", buildScript = exposedScript)
+            .withSourceFile("dao/README.md", "Declares the rating storage contracts and models.")
+            .withSourceFile("exposed/README.md", "Stores ratings in a database with Exposed.")
+            .withSourceFile(
+                "dao/src/main/kotlin/com/example/dao/rating/model/Rating.kt",
+                """
+                package com.example.dao.rating.model
+
+                data class Rating(val name: String, val value: Int)
+                """.trimIndent()
+            )
+            .withSourceFile(
+                "exposed/src/main/kotlin/com/example/exposed/rating/RatingRow.kt",
+                """
+                package com.example.exposed.rating
+
+                internal data class RatingRow(val name: String, val value: Int)
+                """.trimIndent()
+            )
+
+        val result = build.runAndFail(":exposed:architectureCheck")
+
+        assertTrue(result.output.contains("RatingRow copies the fields of Rating"), result.output)
+    }
+
+    @Test
     fun GIVEN_context_with_a_loose_root_file_WHEN_architecture_checked_THEN_fails_naming_it(
         @TempDir rootDirectory: File
     ) {

@@ -339,7 +339,7 @@ outside technology packages (`ForbiddenImport/future`). `SuspendFunSwallowedCanc
 | `StateTypePlacement` | a `<Screen>State` nested in another type or declared outside `model` |
 | `NestedEnum` | a top-level enum used as the property type of exactly one class |
 | `UtilFileName` | a `util` file of one receiver's extensions not named `<Receiver>Ext.kt`, a file named `Utils.kt`, `Helpers.kt`, `Extensions.kt` and the like |
-| `UtilFunctionAsExtension` | a `util` function whose one parameter is a model of the unit, instead of an extension |
+| `UtilFunctionAsExtension` | a `util` function whose one parameter is a model of the unit or of a unit it depends on, instead of an extension |
 | `ImplementationVisibility` | a public class in a technology package or a technology unit's concept, outside a library, `core`, `stub` and `memory` |
 | `UseCaseAbstraction` | an interface or abstract class named `…UseCase` |
 | `ApplicationKDoc` | KDoc outside a published library, other than a contract's failure case (`@return failure`, `@throws`) or a reason outside the code (a link, an issue key, a bug, workaround or quirk) |
@@ -351,7 +351,7 @@ outside technology packages (`ForbiddenImport/future`). `SuspendFunSwallowedCanc
 | `ComposeKindWithoutCompose` | a `composable`, `viewmodel` or `theme` package in a unit that imports no Compose |
 | `PlatformPackage` | a package named after a platform (`android`, `ios`, `jvm`, …) in a unit with several main source sets |
 | `PluralPackageName` | a plural package name below the unit root, except an inherently plural concept (`news`, `settings`) |
-| `DuplicateRepresentation` | a technology data class with the same constructor parameter names as a `model` data class |
+| `DuplicateRepresentation` | a technology data class with the same constructor parameter names as a `model` data class of the unit or of a unit it depends on |
 | `FieldDependencyConstruction` | a field outside `di` that constructs a class of the unit taking constructor parameters, except the entry point building its DI modules |
 | `TestOwnerBehaviour` | a `<Owner>Test.kt` whose owner is a data class without a body or an enum without functions |
 

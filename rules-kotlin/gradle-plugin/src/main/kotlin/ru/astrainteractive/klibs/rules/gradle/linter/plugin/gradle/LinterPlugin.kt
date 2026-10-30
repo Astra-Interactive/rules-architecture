@@ -25,6 +25,7 @@ import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureBas
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureCheckTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureGraphTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureTask
+import ru.astrainteractive.klibs.rules.gradle.linter.util.dependencyInputs
 import ru.astrainteractive.klibs.rules.gradle.linter.util.detectUnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.util.explicitApiMode
 import ru.astrainteractive.klibs.rules.gradle.linter.util.findBuildFindings
@@ -122,6 +123,7 @@ internal class LinterPlugin : Plugin<Project> {
         group = LifecycleBasePlugin.VERIFICATION_GROUP
         konsistClasspath.from(classpath)
         sources.from(project.architectureInputs())
+        dependencySources.from(project.provider { project.dependencyInputs() })
         projectDirectory.set(project.layout.projectDirectory)
         rootDirectory.set(project.isolated.rootProject.projectDirectory)
         projectPath.set(project.path)

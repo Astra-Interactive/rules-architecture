@@ -7,6 +7,7 @@ import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.file.FileCollection
 import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 import org.jetbrains.kotlin.gradle.dsl.KotlinBaseExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
@@ -16,6 +17,7 @@ import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
 import ru.astrainteractive.klibs.rules.structure.unit.structure.isTechnologyUnitName
+import java.io.File
 
 private const val ENTRY_POINT_PATH_PREFIX = ":instances:"
 
@@ -136,4 +138,17 @@ internal fun Project.readUnitBuild(unitKind: UnitKind): UnitBuild {
         explicitApiMode = if (isKotlin) explicitApiMode() else null,
         platformDependencies = externalProductionDependencies()
     )
+}
+
+/**
+ * The Kotlin sources of the units this one depends on, for the architecture check's up-to-date state.
+ */
+internal fun Project.dependencyInputs(): List<FileCollection> {
+    val root = isolated.rootProject.projectDirectory.asFile
+    return productionProjectDependencies().map { path ->
+        fileTree(File(root, path.removePrefix(":").replace(':', '/'))) { tree ->
+            tree.include("src/**/*.kt")
+            tree.exclude("src/*[Tt]est*/**", "**/build/**")
+        }
+    }
 }

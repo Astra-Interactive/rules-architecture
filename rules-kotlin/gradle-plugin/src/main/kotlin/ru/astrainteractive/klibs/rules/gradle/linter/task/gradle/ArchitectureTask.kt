@@ -43,6 +43,15 @@ internal abstract class ArchitectureTask : DefaultTask() {
     @get:IgnoreEmptyDirectories
     abstract val sources: ConfigurableFileCollection
 
+    /**
+     * The sources of the units this one depends on, declared so that a change in a dependency's model reruns the
+     * check.
+     */
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    @get:IgnoreEmptyDirectories
+    abstract val dependencySources: ConfigurableFileCollection
+
     @get:Internal
     abstract val projectDirectory: DirectoryProperty
 
@@ -83,13 +92,22 @@ internal abstract class ArchitectureTask : DefaultTask() {
     @get:Inject
     abstract val execOperations: ExecOperations
 
-    private fun sourceDirectories(isTest: Boolean): List<File> {
-        return File(projectDirectory.get().asFile, SOURCE_ROOT).listFiles().orEmpty()
+    private fun sourceDirectories(unitDirectory: File, isTest: Boolean): List<File> {
+        return File(unitDirectory, SOURCE_ROOT).listFiles().orEmpty()
             .filter(File::isDirectory)
             .filter { sourceSet -> sourceSet.name.contains(TEST_MARKER, ignoreCase = true) == isTest }
             .flatMap { sourceSet -> LANGUAGE_DIRECTORIES.map { language -> File(sourceSet, language) } }
             .filter(File::isDirectory)
             .sortedBy(File::getPath)
+    }
+
+    private fun dependencyArguments(): List<String> {
+        val root = rootDirectory.get().asFile
+        return projectDependencies.get()
+            .sorted()
+            .map { path -> File(root, path.removePrefix(":").replace(':', '/')) }
+            .flatMap { unitDirectory -> sourceDirectories(unitDirectory, isTest = false) }
+            .flatMap { directory -> listOf(DEPENDENCY_OPTION, directory.absolutePath) }
     }
 
     private fun wordArguments(): List<String> {
@@ -123,16 +141,17 @@ internal abstract class ArchitectureTask : DefaultTask() {
                 add("--main")
                 add(directory.parentFile.name + "=" + directory.absolutePath)
             }
-            sourceDirectories(isTest = true).forEach { directory ->
+            sourceDirectories(projectDirectory.get().asFile, isTest = true).forEach { directory ->
                 add("--test")
                 add(directory.parentFile.name + "=" + directory.absolutePath)
             }
             addAll(wordArguments())
+            addAll(dependencyArguments())
         }
     }
 
     private fun runKonsist(kind: UnitKind): List<ArchitectureFinding> {
-        val mainDirectories = sourceDirectories(isTest = false)
+        val mainDirectories = sourceDirectories(projectDirectory.get().asFile, isTest = false)
         if (rootOfBuild.get() || mainDirectories.isEmpty()) return emptyList()
         val reportFile = File(temporaryDir, KONSIST_REPORT)
         // Konsist embeds the Kotlin compiler, so it runs in a JVM of its own
@@ -194,6 +213,7 @@ internal abstract class ArchitectureTask : DefaultTask() {
 
     private companion object {
         const val SOURCE_ROOT = "src"
+        const val DEPENDENCY_OPTION = "--dependency"
         const val TEST_MARKER = "test"
         const val KONSIST_REPORT = "konsist.tsv"
         const val KONSIST_MAIN_CLASS = "ru.astrainteractive.klibs.rules.konsist.cli.konsist.KonsistCli"
