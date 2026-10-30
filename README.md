@@ -337,6 +337,7 @@ outside technology packages (`ForbiddenImport/future`). `SuspendFunSwallowedCanc
 | `UtilFunctionAsExtension` | a `util` function whose one parameter is a model of the unit, instead of an extension |
 | `ImplementationVisibility` | a public class in a technology package or a technology unit's concept, outside a library, `core`, `stub` and `memory` |
 | `UseCaseAbstraction` | an interface or abstract class named `…UseCase` |
+| `ApplicationKDoc` | KDoc outside a published library, other than a contract's failure case (`@return failure`, `@throws`) or a reason outside the code (a link, an issue key, a bug, workaround or quirk) |
 | `ContractName` | an `api` interface named `…Api`, `…Dao`, `…Storage` or `…Krate`, a `…Repository` extending a generic repository or `Crud` base |
 | `CoreShape` | a `…UseCase` class or a `…Repository` interface in a `core` unit |
 | `RootModulePlacement` | a `RootModule` outside the entry-point unit or its `di` package |
