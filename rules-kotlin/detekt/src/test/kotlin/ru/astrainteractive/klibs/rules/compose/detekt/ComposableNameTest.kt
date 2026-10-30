@@ -5,6 +5,7 @@ package ru.astrainteractive.klibs.rules.compose.detekt
 import dev.detekt.api.Config
 import dev.detekt.api.Finding
 import dev.detekt.test.lint
+import dev.detekt.test.utils.compileContentForTest
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
@@ -70,8 +71,47 @@ internal class ComposableNameTest {
     }
 
     @Test
-    fun GIVEN_theme_function_WHEN_linted_THEN_reports_nothing() {
+    fun GIVEN_theme_function_in_its_composable_file_WHEN_linted_THEN_reports_nothing() {
+        val file = compileContentForTest(THEME_CODE, filename = "AppThemeComposable.kt")
+
+        assertEquals(emptyList(), rule.lint(file).map(Finding::message))
+    }
+
+    @Test
+    fun GIVEN_theme_function_beside_the_theme_object_WHEN_linted_THEN_reports_its_file() {
+        val file = compileContentForTest(THEME_CODE, filename = "AppTheme.kt")
+
+        assertEquals(
+            listOf(
+                "Move the theme function 'AppTheme' to AppThemeComposable.kt: the theme object sits alone in its own " +
+                    "file, the theme function with its CompositionLocals in <Theme>Composable.kt.",
+            ),
+            rule.lint(file).map(Finding::message)
+        )
+    }
+
+    @Test
+    fun GIVEN_screen_composables_WHEN_linted_THEN_reports_the_one_in_a_file_of_another_name() {
         val code = """
+            @Composable
+            fun CheckoutScreenComposable() = Unit
+
+            @Composable
+            fun PaywallScreenComposable() = Unit
+        """.trimIndent()
+        val file = compileContentForTest(code, filename = "CheckoutScreenComposable.kt")
+
+        assertEquals(
+            listOf(
+                "Move the screen 'PaywallScreenComposable' to PaywallScreenComposable.kt: a screen composable's " +
+                    "file carries its name.",
+            ),
+            rule.lint(file).map(Finding::message)
+        )
+    }
+
+    private companion object {
+        val THEME_CODE = """
             package x.core.ui.theme
 
             @Composable
@@ -79,7 +119,5 @@ internal class ComposableNameTest {
                 content.invoke()
             }
         """.trimIndent()
-
-        assertEquals(emptyList(), rule.lint(code).map(Finding::message))
     }
 }
