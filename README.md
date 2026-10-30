@@ -82,7 +82,8 @@ plugins {
 - Registers `architectureBaseline`, which writes the current violations to `architecture-baseline.txt`; the check
   accepts what the file lists for findings that cannot carry a Kotlin suppression.
 - On the root project, registers `architectureGraphCheck`, which checks the complete unit graph for dependency
-  cycles; root `check` depends on it. Units contribute their dependencies through an isolated-projects-compatible
+  cycles and for dependencies on an entry point, a unit detected or set as `entry-point` (an `application`
+  plugin, an `instances` path); root `check` depends on it. Units contribute their dependencies through an isolated-projects-compatible
   shared build service.
 
 The unit kind decides which layout rules apply. It is detected by convention and can be set:

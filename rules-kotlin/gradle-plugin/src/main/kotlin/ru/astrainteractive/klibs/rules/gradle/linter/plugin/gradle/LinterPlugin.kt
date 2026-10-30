@@ -141,13 +141,13 @@ internal class LinterPlugin : Plugin<Project> {
         ) { }
     }
 
-    private fun Project.configureGraphContribution() {
+    private fun Project.configureGraphContribution(extension: LinterExtension) {
         val service = graphService()
         afterEvaluate { project ->
             val parameters = service.get().parameters
             synchronized(parameters) {
                 val dependencies = project.productionProjectDependencies()
-                val metadata = listOf(project.path).plus(dependencies).joinToString("\t")
+                val metadata = listOf(project.path, extension.unitKind.get()).plus(dependencies).joinToString("\t")
                 parameters.unitMetadata.add(metadata)
             }
         }
@@ -156,7 +156,7 @@ internal class LinterPlugin : Plugin<Project> {
     private fun Project.configureGraphCheck() {
         val service = graphService()
         tasks.register(GRAPH_CHECK_TASK_NAME, ArchitectureGraphTask::class.java) { task ->
-            task.description = "Checks that the complete unit dependency graph is acyclic"
+            task.description = "Checks that the unit graph is acyclic and that nothing depends on an entry point"
             task.usesService(service)
             task.unitMetadata.set(service.get().parameters.unitMetadata.map { metadata -> metadata })
         }
@@ -171,10 +171,10 @@ internal class LinterPlugin : Plugin<Project> {
         target.pluginManager.apply(DetektPlugin::class.java)
         val rulesVersion = readRulesVersion()
         target.configureDetekt(rulesVersion)
-        target.configureGraphContribution()
 
         val extension = target.extensions.create(EXTENSION_NAME, LinterExtension::class.java)
         extension.unitKind.convention(target.provider { target.detectUnitKind().cliName })
+        target.configureGraphContribution(extension)
         val classpath = target.konsistClasspath(rulesVersion)
 
         val checkTask = target.tasks.register(CHECK_TASK_NAME, ArchitectureCheckTask::class.java) { task ->
