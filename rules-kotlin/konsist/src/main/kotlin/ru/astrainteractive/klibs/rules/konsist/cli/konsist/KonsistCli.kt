@@ -19,6 +19,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.direction.konsist.PlatformI
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureChecker
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.SuppressionPolicy
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
+import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.AndroidNamespace
 import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.ComposeKindWithoutCompose
 import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.ContractPlacement
 import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.ContractUnitShape
@@ -48,7 +49,8 @@ import ru.astrainteractive.klibs.rules.konsist.cli.model.CliArguments
  * `technology`), `--report`, an optional `--unit-path` or `--root-package`, and any number of `--main` and
  * `--test` source directories, written as `sourceSet=path` when source-set mirroring should be checked, and any
  * number of `--entry-point-word`, `--technology-word` and `--plural-concept` for the project's own words and of
- * `--dependency` for the main source directories of the units this one depends on.
+ * `--dependency` for the main source directories of the units this one depends on, and an optional
+ * `--android-namespace`.
  */
 public fun main(args: Array<String>) {
     val arguments = CliArguments.parse(args.toList())
@@ -62,10 +64,12 @@ public fun main(args: Array<String>) {
         testSourceSets = arguments.testSourceSets,
         projectDirectory = arguments.projectDirectory,
         vocabulary = arguments.vocabulary,
-        dependencyDirectories = arguments.dependencyDirectories
+        dependencyDirectories = arguments.dependencyDirectories,
+        androidNamespace = arguments.androidNamespace
     )
     val checker = ArchitectureChecker(
         listOf(
+            AndroidNamespace(),
             ApplicationKDoc(),
             ComposeKindWithoutCompose(),
             ContractName(),

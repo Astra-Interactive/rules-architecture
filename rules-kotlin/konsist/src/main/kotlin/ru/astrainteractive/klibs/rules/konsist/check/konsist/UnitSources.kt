@@ -31,6 +31,7 @@ internal class UnitSources(
     val mainFiles: List<KoFileDeclaration>,
     val testFiles: List<KoFileDeclaration>,
     val dependencyFiles: List<KoFileDeclaration>,
+    val androidNamespace: String?,
     private val mainSourceSets: Map<String, File>,
     private val testSourceSets: Map<String, File>,
     private val projectDirectory: File
@@ -237,7 +238,8 @@ internal class UnitSources(
             testSourceSets: Map<String, File>,
             projectDirectory: File,
             vocabulary: Vocabulary,
-            dependencyDirectories: List<File>
+            dependencyDirectories: List<File>,
+            androidNamespace: String?
         ): UnitSources {
             val mainFiles = parse(mainDirectories)
             val packages = mainFiles.map(KoFileDeclaration::packageName).distinct()
@@ -256,6 +258,7 @@ internal class UnitSources(
                 mainFiles = mainFiles,
                 testFiles = parse(testDirectories),
                 dependencyFiles = parse(dependencyDirectories),
+                androidNamespace = androidNamespace,
                 mainSourceSets = mainSourceSets,
                 testSourceSets = testSourceSets,
                 projectDirectory = projectDirectory

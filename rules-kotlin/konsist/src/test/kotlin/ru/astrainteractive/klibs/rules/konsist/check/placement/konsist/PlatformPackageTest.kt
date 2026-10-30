@@ -33,7 +33,8 @@ internal class PlatformPackageTest {
             testSourceSets = emptyMap(),
             projectDirectory = directory,
             vocabulary = SourceTree.NO_PROJECT_WORDS,
-            dependencyDirectories = emptyList()
+            dependencyDirectories = emptyList(),
+            androidNamespace = null
         )
 
         assertEquals(

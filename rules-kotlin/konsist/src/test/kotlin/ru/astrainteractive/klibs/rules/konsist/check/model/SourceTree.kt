@@ -8,7 +8,10 @@ import java.io.File
 /**
  * A build unit written to disk for a test: Kotlin files under `src/main/kotlin` and `src/test/kotlin`.
  */
-internal class SourceTree(private val projectDirectory: File) {
+internal class SourceTree(
+    private val projectDirectory: File,
+    private val androidNamespace: String? = null
+) {
     val mainDirectory: File = File(projectDirectory, "src/main/kotlin")
     val testDirectory: File = File(projectDirectory, "src/test/kotlin")
     private val dependencyDirectory: File = File(projectDirectory, "dependency/src/main/kotlin")
@@ -106,7 +109,8 @@ internal class SourceTree(private val projectDirectory: File) {
             testSourceSets = mapOf(testSourceSet to test),
             projectDirectory = projectDirectory,
             vocabulary = vocabulary,
-            dependencyDirectories = listOf(dependencyDirectory)
+            dependencyDirectories = listOf(dependencyDirectory),
+            androidNamespace = androidNamespace
         )
     }
 
@@ -126,7 +130,8 @@ internal class SourceTree(private val projectDirectory: File) {
             testSourceSets = mapOf("test" to testDirectory),
             projectDirectory = projectDirectory,
             vocabulary = vocabulary,
-            dependencyDirectories = listOf(dependencyDirectory)
+            dependencyDirectories = listOf(dependencyDirectory),
+            androidNamespace = androidNamespace
         )
     }
 

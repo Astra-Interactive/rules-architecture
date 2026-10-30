@@ -45,6 +45,8 @@ internal class CliArgumentsTest {
                 "goods",
                 "--dependency",
                 "/data/dao/src/main/kotlin",
+                "--android-namespace",
+                "com.example",
             )
         )
 
@@ -64,7 +66,8 @@ internal class CliArgumentsTest {
                     technologyWords = setOf("mongo"),
                     pluralConcepts = setOf("goods")
                 ),
-                dependencyDirectories = listOf(File("/data/dao/src/main/kotlin"))
+                dependencyDirectories = listOf(File("/data/dao/src/main/kotlin")),
+                androidNamespace = "com.example"
             ),
             arguments
         )
