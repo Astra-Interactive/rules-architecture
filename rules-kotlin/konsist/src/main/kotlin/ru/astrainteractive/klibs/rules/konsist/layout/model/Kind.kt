@@ -1,5 +1,7 @@
 package ru.astrainteractive.klibs.rules.konsist.layout.model
 
+import ru.astrainteractive.klibs.rules.core.technology.util.TECHNOLOGY_NAMES
+
 /**
  * A kind package, grouped by the row of the direction table of `arch-context.md` it falls under.
  *
@@ -18,19 +20,8 @@ internal enum class Kind(val words: Set<String>) {
      */
     THEME(setOf("theme")),
     IMPLEMENTATION(
-        setOf(
-            "cache4k",
-            "datastore",
+        TECHNOLOGY_NAMES + setOf(
             "entity",
-            "exposed",
-            "file",
-            "krate",
-            "ktor",
-            "memory",
-            "okhttp",
-            "retrofit",
-            "room",
-            "sqldelight",
             "stub",
             "table",
         )

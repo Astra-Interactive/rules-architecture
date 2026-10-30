@@ -19,6 +19,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "rules-architecture-self-check"
 
+include(":core")
 include(":detekt")
 include(":gradle-plugin")
 include(":konsist")

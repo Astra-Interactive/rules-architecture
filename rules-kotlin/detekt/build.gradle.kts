@@ -26,6 +26,7 @@ kover {
 dependencies {
     detektPlugins(projects.detekt)
 
+    implementation(projects.core)
     compileOnly(libs.detekt.api)
     compileOnly(libs.detekt.psi.utils)
 

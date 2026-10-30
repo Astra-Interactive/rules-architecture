@@ -23,7 +23,7 @@ sources and tell you which file breaks which rule and how to fix it.
 
 ## 🚀 Installation
 
-Four artifacts, one version:
+Five artifacts, one version:
 
 | Artifact                                       | Use it for                                                      |
 |------------------------------------------------|-----------------------------------------------------------------|
@@ -31,6 +31,7 @@ Four artifacts, one version:
 | `ru.astrainteractive.klibs.rules:detekt`       | detekt plugin with the rules and their settings                 |
 | `ru.astrainteractive.klibs.rules:konsist`      | Konsist checks, run from the command line                       |
 | `ru.astrainteractive.klibs.rules:structure`    | structure checks, called from your build logic                  |
+| `ru.astrainteractive.klibs.rules:core`         | the shared vocabulary of the checks, pulled in by the others    |
 
 #### Version catalogs
 
