@@ -262,7 +262,7 @@ val violations: List<StructureViolation> = checker.check(
 | `KindNameInPackage`            | `Service` outside a `service` package, `Model`/`Entity` in a `model` with no technology word (`exposed`, `room`, ...) before it, `Helper`/`Util`/`Manager` names |
 | `ExpressionBodyOnOneLine`      | an expression-body function whose signature and body are not one line            |
 | `BooleanOperatorWrapping` | a line break on either side of `&&` or `\|\|` |
-| `ArgumentPerLine` | a call or constructor call with three or more arguments in its parentheses, not each on its own line |
+| `ArgumentPerLine` | a call or constructor call with three or more arguments, a trailing lambda included, whose arguments in parentheses are not each on its own line |
 | `ExplicitInvoke` | a call `name(…)` of a parameter, property or local value instead of `name.invoke(…)` |
 | `FunctionVerb` | a function named `get…` (but `getState`) or with the word `map`, `make`, `do`, `handle` or `process` |
 | `PropertyAsFunction` | a function with no parameters that only returns a property of its class or file |

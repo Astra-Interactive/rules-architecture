@@ -14,8 +14,9 @@ import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.KtValueArgumentList
 
 /**
- * Reports a call or a constructor call with three or more arguments in its parentheses where not every argument
- * starts on its own line. A trailing lambda is not counted.
+ * Reports a call or a constructor call with three or more arguments where not every argument in its parentheses
+ * starts on its own line. A trailing lambda counts as an argument and follows the closing parenthesis:
+ * `remember(icon, label) { … }` has three.
  */
 internal class ArgumentPerLine(config: Config) : Rule(config, DESCRIPTION) {
 
@@ -25,11 +26,17 @@ internal class ArgumentPerLine(config: Config) : Rule(config, DESCRIPTION) {
         return previous is PsiWhiteSpace && '\n' in previous.text
     }
 
-    private fun check(call: KtElement, name: String?, argumentList: KtValueArgumentList?) {
+    private fun check(
+        call: KtElement,
+        name: String?,
+        argumentList: KtValueArgumentList?,
+        trailingLambdaCount: Int
+    ) {
         val arguments = argumentList?.arguments.orEmpty()
-        if (arguments.size < MIN_ARGUMENTS) return
+        val argumentCount = arguments.size.plus(trailingLambdaCount)
+        if (argumentCount < MIN_ARGUMENTS) return
         if (arguments.all(::startsOnOwnLine)) return
-        val message = "'$name' takes ${arguments.size} arguments: put each argument on its own line."
+        val message = "'$name' takes $argumentCount arguments: put each argument on its own line."
         report(Finding(Entity.from(call), message))
     }
 
@@ -38,7 +45,8 @@ internal class ArgumentPerLine(config: Config) : Rule(config, DESCRIPTION) {
         check(
             expression,
             expression.calleeExpression?.text,
-            expression.valueArgumentList
+            expression.valueArgumentList,
+            expression.lambdaArguments.size
         )
     }
 
@@ -47,7 +55,8 @@ internal class ArgumentPerLine(config: Config) : Rule(config, DESCRIPTION) {
         check(
             call,
             call.calleeExpression.text,
-            call.valueArgumentList
+            call.valueArgumentList,
+            0
         )
     }
 

@@ -23,11 +23,14 @@ internal class ArgumentPerLineTest {
                 1, 2,
                 3
             )
+
+            fun remembered(icon: Int, label: String) = remember(icon, label) { icon to label }
         """.trimIndent()
 
         val findings = rule.lint(code)
 
-        assertEquals(3, findings.size)
+        assertEquals(4, findings.size)
+        assertEquals("'remember' takes 3 arguments: put each argument on its own line.", findings.last().message)
         assertEquals("'Base' takes 3 arguments: put each argument on its own line.", findings.first().message)
     }
 
@@ -44,6 +47,13 @@ internal class ArgumentPerLineTest {
             fun pair(values: List<Int>) = values.fold(0, Int::plus)
 
             fun run(values: List<Int>) = values.forEachIndexed { index, value -> println(index + value) }
+
+            fun remembered(icon: Int, label: String) = remember(
+                icon,
+                label
+            ) { icon to label }
+
+            fun keyed(icon: Int) = remember(icon) { icon }
         """.trimIndent()
 
         assertEquals(0, rule.lint(code).size)
