@@ -88,6 +88,8 @@ architecture:
     active: true
   RunCatchingCancellation:
     active: true
+  SharedFlowEvent:
+    active: true
   SingleJobLaunchMode:
     active: true
   StateFlowTimeout:

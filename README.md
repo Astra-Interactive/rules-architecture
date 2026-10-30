@@ -10,7 +10,7 @@ sources and tell you which file breaks which rule and how to fix it.
 
 ## ✨ Features
 
-- **Per-file rules for detekt**: 53 custom rules plus settings for detekt's own rules, with IDE support and
+- **Per-file rules for detekt**: 54 custom rules plus settings for detekt's own rules, with IDE support and
   `@Suppress`.
 - **Cross-file checks with Konsist**: role import direction, use case shape, contract and implementation
   levels, DI placement, test mirroring and more.
@@ -287,6 +287,7 @@ val violations: List<StructureViolation> = checker.check(
 | `RunBlockingOutsideBoundary` | `runBlocking` in the main sources outside a top-level `main` function and outside a technology package |
 | `ThreadPrimitive` | `Thread` constructed or used through its static members in the main sources |
 | `CallbackFlowShape` | a `callbackFlow` without `awaitClose`, a `launch { send(…) }` inside one, a `buffer(Channel.RENDEZVOUS)` or `buffer(0)` |
+| `SharedFlowEvent` | a `SharedFlow` property of a view model, a `MutableSharedFlow` without `extraBufferCapacity` fed through `tryEmit` |
 | `CallbackDeclaration` | an `on…` parameter or property of a function type outside a `@Composable`, an `…Listener` interface, an `…Callback` interface other than a Decompose `fun interface On…Callback` |
 | `KDocFiller` | a KDoc filler phrase, a `@return` of "the result", a `@param` that repeats its name, a summary of more than four sentences |
 | `LambdaSingleIfGuard` | a lambda whose whole body is one `if` without `else`, unless the `if` only throws |

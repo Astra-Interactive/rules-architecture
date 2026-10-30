@@ -16,6 +16,7 @@ import ru.astrainteractive.klibs.rules.coroutine.detekt.CallbackFlowShape
 import ru.astrainteractive.klibs.rules.coroutine.detekt.ImpureUpdateLambda
 import ru.astrainteractive.klibs.rules.coroutine.detekt.MutableStateFlowEmit
 import ru.astrainteractive.klibs.rules.coroutine.detekt.RunBlockingOutsideBoundary
+import ru.astrainteractive.klibs.rules.coroutine.detekt.SharedFlowEvent
 import ru.astrainteractive.klibs.rules.coroutine.detekt.SingleJobLaunchMode
 import ru.astrainteractive.klibs.rules.coroutine.detekt.StateFlowTimeout
 import ru.astrainteractive.klibs.rules.coroutine.detekt.ThreadPrimitive
@@ -120,6 +121,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::RunBlockingInTest,
             ::RunBlockingOutsideBoundary,
             ::RunCatchingCancellation,
+            ::SharedFlowEvent,
             ::SingleJobLaunchMode,
             ::StateFlowTimeout,
             ::SystemTimeCall,
