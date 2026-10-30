@@ -102,6 +102,20 @@ style:
     forbiddenImports:
       - value: 'java.util.concurrent.CompletableFuture'
         reason: 'Return a suspend result: await the CompletableFuture in the technology package of its library.'
+  # A composable reads a resource through asPainter() and asComposableString(), declared once in a util file.
+  ForbiddenImport/resource:
+    active: true
+    includes: [ '**' ]
+    excludes: [ '**/util/**' ]
+    forbiddenImports:
+      - value: 'org.jetbrains.compose.resources.painterResource'
+        reason: 'Read the resource with DrawableResource.asPainter().'
+      - value: 'org.jetbrains.compose.resources.stringResource'
+        reason: 'Read the resource with StringResource.asComposableString().'
+      - value: 'androidx.compose.ui.res.painterResource'
+        reason: 'Read the resource with an asPainter() extension.'
+      - value: 'androidx.compose.ui.res.stringResource'
+        reason: 'Read the resource with an asComposableString() extension.'
   # androidx.compose.* is left out: the model of a Compose UI unit may carry Compose types.
   ForbiddenImport/model:
     active: true

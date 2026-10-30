@@ -315,7 +315,9 @@ holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with
 `ForbiddenImport` also bans DI frameworks (Koin, Dagger, Anvil, Metro, kotlin-inject, Kodein) and
 the callback and thread tools of the no-callbacks rule: `suspendCoroutine`, `trySendBlocking`, `Timer`, `TimerTask`,
 `Handler`, `thread`; `Executor`/`Executors` outside `core` (`ForbiddenImport/executor`) and `CompletableFuture`
-outside technology packages (`ForbiddenImport/future`). `SuspendFunSwallowedCancellation` and
+outside technology packages (`ForbiddenImport/future`), and Compose's `painterResource` and `stringResource`
+outside `util`, where the `asPainter()` and `asComposableString()` extensions wrap them
+(`ForbiddenImport/resource`). `SuspendFunSwallowedCancellation` and
 `SuspendFunInFinallySection` are active.
 
 ### Konsist checks

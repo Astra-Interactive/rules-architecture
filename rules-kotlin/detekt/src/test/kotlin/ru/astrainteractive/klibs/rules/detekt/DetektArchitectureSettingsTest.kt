@@ -198,6 +198,23 @@ internal class DetektArchitectureSettingsTest {
     }
 
     @Test
+    fun GIVEN_resource_reads_WHEN_linted_with_resource_settings_THEN_reports_each_outside_util() {
+        val code = """
+            import androidx.compose.ui.res.painterResource
+            import androidx.compose.ui.res.stringResource
+            import org.jetbrains.compose.resources.painterResource
+            import org.jetbrains.compose.resources.stringResource
+            import org.jetbrains.compose.resources.vectorResource
+        """.trimIndent()
+        val resourceConfig = styleConfig.subConfig("ForbiddenImport/resource")
+
+        val findings = ForbiddenImport(resourceConfig).lint(code)
+
+        assertEquals(4, findings.size)
+        assertEquals(listOf("**/util/**"), resourceConfig.valueOrNull<List<String>>("excludes"))
+    }
+
+    @Test
     fun GIVEN_coroutine_settings_WHEN_read_THEN_cancellation_rules_are_active() {
         val coroutines = settings.subConfig("coroutines")
 
