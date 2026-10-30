@@ -99,6 +99,13 @@ linter {
 }
 ```
 
+The technology words also come from the unit's build file: the last segment of each library's group and the first
+word of its artifact (`org.mongodb:mongodb-driver-kotlin-coroutine` gives `mongodb`), generic words such as `core`
+and `runtime` aside. The Konsist checks and the detekt rules that judge technology packages (`BareIdentifier`,
+`KindNameInPackage`, `RunBlockingOutsideBoundary`) get the same words; `architectureDetektWords` writes them into
+`build/detekt/architecture-words.yml`, read before the project's own detekt config. A convention plugin sets
+`unitKind` for the units it builds, which maps each plugin to a row of the unit direction table.
+
 | Detected as       | When                                                                                     |
 |-------------------|------------------------------------------------------------------------------------------|
 | `api`, `contract` | the last segment of the project path                                                     |

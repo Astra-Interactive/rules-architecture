@@ -8,11 +8,13 @@ import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.file.FileCollection
+import org.gradle.api.provider.Provider
 import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 import org.jetbrains.kotlin.gradle.dsl.KotlinBaseExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.mpp.Framework
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
@@ -151,6 +153,14 @@ private fun Project.externalProductionDependencies(): List<String> {
         .map { dependency -> "${dependency.group}:${dependency.name}" }
         .distinct()
         .sorted()
+}
+
+/**
+ * The unit's technology words: the project's own from [extension] and those its libraries name in its build file.
+ */
+internal fun Project.findUnitTechnologyWords(extension: LinterExtension): Provider<Set<String>> {
+    val libraryWords = provider { findTechnologyWords(externalProductionDependencies()) }
+    return extension.technologyWords.zip(libraryWords) { projectWords, words -> projectWords + words }
 }
 
 internal fun Project.readUnitBuild(unitKind: UnitKind): UnitBuild {

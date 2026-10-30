@@ -380,7 +380,10 @@ class LinterPluginTest {
 
         val report = build.file("library/build/linter-report.txt").readLines()
         assertEquals("args=[-Xexplicit-api=strict]", report[0])
-        assertEquals("config=[build/detekt.yml, build/detekt-architecture.yml, config/detekt.yml]", report[1])
+        assertEquals(
+            "config=[build/detekt.yml, build/detekt-architecture.yml, build/architecture-words.yml, config/detekt.yml]",
+            report[1]
+        )
         assertEquals("kind=library", report[2])
         assertTrue(report[3].contains("ru.astrainteractive.klibs.rules:detekt"), "rules missing: ${report[3]}")
     }
