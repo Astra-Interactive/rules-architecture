@@ -102,7 +102,7 @@ linter {
 | Detected as       | When                                                                                     |
 |-------------------|------------------------------------------------------------------------------------------|
 | `api`, `contract` | the last segment of the project path                                                     |
-| `technology`      | a technology name as the last segment of the project path (`data/exposed`, `data/room`, `data/memory`) |
+| `technology`      | a technology name as the last segment of the project path (`data/exposed`, `data/room`, `data/memory`), or a platform name outside `core` and the entry points (`gui/bukkit`) |
 | `entry-point`     | the `application` or `com.android.application` plugin, or a path under `:instances`      |
 | `library`         | Kotlin explicit API mode strict                                                          |
 | `context`         | anything else                                                                            |
