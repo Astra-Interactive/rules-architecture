@@ -63,16 +63,42 @@ internal class UtilShapeTest {
     }
 
     @Test
-    fun GIVEN_entry_point_extensions_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_extensions_in_entry_point_kinds_WHEN_checked_THEN_reports_all_but_private_ones_of_a_composable_file(
+        @TempDir directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.gui.bukkit.slot",
                 "RatingsSlot.kt",
                 "internal fun SlotContext.ratingsSlot(): String = \"\""
             )
+            .main(
+                "x.gui.bukkit.composable",
+                "CardComposable.kt",
+                """
+                @Composable
+                internal fun CardComposable() = Unit
+
+                private fun Modifier.cardCanvas(): Modifier = this
+
+                internal fun Modifier.sharedCanvas(): Modifier = this
+                """
+            )
+            .main(
+                "x.gui.bukkit.command",
+                "RatingCommand.kt",
+                "private fun KPlayer.toPlayerName(): String = name"
+            )
             .load(UnitKind.CONTEXT, rootPackage = "x.gui.bukkit")
 
-        assertEquals(emptyList(), UtilShape().check(sources))
+        assertEquals(
+            listOf(
+                "KPlayer.toPlayerName",
+                "Modifier.sharedCanvas",
+                "SlotContext.ratingsSlot"
+            ),
+            UtilShape().check(sources).map(Violation::subject).sorted()
+        )
     }
 
     @Test

@@ -13,8 +13,8 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
  * Checks `util` both ways: a `util` package holds functions, never a class, an interface or an object; and an
  * extension function lives in `util/<Subject>Ext.kt`, never in the file of its receiver type. The subject is the
  * receiver type, or its first type argument when the receiver is a standard collection, flow or function type
- * (`Collection<Coloring>` goes to `ColoringExt.kt`). Entry-point kinds are not judged: a project may write its
- * entry points as extensions (AstraRating's `slot` builders).
+ * (`Collection<Coloring>` goes to `ColoringExt.kt`). The one exception is a `private` extension in a Compose
+ * composable file, which only that file uses.
  */
 internal class UtilShape : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
@@ -42,9 +42,16 @@ internal class UtilShape : ArchitectureCheck {
         return typeNames.drop(1).firstOrNull() ?: receiver
     }
 
+    private fun isComposableFile(file: KoFileDeclaration): Boolean {
+        return file.functions(includeNested = false, includeLocal = false)
+            .any { function -> function.hasAnnotationWithName(COMPOSABLE) }
+    }
+
     private fun extensionsOutsideUtil(sources: UnitSources, file: KoFileDeclaration): List<Violation> {
+        val allowsPrivateExtensions = isComposableFile(file)
         return file.functions(includeNested = false, includeLocal = false).mapNotNull { function ->
             val receiverType = function.receiverType ?: return@mapNotNull null
+            if (allowsPrivateExtensions && function.hasPrivateModifier) return@mapNotNull null
             val receiver = receiverType.simpleName
             val subject = findSubject(receiverType.text, receiver)
             val message = "Move the extension $receiver.${function.name} to util/${subject}Ext.kt of the level " +
@@ -65,7 +72,6 @@ internal class UtilShape : ArchitectureCheck {
             val placement = sources.placementOf(file) ?: return@flatMap emptyList()
             when (placement.kind) {
                 Kind.UTIL -> typesInUtil(sources, file)
-                Kind.ENTRY_POINT -> emptyList()
                 else -> extensionsOutsideUtil(sources, file)
             }
         }
@@ -74,6 +80,7 @@ internal class UtilShape : ArchitectureCheck {
     private companion object {
         const val RULE = "UtilShape"
         const val FUNCTION_ARROW = "->"
+        const val COMPOSABLE = "Composable"
 
         @JvmField
         val TYPE_NAME = Regex("""\b[A-Z]\w*""")
