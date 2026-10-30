@@ -47,6 +47,8 @@ architecture:
     active: true
   DurationOverloadCall:
     active: true
+  EventCollection:
+    active: true
   ExplicitInvoke:
     active: true
   ExpressionBodyOnOneLine:

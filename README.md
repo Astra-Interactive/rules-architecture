@@ -10,7 +10,7 @@ sources and tell you which file breaks which rule and how to fix it.
 
 ## ✨ Features
 
-- **Per-file rules for detekt**: 61 custom rules plus settings for detekt's own rules, with IDE support and
+- **Per-file rules for detekt**: 62 custom rules plus settings for detekt's own rules, with IDE support and
   `@Suppress`.
 - **Cross-file checks with Konsist**: role import direction, use case shape, contract and implementation
   levels, DI placement, test mirroring and more.
@@ -271,6 +271,7 @@ val violations: List<StructureViolation> = checker.check(
 | `ExpressionBodyOnOneLine`      | an expression-body function whose signature and body are not one line            |
 | `BooleanOperatorWrapping` | a line break on either side of `&&` or `\|\|` |
 | `ArgumentPerLine` | a call or constructor call with three or more arguments, a trailing lambda included, whose arguments in parentheses are not each on its own line |
+| `EventCollection` | one-off `events` collected in `LaunchedEffect` without `withContext(Dispatchers.Main.immediate)`, or elsewhere without `repeatOnLifecycle` |
 | `CompletableDeferredUse` | a `CompletableDeferred` created and awaited in one function, or held in a property as a `Unit`/`Boolean` readiness flag |
 | `BridgeCleanup` | an `awaitClose` or `invokeOnCancellation` cleanup that assigns state declared outside it or calls `launch` |
 | `ExplicitInvoke` | a call `name(…)` of a parameter, property or local value instead of `name.invoke(…)` |
