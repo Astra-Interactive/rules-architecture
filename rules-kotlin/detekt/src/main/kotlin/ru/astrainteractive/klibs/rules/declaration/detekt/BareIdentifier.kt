@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtUserType
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
+import ru.astrainteractive.klibs.rules.detekt.util.isTechnologySegment
 
 /**
  * Reports a bare identifier: a property or constructor property named `id` or `…Id` typed as a string, a number
@@ -36,7 +37,7 @@ internal class BareIdentifier(config: Config) : Rule(config, DESCRIPTION) {
 
     private fun isTechnologyPackage(declaration: KtCallableDeclaration): Boolean {
         val segments = declaration.containingKtFile.packageFqName.pathSegments().map(Name::asString)
-        return segments.any { segment -> segment in TECHNOLOGY_WORDS }
+        return segments.any { segment -> isTechnologySegment(segment) || segment == CONTRACT_SEGMENT }
     }
 
     private fun isExempt(declaration: KtCallableDeclaration, owner: KtClassOrObject): Boolean {
@@ -78,6 +79,7 @@ internal class BareIdentifier(config: Config) : Rule(config, DESCRIPTION) {
     private companion object {
         const val SERIALIZABLE = "Serializable"
         const val ID_SUFFIX = "Id"
+        const val CONTRACT_SEGMENT = "contract"
 
         @JvmField
         val IDENTIFIER_NAME = Regex("id|.*[a-z0-9]Id")
@@ -91,23 +93,6 @@ internal class BareIdentifier(config: Config) : Rule(config, DESCRIPTION) {
             "Uuid"
         )
 
-        @JvmField
-        val TECHNOLOGY_WORDS = setOf(
-            "exposed",
-            "room",
-            "ktor",
-            "krate",
-            "sqldelight",
-            "datastore",
-            "retrofit",
-            "okhttp",
-            "cache4k",
-            "file",
-            "memory",
-            "table",
-            "entity",
-            "contract"
-        )
         const val DESCRIPTION = "An entity carries a typed identifier, a value class, never a bare string or number."
     }
 }
