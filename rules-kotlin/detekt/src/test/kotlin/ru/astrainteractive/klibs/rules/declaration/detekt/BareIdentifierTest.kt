@@ -4,8 +4,10 @@ package ru.astrainteractive.klibs.rules.declaration.detekt
 
 import dev.detekt.api.Config
 import dev.detekt.api.Finding
+import dev.detekt.core.config.YamlConfig
 import dev.detekt.test.lint
 import org.junit.jupiter.api.Test
+import java.io.StringReader
 import kotlin.test.assertEquals
 
 internal class BareIdentifierTest {
@@ -72,5 +74,18 @@ internal class BareIdentifierTest {
         """.trimIndent()
 
         assertEquals(0, rule.lint(modelCode).size + rule.lint(tableCode).size)
+    }
+
+    @Test
+    fun GIVEN_identifier_in_a_project_technology_package_WHEN_linted_THEN_reports_only_without_the_word() {
+        val code = """
+            package x.data.mongo.rating
+
+            class RatingDocument(val id: String)
+        """.trimIndent()
+        val projectRule = BareIdentifier(YamlConfig.load(StringReader("technologyWords: [ mongo ]")))
+
+        assertEquals(1, BareIdentifier(Config.empty).lint(code).size)
+        assertEquals(0, projectRule.lint(code).size)
     }
 }

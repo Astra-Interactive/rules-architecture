@@ -18,5 +18,9 @@ private val TECHNOLOGY_SEGMENTS = setOf(
 
 /**
  * Whether [segment] is a package named after a technology, the boundary where a library's own types are allowed.
+ *
+ * @param projectWords the project's own technology words, from the `technologyWords` setting of the rule
  */
-internal fun isTechnologySegment(segment: String): Boolean = segment in TECHNOLOGY_SEGMENTS
+internal fun isTechnologySegment(segment: String, projectWords: List<String>): Boolean {
+    return segment in TECHNOLOGY_SEGMENTS || segment in projectWords
+}

@@ -7,6 +7,7 @@ import dev.detekt.api.Rule
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import ru.astrainteractive.klibs.rules.detekt.util.isTechnologySegment
+import dev.detekt.api.config as ruleConfig
 
 /**
  * Reports a type name that carries a kind word its package does not allow:
@@ -17,11 +18,12 @@ import ru.astrainteractive.klibs.rules.detekt.util.isTechnologySegment
  *   names it.
  */
 internal class KindNameInPackage(config: Config) : Rule(config, DESCRIPTION) {
+    private val technologyWords: List<String> by ruleConfig(emptyList())
 
     private fun isDomainModelPackage(segments: List<String>): Boolean {
         val modelIndex = segments.indexOf(MODEL_SEGMENT)
         if (modelIndex < 0) return false
-        return segments.take(modelIndex).none(::isTechnologySegment)
+        return segments.take(modelIndex).none { segment -> isTechnologySegment(segment, technologyWords) }
     }
 
     private fun findViolations(name: String, segments: List<String>): List<String> {

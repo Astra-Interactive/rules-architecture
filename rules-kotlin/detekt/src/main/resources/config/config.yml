@@ -8,6 +8,7 @@ architecture:
     active: true
   BareIdentifier:
     active: true
+    technologyWords: [ ]
   BooleanOperatorWrapping:
     active: true
   CallbackDeclaration:
@@ -62,6 +63,7 @@ architecture:
     active: true
   KindNameInPackage:
     active: true
+    technologyWords: [ ]
   LambdaSingleIfGuard:
     active: true
   LocalOrInnerClass:
@@ -92,6 +94,7 @@ architecture:
     active: true
   RunBlockingOutsideBoundary:
     active: true
+    technologyWords: [ ]
   RunCatchingCancellation:
     active: true
   RunTestResult:

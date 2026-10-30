@@ -14,6 +14,8 @@ internal fun KtFile.isTestSource(): Boolean = TEST_SOURCE_SET.containsMatchIn(vi
  * Whether the file sits in a technology package (`exposed`, `ktor`, `room`, ...), where a library's own types and
  * calls are allowed.
  */
-internal fun KtFile.isInTechnologyPackage(): Boolean {
-    return packageFqName.pathSegments().map(Name::asString).any(::isTechnologySegment)
+internal fun KtFile.isInTechnologyPackage(projectWords: List<String>): Boolean {
+    return packageFqName.pathSegments()
+        .map(Name::asString)
+        .any { segment -> isTechnologySegment(segment, projectWords) }
 }

@@ -3,8 +3,10 @@
 package ru.astrainteractive.klibs.rules.naming.detekt
 
 import dev.detekt.api.Config
+import dev.detekt.core.config.YamlConfig
 import dev.detekt.test.lint
 import org.junit.jupiter.api.Test
+import java.io.StringReader
 import kotlin.test.assertEquals
 
 internal class KindNameInPackageTest {
@@ -117,5 +119,18 @@ internal class KindNameInPackageTest {
         """.trimIndent()
 
         assertEquals(3, rule.lint(code).size)
+    }
+
+    @Test
+    fun GIVEN_entity_suffix_below_a_project_technology_word_WHEN_linted_THEN_reports_only_without_the_word() {
+        val code = """
+            package x.data.mongo.rating.model
+
+            class RatingEntity
+        """.trimIndent()
+        val projectRule = KindNameInPackage(YamlConfig.load(StringReader("technologyWords: [ mongo ]")))
+
+        assertEquals(1, KindNameInPackage(Config.empty).lint(code).size)
+        assertEquals(0, projectRule.lint(code).size)
     }
 }
