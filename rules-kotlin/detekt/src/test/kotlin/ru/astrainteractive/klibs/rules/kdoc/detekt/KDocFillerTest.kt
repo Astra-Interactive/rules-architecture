@@ -47,6 +47,37 @@ internal class KDocFillerTest {
     }
 
     @Test
+    fun GIVEN_doc_bad_examples_WHEN_linted_THEN_reports_each_restatement() {
+        val code = """
+            /**
+             * @param userId the identifier of the user
+             * @return the user object
+             */
+            fun findUser(userId: Long): User
+
+            /**
+             * Function for calculating a discount.
+             */
+            fun calculateDiscount(price: BigDecimal, rate: Double): BigDecimal
+
+            /**
+             * @return the value
+             */
+            val name: String = ""
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "Delete the @return that restates the type, or say what is returned in the edge cases.",
+                "Delete '@param userId' that repeats the name, or describe its meaning and constraints.",
+                "Delete the filler 'Function for': say what the signature cannot, or write no KDoc.",
+                "Delete the @return that restates the type, or say what is returned in the edge cases.",
+            ),
+            rule.lint(code).map(Finding::message)
+        )
+    }
+
+    @Test
     fun GIVEN_kdoc_that_adds_information_WHEN_linted_THEN_reports_nothing() {
         val code = """
             /**
@@ -62,6 +93,16 @@ internal class KDocFillerTest {
              * @return failure with [UserNotFoundError] for a deleted user as well as for an unknown id
              */
             fun findUser(userId: Long): Result<String> = Result.success("")
+
+            /**
+             * @return the cached user, or null after a logout
+             */
+            fun findCachedUser(): User?
+
+            /**
+             * @return the user
+             */
+            val user: User? = null
         """.trimIndent()
 
         assertEquals(0, rule.lint(code).size)

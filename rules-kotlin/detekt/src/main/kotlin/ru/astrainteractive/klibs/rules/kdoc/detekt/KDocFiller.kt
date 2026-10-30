@@ -7,12 +7,17 @@ import dev.detekt.api.Rule
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.kotlin.kdoc.psi.impl.KDocTag
 import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
+import ru.astrainteractive.klibs.rules.detekt.util.isCoveredBy
+import ru.astrainteractive.klibs.rules.detekt.util.nameWordsOf
+import ru.astrainteractive.klibs.rules.detekt.util.wordsOf
 
 /**
  * Reports KDoc that says nothing the signature does not: one of the [FILLER_PHRASES], a `@return` that
- * names no edge case, a `@param` that only repeats its name, and a summary of more than four sentences before
- * the first tag.
+ * names no edge case or only repeats the return type (`@return the user object` of a `User`), a `@param` whose
+ * words only repeat its name (`@param userId the identifier of the user`), and a summary of more than four
+ * sentences before the first tag.
  */
 internal class KDocFiller(config: Config) : Rule(config, DESCRIPTION) {
 
@@ -26,16 +31,21 @@ internal class KDocFiller(config: Config) : Rule(config, DESCRIPTION) {
             .removePrefix("an ")
     }
 
+    private fun restatesReturnType(tag: KDocTag, kdoc: KDoc): Boolean {
+        if (normalize(tag.getContent()) in EMPTY_RETURNS) return true
+        val returnType = (kdoc.getOwner() as? KtNamedFunction)?.typeReference?.text ?: return false
+        val content = wordsOf(tag.getContent()).filterNot(GENERIC_RETURN_WORDS::contains)
+        return isCoveredBy(content, nameWordsOf(returnType))
+    }
+
     private fun findReturnMessages(kdoc: KDoc): List<String> {
         return kdoc.getDefaultSection().findTagsByName(RETURN_TAG)
-            .filter { tag -> normalize(tag.getContent()) in EMPTY_RETURNS }
+            .filter { tag -> restatesReturnType(tag, kdoc) }
             .map { "Delete the @return that restates the type, or say what is returned in the edge cases." }
     }
 
     private fun repeatsName(tag: KDocTag, name: String): Boolean {
-        val words = name.split(WORD_START).joinToString(" ", transform = String::lowercase)
-        val content = normalize(tag.getContent())
-        return content.isEmpty() || content == words
+        return isCoveredBy(wordsOf(tag.getContent()), nameWordsOf(name))
     }
 
     private fun findParamMessages(kdoc: KDoc): List<String> {
@@ -78,10 +88,16 @@ internal class KDocFiller(config: Config) : Rule(config, DESCRIPTION) {
         val WHITESPACE = Regex("""\s+""")
 
         @JvmField
-        val WORD_START = Regex("(?=[A-Z])|_")
+        val SENTENCE_END = Regex("""[.!?](\s|$)""")
 
         @JvmField
-        val SENTENCE_END = Regex("""[.!?](\s|$)""")
+        val GENERIC_RETURN_WORDS = setOf(
+            "instance",
+            "object",
+            "result",
+            "returned",
+            "value"
+        )
 
         @JvmField
         val EMPTY_RETURNS = setOf(
@@ -94,6 +110,8 @@ internal class KDocFiller(config: Config) : Rule(config, DESCRIPTION) {
         @JvmField
         val FILLER_PHRASES = listOf(
             "This method is responsible for",
+            "Function for",
+            "Method for",
             "This function allows",
             "This class is responsible",
             "Returns the result of the operation",
