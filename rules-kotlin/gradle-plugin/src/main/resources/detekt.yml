@@ -696,9 +696,7 @@ style:
     ignoreLateinitVar: false
   WildcardImport:
     active: true
-    excludeImports:
-      - 'java.util.*'
-      - 'com.flipperdevices.bridge.connection.feature.getinfo.model.FGetInfoApiProperty.DeviceInfo.*'
+    excludeImports: [ ]
 
 ktlint:
   IfElseBracing:
