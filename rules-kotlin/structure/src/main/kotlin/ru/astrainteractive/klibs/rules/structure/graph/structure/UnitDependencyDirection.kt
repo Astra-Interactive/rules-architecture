@@ -1,6 +1,7 @@
 package ru.astrainteractive.klibs.rules.structure.graph.structure
 
 import ru.astrainteractive.klibs.rules.structure.unit.model.BuildUnit
+import ru.astrainteractive.klibs.rules.structure.unit.structure.isTechnologyUnitName
 
 internal object UnitDependencyDirection {
     private val platforms = setOf(
@@ -12,19 +13,6 @@ internal object UnitDependencyDirection {
         "paper",
         "spigot",
         "velocity"
-    )
-    private val technologies = setOf(
-        "cache4k",
-        "datastore",
-        "exposed",
-        "file",
-        "krate",
-        "ktor",
-        "memory",
-        "okhttp",
-        "retrofit",
-        "room",
-        "sqldelight"
     )
 
     private enum class Kind {
@@ -43,9 +31,9 @@ internal object UnitDependencyDirection {
     }
 
     private fun coreKindOf(name: String): Kind {
-        return when (name) {
-            in platforms -> Kind.CORE_PLATFORM
-            in technologies -> Kind.TECHNOLOGY
+        return when {
+            name in platforms -> Kind.CORE_PLATFORM
+            isTechnologyUnitName(name) -> Kind.TECHNOLOGY
             else -> Kind.CORE_API
         }
     }
@@ -63,9 +51,8 @@ internal object UnitDependencyDirection {
             "contract" -> Kind.CONTRACT
             "dao" -> Kind.STORAGE_CONTRACT
             "fake" -> Kind.FAKE
-            in technologies -> Kind.TECHNOLOGY
             in platforms -> Kind.PLATFORM
-            else -> Kind.CONTEXT
+            else -> if (isTechnologyUnitName(name)) Kind.TECHNOLOGY else Kind.CONTEXT
         }
     }
 

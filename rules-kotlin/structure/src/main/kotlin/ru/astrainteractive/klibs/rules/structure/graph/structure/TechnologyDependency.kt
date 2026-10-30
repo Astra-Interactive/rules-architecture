@@ -3,6 +3,7 @@ package ru.astrainteractive.klibs.rules.structure.graph.structure
 import ru.astrainteractive.klibs.rules.structure.unit.api.StructureCheck
 import ru.astrainteractive.klibs.rules.structure.unit.model.BuildUnit
 import ru.astrainteractive.klibs.rules.structure.unit.model.StructureViolation
+import ru.astrainteractive.klibs.rules.structure.unit.structure.isTechnologyUnitName
 
 /**
  * Reports a technology dependency outside the unit direction table: storage is reached through contracts, and an
@@ -10,7 +11,7 @@ import ru.astrainteractive.klibs.rules.structure.unit.model.StructureViolation
  */
 public class TechnologyDependency : StructureCheck {
 
-    private fun isTechnology(path: String): Boolean = path.substringAfterLast(':') in TECHNOLOGIES
+    private fun isTechnology(path: String): Boolean = isTechnologyUnitName(path.substringAfterLast(':'))
 
     override fun check(unit: BuildUnit): List<StructureViolation> {
         return UnitDependencyDirection.findForbidden(unit)
@@ -30,20 +31,5 @@ public class TechnologyDependency : StructureCheck {
     private companion object {
         const val RULE = "TechnologyDependency"
         const val BUILD_FILE = "build.gradle.kts"
-
-        @JvmField
-        val TECHNOLOGIES = setOf(
-            "exposed",
-            "room",
-            "ktor",
-            "krate",
-            "sqldelight",
-            "datastore",
-            "retrofit",
-            "okhttp",
-            "cache4k",
-            "memory",
-            "file"
-        )
     }
 }

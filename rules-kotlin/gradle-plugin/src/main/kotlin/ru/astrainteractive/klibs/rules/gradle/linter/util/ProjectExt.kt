@@ -15,24 +15,11 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
+import ru.astrainteractive.klibs.rules.structure.unit.structure.isTechnologyUnitName
 
 private const val ENTRY_POINT_PATH_PREFIX = ":instances:"
 
 private val ENTRY_POINT_PLUGIN_IDS = listOf("application", "com.android.application")
-
-private val TECHNOLOGY_UNIT_NAMES = setOf(
-    "cache4k",
-    "datastore",
-    "exposed",
-    "file",
-    "krate",
-    "ktor",
-    "memory",
-    "okhttp",
-    "retrofit",
-    "room",
-    "sqldelight",
-)
 
 private const val MULTIPLATFORM_PLUGIN_ID = "org.jetbrains.kotlin.multiplatform"
 
@@ -69,7 +56,7 @@ internal fun Project.detectUnitKind(): UnitKind {
     return when {
         unitName == UnitKind.API.cliName -> UnitKind.API
         unitName == UnitKind.CONTRACT.cliName -> UnitKind.CONTRACT
-        unitName in TECHNOLOGY_UNIT_NAMES -> UnitKind.TECHNOLOGY
+        isTechnologyUnitName(unitName) -> UnitKind.TECHNOLOGY
         isEntryPointByConvention() -> UnitKind.ENTRY_POINT
         hasKotlinPlugin() && explicitApiMode() == "strict" -> UnitKind.LIBRARY
         else -> UnitKind.CONTEXT
