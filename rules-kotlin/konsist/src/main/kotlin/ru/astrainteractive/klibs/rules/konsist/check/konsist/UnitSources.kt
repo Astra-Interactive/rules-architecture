@@ -15,7 +15,6 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.Placement
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitLayout
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Vocabulary
-import ru.astrainteractive.klibs.rules.konsist.layout.util.kindOf
 import java.io.File
 
 /**
@@ -176,7 +175,7 @@ internal class UnitSources(
                 unitNameCandidates(path).firstNotNullOfOrNull { sequence -> firstEndOf(prefix, sequence) }
             }
             if (unitEnd != null) return prefix.take(unitEnd).joinToString(".")
-            val lastKind = prefix.lastOrNull()?.let(vocabulary::kindOf)
+            val lastKind = prefix.lastOrNull()?.let { segment -> Kind.fromSegment(segment, vocabulary) }
             val isSingleKindPackage = packages.toSet().size == 1 && lastKind != null
             val root = if (isSingleKindPackage) prefix.dropLast(1) else prefix
             return root.joinToString(".")

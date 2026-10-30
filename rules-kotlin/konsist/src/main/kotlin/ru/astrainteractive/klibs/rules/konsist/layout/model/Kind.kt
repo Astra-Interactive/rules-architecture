@@ -67,5 +67,17 @@ internal enum class Kind(val words: Set<String>) {
          * Compose's `composable`, the one kind that may hold sub-packages.
          */
         const val COMPOSABLE_WORD = "composable"
+
+        /**
+         * The kind a package segment names, from the project's own words in [vocabulary] first, then from the
+         * defaults.
+         */
+        fun fromSegment(segment: String, vocabulary: Vocabulary): Kind? {
+            return when (segment) {
+                in vocabulary.entryPointWords -> ENTRY_POINT
+                in vocabulary.technologyWords -> IMPLEMENTATION
+                else -> entries.find { kind -> segment in kind.words }
+            }
+        }
     }
 }

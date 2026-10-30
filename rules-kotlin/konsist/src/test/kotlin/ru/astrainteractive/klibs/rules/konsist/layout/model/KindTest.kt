@@ -1,13 +1,11 @@
 @file:Suppress("FunctionNaming")
 
-package ru.astrainteractive.klibs.rules.konsist.layout.util
+package ru.astrainteractive.klibs.rules.konsist.layout.model
 
 import org.junit.jupiter.api.Test
-import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
-import ru.astrainteractive.klibs.rules.konsist.layout.model.Vocabulary
 import kotlin.test.assertEquals
 
-internal class VocabularyExtTest {
+internal class KindTest {
 
     @Test
     fun GIVEN_project_words_WHEN_segments_looked_up_THEN_they_join_the_default_kinds() {
@@ -33,7 +31,7 @@ internal class VocabularyExtTest {
                 "model",
                 "rating",
                 "jail"
-            ).map(vocabulary::kindOf)
+            ).map { segment -> Kind.fromSegment(segment, vocabulary) }
         )
     }
 }
