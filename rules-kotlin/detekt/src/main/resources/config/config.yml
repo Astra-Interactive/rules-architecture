@@ -10,6 +10,8 @@ architecture:
     active: true
   BooleanOperatorWrapping:
     active: true
+  CallbackDeclaration:
+    active: true
   CalleeBeforeCaller:
     active: true
   CompanionFactoryFunction:

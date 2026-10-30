@@ -17,6 +17,7 @@ import ru.astrainteractive.klibs.rules.coroutine.detekt.SingleJobLaunchMode
 import ru.astrainteractive.klibs.rules.coroutine.detekt.StateFlowTimeout
 import ru.astrainteractive.klibs.rules.coroutine.detekt.ThreadPrimitive
 import ru.astrainteractive.klibs.rules.declaration.detekt.BareIdentifier
+import ru.astrainteractive.klibs.rules.declaration.detekt.CallbackDeclaration
 import ru.astrainteractive.klibs.rules.declaration.detekt.CompanionFactoryFunction
 import ru.astrainteractive.klibs.rules.declaration.detekt.DataClassDefaultValue
 import ru.astrainteractive.klibs.rules.declaration.detekt.LocalOrInnerClass
@@ -70,6 +71,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
                 ::ArgumentPerLine,
                 ::BareIdentifier,
                 ::BooleanOperatorWrapping,
+                ::CallbackDeclaration,
                 ::CalleeBeforeCaller,
                 ::CompanionFactoryFunction,
                 ::ComposableFileType,
