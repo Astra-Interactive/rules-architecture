@@ -12,6 +12,8 @@ architecture:
     active: true
   CallbackDeclaration:
     active: true
+  CallbackFlowShape:
+    active: true
   CalleeBeforeCaller:
     active: true
   CompanionFactoryFunction:
