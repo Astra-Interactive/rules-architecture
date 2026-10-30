@@ -16,6 +16,8 @@ architecture:
     active: true
   CalleeBeforeCaller:
     active: true
+  ClockSystemOutsideDi:
+    active: true
   CompanionFactoryFunction:
     active: true
   ComposableFileType:
