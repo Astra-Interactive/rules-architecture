@@ -56,6 +56,7 @@ internal class LambdaSingleIfGuardTest {
                     println(item)
                 }
                 items.forEach { }
+                items.forEach { item -> if (item < 0) throw IllegalStateException("Negative item") }
             }
         """.trimIndent()
 

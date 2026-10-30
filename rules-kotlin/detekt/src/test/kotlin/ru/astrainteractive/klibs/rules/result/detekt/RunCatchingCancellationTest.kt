@@ -29,14 +29,25 @@ internal class RunCatchingCancellationTest {
             fun test() = runTest {
                 runCatching { 1 }.propagateCancellationException().also { runCatching { 2 } }
             }
+
+            suspend fun loadWithOtherChecks(client: Client) {
+                runCatching { client.fetch() }.onFailure(::log)
+                runCatching { client.fetch() }.onFailure { error -> log(error) }
+                runCatching { client.fetch() }.onFailure { error -> if (error.isFatal) throw error }
+                runCatching { client.fetch() }.onFailure { error -> if (error !is CancellationException) throw error }
+                runCatching { client.fetch() }.onFailure { error -> if (error is IOException) throw error }
+                runCatching { client.fetch() }.onFailure { error -> if (error is CancellationException) log(error) }
+                runCatching { client.fetch() }.map { value -> value }
+            }
         """.trimIndent()
 
         val messages = rule.lint(code).map(Finding::message)
 
-        assertEquals(3, messages.size)
+        assertEquals(10, messages.size)
         assertEquals(
             "runCatching in coroutine code catches CancellationException: call .propagateCancellationException() " +
-                "right after it.",
+                "right after it, or without mikro .onFailure { error -> if (error is CancellationException) throw " +
+                "error }.",
             messages.first()
         )
     }
@@ -61,6 +72,20 @@ internal class RunCatchingCancellationTest {
             val topLevel = runCatching { 1 }
 
             suspend fun read() = listOf(1).map { value -> value }.let { values -> values.size }
+
+            suspend fun loadInline(client: Client): Result<Int> {
+                return runCatching { client.fetch() }
+                    .onFailure { error -> if (error is kotlinx.coroutines.CancellationException) throw error }
+            }
+
+            suspend fun loadInlineBlock(client: Client): Result<Int> {
+                return runCatching { client.fetch() }
+                    .onFailure { error ->
+                        if (error is CancellationException) {
+                            throw error
+                        }
+                    }
+            }
         """.trimIndent()
 
         assertEquals(0, rule.lint(code).size)
