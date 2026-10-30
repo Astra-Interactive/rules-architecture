@@ -25,6 +25,10 @@ internal class SystemTimeCallTest {
                 "where the code must be testable.",
             messages.first()
         )
+        assertEquals(
+            "Replace System.nanoTime() with TimeSource.Monotonic from kotlin.time to measure an elapsed time.",
+            messages.last()
+        )
     }
 
     @Test
