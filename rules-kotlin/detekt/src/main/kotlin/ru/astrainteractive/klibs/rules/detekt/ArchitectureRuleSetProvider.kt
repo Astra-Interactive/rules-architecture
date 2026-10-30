@@ -38,6 +38,7 @@ import ru.astrainteractive.klibs.rules.formatting.detekt.ArgumentPerLine
 import ru.astrainteractive.klibs.rules.formatting.detekt.BooleanOperatorWrapping
 import ru.astrainteractive.klibs.rules.formatting.detekt.ExplicitInvoke
 import ru.astrainteractive.klibs.rules.formatting.detekt.ExpressionBodyOnOneLine
+import ru.astrainteractive.klibs.rules.formatting.detekt.GuardIfBraces
 import ru.astrainteractive.klibs.rules.formatting.detekt.OperatorBeforeTrailingCall
 import ru.astrainteractive.klibs.rules.injection.detekt.ConstructorDefaultDependency
 import ru.astrainteractive.klibs.rules.injection.detekt.DiModuleLifecycle
@@ -114,6 +115,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::FileLength,
             ::FunctionVerb,
             ::GetOrThrowInMain,
+            ::GuardIfBraces,
             ::ImplementationName,
             ::ImplicitItParameter,
             ::ImpureUpdateLambda,

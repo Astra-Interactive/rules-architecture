@@ -59,6 +59,8 @@ architecture:
     active: true
   GetOrThrowInMain:
     active: true
+  GuardIfBraces:
+    active: true
   ImplementationName:
     active: true
   ImplicitItParameter:
