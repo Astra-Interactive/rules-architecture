@@ -31,7 +31,7 @@ internal class IsolatedProjectsBuild(private val rootDirectory: File) {
 
     fun withModule(name: String, buildScript: String): IsolatedProjectsBuild {
         moduleNames.add(name)
-        writeFile("$name/build.gradle.kts", buildScript)
+        writeFile("${name.replace(':', '/')}/build.gradle.kts", buildScript)
         return this
     }
 

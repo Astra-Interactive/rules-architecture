@@ -16,10 +16,13 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
+import ru.astrainteractive.klibs.rules.structure.unit.structure.isPlatformUnitName
 import ru.astrainteractive.klibs.rules.structure.unit.structure.isTechnologyUnitName
 import java.io.File
 
 private const val ENTRY_POINT_PATH_PREFIX = ":instances:"
+
+private const val CORE_SEGMENT = "core"
 
 private val ENTRY_POINT_PLUGIN_IDS = listOf("application", "com.android.application")
 
@@ -47,6 +50,15 @@ private fun Project.isEntryPointByConvention(): Boolean {
 }
 
 /**
+ * A sub-context's platform unit (`gui/bukkit`) is wholly that platform; `core/bukkit` holds small platform pieces as
+ * packages of `core` and is not.
+ */
+private fun Project.isPlatformUnit(): Boolean {
+    val segments = path.split(':')
+    return isPlatformUnitName(segments.last()) && CORE_SEGMENT !in segments
+}
+
+/**
  * Call it only when a Kotlin plugin is applied.
  */
 internal fun Project.explicitApiMode(): String? {
@@ -64,6 +76,7 @@ internal fun Project.detectUnitKind(): UnitKind {
         unitName == UnitKind.CONTRACT.cliName -> UnitKind.CONTRACT
         isTechnologyUnitName(unitName) -> UnitKind.TECHNOLOGY
         isEntryPointByConvention() -> UnitKind.ENTRY_POINT
+        isPlatformUnit() -> UnitKind.TECHNOLOGY
         hasKotlinPlugin() && explicitApiMode() == "strict" -> UnitKind.LIBRARY
         else -> UnitKind.CONTEXT
     }

@@ -41,18 +41,26 @@ internal class ProjectExtTest {
             .withModule(name = "exposed", buildScript = unitKindScript("`java-library`"))
             .withModule(name = "memory", buildScript = unitKindScript("`java-library`"))
             .withModule(name = "jail", buildScript = unitKindScript("`java-library`"))
+            .withModule(name = "gui:bukkit", buildScript = unitKindScript("`java-library`"))
+            .withModule(name = "core:bukkit", buildScript = unitKindScript("`java-library`"))
+            .withModule(name = "instances:bukkit", buildScript = unitKindScript("`java-library`"))
         val modules = listOf(
             "api",
             "contract",
             "server",
             "exposed",
             "memory",
-            "jail"
+            "jail",
+            "gui:bukkit",
+            "core:bukkit",
+            "instances:bukkit"
         )
 
         build.run(*modules.map { module -> ":$module:reportUnitKind" }.toTypedArray())
 
-        val kinds = modules.map { module -> build.file("$module/build/unit-kind.txt").readText() }
+        val kinds = modules.map { module ->
+            build.file("${module.replace(':', '/')}/build/unit-kind.txt").readText()
+        }
         assertEquals(
             listOf(
                 "api",
@@ -60,7 +68,10 @@ internal class ProjectExtTest {
                 "entry-point",
                 "technology",
                 "technology",
-                "context"
+                "context",
+                "technology",
+                "context",
+                "entry-point"
             ),
             kinds
         )
