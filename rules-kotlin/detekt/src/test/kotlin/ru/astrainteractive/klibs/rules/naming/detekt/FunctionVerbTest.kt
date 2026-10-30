@@ -20,7 +20,10 @@ internal class FunctionVerbTest {
             fun doWork() = Unit
             fun processOrder() = Unit
             fun makeFoo() = Unit
-            fun toContentMap() = Unit
+
+            class Checkout {
+                fun getState(): Int = 0
+            }
         """.trimIndent()
 
         val messages = rule.lint(code).map(Finding::message)
@@ -41,12 +44,16 @@ internal class FunctionVerbTest {
     @Test
     fun GIVEN_allowed_names_and_exempt_functions_WHEN_linted_THEN_reports_nothing() {
         val code = """
-            class State : Source {
+            class CheckoutViewModel : Source {
                 override fun getValue(): String = ""
 
                 operator fun get(index: Int): Int = index
 
                 fun getState(): Int = 0
+
+                fun toContentMap(): Int = 0
+
+                fun buildDoHandler(): Int = 0
 
                 fun provideHandler(): Int = 0
 

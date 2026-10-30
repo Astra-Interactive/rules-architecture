@@ -7,11 +7,13 @@ import dev.detekt.api.Rule
 import dev.detekt.psi.hasAnnotation
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 
 /**
- * Reports a function named with a verb the verb table forbids: a `get` prefix (`getState` aside), and the words
- * `map`, `make`, `do`, `handle` and `process` as a camel-case word of the name. Overrides, `operator` functions,
- * DI `provide…` functions, `@Composable` and `@Test` functions keep their names.
+ * Reports a function whose first camel-case word is a verb the verb table forbids: `get`, `map`, `make`, `do`,
+ * `handle` or `process`; the same letters later in the name are not banned. `getState()` is allowed in a view model,
+ * its state accessor. Overrides, `operator` functions, DI `provide…` functions, `@Composable` and `@Test` functions
+ * keep their names.
  */
 internal class FunctionVerb(config: Config) : Rule(config, DESCRIPTION) {
 
@@ -22,13 +24,18 @@ internal class FunctionVerb(config: Config) : Rule(config, DESCRIPTION) {
         return EXEMPT_ANNOTATIONS.any(function::hasAnnotation)
     }
 
-    private fun findMessage(name: String): String? {
-        val words = name.split(WORD_START).filter(String::isNotEmpty).map(String::lowercase)
-        if (words.firstOrNull() == GET && name != GET_STATE) {
+    private fun isViewModelState(function: KtNamedFunction, name: String): Boolean {
+        val owner = function.containingClassOrObject?.name.orEmpty()
+        return name == GET_STATE && owner.endsWith(VIEW_MODEL_SUFFIX)
+    }
+
+    private fun findMessage(function: KtNamedFunction, name: String): String? {
+        val firstWord = name.split(WORD_START).firstOrNull(String::isNotEmpty)?.lowercase() ?: return null
+        if (firstWord == GET && !isViewModelState(function, name)) {
             return "Name '$name' with a verb that says what happens instead of 'get': find, load, resolve, " +
                 "build, compute or a val."
         }
-        val forbidden = words.firstOrNull { word -> word in FORBIDDEN_WORDS } ?: return null
+        val forbidden = firstWord.takeIf { word -> word in FORBIDDEN_WORDS } ?: return null
         return "Name '$name' without '$forbidden': use a verb that says what happens, such as to<Type>, " +
             "on<Event>, build, update or save."
     }
@@ -37,13 +44,14 @@ internal class FunctionVerb(config: Config) : Rule(config, DESCRIPTION) {
         super.visitNamedFunction(function)
         val name = function.name ?: return
         if (isExempt(function, name)) return
-        val message = findMessage(name) ?: return
+        val message = findMessage(function, name) ?: return
         report(Finding(Entity.atName(function), message))
     }
 
     private companion object {
         const val GET = "get"
         const val GET_STATE = "getState"
+        const val VIEW_MODEL_SUFFIX = "ViewModel"
         const val PROVIDE_PREFIX = "provide"
 
         @JvmField
