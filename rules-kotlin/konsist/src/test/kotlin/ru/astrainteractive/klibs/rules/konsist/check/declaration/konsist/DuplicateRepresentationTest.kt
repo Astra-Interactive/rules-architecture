@@ -65,4 +65,19 @@ internal class DuplicateRepresentationTest {
 
         assertEquals(emptyList(), DuplicateRepresentation().check(sources))
     }
+
+    @Test
+    fun GIVEN_technology_copy_of_a_dependency_model_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .dependency("x.data.dao.rating.model/Rating.kt", "data class Rating(val name: String, val value: Int)")
+            .dependency("x.data.room.model/RoomRow.kt", "data class RoomRow(val id: Long)")
+            .main("x.data.exposed.rating/RatingRow.kt", "data class RatingRow(val name: String, val value: Int)")
+            .main("x.data.exposed.rating/IdRow.kt", "data class IdRow(val id: Long)")
+            .load(UnitKind.TECHNOLOGY, rootPackage = "x.data.exposed")
+
+        assertEquals(
+            listOf("RatingRow"),
+            DuplicateRepresentation().check(sources).map(Violation::subject)
+        )
+    }
 }

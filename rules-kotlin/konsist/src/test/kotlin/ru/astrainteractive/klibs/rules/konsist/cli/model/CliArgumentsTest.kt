@@ -43,6 +43,8 @@ internal class CliArgumentsTest {
                 "mongo",
                 "--plural-concept",
                 "goods",
+                "--dependency",
+                "/data/dao/src/main/kotlin",
             )
         )
 
@@ -61,7 +63,8 @@ internal class CliArgumentsTest {
                     entryPointWords = setOf("slot", "router"),
                     technologyWords = setOf("mongo"),
                     pluralConcepts = setOf("goods")
-                )
+                ),
+                dependencyDirectories = listOf(File("/data/dao/src/main/kotlin"))
             ),
             arguments
         )

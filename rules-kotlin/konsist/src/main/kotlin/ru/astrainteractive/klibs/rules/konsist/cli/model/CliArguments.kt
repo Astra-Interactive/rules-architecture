@@ -7,7 +7,8 @@ import java.io.File
 /**
  * The options of the command line, each written as `--name value`; `--main` and `--test` may repeat and accept
  * either a directory or `sourceSet=directory`; `--entry-point-word`, `--technology-word` and `--plural-concept`
- * may repeat and add the project's own words to the defaults.
+ * may repeat and add the project's own words to the defaults; `--dependency` may repeat and names a main source
+ * directory of a unit this one depends on, whose models the checks compare with this unit's types.
  *
  * @property unitPath the Gradle path of the unit (`:modules:event-bukkit`), which finds the root package when
  * [rootPackage] is not given
@@ -22,7 +23,8 @@ internal data class CliArguments(
     val mainSourceSets: Map<String, File>,
     val testSourceSets: Map<String, File>,
     val reportFile: File,
-    val vocabulary: Vocabulary
+    val vocabulary: Vocabulary,
+    val dependencyDirectories: List<File>
 ) {
     companion object {
         const val PROJECT_DIR = "--project-dir"
@@ -35,6 +37,7 @@ internal data class CliArguments(
         const val ENTRY_POINT_WORD = "--entry-point-word"
         const val TECHNOLOGY_WORD = "--technology-word"
         const val PLURAL_CONCEPT = "--plural-concept"
+        const val DEPENDENCY = "--dependency"
 
         private val OPTIONS = setOf(
             PROJECT_DIR,
@@ -46,7 +49,8 @@ internal data class CliArguments(
             REPORT,
             ENTRY_POINT_WORD,
             TECHNOLOGY_WORD,
-            PLURAL_CONCEPT
+            PLURAL_CONCEPT,
+            DEPENDENCY
         )
 
         private fun Map<String, List<String>>.single(name: String): String? {
@@ -96,7 +100,8 @@ internal data class CliArguments(
                     entryPointWords = options[ENTRY_POINT_WORD].orEmpty().toSet(),
                     technologyWords = options[TECHNOLOGY_WORD].orEmpty().toSet(),
                     pluralConcepts = options[PLURAL_CONCEPT].orEmpty().toSet()
-                )
+                ),
+                dependencyDirectories = options[DEPENDENCY].orEmpty().map(::File)
             )
         }
     }

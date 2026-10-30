@@ -11,6 +11,7 @@ import java.io.File
 internal class SourceTree(private val projectDirectory: File) {
     val mainDirectory: File = File(projectDirectory, "src/main/kotlin")
     val testDirectory: File = File(projectDirectory, "src/test/kotlin")
+    private val dependencyDirectory: File = File(projectDirectory, "dependency/src/main/kotlin")
 
     private fun write(directory: File, packageName: String, fileName: String, code: String): SourceTree {
         val file = File(directory, "${packageName.replace('.', '/')}/$fileName")
@@ -29,6 +30,18 @@ internal class SourceTree(private val projectDirectory: File) {
             mainDirectory,
             packageName,
             fileName,
+            code
+        )
+    }
+
+    /**
+     * Writes [code] to a unit this one depends on, at [path] written as for [main].
+     */
+    fun dependency(path: String, code: String): SourceTree {
+        return write(
+            dependencyDirectory,
+            path.substringBefore('/'),
+            path.substringAfter('/'),
             code
         )
     }
@@ -92,7 +105,8 @@ internal class SourceTree(private val projectDirectory: File) {
             mainSourceSets = mapOf(mainSourceSet to main),
             testSourceSets = mapOf(testSourceSet to test),
             projectDirectory = projectDirectory,
-            vocabulary = vocabulary
+            vocabulary = vocabulary,
+            dependencyDirectories = listOf(dependencyDirectory)
         )
     }
 
@@ -111,7 +125,8 @@ internal class SourceTree(private val projectDirectory: File) {
             mainSourceSets = mapOf("main" to mainDirectory),
             testSourceSets = mapOf("test" to testDirectory),
             projectDirectory = projectDirectory,
-            vocabulary = vocabulary
+            vocabulary = vocabulary,
+            dependencyDirectories = listOf(dependencyDirectory)
         )
     }
 

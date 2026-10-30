@@ -30,6 +30,7 @@ internal class UnitSources(
     val mainDirectories: List<File>,
     val mainFiles: List<KoFileDeclaration>,
     val testFiles: List<KoFileDeclaration>,
+    val dependencyFiles: List<KoFileDeclaration>,
     private val mainSourceSets: Map<String, File>,
     private val testSourceSets: Map<String, File>,
     private val projectDirectory: File
@@ -42,6 +43,18 @@ internal class UnitSources(
         mainFiles
             .filterNot { file -> layout.placementOf(file.packageName)?.kind == Kind.MODEL }
             .any { file -> file.imports.any { import -> isComposeImport(import.importedName) } }
+    }
+
+    /**
+     * The files of the units this one depends on that sit in a `model` package outside any technology package: the
+     * models a type of this unit may copy or extend.
+     */
+    val dependencyModelFiles: List<KoFileDeclaration> by lazy {
+        dependencyFiles.filter { file ->
+            val segments = file.packageName.split('.')
+            val kinds = segments.map { segment -> Kind.fromSegment(segment, layout.vocabulary) }
+            Kind.MODEL in kinds && Kind.IMPLEMENTATION !in kinds
+        }
     }
 
     /**
@@ -223,7 +236,8 @@ internal class UnitSources(
             mainSourceSets: Map<String, File>,
             testSourceSets: Map<String, File>,
             projectDirectory: File,
-            vocabulary: Vocabulary
+            vocabulary: Vocabulary,
+            dependencyDirectories: List<File>
         ): UnitSources {
             val mainFiles = parse(mainDirectories)
             val packages = mainFiles.map(KoFileDeclaration::packageName).distinct()
@@ -241,6 +255,7 @@ internal class UnitSources(
                 mainDirectories = mainDirectories,
                 mainFiles = mainFiles,
                 testFiles = parse(testDirectories),
+                dependencyFiles = parse(dependencyDirectories),
                 mainSourceSets = mainSourceSets,
                 testSourceSets = testSourceSets,
                 projectDirectory = projectDirectory

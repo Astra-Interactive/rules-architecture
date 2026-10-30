@@ -10,8 +10,8 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
 /**
- * Reports a top-level function in `util` that takes exactly one parameter whose type is a model of the unit: a
- * rule about one type is an extension of that type.
+ * Reports a top-level function in `util` that takes exactly one parameter whose type is a model of the unit or of
+ * a unit it depends on (`AstraRatingConfig` of `core`): a rule about one type is an extension of that type.
  */
 internal class UtilFunctionAsExtension : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
@@ -19,6 +19,7 @@ internal class UtilFunctionAsExtension : ArchitectureCheck {
     override fun check(sources: UnitSources): List<Violation> {
         val modelNames = sources.mainFiles
             .filter { file -> sources.placementOf(file)?.kind == Kind.MODEL }
+            .plus(sources.dependencyModelFiles)
             .flatMap(KoFileDeclaration::topLevelTypeNames)
             .toSet()
         return sources.mainFiles

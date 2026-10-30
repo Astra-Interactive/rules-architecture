@@ -32,7 +32,8 @@ internal class PlatformPackageTest {
             mainSourceSets = emptyMap(),
             testSourceSets = emptyMap(),
             projectDirectory = directory,
-            vocabulary = SourceTree.NO_PROJECT_WORDS
+            vocabulary = SourceTree.NO_PROJECT_WORDS,
+            dependencyDirectories = emptyList()
         )
 
         assertEquals(
