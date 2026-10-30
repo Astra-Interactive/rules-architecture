@@ -248,7 +248,7 @@ val violations: List<StructureViolation> = checker.check(
 | Rule                           | Reports                                                                          |
 |--------------------------------|----------------------------------------------------------------------------------|
 | `ImplicitItParameter`          | the implicit lambda parameter `it`                                               |
-| `AnonymousTuple`               | `Pair` and `Triple` used as a type or constructed by name                        |
+| `AnonymousTuple`               | `Pair` and `Triple` used as a type, constructed by name, or made with `to` outside `mapOf(…)` |
 | `DataClassDefaultValue`        | a default value in a data class that is not `@Serializable`                      |
 | `ConstructorDefaultDependency` | a constructor default that creates a dependency, such as `= Foo()`               |
 | `TestFunctionName`             | a `@Test` not named `GIVEN_<state>_WHEN_<action>_THEN_<outcome>`                 |
