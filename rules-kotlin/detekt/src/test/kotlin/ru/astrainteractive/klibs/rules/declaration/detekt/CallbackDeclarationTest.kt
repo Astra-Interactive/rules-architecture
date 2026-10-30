@@ -53,6 +53,8 @@ internal class CallbackDeclarationTest {
             @Composable
             fun PaywallComposable(onClick: () -> Unit, onValueChange: (String) -> Unit) = Unit
 
+            fun Modifier.revealGesture(onReveal: () -> Unit): Modifier = this
+
             fun interface OnPaidCallback {
                 operator fun invoke(order: OrderId)
             }

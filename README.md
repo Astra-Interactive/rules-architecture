@@ -293,7 +293,7 @@ val violations: List<StructureViolation> = checker.check(
 | `ThreadPrimitive` | `Thread` constructed or used through its static members in the main sources |
 | `CallbackFlowShape` | a `callbackFlow` without `awaitClose`, a `launch { send(…) }` inside one, a `buffer(Channel.RENDEZVOUS)` or `buffer(0)` |
 | `SharedFlowEvent` | a `SharedFlow` property of a view model, a `MutableSharedFlow` without `extraBufferCapacity` fed through `tryEmit` |
-| `CallbackDeclaration` | an `on…` parameter or property of a function type outside a `@Composable`, an `…Listener` interface, an `…Callback` interface other than a Decompose `fun interface On…Callback` |
+| `CallbackDeclaration` | an `on…` parameter or property of a function type outside a `@Composable` and a `Modifier` factory, an `…Listener` interface, an `…Callback` interface other than a Decompose `fun interface On…Callback` |
 | `KDocFiller` | a KDoc filler phrase, a `@return` of "the result" or of the return type's own words, a `@param` whose words only repeat its name, a summary of more than four sentences |
 | `LambdaSingleIfGuard` | a lambda whose whole body is one `if` without `else`, unless the `if` only throws |
 | `OperatorBeforeTrailingCall` | arithmetic in parentheses before a call or property (`(a * b).sp`), a chain of `plus`/`minus`/`times`/`div`/`rem` calls |

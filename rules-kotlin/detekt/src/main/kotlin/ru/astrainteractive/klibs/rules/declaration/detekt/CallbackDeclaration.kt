@@ -16,10 +16,11 @@ import org.jetbrains.kotlin.psi.KtProperty
 import ru.astrainteractive.klibs.rules.detekt.util.isTestSource
 
 /**
- * Reports a callback the project declares in its own API: a parameter or property `on…` of a function type outside a
- * `@Composable` function, an `…Listener` interface, and an `…Callback` interface that is not the `fun interface
- * On<Event>Callback` of a Decompose component output. A result that arrives later is a `suspend` function, things
- * that happen are a `Flow`. An overridden declaration and the test sources are not judged.
+ * Reports a callback the project declares in its own API: a parameter or property `on…` of a function type outside
+ * a `@Composable` function and a `Modifier` factory, an `…Listener` interface, and an `…Callback` interface that is
+ * not the `fun interface On<Event>Callback` of a Decompose component output. A result that arrives later is a
+ * `suspend` function, things that happen are a `Flow`. An overridden declaration and the test sources are not
+ * judged.
  */
 internal class CallbackDeclaration(config: Config) : Rule(config, DESCRIPTION) {
 
@@ -46,6 +47,7 @@ internal class CallbackDeclaration(config: Config) : Rule(config, DESCRIPTION) {
         if (!isCallbackValue(parameter)) return
         val owner = parameter.ownerFunction as? KtNamedFunction
         if (owner?.hasAnnotation(COMPOSABLE) == true) return
+        if (owner?.receiverTypeReference?.text == MODIFIER) return
         reportValue(parameter)
     }
 
@@ -69,6 +71,7 @@ internal class CallbackDeclaration(config: Config) : Rule(config, DESCRIPTION) {
 
     private companion object {
         const val COMPOSABLE = "Composable"
+        const val MODIFIER = "Modifier"
         const val LISTENER_SUFFIX = "Listener"
         const val CALLBACK_SUFFIX = "Callback"
 
