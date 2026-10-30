@@ -37,6 +37,9 @@ internal class UnitDependencyDirectionTest {
             ":data:dao" to ":core",
             ":core" to ":",
             ":core:bukkit" to ":core:api",
+            ":core:ui" to ":core:api",
+            ":payment:impl" to ":core:ui",
+            ":dictionary:impl" to ":dictionary:contract",
             ":jail:fake" to ":jail:api"
         )
 
@@ -66,6 +69,8 @@ internal class UnitDependencyDirectionTest {
             ":dictionary:contract" to ":core",
             ":core" to ":jail:api",
             ":core:bukkit" to ":jail:api",
+            ":core:ui" to ":core:bukkit",
+            ":payment:api" to ":core:ui",
             ":jail:fake" to ":economy:api"
         )
 

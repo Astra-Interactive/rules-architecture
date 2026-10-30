@@ -4,6 +4,8 @@ import ru.astrainteractive.klibs.rules.structure.unit.model.BuildUnit
 import ru.astrainteractive.klibs.rules.structure.unit.structure.isTechnologyUnitName
 
 internal object UnitDependencyDirection {
+    private const val DESIGN_SYSTEM_NAME = "ui"
+
     private val platforms = setOf(
         "bukkit",
         "bungee",
@@ -27,12 +29,14 @@ internal object UnitDependencyDirection {
         CONTRACT,
         CORE_API,
         CORE_PLATFORM,
+        CORE_UI,
         FAKE
     }
 
     private fun coreKindOf(name: String): Kind {
         return when {
             name in platforms -> Kind.CORE_PLATFORM
+            name == DESIGN_SYSTEM_NAME -> Kind.CORE_UI
             isTechnologyUnitName(name) -> Kind.TECHNOLOGY
             else -> Kind.CORE_API
         }
@@ -63,6 +67,7 @@ internal object UnitDependencyDirection {
                 Kind.API,
                 Kind.CORE_API,
                 Kind.CORE_PLATFORM,
+                Kind.CORE_UI,
                 Kind.STORAGE_CONTRACT,
                 Kind.CONTRACT
             )
@@ -72,7 +77,12 @@ internal object UnitDependencyDirection {
                 Kind.STORAGE_CONTRACT,
                 Kind.CONTRACT
             )
-            Kind.IMPL -> setOf(Kind.API, Kind.CORE_API)
+            Kind.IMPL -> setOf(
+                Kind.API,
+                Kind.CORE_API,
+                Kind.CORE_UI,
+                Kind.CONTRACT
+            )
             Kind.TECHNOLOGY -> setOf(
                 Kind.STORAGE_CONTRACT,
                 Kind.CONTRACT,
@@ -80,7 +90,7 @@ internal object UnitDependencyDirection {
             )
             Kind.STORAGE_CONTRACT -> setOf(Kind.CORE_API)
             Kind.CORE_API, Kind.CONTRACT -> emptySet()
-            Kind.CORE_PLATFORM -> setOf(Kind.CORE_API)
+            Kind.CORE_PLATFORM, Kind.CORE_UI -> setOf(Kind.CORE_API)
             Kind.FAKE -> setOf(Kind.API)
         }
     }
