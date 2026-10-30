@@ -1,3 +1,6 @@
+// A Gradle plugin is the composition root of its build: it registers the build services it shares.
+@file:Suppress("KindImportDirection")
+
 package ru.astrainteractive.klibs.rules.gradle.linter.plugin.gradle
 
 import dev.detekt.gradle.Detekt

@@ -12,12 +12,13 @@ import ru.astrainteractive.klibs.rules.konsist.layout.util.describe
 
 /**
  * Checks the direction table of `arch-context.md` through imports and fully qualified references between kinds:
- * `model` depends on nothing of its level, contracts on `model`, use cases on contracts, `model` and `util`,
- * implementations on contracts, `model`, `util` and their own technology packages, entry points on use cases and
- * contracts, `theme` on `model`, and nothing depends on `di`. `util` and the entry points also reach `theme`, which
- * only a Compose unit has, and in a unit that is wholly one technology `util` reaches its `table`, `entity` and
- * `database`. The sub-packages of `composable` import each other, except that a screen is used only by what hosts
- * or opens it: another screen, a component's `Render()`, a router, and `di`.
+ * `model` on `model`, contracts on `model`, use cases on contracts, `model` and `util`, implementations on those and
+ * their own technology packages, entry points on use cases, contracts, `model` and `util`, `theme` on `model`, and
+ * nothing on `di`; `util` and the entry points also reach `theme`, and `util` of a one-technology unit its `table`,
+ * `entity` and `database`. Entry points import each other only between UI kinds (`component`, `composable`, `gui`,
+ * `slot`, the project's own words), and a router's implementation reaches the UI kinds it opens.
+ *
+ * A screen is used only by what hosts or opens it: another screen, a component's `Render()`, a router, and `di`.
  *
  * Imports that leave the unit, and packages of no known kind, are not judged.
  */
@@ -27,7 +28,7 @@ internal class KindImportDirection : ArchitectureCheck {
     private fun allowedTargets(from: Kind): Set<Kind> {
         return when (from) {
             Kind.MODEL -> setOf(Kind.MODEL)
-            Kind.CONTRACT -> setOf(Kind.MODEL, Kind.CONTRACT)
+            Kind.CONTRACT -> setOf(Kind.MODEL)
             Kind.USECASE -> setOf(
                 Kind.MODEL,
                 Kind.CONTRACT,
@@ -50,7 +51,6 @@ internal class KindImportDirection : ArchitectureCheck {
                 Kind.CONTRACT,
                 Kind.UTIL,
                 Kind.USECASE,
-                Kind.ENTRY_POINT,
                 Kind.THEME
             )
             Kind.THEME -> setOf(Kind.MODEL, Kind.THEME)
@@ -62,9 +62,22 @@ internal class KindImportDirection : ArchitectureCheck {
         return placement.kindWord == Kind.COMPOSABLE_WORD && placement.subKind == SCREEN_SUB_KIND
     }
 
+    private fun isRouterImplementation(from: Placement, fromKind: Kind): Boolean {
+        return fromKind == Kind.IMPLEMENTATION && ROUTER_CONCEPT in from.concepts
+    }
+
+    private fun isUiKind(placement: Placement): Boolean {
+        return placement.kind == Kind.ENTRY_POINT && placement.kindWord !in PLATFORM_INVOKED_WORDS
+    }
+
     private fun isScreenHost(from: Placement, fromKind: Kind): Boolean {
-        if (fromKind == Kind.DI || isScreen(from)) return true
-        return from.subKind == null && from.kindWord in SCREEN_HOST_WORDS
+        if (fromKind == Kind.DI || isScreen(from) || isRouterImplementation(from, fromKind)) return true
+        return from.subKind == null && from.kindWord == COMPONENT_WORD
+    }
+
+    private fun isAllowedUiImport(from: Placement, fromKind: Kind, to: Placement): Boolean {
+        if (!isUiKind(to)) return false
+        return isUiKind(from) || isRouterImplementation(from, fromKind)
     }
 
     private fun isTechnologyStorage(sources: UnitSources, to: Placement): Boolean {
@@ -89,6 +102,12 @@ internal class KindImportDirection : ArchitectureCheck {
         val toKind = to.kind ?: return null
         if (toKind in allowedTargets(fromKind)) return null
         if (fromKind == Kind.UTIL && isTechnologyStorage(sources, to)) return null
+        val isUiImport = isAllowedUiImport(
+            from,
+            fromKind,
+            to
+        )
+        if (isUiImport) return null
         return "${from.describe()} must not import $importedName from ${to.describe()}: " +
             "a ${fromKind.name.lowercase()} kind depends on " +
             allowedTargets(fromKind).joinToString { kind -> kind.name.lowercase() } + " only."
@@ -129,8 +148,21 @@ internal class KindImportDirection : ArchitectureCheck {
         const val RULE = "KindImportDirection"
         const val SCREEN_SUB_KIND = "screen"
 
+        const val COMPONENT_WORD = "component"
+        const val ROUTER_CONCEPT = "router"
+
         @JvmField
-        val SCREEN_HOST_WORDS = setOf("component", "router")
+        val PLATFORM_INVOKED_WORDS = setOf(
+            "command",
+            "error",
+            "event",
+            "expansion",
+            "job",
+            "migration",
+            "route",
+            "service",
+            "warmup"
+        )
 
         @JvmField
         val TECHNOLOGY_STORAGE_WORDS = setOf(

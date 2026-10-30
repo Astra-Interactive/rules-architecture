@@ -49,7 +49,6 @@ internal enum class Kind(val words: Set<String>) {
             "menu",
             "migration",
             "route",
-            "router",
             "screen",
             "service",
             "slot",

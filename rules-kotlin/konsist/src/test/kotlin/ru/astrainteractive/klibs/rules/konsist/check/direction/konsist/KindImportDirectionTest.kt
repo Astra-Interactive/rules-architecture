@@ -163,6 +163,57 @@ internal class KindImportDirectionTest {
     }
 
     @Test
+    fun GIVEN_contracts_and_entry_points_importing_each_other_WHEN_checked_THEN_reports_all_but_ui_kinds(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.jail.jail.api/JailRepository.kt",
+                "import x.jail.cell.api.CellRepository\n\ninterface JailRepository"
+            )
+            .main("x.jail.cell.api/CellRepository.kt", "interface CellRepository")
+            .main("x.jail.jail.command/JailCommand.kt", "import x.jail.jail.event.JailListener\n\nclass JailCommand")
+            .main("x.jail.jail.event/JailListener.kt", "class JailListener")
+            .main("x.jail.jail.gui/JailGui.kt", "import x.jail.jail.slot.JailSlot\n\nclass JailGui")
+            .main("x.jail.jail.slot/JailSlot.kt", "import x.jail.jail.command.JailCommand\n\nclass JailSlot")
+            .load(UnitKind.CONTEXT, unitPath = ":jail")
+
+        assertEquals(
+            listOf(
+                "x.jail.cell.api.CellRepository",
+                "x.jail.jail.command.JailCommand",
+                "x.jail.jail.event.JailListener",
+            ),
+            KindImportDirection().check(sources).map(Violation::subject).sorted()
+        )
+    }
+
+    @Test
+    fun GIVEN_router_implementation_in_a_technology_unit_WHEN_checked_THEN_it_opens_ui_kinds_only(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.gui.bukkit.router",
+                "BukkitGuiRouter.kt",
+                """
+                import x.gui.bukkit.rating.gui.RatingsGui
+                import x.gui.bukkit.reload.command.ReloadCommand
+
+                internal class BukkitGuiRouter
+                """
+            )
+            .main("x.gui.bukkit.rating.gui/RatingsGui.kt", "internal class RatingsGui")
+            .main("x.gui.bukkit.reload.command/ReloadCommand.kt", "internal class ReloadCommand")
+            .load(UnitKind.TECHNOLOGY, unitPath = ":gui:bukkit")
+
+        assertEquals(
+            listOf("x.gui.bukkit.reload.command.ReloadCommand"),
+            KindImportDirection().check(sources).map(Violation::subject)
+        )
+    }
+
+    @Test
     fun GIVEN_violation_WHEN_reported_THEN_message_names_both_places_and_the_allowed_kinds(@TempDir directory: File) {
         val sources = SourceTree(directory)
             .main(
