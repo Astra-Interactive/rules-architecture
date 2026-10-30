@@ -4,6 +4,7 @@ package ru.astrainteractive.klibs.rules.konsist.cli.model
 
 import org.junit.jupiter.api.Test
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
+import ru.astrainteractive.klibs.rules.konsist.layout.model.Vocabulary
 import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -34,6 +35,14 @@ internal class CliArgumentsTest {
                 "/unit/src/jvmMain/kotlin",
                 "--test",
                 "/unit/src/test/kotlin",
+                "--entry-point-word",
+                "slot",
+                "--entry-point-word",
+                "router",
+                "--technology-word",
+                "mongo",
+                "--plural-concept",
+                "goods",
             )
         )
 
@@ -47,7 +56,12 @@ internal class CliArgumentsTest {
                 testDirectories = listOf(File("/unit/src/test/kotlin")),
                 mainSourceSets = emptyMap(),
                 testSourceSets = emptyMap(),
-                reportFile = File("/unit/report.tsv")
+                reportFile = File("/unit/report.tsv"),
+                vocabulary = Vocabulary(
+                    entryPointWords = setOf("slot", "router"),
+                    technologyWords = setOf("mongo"),
+                    pluralConcepts = setOf("goods")
+                )
             ),
             arguments
         )

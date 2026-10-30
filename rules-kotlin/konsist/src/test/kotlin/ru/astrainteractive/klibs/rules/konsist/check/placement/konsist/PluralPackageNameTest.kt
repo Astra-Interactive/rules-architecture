@@ -7,6 +7,7 @@ import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
+import ru.astrainteractive.klibs.rules.konsist.layout.model.Vocabulary
 import java.io.File
 import kotlin.test.assertEquals
 
@@ -45,7 +46,16 @@ internal class PluralPackageNameTest {
             .main("x.core.address.model/Address.kt", "class Address")
             .main("x.core.analysis.model/Analysis.kt", "class Analysis")
             .main("other.outside.records/Record.kt", "class Record")
-            .load(UnitKind.CONTEXT, rootPackage = "x.core")
+            .main("x.core.goods.model/Good.kt", "class Good")
+            .load(
+                UnitKind.CONTEXT,
+                rootPackage = "x.core",
+                vocabulary = Vocabulary(
+                    entryPointWords = emptySet(),
+                    technologyWords = emptySet(),
+                    pluralConcepts = setOf("goods")
+                )
+            )
 
         assertEquals(emptyList(), PluralPackageName().check(sources))
     }

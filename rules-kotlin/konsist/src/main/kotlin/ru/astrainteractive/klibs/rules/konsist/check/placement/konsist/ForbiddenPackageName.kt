@@ -7,6 +7,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.packageName
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
+import ru.astrainteractive.klibs.rules.konsist.layout.util.kindOf
 
 /**
  * Reports a package created inside a unit with a word from the forbidden list of the package-layout rule. The
@@ -17,8 +18,8 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 internal class ForbiddenPackageName : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
 
-    private fun isTechnologyWord(segment: String): Boolean {
-        return Kind.fromSegment(segment) == Kind.IMPLEMENTATION
+    private fun isTechnologyWord(sources: UnitSources, segment: String): Boolean {
+        return sources.layout.vocabulary.kindOf(segment) == Kind.IMPLEMENTATION
     }
 
     private fun findForbidden(sources: UnitSources, segments: List<String>): List<String> {
@@ -26,7 +27,7 @@ internal class ForbiddenPackageName : ArchitectureCheck {
             if (segment in FORBIDDEN) return@filterIndexed true
             if (segment !in TECHNOLOGY_ONLY) return@filterIndexed false
             val isInTechnology = sources.kind == UnitKind.TECHNOLOGY
-            val followsTechnology = segments.take(index).any(::isTechnologyWord)
+            val followsTechnology = segments.take(index).any { previous -> isTechnologyWord(sources, previous) }
             !isInTechnology && !followsTechnology
         }
     }

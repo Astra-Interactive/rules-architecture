@@ -14,6 +14,8 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Placement
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitLayout
+import ru.astrainteractive.klibs.rules.konsist.layout.model.Vocabulary
+import ru.astrainteractive.klibs.rules.konsist.layout.util.kindOf
 import java.io.File
 
 /**
@@ -167,14 +169,14 @@ internal class UnitSources(
                 ?.let { start -> start + sequence.size }
         }
 
-        private fun detectRootPackage(packages: Collection<String>, unitPath: String?): String {
+        private fun detectRootPackage(packages: Collection<String>, unitPath: String?, vocabulary: Vocabulary): String {
             if (packages.isEmpty()) return ""
             val prefix = commonPrefix(packages)
             val unitEnd = unitPath?.let { path ->
                 unitNameCandidates(path).firstNotNullOfOrNull { sequence -> firstEndOf(prefix, sequence) }
             }
             if (unitEnd != null) return prefix.take(unitEnd).joinToString(".")
-            val lastKind = prefix.lastOrNull()?.let(Kind::fromSegment)
+            val lastKind = prefix.lastOrNull()?.let(vocabulary::kindOf)
             val isSingleKindPackage = packages.toSet().size == 1 && lastKind != null
             val root = if (isSingleKindPackage) prefix.dropLast(1) else prefix
             return root.joinToString(".")
@@ -189,10 +191,19 @@ internal class UnitSources(
             packages: Collection<String>,
             rootPackage: String?,
             unitPath: String?,
-            unitKind: UnitKind
+            unitKind: UnitKind,
+            vocabulary: Vocabulary
         ): UnitLayout {
-            val root = rootPackage ?: detectRootPackage(packages, unitPath)
-            return UnitLayout(root, unitKind)
+            val root = rootPackage ?: detectRootPackage(
+                packages,
+                unitPath,
+                vocabulary
+            )
+            return UnitLayout(
+                root,
+                unitKind,
+                vocabulary
+            )
         }
 
         private fun parse(directories: List<File>): List<KoFileDeclaration> {
@@ -212,7 +223,8 @@ internal class UnitSources(
             testDirectories: List<File>,
             mainSourceSets: Map<String, File>,
             testSourceSets: Map<String, File>,
-            projectDirectory: File
+            projectDirectory: File,
+            vocabulary: Vocabulary
         ): UnitSources {
             val mainFiles = parse(mainDirectories)
             val packages = mainFiles.map(KoFileDeclaration::packageName).distinct()
@@ -220,7 +232,8 @@ internal class UnitSources(
                 packages,
                 rootPackage,
                 unitPath,
-                kind
+                kind,
+                vocabulary
             )
             return UnitSources(
                 kind = kind,

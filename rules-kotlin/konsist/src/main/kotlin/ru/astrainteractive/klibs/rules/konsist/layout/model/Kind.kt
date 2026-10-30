@@ -67,7 +67,5 @@ internal enum class Kind(val words: Set<String>) {
          * Compose's `composable`, the one kind that may hold sub-packages.
          */
         const val COMPOSABLE_WORD = "composable"
-
-        fun fromSegment(segment: String): Kind? = entries.find { kind -> segment in kind.words }
     }
 }

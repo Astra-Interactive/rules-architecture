@@ -2,6 +2,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.model
 
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
+import ru.astrainteractive.klibs.rules.konsist.layout.model.Vocabulary
 import java.io.File
 
 /**
@@ -79,6 +80,7 @@ internal class SourceTree(private val projectDirectory: File) {
     }
 
     fun loadSourceSets(kind: UnitKind, mainSourceSet: String, testSourceSet: String): UnitSources {
+        val vocabulary = NO_PROJECT_WORDS
         val main = File(projectDirectory, "src/$mainSourceSet/kotlin")
         val test = File(projectDirectory, "src/$testSourceSet/kotlin")
         return UnitSources.load(
@@ -89,11 +91,17 @@ internal class SourceTree(private val projectDirectory: File) {
             testDirectories = listOf(test),
             mainSourceSets = mapOf(mainSourceSet to main),
             testSourceSets = mapOf(testSourceSet to test),
-            projectDirectory = projectDirectory
+            projectDirectory = projectDirectory,
+            vocabulary = vocabulary
         )
     }
 
-    fun load(kind: UnitKind, rootPackage: String? = null, unitPath: String? = null): UnitSources {
+    fun load(
+        kind: UnitKind,
+        rootPackage: String? = null,
+        unitPath: String? = null,
+        vocabulary: Vocabulary = NO_PROJECT_WORDS
+    ): UnitSources {
         return UnitSources.load(
             kind = kind,
             rootPackage = rootPackage,
@@ -102,7 +110,16 @@ internal class SourceTree(private val projectDirectory: File) {
             testDirectories = listOf(testDirectory),
             mainSourceSets = mapOf("main" to mainDirectory),
             testSourceSets = mapOf("test" to testDirectory),
-            projectDirectory = projectDirectory
+            projectDirectory = projectDirectory,
+            vocabulary = vocabulary
+        )
+    }
+
+    companion object {
+        val NO_PROJECT_WORDS = Vocabulary(
+            entryPointWords = emptySet(),
+            technologyWords = emptySet(),
+            pluralConcepts = emptySet()
         )
     }
 }

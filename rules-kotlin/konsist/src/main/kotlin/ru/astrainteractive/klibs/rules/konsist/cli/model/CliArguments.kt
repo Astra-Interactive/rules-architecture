@@ -1,11 +1,13 @@
 package ru.astrainteractive.klibs.rules.konsist.cli.model
 
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
+import ru.astrainteractive.klibs.rules.konsist.layout.model.Vocabulary
 import java.io.File
 
 /**
  * The options of the command line, each written as `--name value`; `--main` and `--test` may repeat and accept
- * either a directory or `sourceSet=directory`.
+ * either a directory or `sourceSet=directory`; `--entry-point-word`, `--technology-word` and `--plural-concept`
+ * may repeat and add the project's own words to the defaults.
  *
  * @property unitPath the Gradle path of the unit (`:modules:event-bukkit`), which finds the root package when
  * [rootPackage] is not given
@@ -19,7 +21,8 @@ internal data class CliArguments(
     val testDirectories: List<File>,
     val mainSourceSets: Map<String, File>,
     val testSourceSets: Map<String, File>,
-    val reportFile: File
+    val reportFile: File,
+    val vocabulary: Vocabulary
 ) {
     companion object {
         const val PROJECT_DIR = "--project-dir"
@@ -29,6 +32,9 @@ internal data class CliArguments(
         const val MAIN = "--main"
         const val TEST = "--test"
         const val REPORT = "--report"
+        const val ENTRY_POINT_WORD = "--entry-point-word"
+        const val TECHNOLOGY_WORD = "--technology-word"
+        const val PLURAL_CONCEPT = "--plural-concept"
 
         private val OPTIONS = setOf(
             PROJECT_DIR,
@@ -37,7 +43,10 @@ internal data class CliArguments(
             UNIT_PATH,
             MAIN,
             TEST,
-            REPORT
+            REPORT,
+            ENTRY_POINT_WORD,
+            TECHNOLOGY_WORD,
+            PLURAL_CONCEPT
         )
 
         private fun Map<String, List<String>>.single(name: String): String? {
@@ -82,7 +91,12 @@ internal data class CliArguments(
                 testDirectories = options[TEST].orEmpty().map(::sourceDirectory),
                 mainSourceSets = sourceSets(options[MAIN].orEmpty()),
                 testSourceSets = sourceSets(options[TEST].orEmpty()),
-                reportFile = File(options.required(REPORT))
+                reportFile = File(options.required(REPORT)),
+                vocabulary = Vocabulary(
+                    entryPointWords = options[ENTRY_POINT_WORD].orEmpty().toSet(),
+                    technologyWords = options[TECHNOLOGY_WORD].orEmpty().toSet(),
+                    pluralConcepts = options[PLURAL_CONCEPT].orEmpty().toSet()
+                )
             )
         }
     }

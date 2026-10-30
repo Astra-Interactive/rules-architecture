@@ -46,7 +46,8 @@ import ru.astrainteractive.klibs.rules.konsist.cli.model.CliArguments
  *
  * Options: `--project-dir`, `--unit-kind` (`context`, `library`, `api`, `contract`, `entry-point`,
  * `technology`), `--report`, an optional `--unit-path` or `--root-package`, and any number of `--main` and
- * `--test` source directories, written as `sourceSet=path` when source-set mirroring should be checked.
+ * `--test` source directories, written as `sourceSet=path` when source-set mirroring should be checked, and any
+ * number of `--entry-point-word`, `--technology-word` and `--plural-concept` for the project's own words.
  */
 public fun main(args: Array<String>) {
     val arguments = CliArguments.parse(args.toList())
@@ -58,7 +59,8 @@ public fun main(args: Array<String>) {
         testDirectories = arguments.testDirectories,
         mainSourceSets = arguments.mainSourceSets,
         testSourceSets = arguments.testSourceSets,
-        projectDirectory = arguments.projectDirectory
+        projectDirectory = arguments.projectDirectory,
+        vocabulary = arguments.vocabulary
     )
     val checker = ArchitectureChecker(
         listOf(
