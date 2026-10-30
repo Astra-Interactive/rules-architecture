@@ -307,7 +307,7 @@ val violations: List<StructureViolation> = checker.check(
 | `CallbackFlowShape` | a `callbackFlow` whose block does not end with `awaitClose` (it throws at run time), `launch { send }` inside it, a rendezvous `buffer`, a bridge shared with `shareIn`/`stateIn` not `WhileSubscribed()` |
 | `ChannelFlowShape` | a `channelFlow` that registers a listener without ending in `awaitClose`, or launches no coroutine of its own |
 | `SharedFlowEvent` | a `SharedFlow` property of a view model, a `MutableSharedFlow` without `extraBufferCapacity` fed through `tryEmit` |
-| `CallbackDeclaration` | an `on…` parameter or property of a function type outside a `@Composable` and a `Modifier` factory, an `…Listener` interface, an `…Callback` interface other than a Decompose `fun interface On…Callback` |
+| `CallbackDeclaration` | an `on…` parameter or property of a function type outside a `@Composable` and a `Modifier` factory, an `…Listener` interface, an `…Callback` interface other than a Decompose `fun interface On…Callback`; a top-level `On…Callback` output not nested in its component |
 | `KDocFiller` | a KDoc filler phrase, a `@return` of "the result" or of the return type's own words, a `@param` whose words only repeat its name, a summary of more than four sentences |
 | `LambdaSingleIfGuard` | a lambda whose whole body is one `if` without `else`, unless the `if` only throws |
 | `OperatorBeforeTrailingCall` | arithmetic in parentheses before a call or property (`(a * b).sp`), a chain of `plus`/`minus`/`times`/`div`/`rem` calls |
