@@ -20,6 +20,8 @@ architecture:
     active: true
   ComposableFileType:
     active: true
+  ComposableName:
+    active: true
   ComposableWhenBranch:
     active: true
   ComposeConstantCase:

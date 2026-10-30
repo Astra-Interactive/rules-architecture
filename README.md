@@ -10,7 +10,7 @@ sources and tell you which file breaks which rule and how to fix it.
 
 ## ✨ Features
 
-- **Per-file rules for detekt**: 54 custom rules plus settings for detekt's own rules, with IDE support and
+- **Per-file rules for detekt**: 55 custom rules plus settings for detekt's own rules, with IDE support and
   `@Suppress`.
 - **Cross-file checks with Konsist**: role import direction, use case shape, contract and implementation
   levels, DI placement, test mirroring and more.
@@ -269,6 +269,7 @@ val violations: List<StructureViolation> = checker.check(
 | `OneTypeFamilyPerFile` | a top-level function (a composable included) beside a top-level type, and a second class with behaviour in one file |
 | `ConstantOutsideCompanion` | a `const val` or literal `val` in a class body outside its companion, a `private object` of constants beside a type |
 | `ComposableFileType` | a class, interface or object in a file with a `@Composable` function, except a `*Defaults` object |
+| `ComposableName` | a `@Composable` that emits UI and whose name does not end in `Composable`, except previews, the theme function and an override such as `Render()` |
 | `ThemeObjectFunction` | a function inside an object of a `theme` package |
 | `ComposeConstantCase` | a `const val` not `UPPER_SNAKE` or a `val` not `PascalCase` in a composable or `theme` file |
 | `PreviewBlockLast` | a non-preview declaration after the first `@Preview`, a `@Preview` not named `…Preview` |
