@@ -49,4 +49,33 @@ internal class ClockSystemOutsideDiTest {
 
         assertEquals(emptyList(), rule.lint(code).map(Finding::message))
     }
+
+    @Test
+    fun GIVEN_clock_system_read_in_previews_WHEN_linted_THEN_reports_only_the_composable() {
+        val code = """
+            package com.example.rating.composable
+
+            import kotlin.time.Clock
+
+            @Composable
+            fun RatingWidgetComposable(time: Long) = Text(time.toString())
+
+            @Composable
+            fun ClockWidgetComposable() = Text(Clock.System.now().toString())
+
+            @Preview
+            @Composable
+            private fun RatingWidgetPreview() {
+                RatingWidgetComposable(time = Clock.System.now().toEpochMilliseconds())
+            }
+
+            @PreviewLightDark
+            @Composable
+            private fun RatingWidgetDarkPreview() {
+                RatingWidgetComposable(time = Clock.System.now().toEpochMilliseconds())
+            }
+        """.trimIndent()
+
+        assertEquals(1, rule.lint(code).size)
+    }
 }
