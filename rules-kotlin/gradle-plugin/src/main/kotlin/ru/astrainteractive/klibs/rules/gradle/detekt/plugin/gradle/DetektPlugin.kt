@@ -77,7 +77,7 @@ internal class DetektPlugin : Plugin<Project> {
                 "**/resources/**",
                 "**/build/**",
             )
-            task.exclude(NestedBuildSpec())
+            task.exclude(NestedBuildSpec)
 
             task.parallel.set(true)
 

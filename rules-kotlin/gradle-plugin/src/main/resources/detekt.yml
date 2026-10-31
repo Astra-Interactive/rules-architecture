@@ -445,6 +445,9 @@ potential-bugs:
     active: false
   UnconditionalJumpStatementInLoop:
     active: false
+  # Off in detekt's defaults; allRules turned it on, and the rules write assertEquals(expected, actual) unnamed.
+  UnnamedParameterUse:
+    active: false
   UnnecessaryNotNullCheck:
     active: false
   UnnecessaryNotNullOperator:
@@ -645,9 +648,6 @@ style:
   UnnecessaryInnerClass:
     active: false
   UnnecessaryLet:
-    active: false
-  # Off in detekt's defaults; allRules turned it on, and the rules write assertEquals(expected, actual) unnamed.
-  UnnamedParameterUse:
     active: false
   UnnecessaryParentheses:
     active: false

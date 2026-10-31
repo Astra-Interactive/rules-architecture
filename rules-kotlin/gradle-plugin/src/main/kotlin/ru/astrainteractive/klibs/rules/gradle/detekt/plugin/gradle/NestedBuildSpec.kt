@@ -9,20 +9,17 @@ import java.io.File
  * settings file, or a `.git` entry, as a worktree under `.claude/worktrees` has. The project's detekt leaves such a
  * directory to that build's own detekt.
  */
-internal class NestedBuildSpec : Spec<FileTreeElement> {
+internal object NestedBuildSpec : Spec<FileTreeElement> {
+    private val BUILD_MARKERS = listOf(
+        "build.gradle.kts",
+        "build.gradle",
+        "settings.gradle.kts",
+        "settings.gradle",
+        ".git"
+    )
+
     override fun isSatisfiedBy(element: FileTreeElement): Boolean {
         if (!element.isDirectory) return false
         return BUILD_MARKERS.any { marker -> File(element.file, marker).exists() }
-    }
-
-    private companion object {
-        @JvmField
-        val BUILD_MARKERS = listOf(
-            "build.gradle.kts",
-            "build.gradle",
-            "settings.gradle.kts",
-            "settings.gradle",
-            ".git"
-        )
     }
 }
