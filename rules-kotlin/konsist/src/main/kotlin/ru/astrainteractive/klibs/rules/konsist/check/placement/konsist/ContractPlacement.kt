@@ -15,10 +15,41 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
  * Reports a contract or an implementation in the wrong place: a top-level interface outside an `api` package, an
  * implementation of a contract inside `api` instead of its technology's package, and a package named `network`,
  * `local` or `remote`, which are not technology names. A sealed interface is a model family, a use case's interface
- * sits in `usecase`, a state holder's in `component` or `viewmodel`, and a DI module's in `di`.
+ * sits in `usecase`, a DI module's in `di`, and a state holder's (`…Component`, `…ViewModel`) in `component` or
+ * `viewmodel`, never in `api`. A Compose scope (`interface FilterCardScope : ColumnScope`) is the receiver of a
+ * composable's content, not a contract.
  */
 internal class ContractPlacement : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
+
+    private fun isComposeScope(file: KoFileDeclaration, declaration: KoInterfaceDeclaration): Boolean {
+        return declaration.parents().any { parent ->
+            val name = parent.name.substringBefore('<')
+            name.endsWith(SCOPE_SUFFIX) && file.imports.any { import ->
+                import.name.endsWith(".$name") && UnitSources.isComposeImport(import.name)
+            }
+        }
+    }
+
+    private fun stateHolderWord(declaration: KoInterfaceDeclaration): String? {
+        return STATE_HOLDER_SUFFIXES.entries
+            .firstOrNull { (suffix, _) -> declaration.name.endsWith(suffix) }
+            ?.value
+    }
+
+    private fun findMessage(declaration: KoInterfaceDeclaration, kindWord: String?, isInterfaceHome: Boolean): String? {
+        val stateHolderWord = stateHolderWord(declaration)
+        if (stateHolderWord != null) {
+            if (kindWord in STATE_HOLDER_WORDS) return null
+            return "Move ${declaration.name} to the $stateHolderWord package of its concept: a state holder's " +
+                "interface sits beside its Default… implementation, in the owner's api unit when another unit calls it."
+        }
+        if (isInterfaceHome) return null
+        if (declaration.name.endsWith(REPOSITORY_SUFFIX)) {
+            return "Move ${declaration.name} to the api package of the concept it stores."
+        }
+        return "Move ${declaration.name} to the api package of its concept: a contract sits in api."
+    }
 
     private fun checkFile(sources: UnitSources, file: KoFileDeclaration, contractNames: Set<String>): List<Violation> {
         val placement = sources.placementOf(file)
@@ -26,13 +57,14 @@ internal class ContractPlacement : ArchitectureCheck {
         val isInterfaceHome = kind in INTERFACE_KINDS || placement?.kindWord in STATE_HOLDER_WORDS
         val contracts = file.interfaces(includeNested = false)
             .filterNot { declaration -> declaration.hasModifier(KoModifier.SEALED) }
-            .filterNot { isInterfaceHome || kind == null }
-            .map { declaration ->
-                val message = if (declaration.name.endsWith(REPOSITORY_SUFFIX)) {
-                    "Move ${declaration.name} to the api package of the concept it stores."
-                } else {
-                    "Move ${declaration.name} to the api package of its concept: a contract sits in api."
-                }
+            .filterNot { kind == null }
+            .filterNot { declaration -> isComposeScope(file, declaration) }
+            .mapNotNull { declaration ->
+                val message = findMessage(
+                    declaration,
+                    placement?.kindWord,
+                    isInterfaceHome
+                ) ?: return@mapNotNull null
                 sources.createViolation(
                     RULE,
                     file,
@@ -101,8 +133,16 @@ internal class ContractPlacement : ArchitectureCheck {
             Kind.DI
         )
 
+        const val SCOPE_SUFFIX = "Scope"
+
         @JvmField
         val STATE_HOLDER_WORDS = setOf("component", "viewmodel")
+
+        @JvmField
+        val STATE_HOLDER_SUFFIXES = mapOf(
+            "Component" to "component",
+            "ViewModel" to "viewmodel"
+        )
 
         @JvmField
         val VAGUE_TECHNOLOGIES = setOf(
