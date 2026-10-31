@@ -80,4 +80,22 @@ internal class ConstructorDefaultDependencyTest {
 
         assertEquals(0, rule.lintWithContext(environment, code).size)
     }
+
+    @Test
+    fun GIVEN_data_object_value_and_plain_object_defaults_WHEN_linted_THEN_reports_only_the_plain_object() {
+        val code = """
+            sealed interface Entry {
+                data object Pending : Entry
+            }
+
+            object DefaultRepository
+
+            class EntryHolder(
+                var entry: Entry = Entry.Pending,
+                private val repository: DefaultRepository = DefaultRepository
+            )
+        """.trimIndent()
+
+        assertEquals(1, rule.lintWithContext(environment, code).size)
+    }
 }
