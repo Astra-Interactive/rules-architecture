@@ -77,4 +77,24 @@ internal class RolelessClassNameTest {
 
         assertEquals(0, findings)
     }
+
+    @Test
+    fun GIVEN_type_named_like_its_supertype_WHEN_linted_THEN_reports_only_the_own_factory() {
+        val code = """
+            package com.example.towns.paging
+
+            data class TownyPageContext(val page: Int) : PageContext {
+                object Factory : PageContext.Factory<TownyPageContext> {
+                    override fun next(pageContext: TownyPageContext) = pageContext.copy(page = pageContext.page + 1)
+                }
+            }
+
+            class TownsFactory : PageContext.Factory<TownyPageContext>
+        """.trimIndent()
+
+        assertEquals(
+            listOf("TownsFactory"),
+            rule.lint(code).map { finding -> finding.message.substringAfter("'").substringBefore("'") }
+        )
+    }
 }

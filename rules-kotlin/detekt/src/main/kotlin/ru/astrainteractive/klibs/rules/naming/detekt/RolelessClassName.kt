@@ -13,12 +13,19 @@ import org.jetbrains.kotlin.psi.KtClassOrObject
  * Reports a type name the domain rule forbids or its kind places: the `Validator` and `Factory` suffixes
  * anywhere, and `WarmUp`, `Migration` and `ViewModel` outside the `warmup`, `migration` and `viewmodel` packages.
  * A `fun interface` named `…Factory` is the factory of a Decompose component that the no-callbacks rule shows,
- * not a factory class, and is not reported.
+ * not a factory class, and is not reported. Neither is a type named like the supertype it implements
+ * (`object Factory : PageContext.Factory<TownyPageContext>`): the library chose that name.
  */
 internal class RolelessClassName(config: Config) : Rule(config, DESCRIPTION) {
 
     private fun isFunInterface(declaration: KtClassOrObject): Boolean {
         return declaration is KtClass && declaration.isInterface() && declaration.hasModifier(KtTokens.FUN_KEYWORD)
+    }
+
+    private fun repeatsSupertype(declaration: KtClassOrObject, name: String): Boolean {
+        return declaration.superTypeListEntries.any { entry ->
+            entry.typeReference?.text.orEmpty().substringBefore('<').substringAfterLast('.') == name
+        }
     }
 
     private fun findMessage(declaration: KtClassOrObject, name: String, segments: List<String>): String? {
@@ -38,6 +45,7 @@ internal class RolelessClassName(config: Config) : Rule(config, DESCRIPTION) {
     override fun visitClassOrObject(classOrObject: KtClassOrObject) {
         super.visitClassOrObject(classOrObject)
         val name = classOrObject.name ?: return
+        if (repeatsSupertype(classOrObject, name)) return
         val segments = classOrObject.containingKtFile.packageFqName.pathSegments().map(Name::asString)
         val message = findMessage(
             classOrObject,
