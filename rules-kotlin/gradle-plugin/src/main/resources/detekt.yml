@@ -653,6 +653,7 @@ style:
     active: true
   UnusedPrivateFunction:
     active: true
+    ignoreAnnotated: [ '*Preview*' ]
   UnusedPrivateProperty:
     active: true
     allowedNames: 'ignored|expected|serialVersionUID'

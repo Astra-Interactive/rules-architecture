@@ -203,6 +203,34 @@ class DetektPluginTest {
         assertEquals("21", jvmTargetBuild(rootDirectory, script).reportedJvmTarget())
     }
 
+    @Test
+    fun GIVEN_unused_private_preview_WHEN_detekt_runs_THEN_reports_only_the_unused_helper(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            plugins {
+                id("org.jetbrains.kotlin.jvm")
+                id("ru.astrainteractive.klibs.rules.gradle.detekt")
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "library", buildScript = moduleScript)
+            .withSourceFile("library/src/main/kotlin/com/example/card/Card.kt", PREVIEW_SOURCE)
+
+        val result = build.runAndFail(":library:detektMain")
+
+        assertTrue(
+            result.output.contains("Private function `unusedHelper` is unused"),
+            "the unused helper was not reported:\n${result.output}"
+        )
+        assertTrue(
+            !result.output.contains("`CardPreview` is unused"),
+            "the preview was reported as unused:\n${result.output}"
+        )
+    }
+
     private companion object {
         const val CONFIG_REPORT_NAME = "detekt-config-path.txt"
 
@@ -212,5 +240,16 @@ class DetektPluginTest {
                 active: false
         """.trimIndent()
         const val JVM_TARGET_REPORT_NAME = "detekt-jvm-target.txt"
+
+        val PREVIEW_SOURCE = """
+            package com.example.card
+
+            annotation class PreviewLightDark
+
+            private fun unusedHelper() = Unit
+
+            @PreviewLightDark
+            private fun CardPreview() = Unit
+        """.trimIndent()
     }
 }
