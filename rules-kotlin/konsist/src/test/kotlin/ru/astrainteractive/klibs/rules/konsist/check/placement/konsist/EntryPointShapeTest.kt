@@ -69,7 +69,9 @@ internal class EntryPointShapeTest {
     }
 
     @Test
-    fun GIVEN_horologist_tile_service_outside_the_root_WHEN_checked_THEN_sends_it_to_the_root(@TempDir directory: File) {
+    fun GIVEN_horologist_tile_service_outside_the_root_WHEN_checked_THEN_sends_it_to_the_root(
+        @TempDir directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.wear.tile/StatusesTileService.kt", "class StatusesTileService : SuspendingTileService()")
             .load(UnitKind.ENTRY_POINT, rootPackage = "x.wear")
