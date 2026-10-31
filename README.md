@@ -72,6 +72,10 @@ plugins {
   or `detekt { config }`) is read after the bundled one, so its settings win.
 - Resolves types against the Kotlin JVM target of the project, or the JVM that runs Gradle when there is none.
   Set another target with `detektRules { jvmTarget.set("21") }`.
+- `detekt` and `detektFormat` read every `.kt` and `.kts` file of the project directory; the source-set tasks
+  (`detektMain`, `detektTest`, …) read only their source set, so each is resolved against its own classpath. No
+  task enters a directory that is a build or a checkout of its own (a Gradle build or settings file, or a `.git`
+  entry, such as a worktree under `.claude/worktrees`), nor `build` and `resources`.
 
 **Linter plugin.** Apply it instead of the detekt plugin.
 

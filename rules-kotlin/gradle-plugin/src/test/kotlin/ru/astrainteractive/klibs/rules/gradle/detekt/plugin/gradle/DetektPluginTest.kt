@@ -231,8 +231,65 @@ class DetektPluginTest {
         )
     }
 
+    @Test
+    fun GIVEN_worktree_inside_the_root_WHEN_root_detekt_runs_THEN_skips_the_worktree(@TempDir rootDirectory: File) {
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("""plugins { id("ru.astrainteractive.klibs.rules.gradle.detekt") }""")
+            .withSourceFile("Root.kt", "package com.example\n\nclass Root")
+            .withSourceFile(".claude/worktrees/copy/.git", "gitdir: /elsewhere")
+            .withSourceFile(".claude/worktrees/copy/build.gradle.kts", "plugins { }\n")
+            .withSourceFile(".claude/worktrees/copy/Copy.kt", "package com.example\n\nclass Copy")
+
+        val result = build.runAndFail(":detekt")
+
+        assertTrue(result.output.contains("Root.kt"), "the root file was not analysed:\n${result.output}")
+        assertTrue(!result.output.contains("Copy.kt"), "the worktree was analysed:\n${result.output}")
+    }
+
+    @Test
+    fun GIVEN_main_and_test_sources_WHEN_test_detekt_runs_THEN_analyses_only_the_test_sources(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            plugins {
+                id("org.jetbrains.kotlin.jvm")
+                id("ru.astrainteractive.klibs.rules.gradle.detekt")
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "library", buildScript = moduleScript)
+            .withSourceFile("library/src/main/kotlin/com/example/Main.kt", MAIN_SOURCE)
+            .withSourceFile("library/src/test/kotlin/com/example/MainTest.kt", TEST_SOURCE)
+
+        val result = build.runAndFail(":library:detektTest")
+
+        assertTrue(
+            result.output.contains("Private function `unusedTestHelper` is unused"),
+            "the test source was not analysed:\n${result.output}"
+        )
+        assertTrue(
+            !result.output.contains("Private function `unusedHelper` is unused"),
+            "the main source was analysed with the test classpath:\n${result.output}"
+        )
+    }
+
     private companion object {
         const val CONFIG_REPORT_NAME = "detekt-config-path.txt"
+
+        val MAIN_SOURCE = """
+            package com.example
+
+            private fun unusedHelper() = Unit
+        """.trimIndent()
+
+        val TEST_SOURCE = """
+            package com.example
+
+            private fun unusedTestHelper() = Unit
+        """.trimIndent()
 
         val PROJECT_CONFIG = """
             style:
