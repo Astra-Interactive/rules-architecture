@@ -3,6 +3,7 @@
 package ru.astrainteractive.klibs.rules.ordering.detekt
 
 import dev.detekt.api.Config
+import dev.detekt.api.Finding
 import dev.detekt.test.lint
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -105,5 +106,28 @@ internal class CalleeBeforeCallerTest {
         """.trimIndent()
 
         assertEquals(0, rule.lint(code).size)
+    }
+
+    @Test
+    fun GIVEN_cycle_through_three_functions_WHEN_linted_THEN_reports_only_the_call_outside_it() {
+        val code = """
+            class SoulsCommandExecutor {
+                fun execute(intent: Int) {
+                    open(intent)
+                    log()
+                }
+
+                fun open(intent: Int) = render(intent)
+
+                fun render(intent: Int) = execute(intent + 1)
+
+                fun log() = Unit
+            }
+        """.trimIndent()
+
+        assertEquals(
+            listOf("'execute' calls 'log', which is declared below it: move 'log' above 'execute'."),
+            rule.lint(code).map(Finding::message)
+        )
     }
 }

@@ -19,8 +19,9 @@ import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
  * Reports a function that calls a function of the same class or file declared below it.
  *
  * Calls are matched by name, and a call on another receiver counts only when a sibling extension has that name.
- * Recursion and mutual recursion are skipped, because no order satisfies them, and so is a name with an
- * overload declared above the caller. Property initializers are not checked: properties stay on top.
+ * Recursion and mutual recursion, through any number of functions, are skipped, because no order satisfies them,
+ * and so is a name with an overload declared above the caller. Property initializers are not checked: properties stay
+ * on top.
  */
 internal class CalleeBeforeCaller(config: Config) : Rule(config, DESCRIPTION) {
 
@@ -57,10 +58,20 @@ internal class CalleeBeforeCaller(config: Config) : Rule(config, DESCRIPTION) {
             )
         val calls = functions.map { function -> calledNames(function, extensionNames) }
 
+        val callsByName = functions.indices.groupBy(
+            keySelector = { index -> functions[index].name },
+            valueTransform = { index -> calls[index] }
+        ).mapValues { (_, called) -> called.flatten().toSet() }
+
         fun callsBack(calleeName: String, callerName: String): Boolean {
-            return functions.indices.any { index ->
-                functions[index].name == calleeName && callerName in calls[index]
+            val visited = mutableSetOf(calleeName)
+            val queue = ArrayDeque(listOf(calleeName))
+            while (queue.isNotEmpty()) {
+                val next = callsByName[queue.removeFirst()].orEmpty()
+                if (callerName in next) return true
+                next.filter(visited::add).forEach(queue::addLast)
             }
+            return false
         }
 
         functions.forEachIndexed { callerIndex, caller ->
