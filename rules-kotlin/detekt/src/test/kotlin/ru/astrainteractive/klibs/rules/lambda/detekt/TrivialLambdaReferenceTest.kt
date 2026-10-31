@@ -150,4 +150,25 @@ internal class TrivialLambdaReferenceTest {
             rule.lintWithContext(environment, code).map { finding -> finding.message }
         )
     }
+
+    @Test
+    fun GIVEN_java_getter_read_as_a_property_WHEN_linted_THEN_reports_only_the_kotlin_property() {
+        val code = """
+            import java.util.logging.LogRecord
+
+            class Shop(val name: String)
+
+            fun levels(records: List<LogRecord>) = records.map { record -> record.level }
+
+            fun names(shops: List<Shop>) = shops.map { shop -> shop.name }
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "Replace the lambda with the function reference <Type>::name: the lambda only passes its " +
+                    "parameters on."
+            ),
+            rule.lintWithContext(environment, code).map { finding -> finding.message }
+        )
+    }
 }

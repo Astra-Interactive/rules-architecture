@@ -9,6 +9,8 @@ import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaSyntheticJavaPropertySymbol
+import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
@@ -32,7 +34,8 @@ import ru.astrainteractive.klibs.rules.detekt.util.findCallName
  * It stays silent where a reference may not compile or may mean another function: for a `suspend` callee (resolved
  * in coroutine code, a `suspend` function or a coroutine builder's lambda, and declared `suspend` in the file
  * elsewhere), for a callee declared in the file more than once, and for type, named, spread or trailing-lambda
- * arguments, and for an extension declared as a member of a class, which no reference can name. A companion function
+ * arguments, for an extension declared as a member of a class, which no reference can name, and for a Java getter
+ * read as a property (`record.level`), whose reference does not compile. A companion function
  * of `Result` is suggested as an imported `::success`, since `Result::success` does not compile.
  */
 internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION), RequiresAnalysisApi {
@@ -78,7 +81,10 @@ internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION
         val callee = (selector as? KtCallExpression)?.calleeExpression?.text
         if (receiverName == names.firstOrNull()) {
             if (selector is KtNameReferenceExpression && names.size == 1) {
-                return Reference("<Type>::${selector.getReferencedName()}", null)
+                val isSyntheticJavaProperty = analyze(selector) {
+                    selector.mainReference.resolveToSymbol() is KaSyntheticJavaPropertySymbol
+                }
+                return Reference("<Type>::${selector.getReferencedName()}", null).takeUnless { isSyntheticJavaProperty }
             }
             if (selector !is KtCallExpression || !passesParameters(selector, names.drop(1))) return null
             return Reference("<Type>::$callee", selector)
