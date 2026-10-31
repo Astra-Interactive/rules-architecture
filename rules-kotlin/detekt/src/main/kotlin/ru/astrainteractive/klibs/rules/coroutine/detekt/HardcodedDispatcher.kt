@@ -27,7 +27,13 @@ import dev.detekt.api.config as ruleConfig
  * hands the dispatcher out (`override val IO = Dispatchers.IO`) and test sources are not judged.
  */
 internal class HardcodedDispatcher(config: Config) : Rule(config, DESCRIPTION), RequiresAnalysisApi {
-    private val dispatcherNames: List<String> by ruleConfig(listOf("IO", "Default", "Unconfined"))
+    private val dispatcherNames: List<String> by ruleConfig(
+        listOf(
+            "IO",
+            "Default",
+            "Unconfined"
+        )
+    )
 
     private fun isKotlinxDispatcher(expression: KtNameReferenceExpression): Boolean {
         val callableId = analyze(expression) {

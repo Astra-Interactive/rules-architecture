@@ -38,13 +38,34 @@ internal class HardcodedDispatcherTest {
                 "Take the Unconfined dispatcher from the injected dispatchers instead of Dispatchers.Unconfined: a " +
                     "class gets its dispatchers through the constructor, so a test can replace them.",
             ),
-            rule.lintWithContext(environment, code, COROUTINES).map(Finding::message)
+            rule.lintWithContext(
+                environment,
+                code,
+                COROUTINES
+            ).map(Finding::message)
         )
     }
 
     @Test
     fun GIVEN_injected_dispatchers_providers_and_di_WHEN_linted_THEN_reports_nothing() {
-        val injected = """
+        val findings = listOf(
+            INJECTED,
+            PROVIDER,
+            DI_MODULE
+        ).flatMap { code ->
+            rule.lintWithContext(
+                environment,
+                code,
+                COROUTINES,
+                DISPATCHERS_INTERFACES
+            )
+        }
+
+        assertEquals(emptyList(), findings.map(Finding::message))
+    }
+
+    private companion object {
+        val INJECTED = """
             package com.example.rating.command
 
             import com.example.core.coroutine.KotlinDispatchers
@@ -61,7 +82,8 @@ internal class HardcodedDispatcherTest {
                 fun read(other: KotlinDispatchers) = other.Default
             }
         """.trimIndent()
-        val provider = """
+
+        val PROVIDER = """
             package com.example.core.coroutine
 
             import kotlinx.coroutines.CoroutineDispatcher
@@ -80,7 +102,8 @@ internal class HardcodedDispatcherTest {
                     get() = Dispatchers.IO
             }
         """.trimIndent()
-        val di = """
+
+        val DI_MODULE = """
             package com.example.core.di
 
             import kotlinx.coroutines.CoroutineScope
@@ -91,19 +114,6 @@ internal class HardcodedDispatcherTest {
             }
         """.trimIndent()
 
-        val findings = listOf(injected, provider, di).flatMap { code ->
-            rule.lintWithContext(
-                environment,
-                code,
-                COROUTINES,
-                DISPATCHERS_INTERFACES
-            )
-        }
-
-        assertEquals(emptyList(), findings.map(Finding::message))
-    }
-
-    private companion object {
         val COROUTINES = """
             package kotlinx.coroutines
 
