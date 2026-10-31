@@ -470,6 +470,9 @@ potential-bugs:
 
 style:
   active: true
+  # Off in detekt's defaults; allRules turned it on, and it judges a block lambda by its first statement alone.
+  UnnecessaryAny:
+    active: false
   AlsoCouldBeApply:
     active: false
   BracesOnIfStatements:
