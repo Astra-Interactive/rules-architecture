@@ -25,8 +25,6 @@ architecture:
     active: true
   CompanionFactoryFunction:
     active: true
-  CompletableDeferredUse:
-    active: true
   ComposableFileType:
     active: true
   ComposableName:
@@ -47,13 +45,9 @@ architecture:
     active: true
   DurationOverloadCall:
     active: true
-  EventCollection:
-    active: true
   ExplicitInvoke:
     active: true
   ExpressionBodyOnOneLine:
-    active: true
-  FileLength:
     active: true
   FunctionVerb:
     active: true
@@ -129,8 +123,6 @@ architecture:
   ThreadPrimitive:
     active: true
   ThrowInsideRunCatching:
-    active: true
-  TimeAsPrimitive:
     active: true
   TrivialLambdaReference:
     active: true

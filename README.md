@@ -10,7 +10,7 @@ sources and tell you which file breaks which rule and how to fix it.
 
 ## ✨ Features
 
-- **Per-file rules for detekt**: 66 custom rules plus settings for detekt's own rules, with IDE support and
+- **Per-file rules for detekt**: 62 custom rules plus settings for detekt's own rules, with IDE support and
   `@Suppress`.
 - **Cross-file checks with Konsist**: role import direction, use case shape, contract and implementation
   levels, DI placement, test mirroring and more.
@@ -280,7 +280,6 @@ val violations: List<StructureViolation> = checker.check(
 | `DeclarationOrder`             | properties, secondary constructors, functions, `init` blocks, companion: out of this order; a top-level `PREVIEW_*`/`Preview*` fixture may follow the composables; anything after the companion object, nested types included |
 | `NamespaceObject`              | an `object` that only groups functions, except a Compose `<Component>Defaults`   |
 | `LocalOrInnerClass`            | a class inside a function body and an `inner class`                              |
-| `TimeAsPrimitive`              | a time-named value (`createdAt`, `timeoutMs`, `CARD_IN_MS`) typed as a number or a string, or inferred from such a literal |
 | `KDocHtmlTag`                  | Javadoc HTML (`<p>`, `<code>`) in KDoc                                           |
 | `ImplementationName`           | the `Impl` and `Interface` suffixes and the `I` prefix on an interface           |
 | `KindNameInPackage`            | `Service` outside a `service` package, `Model`/`Entity` in a `model` with no technology word (`exposed`, `room`, ...) before it, `Helper`/`Util`/`Manager` names |
@@ -291,14 +290,11 @@ val violations: List<StructureViolation> = checker.check(
 | `HardcodedDispatcher` | a dispatcher read from `kotlinx.coroutines.Dispatchers` (`IO`, `Default`, `Unconfined`) outside `di`, a provider's `override` property and tests, matched through the Analysis API; a dispatcher from any injected interface passes; replaces detekt's `InjectDispatcher` |
 | `PropertyReadBeforeDeclaration` | a property read while the object is constructed (an initializer, a delegate, an `init` block) before its declaration; lambdas, functions and `const val` are not judged; replaces detekt's `PropertyUsedBeforeDeclaration` |
 | `GuardIfBraces` | an `if` without `else` whose body is one `return` in braces, when it fits one line of 120 columns |
-| `EventCollection` | one-off `events` collected in `LaunchedEffect` without `withContext(Dispatchers.Main.immediate)`, or elsewhere without `repeatOnLifecycle` |
-| `CompletableDeferredUse` | a `CompletableDeferred` created and awaited in one function by the same coroutine (a gate awaited in a `launch`/`async` is allowed), or held in a property as a `Unit`/`Boolean` readiness flag |
 | `BridgeCleanup` | an `awaitClose` or `invokeOnCancellation` cleanup that assigns state declared outside its bridge (the `callbackFlow`/`suspendCancellableCoroutine` block) or calls `launch` |
 | `ExplicitInvoke` | a call `name(…)` of a parameter, property or local value instead of `name.invoke(…)` |
 | `FunctionVerb` | a function whose first word is `get` (but a view model's `getState`), `map`, `make`, `do`, `handle` or `process` |
 | `PropertyAsFunction` | a function with no parameters that only returns a property of its class or file |
 | `OneTypeFamilyPerFile` | a top-level function (a composable included) beside a top-level type, and a second class with behaviour in one file |
-| `FileLength` | a file that passes 400 lines |
 | `ConstantOutsideCompanion` | a `const val` or literal `val` in a class body outside its companion, a `private object` of constants beside a type |
 | `ComposableFileType` | a class, interface or object in a file with a `@Composable` function, except a `*Defaults` object |
 | `ComposableName` | a `@Composable` that emits UI and whose name does not end in `Composable`, except previews, the theme function and an override such as `Render()`; a `…ScreenComposable` in a file of another name; a theme function outside `<Theme>Composable.kt` |
@@ -378,15 +374,12 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `FakePlacement`        | a `Fake*` outside a `fake` package of the tests, or in the main sources outside a `<feature>/fake` unit, and a test fake of another unit's contract outside `testFixtures`, and a class other than a fake in a `<feature>/fake` unit |
 | `InMemoryPlacement`    | an `InMemory*` outside a `memory` package of the main sources                                              |
 | `SealedFamilyFile` | a class or object whose direct supertype is a sealed type declared in another file |
-| `StateTypePlacement`   | a `<Screen>State` declared in a UI kind (a state holder, a composable, a menu), nested in a type there or beside it, instead of its own file in `model` |
 | `NestedEnum` | a top-level enum used as the property type of exactly one class |
 | `UtilFileName` | a `util` file of one receiver's extensions not named `<Receiver>Ext.kt`, a file named `Utils.kt`, `Helpers.kt`, `Extensions.kt` and the like |
 | `UtilFunctionAsExtension` | a `util` function whose one parameter is a model of the unit or of a unit it depends on, instead of an extension |
 | `ImplementationVisibility` | a public class in a technology package or a technology unit's concept, outside a library, `core`, `stub` and `memory` |
 | `UseCaseAbstraction` | an interface or abstract class named `…UseCase` |
 | `AndroidNamespace` | an Android unit whose `namespace` differs from its root package |
-| `ApplicationKDoc` | KDoc outside a published library, other than a contract's failure case (`@return failure`, `@return null`, `@throws`) or a reason outside the code (a link, an issue key, a bug, workaround or quirk) |
-| `ContractName` | an `api` interface named `…Api`, `…Dao`, `…Storage` or `…Krate`, a `…Repository` extending a generic repository or `Crud` base |
 | `CoreShape` | a `…UseCase` class or a `…Repository` interface in a `core` unit |
 | `RootModulePlacement` | a `RootModule` outside the entry-point unit or its `di` package |
 | `EntryPointShape` | a file of an entry-point unit outside its root and its `di` package; a class the platform constructs (by its direct supertype) is sent to the root package, any other file out of the unit |
@@ -394,7 +387,6 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `ComposeKindWithoutCompose` | a `composable` or `theme` kind package in a unit that imports no Compose; the root package and concepts are not judged |
 | `PlatformPackage` | a package named after a platform (`android`, `ios`, `jvm`, …) in a unit with several main source sets |
 | `PluralPackageName` | a plural package name below the unit root, except an inherently plural concept (`news`, `settings`) |
-| `DuplicateRepresentation` | a technology data class with the same constructor parameter names as a `model` data class of the unit or of a unit it depends on |
 | `FieldDependencyConstruction` | a behaviour class of the unit, or a library class named for a dependency's role (`HttpClient`, `…Repository`, `…Gateway`, `…Database`, `…DataSource`), constructed outside `di`; a value holder (no supertype, no function body, no `init` block) is not a dependency |
 | `TestOwnerBehaviour` | a `<Owner>Test.kt` whose owner is a data class without a body or an enum without functions |
 

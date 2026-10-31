@@ -1,4 +1,4 @@
-@file:Suppress("FunctionNaming", "FileLength")
+@file:Suppress("FunctionNaming")
 
 package ru.astrainteractive.klibs.rules.konsist.check.direction.konsist
 

@@ -3,17 +3,13 @@
 package ru.astrainteractive.klibs.rules.konsist.cli.konsist
 
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.AnonymousProjectObject
-import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.ApplicationKDoc
-import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.ContractName
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.DiModuleVisibility
-import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.DuplicateRepresentation
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.EntryPointVisibility
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.FieldDependencyConstruction
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.ImplementationVisibility
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.NestedDataClass
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.NestedEnum
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.SealedFamilyFile
-import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.StateTypePlacement
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.ThemeVisibility
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.UseCaseAbstraction
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.UseCaseShape
@@ -75,15 +71,12 @@ public fun main(args: Array<String>) {
         listOf(
             AndroidNamespace(),
             AnonymousProjectObject(),
-            ApplicationKDoc(),
             ComposeKindWithoutCompose(),
-            ContractName(),
             ContractPlacement(),
             ContractUnitShape(),
             CoreShape(),
             DiModuleVisibility(),
             DiPlacement(),
-            DuplicateRepresentation(),
             EntryPointShape(),
             EntryPointVisibility(),
             ErrorPlacement(),
@@ -102,7 +95,6 @@ public fun main(args: Array<String>) {
             RootModulePlacement(),
             RootPackagePath(),
             SealedFamilyFile(),
-            StateTypePlacement(),
             TestMirror(),
             TestOwnerBehaviour(),
             ThemeVisibility(),

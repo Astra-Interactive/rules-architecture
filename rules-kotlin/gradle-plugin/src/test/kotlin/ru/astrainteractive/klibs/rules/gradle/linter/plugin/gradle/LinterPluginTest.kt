@@ -1,4 +1,4 @@
-@file:Suppress("FunctionNaming", "FileLength")
+@file:Suppress("FunctionNaming")
 
 package ru.astrainteractive.klibs.rules.gradle.linter.plugin.gradle
 
@@ -73,7 +73,7 @@ class LinterPluginTest {
     }
 
     @Test
-    fun GIVEN_technology_unit_copying_a_dependency_model_WHEN_architecture_checked_THEN_reports_the_copy(
+    fun GIVEN_storage_representation_matching_a_model_WHEN_architecture_checked_THEN_leaves_the_choice_to_review(
         @TempDir rootDirectory: File
     ) {
         val exposedScript = """
@@ -105,9 +105,7 @@ class LinterPluginTest {
                 """.trimIndent()
             )
 
-        val result = build.runAndFail(":modules:exposed:architectureCheck")
-
-        assertTrue(result.output.contains("RatingRow copies the fields of Rating"), result.output)
+        build.run(":modules:exposed:architectureCheck")
     }
 
     @Test
