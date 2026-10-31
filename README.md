@@ -385,8 +385,12 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 |------------------|----------------------------------------------------------------------------------------------|
 | `UnitDependency` | a project dependency outside the allowlist for the unit's kind in `arch-context.md` |
 | `UnitDependencyCycle` | a cycle in the complete project-unit graph (root Gradle plugin) |
+| `PluginImplUnit` | an `impl` unit in a build that has a platform unit, a plugin (root Gradle plugin) |
 | `UnitReadme`     | a unit without a `README.md` of one sentence                                                 |
 | `NestedUnit`     | a unit inside the directory of another unit                                                  |
+| `ContainerSources` | sources in a container directory above a unit (`modules/gui/src` above `modules/gui/api`) |
+| `UnitPath` | a sub-context unit at the root of the build instead of a container such as `modules` |
+| `PlatformSourceSetUnit` | a unit named after a Multiplatform target (`android`, `ios`, `jvm`, ...) instead of a source set |
 | `RootSources`    | sources in the root project                                                                  |
 | `EntryPointDependency` | a dependency on an entry-point unit (a path with the segment `instances`) |
 | `TechnologyDependency` | a technology dependency forbidden by the unit direction table, including unrelated technology units |

@@ -8,6 +8,7 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import ru.astrainteractive.klibs.rules.structure.graph.structure.EntryPointGraphDependency
+import ru.astrainteractive.klibs.rules.structure.graph.structure.PluginImplUnit
 import ru.astrainteractive.klibs.rules.structure.graph.structure.UnitDependencyCycle
 import ru.astrainteractive.klibs.rules.structure.unit.model.BuildUnit
 import ru.astrainteractive.klibs.rules.structure.unit.model.StructureViolation
@@ -34,7 +35,9 @@ internal abstract class ArchitectureGraphTask : DefaultTask() {
                 projectDependencies = parts.drop(2).toSet()
             )
         }
-        val violations = UnitDependencyCycle().check(units) + EntryPointGraphDependency().check(units)
+        val violations = UnitDependencyCycle().check(units) +
+            EntryPointGraphDependency().check(units) +
+            PluginImplUnit().check(units)
         if (violations.isEmpty()) return
         val message = violations.joinToString(separator = "\n", transform = StructureViolation::message)
         throw GradleException(message)

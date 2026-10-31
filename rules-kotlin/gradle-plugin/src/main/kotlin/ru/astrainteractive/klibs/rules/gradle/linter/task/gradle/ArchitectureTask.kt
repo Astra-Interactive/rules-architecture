@@ -24,9 +24,12 @@ import ru.astrainteractive.klibs.rules.structure.graph.structure.ApiUnitDependen
 import ru.astrainteractive.klibs.rules.structure.graph.structure.EntryPointDependency
 import ru.astrainteractive.klibs.rules.structure.graph.structure.TechnologyDependency
 import ru.astrainteractive.klibs.rules.structure.graph.structure.UnitDependency
+import ru.astrainteractive.klibs.rules.structure.nesting.structure.ContainerSources
 import ru.astrainteractive.klibs.rules.structure.nesting.structure.NestedUnit
+import ru.astrainteractive.klibs.rules.structure.nesting.structure.PlatformSourceSetUnit
 import ru.astrainteractive.klibs.rules.structure.nesting.structure.ProjectDirMatchesPath
 import ru.astrainteractive.klibs.rules.structure.nesting.structure.RootSources
+import ru.astrainteractive.klibs.rules.structure.nesting.structure.UnitPath
 import ru.astrainteractive.klibs.rules.structure.readme.structure.UnitReadme
 import ru.astrainteractive.klibs.rules.structure.unit.model.BuildUnit
 import ru.astrainteractive.klibs.rules.structure.unit.structure.StructureChecker
@@ -190,13 +193,16 @@ internal abstract class ArchitectureTask : DefaultTask() {
         val checker = StructureChecker(
             listOf(
                 ApiUnitDependency(),
+                ContainerSources(rootDirectory.get().asFile),
                 EntryPointDependency(),
                 NestedUnit(),
+                PlatformSourceSetUnit(),
                 ProjectDirMatchesPath(rootDirectory.get().asFile),
                 RootBuildSubprojects(),
                 RootSources(),
                 TechnologyDependency(),
                 UnitDependency(),
+                UnitPath(),
                 UnitReadme()
             )
         )
