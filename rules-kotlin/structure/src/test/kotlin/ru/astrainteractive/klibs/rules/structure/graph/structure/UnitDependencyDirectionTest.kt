@@ -120,7 +120,11 @@ internal class UnitDependencyDirectionTest {
                 emptyList(),
                 forbidden(
                     path,
-                    setOf(":services:core:common", ":services:core:resources", ":services:core:ui:theme")
+                    setOf(
+                        ":services:core:common",
+                        ":services:core:resources",
+                        ":services:core:ui:theme"
+                    )
                 ),
                 path
             )

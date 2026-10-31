@@ -7,8 +7,9 @@ import java.io.File
 /**
  * The options of the command line, each written as `--name value`; `--main` and `--test` may repeat and accept
  * either a directory or `sourceSet=directory`; `--entry-point-word`, `--technology-word`, `--plural-concept` and
- * `--platform-class` may repeat and add the project's own words to the defaults; `--dependency` may repeat and names a main source
- * directory of a unit this one depends on, whose models the checks compare with this unit's types;
+ * `--platform-class` may repeat and add the project's own words to the defaults; `--dependency` may repeat and
+ * names a main source directory of a unit this one depends on, whose models the checks compare with this unit's
+ * types;
  * `--android-namespace` is the `namespace` of an Android unit.
  *
  * @property unitPath the Gradle path of the unit (`:modules:event-bukkit`), which finds the root package when

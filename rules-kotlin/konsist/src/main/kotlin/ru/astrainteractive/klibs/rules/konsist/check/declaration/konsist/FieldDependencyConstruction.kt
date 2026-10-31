@@ -16,8 +16,8 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
  * constructors included: a concrete behaviour class of the unit, or a class of a library named for a dependency's
  * role (`HttpClient`, `…Repository`, `…Gateway`, `…Database`, `…DataSource`). Models and value holders are not
  * dependencies: a value holder is a class with no supertype, no function body and no `init` block, only values
- * (`private class Keys(key: String) { val queryKey = "${key}queryKey" }`). In an entry-point unit the platform main class builds `RootModule`, so the DI modules there are not
- * dependencies either.
+ * (`private class Keys(key: String) { val queryKey = "${key}queryKey" }`). In an entry-point unit the platform
+ * main class builds `RootModule`, so the DI modules there are not dependencies either.
  */
 internal class FieldDependencyConstruction : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()

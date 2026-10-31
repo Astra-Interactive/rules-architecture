@@ -49,20 +49,22 @@ internal class EntryPointShapeTest {
             .main("x.mobile.work/PingWorker.kt", "class PingWorker(c: Context, p: P) : CoroutineWorker(c, p)")
             .main("x.mobile.face/Face.kt", "class Face : WatchFaceService()")
             .main("x.mobile.service/StatusNotificationFactory.kt", "class StatusNotificationFactory")
-            .load(UnitKind.ENTRY_POINT, rootPackage = "x.mobile", vocabulary = vocabulary)
+            .load(
+                UnitKind.ENTRY_POINT,
+                rootPackage = "x.mobile",
+                vocabulary = vocabulary
+            )
 
-        val messages = EntryPointShape().check(sources).associate { violation ->
-            violation.subject to violation.message.substringBefore(':')
-        }
+        val messages = EntryPointShape().check(sources).map { violation -> violation.message.substringBefore(':') }
 
         assertEquals(
-            mapOf(
-                "App" to "Move App to the root package of the entry point",
-                "Face" to "Move Face to the root package of the entry point",
-                "PingWorker" to "Move PingWorker to the root package of the entry point",
-                "StatusNotificationFactory" to "Move StatusNotificationFactory out of the entry point"
+            listOf(
+                "Move App to the root package of the entry point",
+                "Move Face to the root package of the entry point",
+                "Move PingWorker to the root package of the entry point",
+                "Move StatusNotificationFactory out of the entry point"
             ),
-            messages
+            messages.sorted()
         )
     }
 }
