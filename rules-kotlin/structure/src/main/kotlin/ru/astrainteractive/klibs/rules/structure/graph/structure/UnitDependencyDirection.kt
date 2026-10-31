@@ -84,7 +84,8 @@ internal object UnitDependencyDirection {
             )
             Kind.STORAGE_CONTRACT -> setOf(Kind.CORE_API)
             Kind.CORE_API, Kind.CONTRACT -> emptySet()
-            Kind.CORE_PLATFORM, Kind.CORE_UI -> setOf(Kind.CORE_API)
+            Kind.CORE_PLATFORM -> setOf(Kind.CORE_API)
+            Kind.CORE_UI -> setOf(Kind.CORE_API, Kind.CORE_UI)
             Kind.FAKE -> setOf(Kind.API)
         }
     }

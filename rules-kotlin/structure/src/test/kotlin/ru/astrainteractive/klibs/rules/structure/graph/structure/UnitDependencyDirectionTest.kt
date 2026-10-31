@@ -108,7 +108,7 @@ internal class UnitDependencyDirectionTest {
     }
 
     @Test
-    fun GIVEN_design_system_split_into_units_WHEN_classified_THEN_each_depends_on_platform_free_core() {
+    fun GIVEN_design_system_split_into_units_WHEN_classified_THEN_each_depends_on_core_and_the_others() {
         val designSystemUnits = listOf(
             ":services:core:ui:common",
             ":services:core:ui:theme",
@@ -120,7 +120,7 @@ internal class UnitDependencyDirectionTest {
                 emptyList(),
                 forbidden(
                     path,
-                    setOf(":services:core:common", ":services:core:resources")
+                    setOf(":services:core:common", ":services:core:resources", ":services:core:ui:theme")
                 ),
                 path
             )

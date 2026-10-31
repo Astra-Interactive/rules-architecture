@@ -387,7 +387,7 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 
 | Check            | Reports                                                                                      |
 |------------------|----------------------------------------------------------------------------------------------|
-| `UnitDependency` | a project dependency outside the allowlist for the unit's kind in `arch-context.md`; every unit under `core/ui` counts as the design-system unit |
+| `UnitDependency` | a project dependency outside the allowlist for the unit's kind in `arch-context.md`; every unit under `core/ui` counts as the design-system unit and may depend on the others, cycles left to `UnitDependencyCycle` |
 | `UnitDependencyCycle` | a cycle in the complete project-unit graph (root Gradle plugin) |
 | `PluginImplUnit` | an `impl` unit in a build that has a platform unit, a plugin (root Gradle plugin) |
 | `UnitReadme`     | a unit without a `README.md` of one sentence                                                 |
