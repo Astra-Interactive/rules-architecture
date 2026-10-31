@@ -241,6 +241,7 @@ class LinterPluginTest {
 
             dependencies {
                 api("org.slf4j:slf4j-api:2.0.13")
+                api("org.jetbrains.kotlin:kotlin-stdlib:2.1.0")
                 api(gradleApi())
             }
         """.trimIndent()
@@ -259,6 +260,7 @@ class LinterPluginTest {
             "the api dependency was not reported:\n${result.output}"
         )
         assertTrue(!result.output.contains("null:unspecified"), result.output)
+        assertTrue(!result.output.contains("kotlin-stdlib"), result.output)
     }
 
     @Test

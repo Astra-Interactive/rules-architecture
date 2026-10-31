@@ -37,6 +37,10 @@ private const val PUBLISH_PLUGIN_ID = "maven-publish"
 
 private const val API_CONFIGURATION = "api"
 
+private const val KOTLIN_GROUP = "org.jetbrains.kotlin"
+
+private const val STDLIB_PREFIX = "kotlin-stdlib"
+
 private const val ANDROID_EXTENSION = "android"
 
 private const val NAMESPACE_GETTER = "getNamespace"
@@ -120,12 +124,21 @@ private fun dependencyNotation(dependency: Dependency): String {
     return (dependency as? ProjectDependency)?.path ?: "${dependency.group}:${dependency.name}"
 }
 
+/**
+ * The Kotlin Gradle plugin puts the standard library into `api` on its own (Android units see it there), and every
+ * Kotlin unit exports its types anyway, so it is no dependency a build file chose to export.
+ */
+private fun isStandardLibrary(dependency: Dependency): Boolean {
+    return dependency.group == KOTLIN_GROUP && dependency.name.startsWith(STDLIB_PREFIX)
+}
+
 private fun Project.apiDependencies(): List<String> {
     return configurations
         .filter { configuration -> isApiConfiguration(configuration.name) }
         .flatMap { configuration ->
             configuration.dependencies
                 .filterNot { dependency -> dependency.group == null && dependency.name == "unspecified" }
+                .filterNot(::isStandardLibrary)
                 .map { dependency -> "${configuration.name}: ${dependencyNotation(dependency)}" }
         }
         .sorted()
