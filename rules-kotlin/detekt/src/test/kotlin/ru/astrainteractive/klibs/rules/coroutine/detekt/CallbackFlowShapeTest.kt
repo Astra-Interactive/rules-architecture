@@ -16,8 +16,7 @@ internal class CallbackFlowShapeTest {
         val code = """
             fun ExoPlayer.asStates(): Flow<Int> {
                 return callbackFlow {
-                    addListener(listener)
-                    launch { send(1) }
+                    addListener { state -> launch { send(state) } }
                 }.buffer(Channel.RENDEZVOUS)
             }
 
@@ -109,5 +108,20 @@ internal class CallbackFlowShapeTest {
         """.trimIndent()
 
         assertEquals(0, rule.lint(code).size)
+    }
+
+    @Test
+    fun GIVEN_launch_of_the_producer_block_itself_WHEN_linted_THEN_reports_nothing() {
+        val code = """
+            fun Jda.sessions(): Flow<Jda> = callbackFlow {
+                launch {
+                    val ready = awaitReady()
+                    send(ready)
+                }
+                awaitClose { shutdown() }
+            }
+        """.trimIndent()
+
+        assertEquals(emptyList(), rule.lint(code).map(Finding::message))
     }
 }

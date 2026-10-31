@@ -7,16 +7,18 @@ import dev.detekt.api.Rule
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtExpression
+import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtLambdaExpression
 import org.jetbrains.kotlin.psi.KtTryExpression
 import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
+import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 
 /**
  * Reports a callback bridge out of the no-callbacks shape: a `callbackFlow` whose block does not end with
  * `awaitClose { … }` (or `try { … awaitClose() } finally { … }`), which throws `IllegalStateException` at run time
- * when the block completes and leaks the listener; a `launch { send }` inside it, which loses the order and starts a
- * coroutine per event; a `buffer(Channel.RENDEZVOUS)` or `buffer(0)`, which can deadlock the producer; and a bridge
+ * when the block completes and leaks the listener; a `launch { send }` inside a callback of it, which loses the
+ * order and starts a coroutine per event (a `launch` of the producer block itself runs once and is not judged); a `buffer(Channel.RENDEZVOUS)` or `buffer(0)`, which can deadlock the producer; and a bridge
  * shared with `shareIn`/`stateIn` started otherwise than `SharingStarted.WhileSubscribed()`.
  */
 internal class CallbackFlowShape(config: Config) : Rule(config, DESCRIPTION) {
@@ -27,6 +29,10 @@ internal class CallbackFlowShape(config: Config) : Rule(config, DESCRIPTION) {
 
     private fun callsNamed(lambda: KtLambdaExpression, name: String): List<KtCallExpression> {
         return lambda.collectDescendantsOfType<KtCallExpression> { call -> call.calleeExpression?.text == name }
+    }
+
+    private fun isInCallback(launch: KtCallExpression, producer: KtLambdaExpression): Boolean {
+        return launch.getStrictParentOfType<KtFunction>() != producer.functionLiteral
     }
 
     private fun isAwaitClose(statement: KtExpression?): Boolean {
@@ -75,6 +81,7 @@ internal class CallbackFlowShape(config: Config) : Rule(config, DESCRIPTION) {
             report(Finding(Entity.from(call), message))
         }
         callsNamed(lambda, LAUNCH)
+            .filter { launch -> isInCallback(launch, lambda) }
             .filter { launch -> lambdaOf(launch)?.let { body -> callsNamed(body, SEND).isNotEmpty() } == true }
             .forEach { launch ->
                 val message = "Call trySend(value) from the callback instead of launch { send(value) }: a coroutine " +

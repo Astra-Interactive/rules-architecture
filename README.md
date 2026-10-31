@@ -317,7 +317,7 @@ val violations: List<StructureViolation> = checker.check(
 | `RunTestResult` | a `@Test` that calls `runTest` without declaring `TestResult` and returning `runTest { … }` from a block body; `= runTest { }` is reported too |
 | `RunBlockingOutsideBoundary` | `runBlocking` in the main sources outside a top-level `main` function and outside a technology package |
 | `ThreadPrimitive` | `Thread` constructed or used through its static members in the main sources |
-| `CallbackFlowShape` | a `callbackFlow` whose block does not end with `awaitClose` (it throws at run time), `launch { send }` inside it, a rendezvous `buffer`, a bridge shared with `shareIn`/`stateIn` not `WhileSubscribed()` |
+| `CallbackFlowShape` | a `callbackFlow` whose block does not end with `awaitClose` (it throws at run time), `launch { send }` in a callback of it (not in the producer block itself), a rendezvous `buffer`, a bridge shared with `shareIn`/`stateIn` not `WhileSubscribed()` |
 | `ChannelFlowShape` | a `channelFlow` that registers a listener without ending in `awaitClose`, or launches no coroutine of its own |
 | `SharedFlowEvent` | a `SharedFlow` property of a view model, a `MutableSharedFlow` without `extraBufferCapacity` fed through `tryEmit` |
 | `CallbackDeclaration` | an `on…` parameter or property of a function type outside a `@Composable` and a `Modifier` factory, an `…Listener` interface, an `…Callback` interface other than a Decompose `fun interface On…Callback`; a top-level `On…Callback` output not nested in its component |
