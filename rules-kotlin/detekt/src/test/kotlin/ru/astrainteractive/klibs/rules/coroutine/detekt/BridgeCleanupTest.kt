@@ -59,4 +59,17 @@ internal class BridgeCleanupTest {
 
         assertEquals(0, rule.lint(code).size)
     }
+
+    @Test
+    fun GIVEN_cleanup_assigning_a_variable_of_its_own_bridge_WHEN_linted_THEN_reports_nothing() {
+        val code = """
+            fun LifecycleManager.events(): Flow<Event> = callbackFlow {
+                var isEnabled = true
+                registerEventHandler { event -> if (isEnabled) trySend(event) }
+                awaitClose { isEnabled = false }
+            }
+        """.trimIndent()
+
+        assertEquals(0, rule.lint(code).size)
+    }
 }

@@ -11,16 +11,20 @@ import org.jetbrains.kotlin.psi.KtLambdaExpression
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
+import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 
 /**
  * Reports a bridge cleanup out of shape: the lambda of `awaitClose` or `invokeOnCancellation` that assigns state
- * declared outside it, which races with the next registration under `flatMapLatest`, or that calls `launch`, which
- * dies silently on the cancelled scope. The cleanup removes only what its bridge registered.
+ * declared outside its bridge, which races with the next registration under `flatMapLatest`, or that calls `launch`,
+ * which dies silently on the cancelled scope. The bridge is the block that holds the cleanup (the `callbackFlow`,
+ * `channelFlow` or `suspendCancellableCoroutine` lambda): a variable declared there belongs to this one registration.
+ * The cleanup removes only what its bridge registered.
  */
 internal class BridgeCleanup(config: Config) : Rule(config, DESCRIPTION) {
 
-    private fun assignedOutside(lambda: KtLambdaExpression): List<KtBinaryExpression> {
-        val declared = lambda.collectDescendantsOfType<KtProperty>().mapNotNull(KtProperty::getName).toSet()
+    private fun assignedOutside(cleanup: KtCallExpression, lambda: KtLambdaExpression): List<KtBinaryExpression> {
+        val bridge = cleanup.getStrictParentOfType<KtLambdaExpression>() ?: lambda
+        val declared = bridge.collectDescendantsOfType<KtProperty>().mapNotNull(KtProperty::getName).toSet()
         return lambda.collectDescendantsOfType<KtBinaryExpression> { expression ->
             expression.operationToken in KtTokens.ALL_ASSIGNMENTS
         }.filter { expression ->
@@ -34,7 +38,7 @@ internal class BridgeCleanup(config: Config) : Rule(config, DESCRIPTION) {
         val name = expression.calleeExpression?.text
         if (name !in CLEANUP_CALLS) return
         val lambda = expression.lambdaArguments.firstOrNull()?.getLambdaExpression() ?: return
-        assignedOutside(lambda).forEach { assignment ->
+        assignedOutside(expression, lambda).forEach { assignment ->
             val assigned = assignment.left?.text
             val message = "Keep the $name cleanup to what this bridge registered: it assigns '$assigned' declared " +
                 "outside it, which races with the next registration."
