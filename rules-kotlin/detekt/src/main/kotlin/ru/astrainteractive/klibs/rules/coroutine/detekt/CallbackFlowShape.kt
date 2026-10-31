@@ -96,12 +96,27 @@ internal class CallbackFlowShape(config: Config) : Rule(config, DESCRIPTION) {
         return argument.getArgumentExpression()?.text in RENDEZVOUS_CAPACITIES
     }
 
+    private fun isCallbackBridgeBuffer(call: KtCallExpression): Boolean {
+        val qualified = call.parent as? KtDotQualifiedExpression ?: return false
+        if (qualified.selectorExpression != call) return false
+        return generateSequence(qualified.receiverExpression) { receiver ->
+            (receiver as? KtDotQualifiedExpression)?.receiverExpression
+        }.any { receiver ->
+            val producer = when (receiver) {
+                is KtCallExpression -> receiver
+                is KtDotQualifiedExpression -> receiver.selectorExpression as? KtCallExpression
+                else -> null
+            }
+            producer?.calleeExpression?.text == CALLBACK_FLOW
+        }
+    }
+
     override fun visitCallExpression(expression: KtCallExpression) {
         super.visitCallExpression(expression)
         when (expression.calleeExpression?.text) {
             CALLBACK_FLOW -> checkCallbackFlow(expression)
             BUFFER -> {
-                if (expression.valueArguments.none(::isRendezvous)) return
+                if (!isCallbackBridgeBuffer(expression) || expression.valueArguments.none(::isRendezvous)) return
                 val message = "Keep the default buffer, Channel.UNLIMITED or conflate() instead of a rendezvous " +
                     "buffer: the producer can deadlock and trySend fails while the collector is busy."
                 report(Finding(Entity.from(expression), message))

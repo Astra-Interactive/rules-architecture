@@ -12,7 +12,7 @@ internal class SingleJobLaunchModeTest {
     private val rule = SingleJobLaunchMode(Config.empty)
 
     @Test
-    fun GIVEN_unguarded_launches_WHEN_linted_THEN_reports_each() {
+    fun GIVEN_single_job_launch_without_mode_WHEN_linted_THEN_reports_only_that_launch() {
         val code = """
             class PaywallViewModel {
                 private val purchaseScope = viewModelScope.asSingleJobScope()
@@ -36,11 +36,6 @@ internal class SingleJobLaunchModeTest {
             listOf(
                 "Pass the SingleJobMode to 'purchaseScope.launch': skip while running for a purchase, cancel the " +
                     "previous for a search; never leave it to the default.",
-                "Guard this launch against a second click: launch on a single-job scope " +
-                    "('viewModelScope.asSingleJobScope()' with a SingleJobMode), or claim the state with " +
-                    "getAndUpdate first.",
-                "Guard this launch against a second click: launch on a single-job scope " +
-                    "('scope.asSingleJobScope()' with a SingleJobMode), or claim the state with getAndUpdate first.",
             ),
             messages
         )
@@ -62,6 +57,12 @@ internal class SingleJobLaunchModeTest {
 
                 fun onPurchase() {
                     purchaseScope.launch(SingleJobMode.SKIP_IF_RUNNING) { purchase() }
+                    val selectedMode = SingleJobMode.SKIP_IF_RUNNING
+                    purchaseScope.launch(selectedMode) { purchase() }
+                    purchaseScope.launch(mode = selectedMode) { purchase() }
+                    val previous = state.getAndUpdate { current -> current.startPayment() ?: current }
+                    val claimed = previous.startPayment() ?: return
+                    viewModelScope.launch { purchase(claimed) }
                     plainScope.launch { purchase() }
                     otherScope.launch { purchase() }
                     topScope.launch { purchase() }

@@ -296,8 +296,8 @@ val violations: List<StructureViolation> = checker.check(
 | `PropertyAsFunction` | a function with no parameters that only returns a property of its class or file |
 | `OneTypeFamilyPerFile` | a top-level function (a composable included) beside a top-level type, and a second class with behaviour in one file |
 | `ConstantOutsideCompanion` | a `const val` or literal `val` in a class body outside its companion, a `private object` of constants beside a type |
-| `ComposableFileType` | a class, interface or object in a file with a `@Composable` function, except a `*Defaults` object |
-| `ComposableName` | a `@Composable` that emits UI and whose name does not end in `Composable`, except previews, the theme function and an override such as `Render()`; a `…ScreenComposable` in a file of another name; a theme function outside `<Theme>Composable.kt` |
+| `ComposableFileType` | a class, interface or object beside a top-level `@Composable`, except a public component Defaults object; component member Render is allowed |
+| `ComposableName` | a `@Composable` that emits UI and whose name does not end in `Composable`, except previews, the theme function, overrides and a component contract or implementation Render; a `…ScreenComposable` in a file of another name; a theme function outside `<Theme>Composable.kt` |
 | `ThemeObjectFunction` | a function inside an object of a `theme` package |
 | `ComposeConstantCase` | a `const val` not `UPPER_SNAKE` or a `val` not `PascalCase` in a composable or `theme` file |
 | `PreviewBlockLast` | a non-preview declaration after the first `@Preview`, a preview helper above the code of the file, a `@Preview` not named `…Preview` |
@@ -305,7 +305,7 @@ val violations: List<StructureViolation> = checker.check(
 | `ActualFileSuffix` | a file with an `actual` declaration whose name has no platform suffix (`Name.android.kt`) |
 | `MutableStateFlowEmit` | `emit`/`tryEmit` on a property declared or initialised as a `MutableStateFlow` |
 | `ImpureUpdateLambda` | an assignment to an outer name inside the lambda of `update`, `getAndUpdate` or `updateAndGet` |
-| `SingleJobLaunchMode` | a launch on a single-job scope without a `SingleJobMode`, an unguarded launch in an `on…` handler of a view model or component |
+| `SingleJobLaunchMode` | a launch on a directly declared single-job scope without an explicit mode; atomic claims and mutex guards of ordinary scopes are reviewed |
 | `StateFlowTimeout` | `StateFlow.first()` inside `withTimeout` or `withTimeoutOrNull` |
 | `ThrowInsideRunCatching` | a `throw` inside the lambda of `runCatching`, `mapCatching` or `recoverCatching` |
 | `RunCatchingCancellation` | a `runCatching` in a `suspend` function or coroutine lambda not followed by `.propagateCancellationException()` or the inline `onFailure` check for `CancellationException` |
@@ -322,9 +322,9 @@ val violations: List<StructureViolation> = checker.check(
 | `RunTestResult` | a `@Test` that calls `runTest` without declaring `TestResult` and returning `runTest { … }` from a block body; `= runTest { }` is reported too |
 | `RunBlockingOutsideBoundary` | `runBlocking` in the main sources outside a top-level `main` function and outside a technology package |
 | `ThreadPrimitive` | `Thread` constructed or used through its static members in the main sources |
-| `CallbackFlowShape` | a `callbackFlow` whose block does not end with `awaitClose` (it throws at run time), `launch { send }` in a callback of it (not in the producer block itself), a rendezvous `buffer`, a bridge shared with `shareIn`/`stateIn` not `WhileSubscribed()` |
+| `CallbackFlowShape` | a `callbackFlow` whose block does not end with `awaitClose` (it throws at run time), `launch { send }` in a callback of it (not in the producer block itself), a rendezvous `buffer` on a callbackFlow chain, a bridge shared with `shareIn`/`stateIn` not `WhileSubscribed()` |
 | `ChannelFlowShape` | a `channelFlow` that registers a listener without ending in `awaitClose`, or launches no coroutine of its own (a `flow { }`, or a `callbackFlow` when it waits in `awaitClose`) |
-| `SharedFlowEvent` | a `SharedFlow` property of a view model, a `MutableSharedFlow` without `extraBufferCapacity` fed through `tryEmit` |
+| `SharedFlowEvent` | a `MutableSharedFlow` without explicit `extraBufferCapacity` fed through `tryEmit`; broadcast versus one-off UI semantics are reviewed |
 | `CallbackDeclaration` | an `on…` parameter or property of a function type outside a `@Composable` and a `Modifier` factory, an `…Listener` interface, an `…Callback` interface other than a Decompose `fun interface On…Callback`; a top-level `On…Callback` output not nested in its component |
 | `KDocFiller` | a KDoc filler phrase, a `@return` of "the result" or of the return type's own words, a `@param` whose words only repeat its name, a summary of more than four sentences |
 | `LambdaSingleIfGuard` | a lambda whose whole body is one `if` without `else`, unless the `if` only throws |
@@ -388,7 +388,7 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `PlatformPackage` | a package named after a platform (`android`, `ios`, `jvm`, …) in a unit with several main source sets |
 | `PluralPackageName` | a plural package name below the unit root, except an inherently plural concept (`news`, `settings`) |
 | `FieldDependencyConstruction` | a behaviour class of the unit, or a library class named for a dependency's role (`HttpClient`, `…Repository`, `…Gateway`, `…Database`, `…DataSource`), constructed outside `di`; a value holder (no supertype, no function body, no `init` block) is not a dependency |
-| `TestOwnerBehaviour` | a `<Owner>Test.kt` whose owner is a data class without a body or an enum without functions |
+| `TestOwnerBehaviour` | a `<Owner>Test.kt` whose owner is a data class or enum without functions or init validation; invariant tests are allowed |
 
 ### Structure checks
 

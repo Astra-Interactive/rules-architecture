@@ -25,7 +25,7 @@ internal class RunTestResult(config: Config) : Rule(config, DESCRIPTION) {
 
     private fun returnsRunTest(function: KtNamedFunction): Boolean {
         val body = function.bodyExpression as? KtBlockExpression ?: return false
-        val statement = body.statements.singleOrNull() as? KtReturnExpression ?: return false
+        val statement = body.statements.lastOrNull() as? KtReturnExpression ?: return false
         return isRunTest(statement.returnedExpression)
     }
 
@@ -35,7 +35,7 @@ internal class RunTestResult(config: Config) : Rule(config, DESCRIPTION) {
         val body = function.bodyExpression ?: return
         val callsRunTest = body.collectDescendantsOfType<KtCallExpression>().any(::isRunTest)
         if (!callsRunTest) return
-        val isTestResult = function.typeReference?.text == TEST_RESULT
+        val isTestResult = function.typeReference?.text?.substringAfterLast('.') == TEST_RESULT
         if (isTestResult && returnsRunTest(function)) return
         val message = "Return runTest from '${function.name}': declare ': TestResult' and write " +
             "'return runTest { … }', since a test on JS must return what runTest returns."

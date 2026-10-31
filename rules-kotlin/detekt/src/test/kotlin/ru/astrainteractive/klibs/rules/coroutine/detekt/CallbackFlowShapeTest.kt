@@ -12,6 +12,19 @@ internal class CallbackFlowShapeTest {
     private val rule = CallbackFlowShape(Config.empty)
 
     @Test
+    fun GIVEN_regular_flow_with_rendezvous_buffer_WHEN_linted_THEN_accepts_it() {
+        val code = """
+            val values = flowOf(1).buffer(0)
+            val updates = source.buffer(Channel.RENDEZVOUS)
+            val transformed = flowOf(1).map { value -> value.inc() }.buffer(capacity = 0)
+            val unknownProducer = buffer(0)
+            val unknownChain = buffer(0).conflate()
+        """.trimIndent()
+
+        assertEquals(emptyList(), rule.lint(code).map(Finding::message))
+    }
+
+    @Test
     fun GIVEN_bridges_out_of_shape_WHEN_linted_THEN_reports_each() {
         val code = """
             fun ExoPlayer.asStates(): Flow<Int> {

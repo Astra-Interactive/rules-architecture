@@ -13,6 +13,23 @@ import kotlin.test.assertEquals
 internal class TestOwnerBehaviourTest {
 
     @Test
+    fun GIVEN_model_init_validation_WHEN_checked_THEN_accepts_its_invariant_test(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.payment.model/PositiveCount.kt",
+                """
+                data class PositiveCount(val count: Int) {
+                    init { require(count > 0) }
+                }
+                """
+            )
+            .test("x.payment.model/PositiveCountTest.kt", "class PositiveCountTest")
+            .load(UnitKind.CONTEXT, rootPackage = "x")
+
+        assertEquals(emptyList(), TestOwnerBehaviour().check(sources))
+    }
+
+    @Test
     fun GIVEN_tests_of_owners_without_behaviour_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
         val sources = SourceTree(directory)
             .main("x.jail.model/Jail.kt", "data class Jail(val name: String)")

@@ -20,6 +20,7 @@ internal class TestOwnerBehaviour : ArchitectureCheck {
 
     private fun hasNoBehaviour(declaration: KoClassDeclaration): Boolean {
         if (!declaration.hasModifier(KoModifier.DATA) && !declaration.hasModifier(KoModifier.ENUM)) return false
+        if (declaration.hasInitBlocks()) return false
         return declaration.functions(includeNested = true, includeLocal = false).isEmpty()
     }
 
