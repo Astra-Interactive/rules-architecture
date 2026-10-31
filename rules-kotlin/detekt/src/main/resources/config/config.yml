@@ -92,6 +92,8 @@ architecture:
     active: true
   PropertyAsFunction:
     active: true
+  PropertyReadBeforeDeclaration:
+    active: true
   RememberInName:
     active: true
   ResultConsumption:
