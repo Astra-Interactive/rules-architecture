@@ -380,7 +380,7 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `PlatformPackage` | a package named after a platform (`android`, `ios`, `jvm`, …) in a unit with several main source sets |
 | `PluralPackageName` | a plural package name below the unit root, except an inherently plural concept (`news`, `settings`) |
 | `DuplicateRepresentation` | a technology data class with the same constructor parameter names as a `model` data class of the unit or of a unit it depends on |
-| `FieldDependencyConstruction` | a behaviour class of the unit, or a library class named for a dependency's role (`HttpClient`, `…Repository`, `…Gateway`, `…Database`, `…DataSource`), constructed outside `di` |
+| `FieldDependencyConstruction` | a behaviour class of the unit, or a library class named for a dependency's role (`HttpClient`, `…Repository`, `…Gateway`, `…Database`, `…DataSource`), constructed outside `di`; a value holder (no supertype, no function body, no `init` block) is not a dependency |
 | `TestOwnerBehaviour` | a `<Owner>Test.kt` whose owner is a data class without a body or an enum without functions |
 
 ### Structure checks

@@ -94,4 +94,39 @@ internal class FieldDependencyConstructionTest {
 
         assertEquals(emptyList(), FieldDependencyConstruction().check(sources))
     }
+
+    @Test
+    fun GIVEN_value_holder_built_in_a_class_WHEN_checked_THEN_reports_only_the_class_with_behaviour(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.rating.storage/RatingStorageValue.kt",
+                """
+                private class Keys(key: String) {
+                    val queryKey: String = "${'$'}{key}queryKey"
+                }
+
+                class Formatter {
+                    fun format(value: String) = value
+                }
+
+                class Status : StatusContract {
+                    val title: String = "status"
+                }
+
+                class RatingStorageValue {
+                    private val keys = Keys("rating")
+                    private val formatter = Formatter()
+                    private val status = Status()
+                }
+                """
+            )
+            .load(UnitKind.CONTEXT, rootPackage = "x")
+
+        assertEquals(
+            listOf("RatingStorageValue.Formatter", "RatingStorageValue.Status"),
+            FieldDependencyConstruction().check(sources).map(Violation::subject).sorted()
+        )
+    }
 }
