@@ -79,7 +79,12 @@ internal class RootPackagePathTest {
                 unitPath = ":modules:core:api"
             )
 
-        val messages = listOf(coreApi, coreBukkit, advancement, outside)
+        val messages = listOf(
+            coreApi,
+            coreBukkit,
+            advancement,
+            outside
+        )
             .flatMap { sources -> RootPackagePath().check(sources) }
             .map(Violation::message)
 

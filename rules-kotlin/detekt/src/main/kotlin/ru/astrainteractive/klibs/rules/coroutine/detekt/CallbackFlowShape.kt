@@ -18,8 +18,9 @@ import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
  * Reports a callback bridge out of the no-callbacks shape: a `callbackFlow` whose block does not end with
  * `awaitClose { … }` (or `try { … awaitClose() } finally { … }`), which throws `IllegalStateException` at run time
  * when the block completes and leaks the listener; a `launch { send }` inside a callback of it, which loses the
- * order and starts a coroutine per event (a `launch` of the producer block itself runs once and is not judged); a `buffer(Channel.RENDEZVOUS)` or `buffer(0)`, which can deadlock the producer; and a bridge
- * shared with `shareIn`/`stateIn` started otherwise than `SharingStarted.WhileSubscribed()`.
+ * order and starts a coroutine per event (a `launch` of the producer block itself runs once and is not judged); a
+ * `buffer(Channel.RENDEZVOUS)` or `buffer(0)`, which can deadlock the producer; and a bridge shared with
+ * `shareIn`/`stateIn` started otherwise than `SharingStarted.WhileSubscribed()`.
  */
 internal class CallbackFlowShape(config: Config) : Rule(config, DESCRIPTION) {
 
