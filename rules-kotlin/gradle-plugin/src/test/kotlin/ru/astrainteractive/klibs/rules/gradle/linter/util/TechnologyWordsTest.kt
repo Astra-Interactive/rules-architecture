@@ -29,4 +29,23 @@ class TechnologyWordsTest {
             findTechnologyWords(coordinates)
         )
     }
+
+    @Test
+    fun GIVEN_camel_case_artifact_WHEN_words_found_THEN_keeps_its_first_word_too() {
+        val coordinates = listOf(
+            "com.github.MilkBowl:VaultAPI",
+            "me.clip:placeholderapi"
+        )
+
+        assertEquals(
+            setOf(
+                "milkbowl",
+                "vaultapi",
+                "vault",
+                "clip",
+                "placeholderapi"
+            ),
+            findTechnologyWords(coordinates)
+        )
+    }
 }

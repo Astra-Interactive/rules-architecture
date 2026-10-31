@@ -2,6 +2,8 @@ package ru.astrainteractive.klibs.rules.gradle.linter.util
 
 private val TECHNOLOGY_WORD = Regex("[a-z][a-z0-9]{2,}")
 
+private val CAMEL_CASE_HEAD = Regex("^[A-Z]?[a-z0-9]+")
+
 private val NON_TECHNOLOGY_WORDS = setOf(
     "android",
     "annotation",
@@ -52,8 +54,9 @@ private val NON_TECHNOLOGY_WORDS = setOf(
 
 /**
  * The technology words a unit's libraries name, so that a package named after one (`mongodb`) is a technology
- * package: the last segment of each group and the first word of each artifact, except the words of kinds and the
- * generic ones (`core`, `runtime`, `kotlinx`).
+ * package: the last segment of each group and the first word of each artifact, whole and up to its first camel-case
+ * boundary (`VaultAPI` gives `vaultapi` and `vault`), except the words of kinds and the generic ones (`core`,
+ * `runtime`, `kotlinx`).
  *
  * @param coordinates the external dependencies of the unit as `group:artifact`
  */
@@ -62,7 +65,11 @@ internal fun findTechnologyWords(coordinates: List<String>): Set<String> {
         .flatMap { coordinate ->
             val group = coordinate.substringBefore(':').substringAfterLast('.')
             val artifact = coordinate.substringAfter(':').substringBefore('-')
-            listOf(group, artifact)
+            listOfNotNull(
+                group,
+                artifact,
+                CAMEL_CASE_HEAD.find(artifact)?.value
+            )
         }
         .map(String::lowercase)
         .filter(TECHNOLOGY_WORD::matches)

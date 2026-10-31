@@ -108,7 +108,8 @@ linter {
 ```
 
 The technology words also come from the unit's build file: the last segment of each library's group and the first
-word of its artifact (`org.mongodb:mongodb-driver-kotlin-coroutine` gives `mongodb`), generic words such as `core`
+word of its artifact (`org.mongodb:mongodb-driver-kotlin-coroutine` gives `mongodb`), also cut at its first
+camel-case boundary (`com.github.MilkBowl:VaultAPI` gives `vaultapi` and `vault`), generic words such as `core`
 and `runtime` aside. The Konsist checks and the detekt rules that judge technology packages (`BareIdentifier`,
 `KindNameInPackage`, `RunBlockingOutsideBoundary`) get the same words; `architectureDetektSettings` writes them into
 `build/detekt/architecture-settings.yml`, read before the project's own detekt config, together with whether
