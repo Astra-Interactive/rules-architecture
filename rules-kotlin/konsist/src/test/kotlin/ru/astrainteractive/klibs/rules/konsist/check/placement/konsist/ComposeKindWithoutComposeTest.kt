@@ -13,18 +13,19 @@ import kotlin.test.assertEquals
 internal class ComposeKindWithoutComposeTest {
 
     @Test
-    fun GIVEN_compose_words_in_a_unit_without_compose_WHEN_checked_THEN_reports_each_package(
+    fun GIVEN_compose_words_in_a_unit_without_compose_WHEN_checked_THEN_reports_each_package_but_viewmodel(
         @TempDir directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.gui.rating.viewmodel/RatingViewModel.kt", "class RatingViewModel")
             .main("x.gui.rating.viewmodel/RatingState.kt", "class RatingState")
             .main("x.gui.theme/Colors.kt", "object Colors")
+            .main("x.gui.rating.composable/RatingView.kt", "fun ratingView() = Unit")
             .main("x.gui.rating.model/Rating.kt", "import java.io.File\n\nclass Rating")
             .load(UnitKind.CONTEXT, rootPackage = "x.gui")
 
         assertEquals(
-            listOf("x.gui.rating.viewmodel", "x.gui.theme"),
+            listOf("x.gui.rating.composable", "x.gui.theme"),
             ComposeKindWithoutCompose().check(sources).map(Violation::subject).sorted()
         )
     }
@@ -34,6 +35,16 @@ internal class ComposeKindWithoutComposeTest {
         val sources = SourceTree(directory)
             .main("x.gui.rating.composable/RatingComposable.kt", "import androidx.compose.runtime.Composable")
             .load(UnitKind.CONTEXT, rootPackage = "x.gui")
+
+        assertEquals(emptyList(), ComposeKindWithoutCompose().check(sources))
+    }
+
+    @Test
+    fun GIVEN_theme_in_the_root_package_or_a_concept_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main("x.features.theme.component/ThemeSwitcherComponent.kt", "interface ThemeSwitcherComponent")
+            .main("x.features.theme.dark.model/DarkTheme.kt", "class DarkTheme")
+            .load(UnitKind.API, rootPackage = "x.features.theme")
 
         assertEquals(emptyList(), ComposeKindWithoutCompose().check(sources))
     }

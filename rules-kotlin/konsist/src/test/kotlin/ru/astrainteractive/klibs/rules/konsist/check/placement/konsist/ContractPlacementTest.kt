@@ -58,4 +58,64 @@ internal class ContractPlacementTest {
             subjects
         )
     }
+
+    @Test
+    fun GIVEN_interfaces_across_kinds_WHEN_checked_THEN_reports_each_outside_their_homes(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main("x.offer.api/OfferApi.kt", "interface OfferGateway")
+            .main("x.offer.usecase/LoadOfferUseCase.kt", "interface LoadOfferUseCase")
+            .main("x.offer.component/OfferComponent.kt", "interface OfferComponent")
+            .main("x.offer.viewmodel/OfferViewModel.kt", "interface OfferViewModel")
+            .main("x.di/OfferModule.kt", "interface OfferModule")
+            .main("x.offer.model/OfferResult.kt", "sealed interface OfferResult")
+            .main("x.offer.model/Priced.kt", "interface Priced")
+            .main("x.offer.ktor/Http.kt", "fun interface HttpEngine")
+            .load(UnitKind.CONTEXT, rootPackage = "x")
+
+        val messages = ContractPlacement().check(sources).map(Violation::message).sorted()
+
+        assertEquals(
+            listOf(
+                "Move HttpEngine to the api package of its concept: a contract sits in api.",
+                "Move Priced to the api package of its concept: a contract sits in api.",
+            ),
+            messages
+        )
+    }
+
+    @Test
+    fun GIVEN_state_holders_and_compose_scopes_WHEN_checked_THEN_sends_state_holders_to_their_kind(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main("x.root.screen/RootScreenComponent.kt", "interface RootScreenComponent")
+            .main("x.root.screen/RootRouter.kt", "interface RootRouter")
+            .main("x.offer.api/OfferComponent.kt", "interface OfferComponent")
+            .main("x.offer.composable/OfferViewModel.kt", "interface OfferViewModel")
+            .main("x.root.component/RootComponent.kt", "interface RootComponent")
+            .main(
+                "x.filtercard.model/FilterCardScope.kt",
+                "import androidx.compose.foundation.layout.ColumnScope\n\ninterface FilterCardScope : ColumnScope"
+            )
+            .main(
+                "x.coroutine.model/WorkScope.kt",
+                "import kotlinx.coroutines.CoroutineScope\n\ninterface WorkScope : CoroutineScope"
+            )
+            .load(UnitKind.CONTEXT, rootPackage = "x")
+
+        val messages = ContractPlacement().check(sources).map(Violation::message).map { message ->
+            message.substringBefore(':')
+        }
+
+        assertEquals(
+            listOf(
+                "Move OfferComponent to the component package of its concept",
+                "Move OfferViewModel to the viewmodel package of its concept",
+                "Move RootRouter to the api package of its concept",
+                "Move RootScreenComponent to the component package of its concept",
+                "Move WorkScope to the api package of its concept",
+            ),
+            messages.sorted()
+        )
+    }
 }

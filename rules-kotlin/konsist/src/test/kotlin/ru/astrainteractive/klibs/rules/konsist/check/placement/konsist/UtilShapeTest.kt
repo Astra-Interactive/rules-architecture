@@ -7,6 +7,7 @@ import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
+import ru.astrainteractive.klibs.rules.konsist.layout.model.Vocabulary
 import java.io.File
 import kotlin.test.assertEquals
 
@@ -152,6 +153,38 @@ internal class UtilShapeTest {
                 "util/ColoringExt.kt"
             ),
             destinations
+        )
+    }
+
+    @Test
+    fun GIVEN_slot_listed_as_an_extension_kind_WHEN_checked_THEN_accepts_its_extensions_only(@TempDir directory: File) {
+        val vocabulary = Vocabulary(
+            entryPointWords = emptySet(),
+            technologyWords = emptySet(),
+            pluralConcepts = emptySet(),
+            platformClasses = emptySet(),
+            extensionKinds = setOf("slot")
+        )
+        val sources = SourceTree(directory)
+            .main(
+                "x.gui.bukkit.slot",
+                "EventSlot.kt",
+                "internal fun SlotContext.killEventSlot(): String = \"\""
+            )
+            .main(
+                "x.gui.bukkit.command",
+                "RatingCommand.kt",
+                "private fun KPlayer.toPlayerName(): String = name"
+            )
+            .load(
+                UnitKind.CONTEXT,
+                rootPackage = "x.gui.bukkit",
+                vocabulary = vocabulary
+            )
+
+        assertEquals(
+            listOf("KPlayer.toPlayerName"),
+            UtilShape().check(sources).map(Violation::subject)
         )
     }
 }

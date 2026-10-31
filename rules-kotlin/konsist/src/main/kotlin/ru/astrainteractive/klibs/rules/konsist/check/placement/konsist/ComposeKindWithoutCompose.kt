@@ -8,8 +8,9 @@ import ru.astrainteractive.klibs.rules.konsist.check.model.util.packageName
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
 /**
- * Reports a `composable`, `viewmodel` or `theme` package in a unit whose main sources import nothing of Compose:
- * those words mean Kotlin Compose, and any other UI framework takes its words from its own classes.
+ * Reports a `composable` or `theme` package in a unit whose main sources import nothing of Compose: those words
+ * mean Kotlin Compose, and any other UI framework takes its words from its own classes. `viewmodel` is an
+ * Android-style view model with or without Compose, so it is not judged.
  */
 internal class ComposeKindWithoutCompose : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
@@ -22,7 +23,7 @@ internal class ComposeKindWithoutCompose : ArchitectureCheck {
         return sources.mainFiles
             .distinctBy(KoFileDeclaration::packageName)
             .mapNotNull { file ->
-                val word = file.packageName.split('.').firstOrNull { segment -> segment in COMPOSE_WORDS }
+                val word = sources.placementOf(file)?.kindWord?.takeIf { kindWord -> kindWord in COMPOSE_WORDS }
                     ?: return@mapNotNull null
                 val message = "Rename the package '$word': it means Kotlin Compose, and this unit does not use " +
                     "Compose; name the kind after the UI framework's own classes."
@@ -39,11 +40,7 @@ internal class ComposeKindWithoutCompose : ArchitectureCheck {
         const val RULE = "ComposeKindWithoutCompose"
 
         @JvmField
-        val COMPOSE_WORDS = setOf(
-            "composable",
-            "viewmodel",
-            "theme"
-        )
+        val COMPOSE_WORDS = setOf("composable", "theme")
 
         @JvmField
         val COMPOSE_PREFIXES = listOf("androidx.compose.", "org.jetbrains.compose.")

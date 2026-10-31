@@ -12,8 +12,8 @@ import org.jetbrains.kotlin.psi.KtProperty
 
 /**
  * Checks that the previews close a composable file: after the first `@Preview` function only preview helpers
- * follow (functions with `Preview` in the name, values named `PREVIEW_…` or `Preview…`), and every `@Preview`
- * function is named `…Preview`.
+ * follow (functions with `Preview` in the name, values named `PREVIEW_…` or `Preview…`), a preview helper sits in
+ * that block rather than above the code the file is for, and every `@Preview` function is named `…Preview`.
  */
 internal class PreviewBlockLast(config: Config) : Rule(config, DESCRIPTION) {
 
@@ -21,12 +21,17 @@ internal class PreviewBlockLast(config: Config) : Rule(config, DESCRIPTION) {
         return declaration is KtNamedFunction && declaration.hasAnnotation(PREVIEW)
     }
 
-    private fun findMessageAfterPreviews(declaration: KtDeclaration): String? {
+    private fun isPreviewHelper(declaration: KtDeclaration): Boolean {
         val name = declaration.name.orEmpty()
         val isPreviewFunction = declaration is KtNamedFunction && PREVIEW in name
         val hasPreviewPrefix = PREVIEW_VALUE_PREFIXES.any(name::startsWith)
         val isPreviewValue = declaration is KtProperty && hasPreviewPrefix
-        if (isPreviewFunction || isPreviewValue || isPreview(declaration)) return null
+        return isPreviewFunction || isPreviewValue || isPreview(declaration)
+    }
+
+    private fun findMessageAfterPreviews(declaration: KtDeclaration): String? {
+        val name = declaration.name.orEmpty()
+        if (isPreviewHelper(declaration)) return null
         return "Move '$name' above the previews, or name it for the preview block: the previews close the file " +
             "and hold only preview functions and PREVIEW_/Preview values."
     }
@@ -43,6 +48,13 @@ internal class PreviewBlockLast(config: Config) : Rule(config, DESCRIPTION) {
             }
         val firstPreview = declarations.indexOfFirst(::isPreview)
         if (firstPreview < 0) return
+        val beforePreviews = declarations.take(firstPreview)
+        val lastFileCode = beforePreviews.indexOfLast { declaration -> !isPreviewHelper(declaration) }
+        beforePreviews.take(lastFileCode.coerceAtLeast(0)).filter(::isPreviewHelper).forEach { helper ->
+            val message = "Move '${helper.name}' down into the preview block, before the first function that uses " +
+                "it: what only previews use never sits at the top of the file."
+            report(Finding(Entity.from(helper), message))
+        }
         declarations.drop(firstPreview + 1).forEach { declaration ->
             val message = findMessageAfterPreviews(declaration) ?: return@forEach
             report(Finding(Entity.from(declaration), message))

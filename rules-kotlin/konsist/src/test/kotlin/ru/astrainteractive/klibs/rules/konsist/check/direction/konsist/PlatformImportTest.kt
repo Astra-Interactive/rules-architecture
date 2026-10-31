@@ -75,6 +75,34 @@ internal class PlatformImportTest {
     }
 
     @Test
+    fun GIVEN_api_unit_whose_component_declares_render_WHEN_checked_THEN_reports_only_the_other_platform_imports(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.payment.api.offer.component",
+                "OfferComponent.kt",
+                """
+                import androidx.compose.runtime.Composable
+                import androidx.lifecycle.ViewModel
+
+                interface OfferComponent
+                """
+            )
+            .main(
+                "x.payment.api.offer.usecase",
+                "LoadOfferUseCase.kt",
+                "import androidx.compose.runtime.State\n\ninterface LoadOfferUseCase"
+            )
+            .load(UnitKind.API, unitPath = ":payment:api")
+
+        assertEquals(
+            listOf("androidx.compose.runtime.State", "androidx.lifecycle.ViewModel"),
+            PlatformImport().check(sources).map(Violation::subject).sorted()
+        )
+    }
+
+    @Test
     fun GIVEN_compose_ui_unit_WHEN_checked_THEN_its_model_may_import_compose_but_no_other_platform(
         @TempDir directory: File
     ) {

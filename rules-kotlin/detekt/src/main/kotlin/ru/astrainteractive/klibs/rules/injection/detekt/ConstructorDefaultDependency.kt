@@ -9,6 +9,7 @@ import dev.detekt.psi.hasAnnotation
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassKind
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.types.symbol
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtClass
@@ -24,13 +25,15 @@ import org.jetbrains.kotlin.psi.KtSecondaryConstructor
  *
  * A call counts as a construction when its callee starts with an upper-case letter, so a factory function
  * (`= createFoo()`) is not seen. Resolved object references, `Clock.System` and other singleton dependencies, count
- * too; enum entries and primitive constants do not. A `@Serializable` class is exempt, because serialization needs
- * its defaults; other data classes are left to [ru.astrainteractive.klibs.rules.declaration.detekt.DataClassDefaultValue].
+ * too; enum entries, a `data object` (a value of a sealed family, `Entry.Pending`) and primitive constants do not.
+ * A `@Serializable` class is exempt, because serialization needs its defaults; other data classes are left to
+ * [ru.astrainteractive.klibs.rules.declaration.detekt.DataClassDefaultValue].
  */
 internal class ConstructorDefaultDependency(config: Config) : Rule(config, DESCRIPTION), RequiresAnalysisApi {
     private fun isObjectReference(expression: KtExpression): Boolean {
         return analyze(expression) {
-            (expression.expressionType?.symbol as? KaClassSymbol)?.classKind == KaClassKind.OBJECT
+            val symbol = expression.expressionType?.symbol as? KaClassSymbol
+            symbol?.classKind == KaClassKind.OBJECT && (symbol as? KaNamedClassSymbol)?.isData != true
         }
     }
 

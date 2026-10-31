@@ -10,11 +10,13 @@ import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtUserType
+import ru.astrainteractive.klibs.rules.detekt.util.isComponentDefaults
 
 /**
  * Reports a file that holds more than one type family: a top-level function beside a top-level class, interface
  * or object (a composable beside a class included, since a composable file declares no class), and any type beside
- * another family. One sealed type and its variants form one family; unrelated data and value types do not.
+ * another family. One sealed type and its variants form one family; unrelated data and value types do not. The
+ * public `<Component>Defaults` object of a design-system component sits in its composable's file and is no family.
  */
 internal class OneTypeFamilyPerFile(config: Config) : Rule(config, DESCRIPTION) {
 
@@ -39,7 +41,9 @@ internal class OneTypeFamilyPerFile(config: Config) : Rule(config, DESCRIPTION) 
 
     override fun visitKtFile(file: KtFile) {
         super.visitKtFile(file)
-        val types = file.declarations.filterIsInstance<KtClassOrObject>()
+        val types = file.declarations
+            .filterIsInstance<KtClassOrObject>()
+            .filterNot(KtClassOrObject::isComponentDefaults)
         val functions = file.declarations.filterIsInstance<KtNamedFunction>()
         if (types.isNotEmpty()) reportFunctions(functions, types.first().name)
         val sealedRoot = types.filterIsInstance<KtClass>().firstOrNull(KtClass::isSealed)

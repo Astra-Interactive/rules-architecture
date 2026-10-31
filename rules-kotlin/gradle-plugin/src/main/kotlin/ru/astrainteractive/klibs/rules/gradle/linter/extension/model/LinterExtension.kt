@@ -29,4 +29,16 @@ public abstract class LinterExtension {
      * Inherently plural concepts the project uses as package names (`goods`), added to `news` and `settings`.
      */
     public abstract val pluralConcepts: SetProperty<String>
+
+    /**
+     * Supertypes of the classes the platform constructs (`WatchFaceService`), added to the defaults (`Application`,
+     * `Activity`, `Service`, `Worker`, …): such a class sits in the root package of the entry-point unit.
+     */
+    public abstract val platformClasses: SetProperty<String>
+
+    /**
+     * The project's UI kinds whose parts are extension functions of the kind's context (`slot`:
+     * `fun SlotContext.backSlot()` in `slot/BackSlot.kt`): there an extension is the part itself, not a `util`.
+     */
+    public abstract val extensionKinds: SetProperty<String>
 }

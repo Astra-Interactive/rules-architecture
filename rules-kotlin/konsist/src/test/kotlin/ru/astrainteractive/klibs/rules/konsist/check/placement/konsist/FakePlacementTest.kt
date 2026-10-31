@@ -90,7 +90,17 @@ internal class FakePlacementTest {
     }
 
     @Test
-    fun GIVEN_architecture_check_and_test_class_names_WHEN_checked_THEN_does_not_treat_them_as_fakes(
+    fun GIVEN_product_code_in_a_fake_unit_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main("com.example.monetization.fake.offer/FakeOfferRepository.kt", "class FakeOfferRepository")
+            .main("com.example.monetization.fake.offer/OfferPricing.kt", "class OfferPricing")
+            .load(UnitKind.CONTEXT, unitPath = ":monetization:fake")
+
+        assertEquals(listOf("OfferPricing"), FakePlacement().check(sources).map(Violation::subject))
+    }
+
+    @Test
+    fun GIVEN_main_class_and_test_class_named_alike_WHEN_checked_THEN_reports_only_the_main_class(
         @TempDir directory: File
     ) {
         val sources = SourceTree(directory)
@@ -106,6 +116,52 @@ internal class FakePlacementTest {
             )
             .load(UnitKind.CONTEXT, rootPackage = "x")
 
-        assertEquals(emptyList(), FakePlacement().check(sources))
+        assertEquals(listOf("FakePlacement"), FakePlacement().check(sources).map(Violation::subject))
+    }
+
+    @Test
+    fun GIVEN_test_fake_of_another_units_contract_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .dependency("x.data.dao.rating.api/RatingRepository.kt", "interface RatingRepository")
+            .main("x.gui.rating.api/RatingGuiRouter.kt", "interface RatingGuiRouter")
+            .test("x.gui.rating.fake/FakeRatingRepository.kt", "class FakeRatingRepository : RatingRepository")
+            .test("x.gui.rating.fake/FakeRatingGuiRouter.kt", "class FakeRatingGuiRouter : RatingGuiRouter")
+            .load(UnitKind.API, rootPackage = "x.gui")
+
+        val violation = FakePlacement().check(sources).single()
+
+        assertEquals("FakeRatingRepository", violation.subject)
+        assertEquals(
+            "Move FakeRatingRepository to testFixtures of the unit that owns RatingRepository: a fake that tests of " +
+                "other units need is shared from there, never copied into each one.",
+            violation.message
+        )
+    }
+
+    @Test
+    fun GIVEN_fake_of_another_units_contract_in_test_fixtures_WHEN_checked_THEN_reports_nothing(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .dependency("x.data.dao.rating.api/RatingRepository.kt", "interface RatingRepository")
+            .main(
+                "main",
+                "x.gui.rating.api",
+                "RatingGuiRouter.kt",
+                "interface RatingGuiRouter"
+            )
+            .test(
+                "testFixtures",
+                "x.gui.rating.fake",
+                "FakeRatingRepository.kt",
+                "class FakeRatingRepository : RatingRepository"
+            )
+            .loadSourceSets(
+                UnitKind.API,
+                mainSourceSet = "main",
+                testSourceSet = "testFixtures"
+            )
+
+        assertEquals(emptyList(), FakePlacement().check(sources).map(Violation::subject))
     }
 }

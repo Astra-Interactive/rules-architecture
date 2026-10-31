@@ -54,7 +54,15 @@ internal class DeclarationOrder(config: Config) : Rule(config, DESCRIPTION) {
     private fun checkScope(declarations: List<KtDeclaration>) {
         var latest: Section? = null
         declarations.forEach { declaration ->
-            val section = sectionOf(declaration) ?: return@forEach
+            val section = sectionOf(declaration)
+            if (latest == Section.COMPANION_OBJECT && section != Section.COMPANION_OBJECT) {
+                val subject = section?.let { known -> describe(declaration, known) } ?: "'${declaration.name}'"
+                val message = "$subject goes before the companion object: the companion object is the last " +
+                    "declaration of a class, nested types included."
+                report(Finding(Entity.from(declaration), message))
+                return@forEach
+            }
+            section ?: return@forEach
             val previous = latest
             if (previous == null || section >= previous) {
                 latest = section

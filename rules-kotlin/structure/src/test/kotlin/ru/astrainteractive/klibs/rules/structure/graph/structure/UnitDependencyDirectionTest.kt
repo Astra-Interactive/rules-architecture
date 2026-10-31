@@ -37,6 +37,9 @@ internal class UnitDependencyDirectionTest {
             ":data:dao" to ":core",
             ":core" to ":",
             ":core:bukkit" to ":core:api",
+            ":core:ui" to ":core:api",
+            ":payment:impl" to ":core:ui",
+            ":dictionary:impl" to ":dictionary:contract",
             ":jail:fake" to ":jail:api"
         )
 
@@ -66,6 +69,8 @@ internal class UnitDependencyDirectionTest {
             ":dictionary:contract" to ":core",
             ":core" to ":jail:api",
             ":core:bukkit" to ":jail:api",
+            ":core:ui" to ":core:bukkit",
+            ":payment:api" to ":core:ui",
             ":jail:fake" to ":economy:api"
         )
 
@@ -98,6 +103,37 @@ internal class UnitDependencyDirectionTest {
                 ":core:api",
                 setOf(":gui:api"),
                 isLibrary = true
+            )
+        )
+    }
+
+    @Test
+    fun GIVEN_design_system_split_into_units_WHEN_classified_THEN_each_depends_on_core_and_the_others() {
+        val designSystemUnits = listOf(
+            ":services:core:ui:common",
+            ":services:core:ui:theme",
+            ":services:core:ui:sheet"
+        )
+
+        designSystemUnits.forEach { path ->
+            assertEquals(
+                emptyList(),
+                forbidden(
+                    path,
+                    setOf(
+                        ":services:core:common",
+                        ":services:core:resources",
+                        ":services:core:ui:theme"
+                    )
+                ),
+                path
+            )
+        }
+        assertEquals(
+            listOf(":features:rating:api"),
+            forbidden(
+                ":services:core:ui:common",
+                setOf(":features:rating:api")
             )
         )
     }

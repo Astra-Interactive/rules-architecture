@@ -3,12 +3,14 @@
 package ru.astrainteractive.klibs.rules.lambda.detekt
 
 import dev.detekt.api.Config
-import dev.detekt.test.lint
+import dev.detekt.test.lintWithContext
+import dev.detekt.test.utils.createEnvironment
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
 internal class TrivialLambdaReferenceTest {
     private val rule = TrivialLambdaReference(Config.empty)
+    private val environment = createEnvironment()
 
     @Test
     fun GIVEN_lambdas_that_only_pass_their_parameters_WHEN_linted_THEN_reports_each_with_its_reference() {
@@ -27,7 +29,8 @@ internal class TrivialLambdaReferenceTest {
             val parseId = { raw: String -> parse(raw) }
         """.trimIndent()
 
-        val messages = rule.lint(code).map { finding -> finding.message.substringBefore(": the lambda") }
+        val messages = rule.lintWithContext(environment, code)
+            .map { finding -> finding.message.substringBefore(": the lambda") }
 
         assertEquals(
             listOf(
@@ -80,6 +83,113 @@ internal class TrivialLambdaReferenceTest {
             }
         """.trimIndent()
 
-        assertEquals(0, rule.lint(code).size)
+        assertEquals(0, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
+    fun GIVEN_coroutine_code_WHEN_linted_THEN_reports_only_lambdas_over_resolved_non_suspend_calls() {
+        val code = """
+            import kotlinx.coroutines.delay
+
+            fun format(id: Long): String = ""
+
+            suspend fun load(ids: List<Long>) {
+                ids.map { id -> format(id) }
+                ids.forEach { id -> delay(id) }
+            }
+        """.trimIndent()
+
+        val messages = rule.lintWithContext(environment, code).map { finding -> finding.message }
+
+        assertEquals(
+            listOf(
+                "Replace the lambda with the function reference ::format: the lambda only passes its parameters on.",
+            ),
+            messages
+        )
+    }
+
+    @Test
+    fun GIVEN_lambda_over_a_result_companion_function_WHEN_linted_THEN_suggests_the_imported_reference() {
+        val code = """
+            fun wrap(values: List<Int>) = values.map { value -> Result.success(value) }
+        """.trimIndent()
+
+        val messages = rule.lintWithContext(environment, code).map { finding -> finding.message }
+
+        assertEquals(
+            listOf(
+                "Replace the lambda with the function reference ::success (import kotlin.Result.Companion.success): " +
+                    "the lambda only passes its parameters on.",
+            ),
+            messages
+        )
+    }
+
+    @Test
+    fun GIVEN_member_and_top_level_extensions_WHEN_linted_THEN_reports_only_the_top_level_one() {
+        val code = """
+            class Shop(val name: String)
+
+            fun Shop.exported(): Shop = this
+
+            class FakeShopRepository(private val shops: List<Shop>) {
+                private fun Shop.deepCopy(): Shop = Shop(name)
+
+                fun copies(): List<Shop> = shops.map { shop -> shop.deepCopy() }
+
+                fun exports(): List<Shop> = shops.map { shop -> shop.exported() }
+            }
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "Replace the lambda with the function reference <Type>::exported: the lambda only passes its " +
+                    "parameters on."
+            ),
+            rule.lintWithContext(environment, code).map { finding -> finding.message }
+        )
+    }
+
+    @Test
+    fun GIVEN_java_getter_read_as_a_property_WHEN_linted_THEN_reports_only_the_kotlin_property() {
+        val code = """
+            import java.util.logging.LogRecord
+
+            class Shop(val name: String)
+
+            fun levels(records: List<LogRecord>) = records.map { record -> record.level }
+
+            fun names(shops: List<Shop>) = shops.map { shop -> shop.name }
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "Replace the lambda with the function reference <Type>::name: the lambda only passes its " +
+                    "parameters on."
+            ),
+            rule.lintWithContext(environment, code).map { finding -> finding.message }
+        )
+    }
+
+    @Test
+    fun GIVEN_property_read_in_a_suspend_lambda_WHEN_linted_THEN_reports_only_the_plain_lambda() {
+        val code = """
+            class Message<T>(val value: T)
+
+            fun <T, R> List<T>.mapSuspending(transform: suspend (T) -> R): List<R> = emptyList()
+
+            fun suspending(messages: List<Message<String>>) = messages.mapSuspending { message -> message.value }
+
+            fun plain(messages: List<Message<String>>) = messages.map { message -> message.value }
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "Replace the lambda with the function reference <Type>::value: the lambda only passes its " +
+                    "parameters on."
+            ),
+            rule.lintWithContext(environment, code).map { finding -> finding.message }
+        )
     }
 }

@@ -13,8 +13,9 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
  * Checks `util` both ways: a `util` package holds functions, never a class, an interface or an object; and an
  * extension function lives in `util/<Subject>Ext.kt`, never in the file of its receiver type. The subject is the
  * receiver type, or its first type argument when the receiver is a standard collection, flow or function type
- * (`Collection<Coloring>` goes to `ColoringExt.kt`). The one exception is a `private` extension in a Compose
- * composable file, which only that file uses.
+ * (`Collection<Coloring>` goes to `ColoringExt.kt`). Two exceptions: a `private` extension in a Compose composable
+ * file, which only that file uses, and any extension in a UI kind the project lists in `extensionKinds` (`slot`, where
+ * `fun SlotContext.backSlot()` in `BackSlot.kt` is the slot itself).
  */
 internal class UtilShape : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
@@ -72,7 +73,11 @@ internal class UtilShape : ArchitectureCheck {
             val placement = sources.placementOf(file) ?: return@flatMap emptyList()
             when (placement.kind) {
                 Kind.UTIL -> typesInUtil(sources, file)
-                else -> extensionsOutsideUtil(sources, file)
+                else -> if (placement.kindWord in sources.layout.vocabulary.extensionKinds) {
+                    emptyList()
+                } else {
+                    extensionsOutsideUtil(sources, file)
+                }
             }
         }
     }

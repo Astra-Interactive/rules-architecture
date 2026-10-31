@@ -147,14 +147,15 @@ complexity:
 
 coroutines:
   active: true
+  # Accepts only `fun test() = runTest { }`; our RunTestResult asks for `return runTest { }` and enforces runTest.
+  CoroutineLaunchedInTestWithoutRunTest:
+    active: false
   GlobalCoroutineUsage:
     active: false
+  # Compares the source text of the receiver's type with its full name, so an imported KotlinDispatchers counts as
+  # not injected; architecture's HardcodedDispatcher replaces it.
   InjectDispatcher:
-    active: true
-    dispatcherNames:
-      - 'IO'
-      - 'Default'
-      - 'Unconfined'
+    active: false
   RedundantSuspendModifier:
     active: true
   SleepInsteadOfDelay:
@@ -435,9 +436,15 @@ potential-bugs:
     excludes: [ '**/*.kts' ]
   NullCheckOnMutableProperty:
     active: false
+  # Reports reads in functions, lambdas and of const val; architecture's PropertyReadBeforeDeclaration replaces it.
+  PropertyUsedBeforeDeclaration:
+    active: false
   NullableToStringCall:
     active: false
   UnconditionalJumpStatementInLoop:
+    active: false
+  # Off in detekt's defaults; allRules turned it on, and the rules write assertEquals(expected, actual) unnamed.
+  UnnamedParameterUse:
     active: false
   UnnecessaryNotNullCheck:
     active: false
@@ -463,6 +470,9 @@ potential-bugs:
 
 style:
   active: true
+  # Off in detekt's defaults; allRules turned it on, and it judges a block lambda by its first statement alone.
+  UnnecessaryAny:
+    active: false
   AlsoCouldBeApply:
     active: false
   BracesOnIfStatements:
@@ -653,6 +663,7 @@ style:
     active: true
   UnusedPrivateFunction:
     active: true
+    ignoreAnnotated: [ '*Preview*' ]
   UnusedPrivateProperty:
     active: true
     allowedNames: 'ignored|expected|serialVersionUID'

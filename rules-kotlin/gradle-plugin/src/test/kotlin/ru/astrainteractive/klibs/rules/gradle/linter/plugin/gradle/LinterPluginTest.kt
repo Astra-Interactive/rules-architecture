@@ -1,4 +1,4 @@
-@file:Suppress("FunctionNaming")
+@file:Suppress("FunctionNaming", "FileLength")
 
 package ru.astrainteractive.klibs.rules.gradle.linter.plugin.gradle
 
@@ -14,10 +14,10 @@ class LinterPluginTest {
         return IsolatedProjectsBuild(rootDirectory)
             .online()
             .withRootBuildScript("")
-            .withModule(name = "jail", buildScript = JAVA_MODULE_SCRIPT)
-            .withSourceFile("jail/README.md", "Jails players for a sentence and frees them when it ends.")
+            .withModule(name = "modules:jail", buildScript = JAVA_MODULE_SCRIPT)
+            .withSourceFile("modules/jail/README.md", "Jails players for a sentence and frees them when it ends.")
             .withSourceFile(
-                "jail/src/main/kotlin/com/example/jail/jail/usecase/JailPlayerUseCase.kt",
+                "modules/jail/src/main/kotlin/com/example/jail/jail/usecase/JailPlayerUseCase.kt",
                 """
                 package com.example.jail.jail.usecase
 
@@ -27,7 +27,7 @@ class LinterPluginTest {
                 """.trimIndent()
             )
             .withSourceFile(
-                "jail/src/main/kotlin/com/example/jail/Jail.kt",
+                "modules/jail/src/main/kotlin/com/example/jail/Jail.kt",
                 """
                 package com.example.jail
 
@@ -35,7 +35,7 @@ class LinterPluginTest {
                 """.trimIndent()
             )
             .withSourceFile(
-                "jail/src/main/kotlin/com/example/jail/jail/model/Cell.kt",
+                "modules/jail/src/main/kotlin/com/example/jail/jail/model/Cell.kt",
                 """
                 package com.example.jail.jail.model
 
@@ -58,10 +58,10 @@ class LinterPluginTest {
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
             .withRootBuildScript("")
-            .withModule(name = "rating", buildScript = moduleScript)
-            .withSourceFile("rating/README.md", "Shows the rating of players in widgets.")
+            .withModule(name = "modules:rating", buildScript = moduleScript)
+            .withSourceFile("modules/rating/README.md", "Shows the rating of players in widgets.")
             .withSourceFile(
-                "rating/src/main/kotlin/com/example/rating/goods/widget/RatingWidget.kt",
+                "modules/rating/src/main/kotlin/com/example/rating/goods/widget/RatingWidget.kt",
                 """
                 package com.example.rating.goods.widget
 
@@ -69,7 +69,7 @@ class LinterPluginTest {
                 """.trimIndent()
             )
 
-        build.run(":rating:architectureCheck")
+        build.run(":modules:rating:architectureCheck")
     }
 
     @Test
@@ -79,17 +79,17 @@ class LinterPluginTest {
         val exposedScript = """
             $JAVA_MODULE_SCRIPT
 
-            dependencies { implementation(project(":dao")) }
+            dependencies { implementation(project(":modules:dao")) }
         """.trimIndent()
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
             .withRootBuildScript("")
-            .withModule(name = "dao", buildScript = JAVA_MODULE_SCRIPT)
-            .withModule(name = "exposed", buildScript = exposedScript)
-            .withSourceFile("dao/README.md", "Declares the rating storage contracts and models.")
-            .withSourceFile("exposed/README.md", "Stores ratings in a database with Exposed.")
+            .withModule(name = "modules:dao", buildScript = JAVA_MODULE_SCRIPT)
+            .withModule(name = "modules:exposed", buildScript = exposedScript)
+            .withSourceFile("modules/dao/README.md", "Declares the rating storage contracts and models.")
+            .withSourceFile("modules/exposed/README.md", "Stores ratings in a database with Exposed.")
             .withSourceFile(
-                "dao/src/main/kotlin/com/example/dao/rating/model/Rating.kt",
+                "modules/dao/src/main/kotlin/com/example/dao/rating/model/Rating.kt",
                 """
                 package com.example.dao.rating.model
 
@@ -97,7 +97,7 @@ class LinterPluginTest {
                 """.trimIndent()
             )
             .withSourceFile(
-                "exposed/src/main/kotlin/com/example/exposed/rating/RatingRow.kt",
+                "modules/exposed/src/main/kotlin/com/example/exposed/rating/RatingRow.kt",
                 """
                 package com.example.exposed.rating
 
@@ -105,7 +105,7 @@ class LinterPluginTest {
                 """.trimIndent()
             )
 
-        val result = build.runAndFail(":exposed:architectureCheck")
+        val result = build.runAndFail(":modules:exposed:architectureCheck")
 
         assertTrue(result.output.contains("RatingRow copies the fields of Rating"), result.output)
     }
@@ -126,10 +126,10 @@ class LinterPluginTest {
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
             .withRootBuildScript("")
-            .withModule(name = "rating", buildScript = moduleScript)
-            .withSourceFile("rating/README.md", "Shows the rating of players.")
+            .withModule(name = "modules:rating", buildScript = moduleScript)
+            .withSourceFile("modules/rating/README.md", "Shows the rating of players.")
             .withSourceFile(
-                "rating/src/main/kotlin/com/example/rating/rating/model/Rating.kt",
+                "modules/rating/src/main/kotlin/com/example/rating/rating/model/Rating.kt",
                 """
                 package com.example.rating.rating.model
 
@@ -137,7 +137,7 @@ class LinterPluginTest {
                 """.trimIndent()
             )
 
-        val result = build.runAndFail(":rating:architectureCheck")
+        val result = build.runAndFail(":modules:rating:architectureCheck")
 
         assertTrue(
             result.output.contains("Set the namespace of this Android unit to its root package com.example.rating"),
@@ -149,7 +149,7 @@ class LinterPluginTest {
     fun GIVEN_context_with_a_loose_root_file_WHEN_architecture_checked_THEN_fails_naming_it(
         @TempDir rootDirectory: File
     ) {
-        val result = jailBuild(rootDirectory).runAndFail(":jail:check")
+        val result = jailBuild(rootDirectory).runAndFail(":modules:jail:check")
 
         assertTrue(
             result.output.contains("src/main/kotlin/com/example/jail/Jail.kt: Move Jail into a kind package"),
@@ -157,7 +157,7 @@ class LinterPluginTest {
         )
         assertTrue(result.output.contains("[KindShape]"), "the rule was not named:\n${result.output}")
         assertTrue(
-            result.output.contains("run :jail:architectureBaseline to accept"),
+            result.output.contains("run :modules:jail:architectureBaseline to accept"),
             "the baseline task was not suggested:\n${result.output}"
         )
     }
@@ -165,11 +165,11 @@ class LinterPluginTest {
     @Test
     fun GIVEN_baseline_of_current_violations_WHEN_architecture_checked_THEN_passes(@TempDir rootDirectory: File) {
         val build = jailBuild(rootDirectory)
-        build.run(":jail:architectureBaseline")
+        build.run(":modules:jail:architectureBaseline")
 
-        build.run(":jail:architectureCheck")
+        build.run(":modules:jail:architectureCheck")
 
-        val baseline = build.file("jail/architecture-baseline.txt").readLines()
+        val baseline = build.file("modules/jail/architecture-baseline.txt").readLines()
         assertEquals(listOf("KindShape\tsrc/main/kotlin/com/example/jail/Jail.kt\tJail"), baseline)
     }
 
@@ -178,27 +178,27 @@ class LinterPluginTest {
         @TempDir rootDirectory: File
     ) {
         val build = jailBuild(rootDirectory)
-        val loose = build.file("jail/src/main/kotlin/com/example/jail/Jail.kt")
+        val loose = build.file("modules/jail/src/main/kotlin/com/example/jail/Jail.kt")
         val suppression = """@file:Suppress("KindShape")"""
         loose.writeText(suppression + System.lineSeparator().repeat(2) + loose.readText())
 
-        build.run(":jail:architectureCheck")
+        build.run(":modules:jail:architectureCheck")
 
-        assertTrue(!build.file("jail/architecture-baseline.txt").exists(), "a baseline was created")
+        assertTrue(!build.file("modules/jail/architecture-baseline.txt").exists(), "a baseline was created")
     }
 
     @Test
     fun GIVEN_violations_fixed_WHEN_baseline_written_again_THEN_removes_the_baseline(@TempDir rootDirectory: File) {
         val build = jailBuild(rootDirectory)
-        build.run(":jail:architectureBaseline")
-        val loose = build.file("jail/src/main/kotlin/com/example/jail/Jail.kt")
-        val model = build.file("jail/src/main/kotlin/com/example/jail/jail/model/Jail.kt")
+        build.run(":modules:jail:architectureBaseline")
+        val loose = build.file("modules/jail/src/main/kotlin/com/example/jail/Jail.kt")
+        val model = build.file("modules/jail/src/main/kotlin/com/example/jail/jail/model/Jail.kt")
         model.writeText(loose.readText().replace("package com.example.jail", "package com.example.jail.jail.model"))
         loose.delete()
 
-        build.run(":jail:architectureBaseline")
+        build.run(":modules:jail:architectureBaseline")
 
-        assertTrue(!build.file("jail/architecture-baseline.txt").exists(), "an empty baseline was left behind")
+        assertTrue(!build.file("modules/jail/architecture-baseline.txt").exists(), "an empty baseline was left behind")
     }
 
     @Test
@@ -209,17 +209,17 @@ class LinterPluginTest {
             $JAVA_MODULE_SCRIPT
 
             dependencies {
-                implementation(project(":impl"))
+                implementation(project(":modules:impl"))
             }
         """.trimIndent()
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
             .withRootBuildScript("")
-            .withModule(name = "api", buildScript = apiScript)
-            .withModule(name = "impl", buildScript = JAVA_MODULE_SCRIPT)
-            .withSourceFile("api/README.md", "Publishes what other contexts may call.")
+            .withModule(name = "modules:api", buildScript = apiScript)
+            .withModule(name = "modules:impl", buildScript = JAVA_MODULE_SCRIPT)
+            .withSourceFile("modules/api/README.md", "Publishes what other contexts may call.")
 
-        val result = build.runAndFail(":api:architectureCheck")
+        val result = build.runAndFail(":modules:api:architectureCheck")
 
         val isDependencyReported = result.output.contains("An api unit never depends on an impl unit")
         val isRuleNamed = result.output.contains("[UnitDependency]")
@@ -241,16 +241,17 @@ class LinterPluginTest {
 
             dependencies {
                 api("org.slf4j:slf4j-api:2.0.13")
+                api("org.jetbrains.kotlin:kotlin-stdlib:2.1.0")
                 api(gradleApi())
             }
         """.trimIndent()
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
             .withRootBuildScript("")
-            .withModule(name = "jail", buildScript = moduleScript)
-            .withSourceFile("jail/README.md", "Jails players for a sentence and frees them when it ends.")
+            .withModule(name = "modules:jail", buildScript = moduleScript)
+            .withSourceFile("modules/jail/README.md", "Jails players for a sentence and frees them when it ends.")
 
-        val result = build.runAndFail(":jail:architectureCheck")
+        val result = build.runAndFail(":modules:jail:architectureCheck")
 
         val isDependencyReported = result.output.contains("Declare org.slf4j:slf4j-api with implementation")
         val isRuleNamed = result.output.contains("[ApiConfiguration]")
@@ -259,6 +260,7 @@ class LinterPluginTest {
             "the api dependency was not reported:\n${result.output}"
         )
         assertTrue(!result.output.contains("null:unspecified"), result.output)
+        assertTrue(!result.output.contains("kotlin-stdlib"), result.output)
     }
 
     @Test
@@ -279,11 +281,11 @@ class LinterPluginTest {
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
             .withRootBuildScript("")
-            .withModule(name = "library", buildScript = moduleScript)
-            .withSourceFile("library/README.md", "Publishes the library API.")
+            .withModule(name = "modules:library", buildScript = moduleScript)
+            .withSourceFile("modules/library/README.md", "Publishes the library API.")
 
-        build.run(":library:compileKotlin", ":library:architectureCheck")
-        val cachedResult = build.run(":library:compileKotlin", ":library:architectureCheck")
+        build.run(":modules:library:compileKotlin", ":modules:library:architectureCheck")
+        val cachedResult = build.run(":modules:library:compileKotlin", ":modules:library:architectureCheck")
 
         assertTrue(cachedResult.output.contains("Reusing configuration cache"), cachedResult.output)
     }
@@ -300,7 +302,7 @@ class LinterPluginTest {
             }
             val slf4jApi = dependencies.create("org.slf4j:slf4j-api:2.0.13")
             val paperApi = dependencies.create("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
-            val impl = dependencies.create(project(":impl"))
+            val impl = dependencies.create(project(":modules:impl"))
             configurations.getByName("api").withDependencies {
                 add(slf4jApi)
             }
@@ -312,20 +314,50 @@ class LinterPluginTest {
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
             .withRootBuildScript("")
-            .withModule(name = "api", buildScript = moduleScript)
-            .withModule(name = "impl", buildScript = JAVA_MODULE_SCRIPT)
-            .withSourceFile("api/README.md", "Publishes what other contexts may call.")
+            .withModule(name = "modules:api", buildScript = moduleScript)
+            .withModule(name = "modules:impl", buildScript = JAVA_MODULE_SCRIPT)
+            .withSourceFile("modules/api/README.md", "Publishes what other contexts may call.")
 
-        build.run(":api:architectureBaseline")
-        val cachedResult = build.run(":api:architectureBaseline")
+        build.run(":modules:api:architectureBaseline")
+        val cachedResult = build.run(":modules:api:architectureBaseline")
 
         assertTrue(cachedResult.output.contains("Reusing configuration cache"), cachedResult.output)
-        val baseline = build.file("api/architecture-baseline.txt").readLines()
+        val baseline = build.file("modules/api/architecture-baseline.txt").readLines()
         assertEquals(
             listOf("ApiConfiguration\tbuild.gradle.kts\tapi: org.apache.commons:commons-lang3"),
             baseline
         )
-        build.run(":api:architectureCheck")
+        build.run(":modules:api:architectureCheck")
+    }
+
+    @Test
+    fun GIVEN_kotlin_unit_WHEN_architecture_lint_planned_THEN_runs_every_linter_task_but_format_and_tests(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            plugins {
+                id("org.jetbrains.kotlin.jvm")
+                id("ru.astrainteractive.klibs.rules.gradle.linter")
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("""plugins { id("ru.astrainteractive.klibs.rules.gradle.linter") }""")
+            .withModule(name = "modules:library", buildScript = moduleScript)
+
+        val planned = build.run("architectureLint", "--dry-run").output.lines()
+            .filter { line -> line.endsWith(" SKIPPED") }
+            .map { line -> line.removeSuffix(" SKIPPED") }
+
+        listOf(
+            ":architectureGraphCheck",
+            ":modules:library:architectureCheck",
+            ":modules:library:detekt",
+            ":modules:library:detektMain",
+            ":modules:library:detektTest",
+        ).forEach { task -> assertTrue(task in planned, "$task is not planned:\n$planned") }
+        assertTrue(planned.none { task -> task.endsWith(":detektFormat") }, "detektFormat is planned:\n$planned")
+        assertTrue(planned.none { task -> task.endsWith(":test") }, "the tests are planned:\n$planned")
     }
 
     @Test
@@ -338,6 +370,7 @@ class LinterPluginTest {
 
             plugins {
                 id("org.jetbrains.kotlin.jvm")
+                `maven-publish`
                 id("ru.astrainteractive.klibs.rules.gradle.linter")
             }
 
@@ -372,73 +405,20 @@ class LinterPluginTest {
         """.trimIndent()
         val build = IsolatedProjectsBuild(rootDirectory)
             .withRootBuildScript("")
-            .withModule(name = "library", buildScript = moduleScript)
+            .withModule(name = "modules:library", buildScript = moduleScript)
             .withSourceFile("config/detekt/detekt.yml", PROJECT_IMPORT_LAYOUT)
 
-        build.run(":library:reportLinter")
+        build.run(":modules:library:reportLinter")
 
-        val report = build.file("library/build/linter-report.txt").readLines()
+        val report = build.file("modules/library/build/linter-report.txt").readLines()
         assertEquals("args=[-Xexplicit-api=strict]", report[0])
-        assertEquals("config=[build/detekt.yml, build/detekt-architecture.yml, config/detekt.yml]", report[1])
+        assertEquals(
+            "config=[build/detekt.yml, build/detekt-architecture.yml, build/architecture-settings.yml, " +
+                "config/detekt.yml]",
+            report[1]
+        )
         assertEquals("kind=library", report[2])
         assertTrue(report[3].contains("ru.astrainteractive.klibs.rules:detekt"), "rules missing: ${report[3]}")
-    }
-
-    private fun unitKindScript(plugins: String): String {
-        return """
-            import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
-
-            plugins {
-                $plugins
-                id("ru.astrainteractive.klibs.rules.gradle.linter")
-            }
-
-            val linterUnitKind = extensions.getByType<LinterExtension>().unitKind
-            val kindReport = layout.buildDirectory.file("unit-kind.txt")
-            tasks.register("reportUnitKind") {
-                val unitKind = linterUnitKind
-                val reportFile = kindReport
-                outputs.file(reportFile)
-                doLast { reportFile.get().asFile.writeText(unitKind.get()) }
-            }
-        """.trimIndent()
-    }
-
-    @Test
-    fun GIVEN_units_named_and_built_by_convention_WHEN_configured_THEN_detects_their_kind(
-        @TempDir rootDirectory: File
-    ) {
-        val build = IsolatedProjectsBuild(rootDirectory)
-            .withRootBuildScript("")
-            .withModule(name = "api", buildScript = unitKindScript("`java-library`"))
-            .withModule(name = "contract", buildScript = unitKindScript("`java-library`"))
-            .withModule(name = "server", buildScript = unitKindScript("application"))
-            .withModule(name = "exposed", buildScript = unitKindScript("`java-library`"))
-            .withModule(name = "memory", buildScript = unitKindScript("`java-library`"))
-            .withModule(name = "jail", buildScript = unitKindScript("`java-library`"))
-        val modules = listOf(
-            "api",
-            "contract",
-            "server",
-            "exposed",
-            "memory",
-            "jail"
-        )
-
-        build.run(*modules.map { module -> ":$module:reportUnitKind" }.toTypedArray())
-
-        val kinds = modules.map { module -> build.file("$module/build/unit-kind.txt").readText() }
-        assertEquals(
-            listOf(
-                "api",
-                "contract",
-                "entry-point",
-                "technology",
-                "technology",
-                "context"
-            ),
-            kinds
-        )
     }
 
     @Test
@@ -453,13 +433,14 @@ class LinterPluginTest {
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
             .withRootBuildScript("")
-            .withModule(name = "jail", buildScript = moduleScript)
+            .withModule(name = "modules:jail", buildScript = moduleScript)
 
-        val result = build.runAndFail(":jail:architectureCheck")
+        val result = build.runAndFail(":modules:jail:architectureCheck")
 
         assertTrue(
             result.output.contains(
-                "linter.unitKind of :jail is 'service', expected one of context, library, api, contract, entry-point"
+                "linter.unitKind of :modules:jail is 'service', expected one of context, library, api, contract, " +
+                    "entry-point"
             ),
             "the unknown kind was not reported:\n${result.output}"
         )
@@ -473,17 +454,17 @@ class LinterPluginTest {
             $JAVA_MODULE_SCRIPT
 
             dependencies {
-                testImplementation(project(":impl"))
+                testImplementation(project(":modules:impl"))
             }
         """.trimIndent()
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
             .withRootBuildScript("")
-            .withModule(name = "jail", buildScript = moduleScript)
-            .withModule(name = "impl", buildScript = JAVA_MODULE_SCRIPT)
-            .withSourceFile("jail/README.md", "Jails players for a sentence and frees them when it ends.")
+            .withModule(name = "modules:jail", buildScript = moduleScript)
+            .withModule(name = "modules:impl", buildScript = JAVA_MODULE_SCRIPT)
+            .withSourceFile("modules/jail/README.md", "Jails players for a sentence and frees them when it ends.")
 
-        build.run(":jail:architectureCheck")
+        build.run(":modules:jail:architectureCheck")
     }
 
     @Test
@@ -492,7 +473,7 @@ class LinterPluginTest {
     ) {
         val build = jailBuild(rootDirectory)
             .withSourceFile(
-                "jail/src/testFixtures/kotlin/com/example/jail/jail/FakeClock.kt",
+                "modules/jail/src/testFixtures/kotlin/com/example/jail/jail/FakeClock.kt",
                 """
                 package com.example.jail.jail
 
@@ -500,7 +481,7 @@ class LinterPluginTest {
                 """.trimIndent()
             )
 
-        val result = build.runAndFail(":jail:architectureCheck")
+        val result = build.runAndFail(":modules:jail:architectureCheck")
 
         assertTrue(
             result.output.contains(
@@ -515,7 +496,7 @@ class LinterPluginTest {
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
             .withRootBuildScript(JAVA_MODULE_SCRIPT)
-            .withModule(name = "jail", buildScript = "")
+            .withModule(name = "modules:jail", buildScript = "")
             .withSourceFile("src/main/kotlin/com/example/Main.kt", "package com.example\n")
 
         val result = build.runAndFail(":architectureCheck")
@@ -555,11 +536,11 @@ class LinterPluginTest {
         """.trimIndent()
         val build = IsolatedProjectsBuild(rootDirectory)
             .withRootBuildScript("")
-            .withModule(name = "library", buildScript = moduleScript)
+            .withModule(name = "modules:library", buildScript = moduleScript)
 
-        build.run(":library:reportDetektArguments")
+        build.run(":modules:library:reportDetektArguments")
 
-        assertEquals("-Xexplicit-api=warning", build.file("library/build/detekt-arguments.txt").readText())
+        assertEquals("-Xexplicit-api=warning", build.file("modules/library/build/detekt-arguments.txt").readText())
     }
 
     @Test
@@ -569,18 +550,18 @@ class LinterPluginTest {
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
             .withRootBuildScript("")
-            .withModule(name = "jail", buildScript = JAVA_MODULE_SCRIPT)
-            .withSourceFile("jail/README.md", "Jails players for a sentence and frees them when it ends.")
+            .withModule(name = "modules:jail", buildScript = JAVA_MODULE_SCRIPT)
+            .withSourceFile("modules/jail/README.md", "Jails players for a sentence and frees them when it ends.")
             .withSourceFile(
-                "jail/src/commonMain/kotlin/com/example/jail/model/Jail.kt",
+                "modules/jail/src/commonMain/kotlin/com/example/jail/model/Jail.kt",
                 "package com.example.jail.model\n\nclass Jail"
             )
             .withSourceFile(
-                "jail/src/jvmTest/kotlin/com/example/jail/model/JailTest.kt",
+                "modules/jail/src/jvmTest/kotlin/com/example/jail/model/JailTest.kt",
                 "package com.example.jail.model\n\nclass JailTest"
             )
 
-        val result = build.runAndFail(":jail:architectureCheck")
+        val result = build.runAndFail(":modules:jail:architectureCheck")
 
         assertTrue(result.output.contains("Move JailTest to commonTest"), result.output)
     }
@@ -612,20 +593,20 @@ class LinterPluginTest {
 
             dependencies {
                 add("exportedApi", "org.slf4j:slf4j-api:2.0.13")
-                exportedApi(project(":core"))
+                exportedApi(project(":modules:core"))
                 unrelatedApi("org.apache.commons:commons-lang3:3.14.0")
-                unrelatedApi(project(":core"))
+                unrelatedApi(project(":modules:core"))
             }
         """.trimIndent()
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
             .withRootBuildScript("")
-            .withModule(name = "library", buildScript = moduleScript)
-            .withModule(name = "core", buildScript = JAVA_MODULE_SCRIPT)
-            .withSourceFile("library/README.md", "Publishes the library API.")
-            .withSourceFile("core/README.md", "Provides shared models.")
+            .withModule(name = "modules:library", buildScript = moduleScript)
+            .withModule(name = "modules:core", buildScript = JAVA_MODULE_SCRIPT)
+            .withSourceFile("modules/library/README.md", "Publishes the library API.")
+            .withSourceFile("modules/core/README.md", "Provides shared models.")
 
-        val result = build.runAndFail(":library:architectureCheck")
+        val result = build.runAndFail(":modules:library:architectureCheck")
 
         assertTrue(result.output.contains("org.apache.commons:commons-lang3"), result.output)
         assertTrue(!result.output.contains("Declare org.slf4j:slf4j-api"), result.output)
@@ -653,10 +634,10 @@ class LinterPluginTest {
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
             .withRootBuildScript("")
-            .withModule(name = "library", buildScript = moduleScript)
-            .withSourceFile("library/README.md", "Publishes the library API.")
+            .withModule(name = "modules:library", buildScript = moduleScript)
+            .withSourceFile("modules/library/README.md", "Publishes the library API.")
 
-        val result = build.runAndFail(":library:architectureCheck")
+        val result = build.runAndFail(":modules:library:architectureCheck")
 
         assertTrue(result.output.contains("Declare org.slf4j:slf4j-api"), result.output)
     }

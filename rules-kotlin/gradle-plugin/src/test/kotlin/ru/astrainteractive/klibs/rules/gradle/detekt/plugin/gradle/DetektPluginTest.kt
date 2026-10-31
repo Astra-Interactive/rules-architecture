@@ -203,8 +203,130 @@ class DetektPluginTest {
         assertEquals("21", jvmTargetBuild(rootDirectory, script).reportedJvmTarget())
     }
 
+    @Test
+    fun GIVEN_unused_private_preview_WHEN_detekt_runs_THEN_reports_only_the_unused_helper(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            plugins {
+                id("org.jetbrains.kotlin.jvm")
+                id("ru.astrainteractive.klibs.rules.gradle.detekt")
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "library", buildScript = moduleScript)
+            .withSourceFile("library/src/main/kotlin/com/example/card/Card.kt", PREVIEW_SOURCE)
+
+        val result = build.runAndFail(":library:detektMain")
+
+        assertTrue(
+            result.output.contains("Private function `unusedHelper` is unused"),
+            "the unused helper was not reported:\n${result.output}"
+        )
+        assertTrue(
+            !result.output.contains("`CardPreview` is unused"),
+            "the preview was reported as unused:\n${result.output}"
+        )
+    }
+
+    @Test
+    fun GIVEN_worktree_inside_the_root_WHEN_root_detekt_runs_THEN_skips_the_worktree(@TempDir rootDirectory: File) {
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("""plugins { id("ru.astrainteractive.klibs.rules.gradle.detekt") }""")
+            .withSourceFile("Root.kt", "package com.example\n\nclass Root")
+            .withSourceFile(".claude/worktrees/copy/.git", "gitdir: /elsewhere")
+            .withSourceFile(".claude/worktrees/copy/build.gradle.kts", "plugins { }\n")
+            .withSourceFile(".claude/worktrees/copy/Copy.kt", "package com.example\n\nclass Copy")
+
+        val result = build.runAndFail(":detekt")
+
+        assertTrue(result.output.contains("Root.kt"), "the root file was not analysed:\n${result.output}")
+        assertTrue(!result.output.contains("Copy.kt"), "the worktree was analysed:\n${result.output}")
+    }
+
+    @Test
+    fun GIVEN_main_and_test_sources_WHEN_test_detekt_runs_THEN_analyses_only_the_test_sources(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            plugins {
+                id("org.jetbrains.kotlin.jvm")
+                id("ru.astrainteractive.klibs.rules.gradle.detekt")
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "library", buildScript = moduleScript)
+            .withSourceFile("library/src/main/kotlin/com/example/Main.kt", MAIN_SOURCE)
+            .withSourceFile("library/src/test/kotlin/com/example/MainTest.kt", TEST_SOURCE)
+
+        val result = build.runAndFail(":library:detektTest")
+
+        assertTrue(
+            result.output.contains("Private function `unusedTestHelper` is unused"),
+            "the test source was not analysed:\n${result.output}"
+        )
+        assertTrue(
+            !result.output.contains("Private function `unusedHelper` is unused"),
+            "the main source was analysed with the test classpath:\n${result.output}"
+        )
+    }
+
+    @Test
+    fun GIVEN_generated_sources_in_the_build_directory_WHEN_main_detekt_runs_THEN_skips_them(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            plugins {
+                id("org.jetbrains.kotlin.jvm")
+                id("ru.astrainteractive.klibs.rules.gradle.detekt")
+            }
+
+            kotlin.sourceSets.named("main") { kotlin.srcDir("build/generated/resources/kotlin") }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "library", buildScript = moduleScript)
+            .withSourceFile("library/src/main/kotlin/com/example/Main.kt", MAIN_SOURCE)
+            .withSourceFile("library/build/generated/resources/kotlin/com/example/Generated.kt", GENERATED_SOURCE)
+
+        val result = build.runAndFail(":library:detektMain")
+
+        assertTrue(
+            result.output.contains("Private function `unusedHelper` is unused"),
+            "the main source was not analysed:\n${result.output}"
+        )
+        assertTrue(
+            !result.output.contains("unusedGeneratedHelper"),
+            "the generated source was analysed:\n${result.output}"
+        )
+    }
+
     private companion object {
         const val CONFIG_REPORT_NAME = "detekt-config-path.txt"
+
+        val GENERATED_SOURCE = """
+            package com.example
+
+            private fun unusedGeneratedHelper() = Unit
+        """.trimIndent()
+
+        val MAIN_SOURCE = """
+            package com.example
+
+            private fun unusedHelper() = Unit
+        """.trimIndent()
+
+        val TEST_SOURCE = """
+            package com.example
+
+            private fun unusedTestHelper() = Unit
+        """.trimIndent()
 
         val PROJECT_CONFIG = """
             style:
@@ -212,5 +334,16 @@ class DetektPluginTest {
                 active: false
         """.trimIndent()
         const val JVM_TARGET_REPORT_NAME = "detekt-jvm-target.txt"
+
+        val PREVIEW_SOURCE = """
+            package com.example.card
+
+            annotation class PreviewLightDark
+
+            private fun unusedHelper() = Unit
+
+            @PreviewLightDark
+            private fun CardPreview() = Unit
+        """.trimIndent()
     }
 }

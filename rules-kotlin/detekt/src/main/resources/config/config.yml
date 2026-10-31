@@ -8,7 +8,10 @@ architecture:
     active: true
   BareIdentifier:
     active: true
+    technologyWords: [ ]
   BooleanOperatorWrapping:
+    active: true
+  BridgeCleanup:
     active: true
   CallbackDeclaration:
     active: true
@@ -16,9 +19,17 @@ architecture:
     active: true
   CalleeBeforeCaller:
     active: true
+  ChannelFlowShape:
+    active: true
+  ClockSystemOutsideDi:
+    active: true
   CompanionFactoryFunction:
     active: true
+  CompletableDeferredUse:
+    active: true
   ComposableFileType:
+    active: true
+  ComposableName:
     active: true
   ComposableWhenBranch:
     active: true
@@ -36,13 +47,21 @@ architecture:
     active: true
   DurationOverloadCall:
     active: true
+  EventCollection:
+    active: true
   ExplicitInvoke:
     active: true
   ExpressionBodyOnOneLine:
     active: true
+  FileLength:
+    active: true
   FunctionVerb:
     active: true
   GetOrThrowInMain:
+    active: true
+  GuardIfBraces:
+    active: true
+  HardcodedDispatcher:
     active: true
   ImplementationName:
     active: true
@@ -56,6 +75,7 @@ architecture:
     active: true
   KindNameInPackage:
     active: true
+    technologyWords: [ ]
   LambdaSingleIfGuard:
     active: true
   LocalOrInnerClass:
@@ -74,6 +94,8 @@ architecture:
     active: true
   PropertyAsFunction:
     active: true
+  PropertyReadBeforeDeclaration:
+    active: true
   RememberInName:
     active: true
   ResultConsumption:
@@ -86,7 +108,11 @@ architecture:
     active: true
   RunBlockingOutsideBoundary:
     active: true
+    technologyWords: [ ]
   RunCatchingCancellation:
+    active: true
+    inlineCancellationCheck: true
+  RunTestResult:
     active: true
   SharedFlowEvent:
     active: true
@@ -107,4 +133,6 @@ architecture:
   TimeAsPrimitive:
     active: true
   TrivialLambdaReference:
+    active: true
+  TryCatchCancellation:
     active: true

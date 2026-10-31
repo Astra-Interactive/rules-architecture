@@ -9,7 +9,7 @@ plugins {
 
 val architectureSelfCheckSources = tasks.register<Copy>("architectureSelfCheckSources") {
     destinationDir = rootProject.file("self-check")
-    listOf("detekt", "gradle-plugin", "konsist", "structure").forEach { module ->
+    listOf("core", "detekt", "gradle-plugin", "konsist", "structure").forEach { module ->
         from("$module/src") { into("$module/src") }
         from("$module/README.md") { into(module) }
     }
@@ -19,6 +19,7 @@ val architectureSelfCheck = tasks.register<Exec>("architectureSelfCheck") {
     group = "verification"
     dependsOn(architectureSelfCheckSources)
     dependsOn(
+        ":core:publishToMavenLocal",
         ":detekt:publishToMavenLocal",
         ":gradle-plugin:publishToMavenLocal",
         ":konsist:publishToMavenLocal",
@@ -32,6 +33,7 @@ val architectureSelfCheck = tasks.register<Exec>("architectureSelfCheck") {
         "-DklibsRulesVersion=${project.property("klibs.project.version.string")}",
         "-DklibsKotlinVersion=${libs.versions.kotlin.version.get()}",
         ":architectureCheck",
+        ":core:architectureCheck",
         ":detekt:architectureCheck",
         ":gradle-plugin:architectureCheck",
         ":konsist:architectureCheck",
@@ -43,5 +45,5 @@ val architectureSelfCheck = tasks.register<Exec>("architectureSelfCheck") {
 tasks.register("check") {
     group = "verification"
     dependsOn(architectureSelfCheck)
-    dependsOn(":detekt:check", ":gradle-plugin:check", ":konsist:check", ":structure:check")
+    dependsOn(":core:check", ":detekt:check", ":gradle-plugin:check", ":konsist:check", ":structure:check")
 }

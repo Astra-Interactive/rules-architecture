@@ -9,12 +9,14 @@ import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.psiUtil.parents
 import ru.astrainteractive.klibs.rules.detekt.util.isInTechnologyPackage
 import ru.astrainteractive.klibs.rules.detekt.util.isTestSource
+import dev.detekt.api.config as ruleConfig
 
 /**
  * Reports `runBlocking` in the main sources outside a top-level `main` function and outside a technology package,
  * the one place where a platform's blocking callback is bridged. Test sources are left to `RunBlockingInTest`.
  */
 internal class RunBlockingOutsideBoundary(config: Config) : Rule(config, DESCRIPTION) {
+    private val technologyWords: List<String> by ruleConfig(emptyList())
 
     private fun isInMainFunction(call: KtCallExpression): Boolean {
         return call.parents
@@ -26,7 +28,7 @@ internal class RunBlockingOutsideBoundary(config: Config) : Rule(config, DESCRIP
         super.visitCallExpression(expression)
         if (expression.calleeExpression?.text != RUN_BLOCKING) return
         val file = expression.containingKtFile
-        if (file.isTestSource() || file.isInTechnologyPackage()) return
+        if (file.isTestSource() || file.isInTechnologyPackage(technologyWords)) return
         if (isInMainFunction(expression)) return
         val message = "Make the caller suspend instead of calling runBlocking: it runs only in main and, inside a " +
             "technology package, where the platform demands a blocking callback."

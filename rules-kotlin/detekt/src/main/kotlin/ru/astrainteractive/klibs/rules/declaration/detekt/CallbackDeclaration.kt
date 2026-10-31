@@ -61,6 +61,12 @@ internal class CallbackDeclaration(config: Config) : Rule(config, DESCRIPTION) {
         if (!klass.isInterface() || klass.containingKtFile.isTestSource()) return
         val name = klass.name.orEmpty()
         val isDecomposeOutput = klass.hasModifier(KtTokens.FUN_KEYWORD) && OUTPUT_CALLBACK_NAME.matches(name)
+        if (isDecomposeOutput && klass.isTopLevel()) {
+            val message = "Nest '$name' in the type of the component the parent sees, its interface when it has " +
+                "one: a component's outputs are declared beside it, one fun interface per event."
+            report(Finding(Entity.atName(klass), message))
+            return
+        }
         val isListener = name.endsWith(LISTENER_SUFFIX)
         val isCallback = name.endsWith(CALLBACK_SUFFIX) && !isDecomposeOutput
         if (!isListener && !isCallback) return

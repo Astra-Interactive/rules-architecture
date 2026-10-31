@@ -44,4 +44,25 @@ internal class ResultConsumptionTest {
 
         assertEquals(0, rule.lintWithContext(environment, code).size)
     }
+
+    @Test
+    fun GIVEN_result_as_the_last_expression_of_lambdas_WHEN_linted_THEN_reports_only_the_unit_lambda() {
+        val code = """
+            inline fun <T> withLock(block: () -> T): T = block()
+
+            fun save(): Result<Int> {
+                return withLock {
+                    runCatching { 1 }
+                }
+            }
+
+            fun saveAll(ids: List<Int>) {
+                ids.forEach { id ->
+                    runCatching { id }
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(1, rule.lintWithContext(environment, code).size)
+    }
 }

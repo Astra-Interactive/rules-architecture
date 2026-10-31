@@ -25,7 +25,7 @@ internal class SealedFamilyFile : ArchitectureCheck {
                 .filter { declaration -> declaration.hasModifier(KoModifier.SEALED) }
                 .map(KoNameProvider::name)
             classes.plus(interfaces).map { name -> SealedType(name, file) }
-        }.associate { sealed -> sealed.name to sealed.file }
+        }.associateBy(keySelector = SealedType::name, valueTransform = SealedType::file)
     }
 
     override fun check(sources: UnitSources): List<Violation> {

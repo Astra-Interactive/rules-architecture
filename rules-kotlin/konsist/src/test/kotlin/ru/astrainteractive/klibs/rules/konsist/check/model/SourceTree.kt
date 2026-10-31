@@ -139,7 +139,9 @@ internal class SourceTree(
         val NO_PROJECT_WORDS = Vocabulary(
             entryPointWords = emptySet(),
             technologyWords = emptySet(),
-            pluralConcepts = emptySet()
+            pluralConcepts = emptySet(),
+            platformClasses = emptySet(),
+            extensionKinds = emptySet()
         )
     }
 }

@@ -11,7 +11,8 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 /**
  * Reports a platform, framework or ORM import in `model`, `api` and `usecase`, and anywhere in an `api` unit,
  * which holds platform-free code only. A technology unit is not checked: it is that technology's
- * implementation, its own `model` included. The `model` of a Compose UI unit may import Compose.
+ * implementation, its own `model` included. In a Compose UI unit, `model` and the UI kinds may import Compose: an
+ * `api` unit whose state holder declares `Render()` is such a unit.
  */
 internal class PlatformImport : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet() - UnitKind.TECHNOLOGY
@@ -22,8 +23,8 @@ internal class PlatformImport : ArchitectureCheck {
     }
 
     private fun isAllowedCompose(sources: UnitSources, file: KoFileDeclaration, importedName: String): Boolean {
-        val isUiModel = sources.isComposeUnit && sources.placementOf(file)?.kind == Kind.MODEL
-        return isUiModel && UnitSources.isComposeImport(importedName)
+        val isUiKind = sources.placementOf(file)?.kind in COMPOSE_KINDS
+        return sources.isComposeUnit && isUiKind && UnitSources.isComposeImport(importedName)
     }
 
     override fun check(sources: UnitSources): List<Violation> {
@@ -54,6 +55,9 @@ internal class PlatformImport : ArchitectureCheck {
 
     private companion object {
         const val RULE = "PlatformImport"
+
+        @JvmField
+        val COMPOSE_KINDS = setOf(Kind.MODEL, Kind.ENTRY_POINT)
 
         @JvmField
         val CHECKED_KINDS = setOf(

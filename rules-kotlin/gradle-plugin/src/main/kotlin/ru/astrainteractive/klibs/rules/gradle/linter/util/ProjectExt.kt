@@ -7,19 +7,27 @@ import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.file.FileCollection
+import org.gradle.api.provider.Provider
 import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 import org.jetbrains.kotlin.gradle.dsl.KotlinBaseExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.mpp.Framework
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
+import ru.astrainteractive.klibs.rules.structure.unit.structure.isPlatformUnitName
 import ru.astrainteractive.klibs.rules.structure.unit.structure.isTechnologyUnitName
 import java.io.File
 
 private const val ENTRY_POINT_PATH_PREFIX = ":instances:"
+
+private const val CORE_SEGMENT = "core"
+
+private const val MIKRO_CORE = "mikro-core"
 
 private val ENTRY_POINT_PLUGIN_IDS = listOf("application", "com.android.application")
 
@@ -28,6 +36,10 @@ private const val MULTIPLATFORM_PLUGIN_ID = "org.jetbrains.kotlin.multiplatform"
 private const val PUBLISH_PLUGIN_ID = "maven-publish"
 
 private const val API_CONFIGURATION = "api"
+
+private const val KOTLIN_GROUP = "org.jetbrains.kotlin"
+
+private const val STDLIB_PREFIX = "kotlin-stdlib"
 
 private const val ANDROID_EXTENSION = "android"
 
@@ -47,6 +59,15 @@ private fun Project.isEntryPointByConvention(): Boolean {
 }
 
 /**
+ * A sub-context's platform unit (`gui/bukkit`) is wholly that platform; `core/bukkit` holds small platform pieces as
+ * packages of `core` and is not.
+ */
+private fun Project.isPlatformUnit(): Boolean {
+    val segments = path.split(':')
+    return isPlatformUnitName(segments.last()) && CORE_SEGMENT !in segments
+}
+
+/**
  * Call it only when a Kotlin plugin is applied.
  */
 internal fun Project.explicitApiMode(): String? {
@@ -57,6 +78,15 @@ internal fun Project.explicitApiMode(): String? {
     }
 }
 
+/**
+ * A published library is a unit applying `maven-publish` with strict explicit API mode; explicit API mode alone does
+ * not make an application unit a library.
+ */
+private fun Project.isPublishedLibrary(): Boolean {
+    val isStrict = hasKotlinPlugin() && explicitApiMode() == "strict"
+    return isStrict && pluginManager.hasPlugin(PUBLISH_PLUGIN_ID)
+}
+
 internal fun Project.detectUnitKind(): UnitKind {
     val unitName = path.substringAfterLast(':')
     return when {
@@ -64,7 +94,8 @@ internal fun Project.detectUnitKind(): UnitKind {
         unitName == UnitKind.CONTRACT.cliName -> UnitKind.CONTRACT
         isTechnologyUnitName(unitName) -> UnitKind.TECHNOLOGY
         isEntryPointByConvention() -> UnitKind.ENTRY_POINT
-        hasKotlinPlugin() && explicitApiMode() == "strict" -> UnitKind.LIBRARY
+        isPlatformUnit() -> UnitKind.TECHNOLOGY
+        isPublishedLibrary() -> UnitKind.LIBRARY
         else -> UnitKind.CONTEXT
     }
 }
@@ -93,12 +124,21 @@ private fun dependencyNotation(dependency: Dependency): String {
     return (dependency as? ProjectDependency)?.path ?: "${dependency.group}:${dependency.name}"
 }
 
+/**
+ * The Kotlin Gradle plugin puts the standard library into `api` on its own (Android units see it there), and every
+ * Kotlin unit exports its types anyway, so it is no dependency a build file chose to export.
+ */
+private fun isStandardLibrary(dependency: Dependency): Boolean {
+    return dependency.group == KOTLIN_GROUP && dependency.name.startsWith(STDLIB_PREFIX)
+}
+
 private fun Project.apiDependencies(): List<String> {
     return configurations
         .filter { configuration -> isApiConfiguration(configuration.name) }
         .flatMap { configuration ->
             configuration.dependencies
                 .filterNot { dependency -> dependency.group == null && dependency.name == "unspecified" }
+                .filterNot(::isStandardLibrary)
                 .map { dependency -> "${configuration.name}: ${dependencyNotation(dependency)}" }
         }
         .sorted()
@@ -129,6 +169,28 @@ private fun Project.externalProductionDependencies(): List<String> {
         .map { dependency -> "${dependency.group}:${dependency.name}" }
         .distinct()
         .sorted()
+}
+
+/**
+ * Whether the project's version catalog offers mikro-core, whose `propagateCancellationException()` then replaces the
+ * inline `CancellationException` check.
+ */
+internal fun Project.hasMikroCoreInCatalog(): Boolean {
+    val catalogs = extensions.findByType(VersionCatalogsExtension::class.java) ?: return false
+    return catalogs.any { catalog ->
+        catalog.libraryAliases.any { alias ->
+            val library = catalog.findLibrary(alias).orElse(null) ?: return@any false
+            library.get().module.name == MIKRO_CORE
+        }
+    }
+}
+
+/**
+ * The unit's technology words: the project's own from [extension] and those its libraries name in its build file.
+ */
+internal fun Project.findUnitTechnologyWords(extension: LinterExtension): Provider<Set<String>> {
+    val libraryWords = provider { findTechnologyWords(externalProductionDependencies()) }
+    return extension.technologyWords.zip(libraryWords) { projectWords, words -> projectWords + words }
 }
 
 internal fun Project.readUnitBuild(unitKind: UnitKind): UnitBuild {

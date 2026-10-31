@@ -55,11 +55,16 @@ internal class CallbackDeclarationTest {
 
             fun Modifier.revealGesture(onReveal: () -> Unit): Modifier = this
 
-            fun interface OnPaidCallback {
-                operator fun invoke(order: OrderId)
+            interface CheckoutComponent {
+                fun interface OnPaidCallback {
+                    operator fun invoke(order: OrderId)
+                }
             }
 
-            class CheckoutComponent(private val onPaidCallback: OnPaidCallback, private val onlineCount: Int)
+            class DefaultCheckoutComponent(
+                private val onPaidCallback: CheckoutComponent.OnPaidCallback,
+                private val onlineCount: Int
+            ) : CheckoutComponent
 
             class Reloader(private val block: suspend () -> Unit) : Gateway {
                 override val onReady: () -> Unit = {}
@@ -77,6 +82,23 @@ internal class CallbackDeclarationTest {
         testFile.writeText(TEST_SOURCE)
 
         assertEquals(0, rule.lint(code).size + rule.lint(compileForTest(testFile.toPath())).size)
+    }
+
+    @Test
+    fun GIVEN_top_level_component_output_WHEN_linted_THEN_asks_to_nest_it() {
+        val code = """
+            fun interface OnPaidCallback {
+                operator fun invoke(order: OrderId)
+            }
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "Nest 'OnPaidCallback' in the type of the component the parent sees, its interface when it has one: " +
+                    "a component's outputs are declared beside it, one fun interface per event.",
+            ),
+            rule.lint(code).map(Finding::message)
+        )
     }
 
     private companion object {

@@ -40,7 +40,9 @@ internal class StateTypePlacementTest {
     }
 
     @Test
-    fun GIVEN_states_in_model_and_compose_names_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_states_in_model_compose_names_and_non_ui_kinds_WHEN_checked_THEN_reports_nothing(
+        @TempDir directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "com.example.splash.model/SplashPaywallState.kt",
@@ -58,6 +60,11 @@ internal class StateTypePlacementTest {
                     class UiState
                 }
                 """
+            )
+            .main("com.example.player.ktor/PlaybackState.kt", "class PlaybackState")
+            .main(
+                "com.example.player.usecase/LoadPlaybackUseCase.kt",
+                "class LoadPlaybackUseCase {\n    class LoadState\n}"
             )
             .load(UnitKind.CONTEXT, rootPackage = "com.example")
 

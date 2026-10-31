@@ -17,6 +17,8 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 rootProject.name = "rules-kotlin"
 
+include(":core")
+
 include(":detekt")
 
 include(":gradle-plugin")

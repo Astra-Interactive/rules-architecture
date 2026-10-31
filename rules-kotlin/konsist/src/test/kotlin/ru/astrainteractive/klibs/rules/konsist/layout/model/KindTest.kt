@@ -12,7 +12,9 @@ internal class KindTest {
         val vocabulary = Vocabulary(
             entryPointWords = setOf("slot"),
             technologyWords = setOf("mongo"),
-            pluralConcepts = emptySet()
+            pluralConcepts = emptySet(),
+            platformClasses = emptySet(),
+            extensionKinds = emptySet()
         )
 
         assertEquals(

@@ -1,3 +1,6 @@
+// A Gradle plugin is the composition root of its build: it registers the build services it shares.
+@file:Suppress("KindImportDirection")
+
 package ru.astrainteractive.klibs.rules.gradle.detekt.plugin.gradle
 
 import dev.detekt.gradle.Detekt
@@ -43,7 +46,10 @@ internal class DetektPlugin : Plugin<Project> {
         )
         val projectSource = target.files(target.projectDir)
 
-        target.tasks.register("detektFormat", Detekt::class.java) { task ->
+        target.tasks.register(
+            "detektFormat",
+            Detekt::class.java
+        ) { task ->
             task.autoCorrect.set(true)
         }
 
@@ -61,13 +67,17 @@ internal class DetektPlugin : Plugin<Project> {
                 extension.ruleConfigs,
                 detektExtension.config
             )
-            task.setSource(projectSource)
-
-            task.include("**/*.kt", "**/*.kts")
+            // A source-set task keeps its own sources: analysed with its own classpath, a test task would resolve
+            // main code without its compileOnly dependencies and report what it cannot resolve.
+            if (task.name in PROJECT_WIDE_TASKS) {
+                task.setSource(projectSource)
+                task.include("**/*.kt", "**/*.kts")
+            }
             task.exclude(
                 "**/resources/**",
                 "**/build/**",
             )
+            task.exclude(NestedBuildSpec)
 
             task.parallel.set(true)
 
@@ -88,5 +98,8 @@ internal class DetektPlugin : Plugin<Project> {
         const val EXTENSION_NAME = "detektRules"
         const val KTLINT_WRAPPER_VERSION = "2.0.0-alpha.2"
         const val COMPOSE_RULES_VERSION = "0.5.6"
+
+        @JvmField
+        val PROJECT_WIDE_TASKS = setOf("detekt", "detektFormat")
     }
 }

@@ -4,8 +4,10 @@ package ru.astrainteractive.klibs.rules.result.detekt
 
 import dev.detekt.api.Config
 import dev.detekt.api.Finding
+import dev.detekt.core.config.YamlConfig
 import dev.detekt.test.lint
 import org.junit.jupiter.api.Test
+import java.io.StringReader
 import kotlin.test.assertEquals
 
 internal class RunCatchingCancellationTest {
@@ -88,6 +90,26 @@ internal class RunCatchingCancellationTest {
             }
         """.trimIndent()
 
+        assertEquals(0, rule.lint(code).size)
+    }
+
+    @Test
+    fun GIVEN_inline_check_WHEN_mikro_core_is_in_the_catalog_THEN_reports_it() {
+        val code = """
+            suspend fun load(client: Client) {
+                runCatching { client.fetch() }
+                    .onFailure { error -> if (error is CancellationException) throw error }
+            }
+        """.trimIndent()
+        val mikroRule = RunCatchingCancellation(YamlConfig.load(StringReader("inlineCancellationCheck: false")))
+
+        assertEquals(
+            listOf(
+                "runCatching in coroutine code catches CancellationException: call .propagateCancellationException() " +
+                    "right after it; mikro-core is in the version catalog, so add its alias to this unit.",
+            ),
+            mikroRule.lint(code).map(Finding::message)
+        )
         assertEquals(0, rule.lint(code).size)
     }
 }

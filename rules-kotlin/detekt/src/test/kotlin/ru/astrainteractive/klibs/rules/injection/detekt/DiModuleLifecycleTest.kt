@@ -51,4 +51,44 @@ internal class DiModuleLifecycleTest {
 
         assertEquals(0, rule.lint(code).size)
     }
+
+    @Test
+    fun GIVEN_modules_that_start_something_without_a_lifecycle_WHEN_linted_THEN_reports_each() {
+        val code = """
+            class RatingStorageModule(scope: CoroutineScope) {
+                val warmUp = RatingCacheWarmUp(scope)
+            }
+
+            class EventModule {
+                val killListener = KillEventListener()
+            }
+
+            class TimerModule(scope: CoroutineScope) {
+                val job = scope.launch { }
+            }
+
+            class GuiModule {
+                val router = BukkitGuiRouter()
+            }
+
+            class JailModule {
+                val listener = JailListener()
+                val lifecycle = Lifecycle.Lambda(onEnable = { listener.register() })
+            }
+        """.trimIndent()
+
+        val messages = rule.lint(code).map(Finding::message)
+
+        assertEquals(
+            listOf(
+                "Expose val lifecycle: Lifecycle from RatingStorageModule: it starts RatingCacheWarmUp, and the " +
+                    "parent module starts and stops it through that lifecycle.",
+                "Expose val lifecycle: Lifecycle from EventModule: it starts KillEventListener, and the parent " +
+                    "module starts and stops it through that lifecycle.",
+                "Expose val lifecycle: Lifecycle from TimerModule: it starts launch, and the parent module starts " +
+                    "and stops it through that lifecycle.",
+            ),
+            messages
+        )
+    }
 }

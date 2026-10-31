@@ -31,4 +31,20 @@ internal class UseCaseAbstractionTest {
             UseCaseAbstraction().check(sources).map(Violation::message).sorted()
         )
     }
+
+    @Test
+    fun GIVEN_use_case_interface_in_usecase_of_an_api_unit_WHEN_checked_THEN_reports_only_the_abstract_class(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main("x.payment.api.offer.usecase/LoadOfferUseCase.kt", "interface LoadOfferUseCase")
+            .main("x.payment.api.offer.usecase/BuyOfferUseCase.kt", "abstract class BuyOfferUseCase")
+            .main("x.payment.api.offer.model/RefreshUseCase.kt", "interface RefreshUseCase")
+            .load(UnitKind.API, rootPackage = "x.payment.api")
+
+        assertEquals(
+            listOf("BuyOfferUseCase", "RefreshUseCase"),
+            UseCaseAbstraction().check(sources).map(Violation::subject).sorted()
+        )
+    }
 }

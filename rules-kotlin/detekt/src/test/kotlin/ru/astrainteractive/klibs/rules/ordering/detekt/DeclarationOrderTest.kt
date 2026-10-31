@@ -76,13 +76,19 @@ internal class DeclarationOrderTest {
                 init {
                     println()
                 }
+
+                class Entry
             }
         """.trimIndent()
 
         val messages = rule.lint(code).map(Finding::message).sorted()
 
         assertEquals(
-            listOf("'NAME' goes before functions: $ORDER", "The init block goes before the companion object: $ORDER"),
+            listOf(
+                "'Entry' goes before the companion object: $COMPANION_LAST",
+                "'NAME' goes before functions: $ORDER",
+                "The init block goes before the companion object: $COMPANION_LAST",
+            ),
             messages
         )
     }
@@ -130,5 +136,6 @@ internal class DeclarationOrderTest {
 
     private companion object {
         const val ORDER = "properties, secondary constructors, functions, init blocks, then the companion object."
+        const val COMPANION_LAST = "the companion object is the last declaration of a class, nested types included."
     }
 }

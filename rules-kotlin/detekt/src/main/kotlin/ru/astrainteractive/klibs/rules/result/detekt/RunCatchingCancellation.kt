@@ -16,15 +16,18 @@ import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.psiUtil.parents
 import ru.astrainteractive.klibs.rules.detekt.util.findCallName
 import ru.astrainteractive.klibs.rules.detekt.util.hasThrowBranch
+import dev.detekt.api.config as ruleConfig
 
 /**
  * Reports a `runCatching` in coroutine code that is not followed in the same call chain by
  * `.propagateCancellationException()` or, in a project without mikro, by the inline
- * `.onFailure { error -> if (error is CancellationException) throw error }`. Coroutine code is the body of a
+ * `.onFailure { error -> if (error is CancellationException) throw error }`; the `inlineCancellationCheck` setting,
+ * off when mikro-core is in the project's version catalog, decides which. Coroutine code is the body of a
  * `suspend` function and the lambda of a coroutine builder or a flow operator (`launch`, `async`, `withContext`,
  * `flow`, `collect`, `runTest`, …), lambdas inside them included.
  */
 internal class RunCatchingCancellation(config: Config) : Rule(config, DESCRIPTION) {
+    private val inlineCancellationCheck: Boolean by ruleConfig(true)
 
     private fun isInCoroutine(call: KtCallExpression): Boolean {
         for (parent in call.parents) {
@@ -51,7 +54,7 @@ internal class RunCatchingCancellation(config: Config) : Rule(config, DESCRIPTIO
         val selector = next.selectorExpression as? KtCallExpression ?: return false
         return when (selector.calleeExpression?.text) {
             PROPAGATE -> true
-            ON_FAILURE -> isInlinePropagation(selector)
+            ON_FAILURE -> inlineCancellationCheck && isInlinePropagation(selector)
             else -> false
         }
     }
@@ -60,9 +63,14 @@ internal class RunCatchingCancellation(config: Config) : Rule(config, DESCRIPTIO
         super.visitCallExpression(expression)
         if (expression.calleeExpression?.text != RUN_CATCHING) return
         if (!isInCoroutine(expression) || isFollowedByPropagation(expression)) return
-        val message = "runCatching in coroutine code catches CancellationException: call " +
-            ".propagateCancellationException() right after it, or without mikro " +
-            ".onFailure { error -> if (error is CancellationException) throw error }."
+        val message = if (inlineCancellationCheck) {
+            "runCatching in coroutine code catches CancellationException: call .propagateCancellationException() " +
+                "right after it, or without mikro .onFailure { error -> if (error is CancellationException) throw " +
+                "error }."
+        } else {
+            "runCatching in coroutine code catches CancellationException: call .propagateCancellationException() " +
+                "right after it; mikro-core is in the version catalog, so add its alias to this unit."
+        }
         report(Finding(Entity.from(expression), message))
     }
 

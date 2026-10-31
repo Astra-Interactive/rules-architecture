@@ -9,15 +9,18 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
+import ru.astrainteractive.klibs.rules.detekt.util.isTestSource
 
 /**
  * Reports a file in a `composable` package that declares no `@Composable` function: a file of plain functions
- * (`DrawScope` extensions, a brush builder) is a `util` file.
+ * (`DrawScope` extensions, a brush builder) is a `util` file. A test file is skipped: tests mirror the package of
+ * the code they test, `composable` included.
  */
 internal class NonComposableFileInComposable(config: Config) : Rule(config, DESCRIPTION) {
 
     override fun visitKtFile(file: KtFile) {
         super.visitKtFile(file)
+        if (file.isTestSource()) return
         val segments = file.packageFqName.pathSegments().map(Name::asString)
         if (COMPOSABLE_SEGMENT !in segments) return
         val first = file.declarations.firstOrNull() ?: return

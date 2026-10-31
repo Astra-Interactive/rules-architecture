@@ -26,6 +26,7 @@ kover {
 dependencies {
     detektPlugins(projects.detekt)
 
+    implementation(projects.core)
     testImplementation(libs.tests.kotlin.test)
     testImplementation(platform(libs.tests.junit.bom))
     testImplementation(libs.tests.junit.jupiter)
