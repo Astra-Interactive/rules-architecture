@@ -5,6 +5,7 @@ import ru.astrainteractive.klibs.rules.structure.unit.structure.isPlatformUnitNa
 import ru.astrainteractive.klibs.rules.structure.unit.structure.isTechnologyUnitName
 
 internal object UnitDependencyDirection {
+    private const val CORE_NAME = "core"
     private const val DESIGN_SYSTEM_NAME = "ui"
 
     private enum class Kind {
@@ -23,10 +24,12 @@ internal object UnitDependencyDirection {
         FAKE
     }
 
-    private fun coreKindOf(name: String): Kind {
+    private fun coreKindOf(segments: List<String>): Kind {
+        val name = segments.last()
+        val isDesignSystem = DESIGN_SYSTEM_NAME in segments.dropWhile { segment -> segment != CORE_NAME }
         return when {
             isPlatformUnitName(name) -> Kind.CORE_PLATFORM
-            name == DESIGN_SYSTEM_NAME -> Kind.CORE_UI
+            isDesignSystem -> Kind.CORE_UI
             isTechnologyUnitName(name) -> Kind.TECHNOLOGY
             else -> Kind.CORE_API
         }
@@ -35,10 +38,10 @@ internal object UnitDependencyDirection {
     private fun kindOf(path: String, isEntryPoint: Boolean, isLibrary: Boolean = false): Kind {
         val segments = path.split(':')
         val name = segments.last()
-        val isCore = "core" in segments
+        val isCore = CORE_NAME in segments
         if (isLibrary && !isCore) return Kind.LIBRARY
         if (isEntryPoint) return Kind.ENTRY_POINT
-        if (isCore) return coreKindOf(name)
+        if (isCore) return coreKindOf(segments)
         return when {
             name == "api" -> Kind.API
             name == "impl" -> Kind.IMPL

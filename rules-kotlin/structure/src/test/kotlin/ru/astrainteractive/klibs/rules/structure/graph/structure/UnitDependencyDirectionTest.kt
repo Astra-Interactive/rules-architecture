@@ -106,4 +106,31 @@ internal class UnitDependencyDirectionTest {
             )
         )
     }
+
+    @Test
+    fun GIVEN_design_system_split_into_units_WHEN_classified_THEN_each_depends_on_platform_free_core() {
+        val designSystemUnits = listOf(
+            ":services:core:ui:common",
+            ":services:core:ui:theme",
+            ":services:core:ui:sheet"
+        )
+
+        designSystemUnits.forEach { path ->
+            assertEquals(
+                emptyList(),
+                forbidden(
+                    path,
+                    setOf(":services:core:common", ":services:core:resources")
+                ),
+                path
+            )
+        }
+        assertEquals(
+            listOf(":features:rating:api"),
+            forbidden(
+                ":services:core:ui:common",
+                setOf(":features:rating:api")
+            )
+        )
+    }
 }
