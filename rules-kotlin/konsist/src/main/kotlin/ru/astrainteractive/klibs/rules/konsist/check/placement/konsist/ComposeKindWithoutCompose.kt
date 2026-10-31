@@ -23,7 +23,7 @@ internal class ComposeKindWithoutCompose : ArchitectureCheck {
         return sources.mainFiles
             .distinctBy(KoFileDeclaration::packageName)
             .mapNotNull { file ->
-                val word = file.packageName.split('.').firstOrNull { segment -> segment in COMPOSE_WORDS }
+                val word = sources.placementOf(file)?.kindWord?.takeIf { kindWord -> kindWord in COMPOSE_WORDS }
                     ?: return@mapNotNull null
                 val message = "Rename the package '$word': it means Kotlin Compose, and this unit does not use " +
                     "Compose; name the kind after the UI framework's own classes."

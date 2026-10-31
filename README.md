@@ -374,7 +374,7 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `RootModulePlacement` | a `RootModule` outside the entry-point unit or its `di` package |
 | `EntryPointShape` | a file of an entry-point unit outside its root and its `di` package |
 | `ContractUnitShape` | in a `contract` unit, a class or interface that is not `@Serializable`, a function with a body outside an object |
-| `ComposeKindWithoutCompose` | a `composable`, `viewmodel` or `theme` package in a unit that imports no Compose |
+| `ComposeKindWithoutCompose` | a `composable` or `theme` kind package in a unit that imports no Compose; the root package and concepts are not judged |
 | `PlatformPackage` | a package named after a platform (`android`, `ios`, `jvm`, …) in a unit with several main source sets |
 | `PluralPackageName` | a plural package name below the unit root, except an inherently plural concept (`news`, `settings`) |
 | `DuplicateRepresentation` | a technology data class with the same constructor parameter names as a `model` data class of the unit or of a unit it depends on |

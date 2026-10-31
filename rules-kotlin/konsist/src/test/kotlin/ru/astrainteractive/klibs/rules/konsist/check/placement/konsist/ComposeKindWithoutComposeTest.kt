@@ -38,4 +38,14 @@ internal class ComposeKindWithoutComposeTest {
 
         assertEquals(emptyList(), ComposeKindWithoutCompose().check(sources))
     }
+
+    @Test
+    fun GIVEN_theme_in_the_root_package_or_a_concept_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main("x.features.theme.component/ThemeSwitcherComponent.kt", "interface ThemeSwitcherComponent")
+            .main("x.features.theme.dark.model/DarkTheme.kt", "class DarkTheme")
+            .load(UnitKind.API, rootPackage = "x.features.theme")
+
+        assertEquals(emptyList(), ComposeKindWithoutCompose().check(sources))
+    }
 }
