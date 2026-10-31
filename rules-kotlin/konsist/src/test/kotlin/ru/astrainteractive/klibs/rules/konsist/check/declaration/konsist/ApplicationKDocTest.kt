@@ -69,4 +69,31 @@ internal class ApplicationKDocTest {
 
         assertEquals(emptyList(), checker.check(sources))
     }
+
+    @Test
+    fun GIVEN_class_kdoc_and_constructor_properties_WHEN_checked_THEN_reports_each_kdoc_once(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.core.settings.model/Translation.kt",
+                """
+                class Translation(
+                    val commandError: CommandError
+                ) {
+                    /** Failures any command can report. */
+                    data class CommandError(
+                        val unknownError: String = "Unknown error",
+                        val wrongUsage: String = "Wrong usage",
+                        /** Shown when the sender lacks the permission. */
+                        val noPermission: String = "No permission"
+                    )
+                }
+                """
+            )
+            .load(UnitKind.CONTEXT, rootPackage = "x.core")
+
+        assertEquals(
+            listOf("CommandError", "noPermission"),
+            ApplicationKDoc().check(sources).map(Violation::subject).sorted()
+        )
+    }
 }
