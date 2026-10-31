@@ -87,6 +87,10 @@ plugins {
   accept `@Suppress("RuleName")` on a declaration or `@file:Suppress("RuleName")` on a whole file.
 - Registers `architectureBaseline`, which writes the current violations to `architecture-baseline.txt`; the check
   accepts what the file lists for findings that cannot carry a Kotlin suppression.
+- Registers `architectureLint`, which runs the whole linter and no tests: `architectureCheck` and every detekt task
+  of the unit, the type-resolution ones (`detektMain`, `detektTest`, `detektMainAndroid`, …) included, but not
+  `detektFormat`; on the root project also `architectureGraphCheck`. `check` runs only `detekt` without type
+  resolution, so run `./gradlew architectureLint` to see every finding.
 - On the root project, registers `architectureGraphCheck`, which checks the complete unit graph for dependency
   cycles and for dependencies on an entry point, a unit detected or set as `entry-point` (an `application`
   plugin, an `instances` path); root `check` depends on it. Units contribute their dependencies through an isolated-projects-compatible

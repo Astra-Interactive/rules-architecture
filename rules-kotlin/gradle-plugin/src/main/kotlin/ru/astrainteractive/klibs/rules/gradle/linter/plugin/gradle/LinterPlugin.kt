@@ -234,11 +234,22 @@ internal class LinterPlugin : Plugin<Project> {
         target.plugins.withType(LifecycleBasePlugin::class.java) {
             target.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) { task -> task.dependsOn(checkTask) }
         }
-        if (target.path == target.isolated.rootProject.path) target.configureGraphCheck()
+        val lintTask = target.tasks.register(LINT_TASK_NAME) { task ->
+            task.group = LifecycleBasePlugin.VERIFICATION_GROUP
+            task.description = "Runs every check of the linter, detekt with type resolution included, but no tests"
+            task.dependsOn(checkTask)
+            task.dependsOn(target.tasks.withType(Detekt::class.java).named { name -> name != DETEKT_FORMAT_TASK_NAME })
+        }
+        if (target.path == target.isolated.rootProject.path) {
+            target.configureGraphCheck()
+            lintTask.configure { task -> task.dependsOn(GRAPH_CHECK_TASK_NAME) }
+        }
     }
 
     companion object {
         const val CHECK_TASK_NAME = "architectureCheck"
+        const val LINT_TASK_NAME = "architectureLint"
+        private const val DETEKT_FORMAT_TASK_NAME = "detektFormat"
         const val GRAPH_CHECK_TASK_NAME = "architectureGraphCheck"
         const val BASELINE_TASK_NAME = "architectureBaseline"
         const val BASELINE_FILE_NAME = "architecture-baseline.txt"

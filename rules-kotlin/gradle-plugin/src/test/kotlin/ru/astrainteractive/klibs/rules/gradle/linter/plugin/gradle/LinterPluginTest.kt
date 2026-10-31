@@ -329,6 +329,36 @@ class LinterPluginTest {
     }
 
     @Test
+    fun GIVEN_kotlin_unit_WHEN_architecture_lint_planned_THEN_runs_every_linter_task_but_format_and_tests(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            plugins {
+                id("org.jetbrains.kotlin.jvm")
+                id("ru.astrainteractive.klibs.rules.gradle.linter")
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("""plugins { id("ru.astrainteractive.klibs.rules.gradle.linter") }""")
+            .withModule(name = "modules:library", buildScript = moduleScript)
+
+        val planned = build.run("architectureLint", "--dry-run").output.lines()
+            .filter { line -> line.endsWith(" SKIPPED") }
+            .map { line -> line.removeSuffix(" SKIPPED") }
+
+        listOf(
+            ":architectureGraphCheck",
+            ":modules:library:architectureCheck",
+            ":modules:library:detekt",
+            ":modules:library:detektMain",
+            ":modules:library:detektTest",
+        ).forEach { task -> assertTrue(task in planned, "$task is not planned:\n$planned") }
+        assertTrue(planned.none { task -> task.endsWith(":detektFormat") }, "detektFormat is planned:\n$planned")
+        assertTrue(planned.none { task -> task.endsWith(":test") }, "the tests are planned:\n$planned")
+    }
+
+    @Test
     fun GIVEN_kotlin_library_with_explicit_api_WHEN_configured_THEN_detekt_runs_the_architecture_rules(
         @TempDir rootDirectory: File
     ) {
