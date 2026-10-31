@@ -14,7 +14,8 @@ import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 
 /**
  * Reports a `@Test` that calls `runTest` without returning it as a `TestResult`: on JS a test must return what
- * `runTest` returns, so the test reads `fun GIVEN_…(): TestResult { return runTest { … } }`.
+ * `runTest` returns, so the test reads `fun GIVEN_…(): TestResult { return runTest { … } }`, with the return type and
+ * the `return` written out; an expression body (`= runTest { … }`) is reported too.
  */
 internal class RunTestResult(config: Config) : Rule(config, DESCRIPTION) {
 
@@ -23,8 +24,7 @@ internal class RunTestResult(config: Config) : Rule(config, DESCRIPTION) {
     }
 
     private fun returnsRunTest(function: KtNamedFunction): Boolean {
-        val body = function.bodyExpression
-        if (body !is KtBlockExpression) return isRunTest(body)
+        val body = function.bodyExpression as? KtBlockExpression ?: return false
         val statement = body.statements.singleOrNull() as? KtReturnExpression ?: return false
         return isRunTest(statement.returnedExpression)
     }

@@ -314,7 +314,7 @@ val violations: List<StructureViolation> = checker.check(
 | `RootModuleConstruction` | a `RootModule` constructor call that constructs anything but a DI module (a class of a `di` package, found through the call's import) or a `Lifecycle` |
 | `SystemTimeCall` | `System.currentTimeMillis()` and `System.nanoTime()` |
 | `RunBlockingInTest` | `runBlocking` in a test source set |
-| `RunTestResult` | a `@Test` that calls `runTest` without declaring `TestResult` and returning `runTest { … }` |
+| `RunTestResult` | a `@Test` that calls `runTest` without declaring `TestResult` and returning `runTest { … }` from a block body; `= runTest { }` is reported too |
 | `RunBlockingOutsideBoundary` | `runBlocking` in the main sources outside a top-level `main` function and outside a technology package |
 | `ThreadPrimitive` | `Thread` constructed or used through its static members in the main sources |
 | `CallbackFlowShape` | a `callbackFlow` whose block does not end with `awaitClose` (it throws at run time), `launch { send }` inside it, a rendezvous `buffer`, a bridge shared with `shareIn`/`stateIn` not `WhileSubscribed()` |

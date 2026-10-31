@@ -51,9 +51,6 @@ internal class RunTestResultTest {
                 }
 
                 @Test
-                fun GIVEN_cart_WHEN_paid_THEN_charges(): TestResult = runTest { }
-
-                @Test
                 fun GIVEN_price_WHEN_formatted_THEN_rounds() {
                     assertEquals(1, 1)
                 }
@@ -65,5 +62,23 @@ internal class RunTestResultTest {
         """.trimIndent()
 
         assertEquals(emptyList(), rule.lint(code).map(Finding::message))
+    }
+
+    @Test
+    fun GIVEN_typed_expression_body_WHEN_linted_THEN_asks_for_the_return() {
+        val code = """
+            class OrderTest {
+                @Test
+                fun GIVEN_cart_WHEN_paid_THEN_charges(): TestResult = runTest { }
+            }
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "Return runTest from 'GIVEN_cart_WHEN_paid_THEN_charges': declare ': TestResult' and write " +
+                    "'return runTest { … }', since a test on JS must return what runTest returns."
+            ),
+            rule.lint(code).map(Finding::message)
+        )
     }
 }
