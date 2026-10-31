@@ -10,7 +10,6 @@ import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaSyntheticJavaPropertySymbol
-import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtCallExpression
@@ -26,6 +25,7 @@ import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
 import ru.astrainteractive.klibs.rules.detekt.util.findCallName
+import ru.astrainteractive.klibs.rules.detekt.util.isSuspend
 
 /**
  * Reports a lambda whose whole body is one call that receives the lambda's parameters unchanged and in order
@@ -109,10 +109,6 @@ internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION
         return (functionCounts[callee] ?: 0) > 1 || callee in suspendNames
     }
 
-    private fun isSuspendLambda(lambda: KtLambdaExpression): Boolean {
-        return analyze(lambda) { (lambda.expressionType as? KaFunctionType)?.isSuspend == true }
-    }
-
     private fun isMemberExtension(call: KtCallExpression?): Boolean {
         if (call == null) return false
         return analyze(call) {
@@ -146,7 +142,7 @@ internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION
         val reference = findReference(body, names) ?: return
         if (isAmbiguous(reference.call) || mayBeSuspend(lambdaExpression, reference.call)) return
         if (isMemberExtension(reference.call)) return
-        if (reference.call == null && isSuspendLambda(lambdaExpression)) return
+        if (reference.call == null && lambdaExpression.isSuspend()) return
         val message = "Replace the lambda with the function reference ${reference.text}: the lambda only passes " +
             "its parameters on."
         report(Finding(Entity.from(lambdaExpression), message))

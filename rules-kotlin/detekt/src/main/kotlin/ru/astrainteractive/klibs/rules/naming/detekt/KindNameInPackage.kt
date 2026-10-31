@@ -55,7 +55,11 @@ internal class KindNameInPackage(config: Config) : Rule(config, DESCRIPTION) {
         super.visitClassOrObject(classOrObject)
         val name = classOrObject.name ?: return
         val segments = classOrObject.containingKtFile.packageFqName.pathSegments().map(Name::asString)
-        findViolations(classOrObject, name, segments).forEach { message ->
+        findViolations(
+            classOrObject = classOrObject,
+            name = name,
+            segments = segments
+        ).forEach { message ->
             report(Finding(Entity.from(classOrObject), message))
         }
     }
