@@ -7,6 +7,7 @@ import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.file.FileCollection
 import org.gradle.api.provider.Provider
 import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
@@ -25,6 +26,8 @@ import java.io.File
 private const val ENTRY_POINT_PATH_PREFIX = ":instances:"
 
 private const val CORE_SEGMENT = "core"
+
+private const val MIKRO_CORE = "mikro-core"
 
 private val ENTRY_POINT_PLUGIN_IDS = listOf("application", "com.android.application")
 
@@ -153,6 +156,20 @@ private fun Project.externalProductionDependencies(): List<String> {
         .map { dependency -> "${dependency.group}:${dependency.name}" }
         .distinct()
         .sorted()
+}
+
+/**
+ * Whether the project's version catalog offers mikro-core, whose `propagateCancellationException()` then replaces the
+ * inline `CancellationException` check.
+ */
+internal fun Project.hasMikroCoreInCatalog(): Boolean {
+    val catalogs = extensions.findByType(VersionCatalogsExtension::class.java) ?: return false
+    return catalogs.any { catalog ->
+        catalog.libraryAliases.any { alias ->
+            val library = catalog.findLibrary(alias).orElse(null) ?: return@any false
+            library.get().module.name == MIKRO_CORE
+        }
+    }
 }
 
 /**

@@ -28,13 +28,14 @@ import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureBas
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureCheckTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureGraphTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureTask
-import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.DetektWordsTask
+import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.DetektSettingsTask
 import ru.astrainteractive.klibs.rules.gradle.linter.util.androidNamespace
 import ru.astrainteractive.klibs.rules.gradle.linter.util.dependencyInputs
 import ru.astrainteractive.klibs.rules.gradle.linter.util.detectUnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.util.explicitApiMode
 import ru.astrainteractive.klibs.rules.gradle.linter.util.findBuildFindings
 import ru.astrainteractive.klibs.rules.gradle.linter.util.findUnitTechnologyWords
+import ru.astrainteractive.klibs.rules.gradle.linter.util.hasMikroCoreInCatalog
 import ru.astrainteractive.klibs.rules.gradle.linter.util.productionProjectDependencies
 import ru.astrainteractive.klibs.rules.gradle.linter.util.readUnitBuild
 import ru.astrainteractive.klibs.rules.gradle.linter.util.toLine
@@ -72,15 +73,16 @@ internal class LinterPlugin : Plugin<Project> {
             )
         }
         val architectureConfigFile = configService.map(DetektConfigService::configFile)
-        val wordsTask = tasks.register(
-            DETEKT_WORDS_TASK_NAME,
-            DetektWordsTask::class.java
+        val settingsTask = tasks.register(
+            DETEKT_SETTINGS_TASK_NAME,
+            DetektSettingsTask::class.java
         ) { task ->
             task.technologyWords.set(findUnitTechnologyWords(extension))
-            task.configFile.set(layout.buildDirectory.file("detekt/$DETEKT_WORDS_FILE_NAME"))
+            task.inlineCancellationCheck.set(provider { !hasMikroCoreInCatalog() })
+            task.configFile.set(layout.buildDirectory.file("detekt/$DETEKT_SETTINGS_FILE_NAME"))
         }
-        val wordsFile = wordsTask.flatMap(DetektWordsTask::configFile)
-        extensions.getByType(DetektRulesExtension::class.java).ruleConfigs.from(architectureConfigFile, wordsFile)
+        val settingsFile = settingsTask.flatMap(DetektSettingsTask::configFile)
+        extensions.getByType(DetektRulesExtension::class.java).ruleConfigs.from(architectureConfigFile, settingsFile)
         val explicitApiArguments = provider { explicitApiArguments() }
         tasks.withType(Detekt::class.java).configureEach { task ->
             task.usesService(configService)
@@ -239,8 +241,8 @@ internal class LinterPlugin : Plugin<Project> {
         const val GRAPH_CHECK_TASK_NAME = "architectureGraphCheck"
         const val BASELINE_TASK_NAME = "architectureBaseline"
         const val BASELINE_FILE_NAME = "architecture-baseline.txt"
-        const val DETEKT_WORDS_TASK_NAME = "architectureDetektWords"
-        private const val DETEKT_WORDS_FILE_NAME = "architecture-words.yml"
+        const val DETEKT_SETTINGS_TASK_NAME = "architectureDetektSettings"
+        private const val DETEKT_SETTINGS_FILE_NAME = "architecture-settings.yml"
 
         private const val EXTENSION_NAME = "linter"
         private const val RULES_GROUP = "ru.astrainteractive.klibs.rules"
