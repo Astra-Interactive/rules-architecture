@@ -14,6 +14,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.NestedD
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.NestedEnum
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.SealedFamilyFile
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.StateTypePlacement
+import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.ThemeVisibility
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.UseCaseAbstraction
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.UseCaseShape
 import ru.astrainteractive.klibs.rules.konsist.check.direction.konsist.KindImportDirection
@@ -102,6 +103,7 @@ public fun main(args: Array<String>) {
             StateTypePlacement(),
             TestMirror(),
             TestOwnerBehaviour(),
+            ThemeVisibility(),
             UseCaseAbstraction(),
             UseCaseShape(),
             UtilFileName(),
