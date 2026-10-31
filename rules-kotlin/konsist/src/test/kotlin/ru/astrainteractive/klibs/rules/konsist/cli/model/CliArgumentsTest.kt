@@ -43,6 +43,8 @@ internal class CliArgumentsTest {
                 "mongo",
                 "--plural-concept",
                 "goods",
+                "--platform-class",
+                "WatchFaceService",
                 "--dependency",
                 "/data/dao/src/main/kotlin",
                 "--android-namespace",
@@ -64,7 +66,8 @@ internal class CliArgumentsTest {
                 vocabulary = Vocabulary(
                     entryPointWords = setOf("slot", "router"),
                     technologyWords = setOf("mongo"),
-                    pluralConcepts = setOf("goods")
+                    pluralConcepts = setOf("goods"),
+                    platformClasses = setOf("WatchFaceService")
                 ),
                 dependencyDirectories = listOf(File("/data/dao/src/main/kotlin")),
                 androidNamespace = "com.example"

@@ -97,6 +97,8 @@ linter {
     entryPointWords.addAll("slot", "panel")
     technologyWords.add("mongo")
     pluralConcepts.add("goods")
+    // Supertypes of classes the platform constructs, added to Application, Activity, Service, Worker and the others
+    platformClasses.add("WatchFaceService")
 }
 ```
 
@@ -372,7 +374,7 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `ContractName` | an `api` interface named `…Api`, `…Dao`, `…Storage` or `…Krate`, a `…Repository` extending a generic repository or `Crud` base |
 | `CoreShape` | a `…UseCase` class or a `…Repository` interface in a `core` unit |
 | `RootModulePlacement` | a `RootModule` outside the entry-point unit or its `di` package |
-| `EntryPointShape` | a file of an entry-point unit outside its root and its `di` package |
+| `EntryPointShape` | a file of an entry-point unit outside its root and its `di` package; a class the platform constructs (by its direct supertype) is sent to the root package, any other file out of the unit |
 | `ContractUnitShape` | in a `contract` unit, a class or interface that is not `@Serializable`, a function with a body outside an object |
 | `ComposeKindWithoutCompose` | a `composable` or `theme` kind package in a unit that imports no Compose; the root package and concepts are not judged |
 | `PlatformPackage` | a package named after a platform (`android`, `ios`, `jvm`, …) in a unit with several main source sets |

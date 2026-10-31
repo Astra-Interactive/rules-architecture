@@ -6,8 +6,8 @@ import java.io.File
 
 /**
  * The options of the command line, each written as `--name value`; `--main` and `--test` may repeat and accept
- * either a directory or `sourceSet=directory`; `--entry-point-word`, `--technology-word` and `--plural-concept`
- * may repeat and add the project's own words to the defaults; `--dependency` may repeat and names a main source
+ * either a directory or `sourceSet=directory`; `--entry-point-word`, `--technology-word`, `--plural-concept` and
+ * `--platform-class` may repeat and add the project's own words to the defaults; `--dependency` may repeat and names a main source
  * directory of a unit this one depends on, whose models the checks compare with this unit's types;
  * `--android-namespace` is the `namespace` of an Android unit.
  *
@@ -39,6 +39,7 @@ internal data class CliArguments(
         const val ENTRY_POINT_WORD = "--entry-point-word"
         const val TECHNOLOGY_WORD = "--technology-word"
         const val PLURAL_CONCEPT = "--plural-concept"
+        const val PLATFORM_CLASS = "--platform-class"
         const val DEPENDENCY = "--dependency"
         const val ANDROID_NAMESPACE = "--android-namespace"
 
@@ -53,6 +54,7 @@ internal data class CliArguments(
             ENTRY_POINT_WORD,
             TECHNOLOGY_WORD,
             PLURAL_CONCEPT,
+            PLATFORM_CLASS,
             DEPENDENCY,
             ANDROID_NAMESPACE
         )
@@ -103,7 +105,8 @@ internal data class CliArguments(
                 vocabulary = Vocabulary(
                     entryPointWords = options[ENTRY_POINT_WORD].orEmpty().toSet(),
                     technologyWords = options[TECHNOLOGY_WORD].orEmpty().toSet(),
-                    pluralConcepts = options[PLURAL_CONCEPT].orEmpty().toSet()
+                    pluralConcepts = options[PLURAL_CONCEPT].orEmpty().toSet(),
+                    platformClasses = options[PLATFORM_CLASS].orEmpty().toSet()
                 ),
                 dependencyDirectories = options[DEPENDENCY].orEmpty().map(::File),
                 androidNamespace = options.single(ANDROID_NAMESPACE)

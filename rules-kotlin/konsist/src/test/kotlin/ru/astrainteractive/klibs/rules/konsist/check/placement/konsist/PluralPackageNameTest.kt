@@ -53,7 +53,8 @@ internal class PluralPackageNameTest {
                 vocabulary = Vocabulary(
                     entryPointWords = emptySet(),
                     technologyWords = emptySet(),
-                    pluralConcepts = setOf("goods")
+                    pluralConcepts = setOf("goods"),
+                    platformClasses = emptySet()
                 )
             )
 

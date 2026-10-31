@@ -149,6 +149,7 @@ internal class LinterPlugin : Plugin<Project> {
         entryPointWords.set(extension.entryPointWords)
         technologyWords.set(project.findUnitTechnologyWords(extension))
         pluralConcepts.set(extension.pluralConcepts)
+        platformClasses.set(extension.platformClasses)
         rootOfBuild.set(project.path == project.isolated.rootProject.path)
         projectDependencies.set(project.provider { project.productionProjectDependencies() })
     }
