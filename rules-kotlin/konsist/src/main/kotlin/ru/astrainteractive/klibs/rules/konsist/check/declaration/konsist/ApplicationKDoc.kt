@@ -53,7 +53,8 @@ internal class ApplicationKDoc : ArchitectureCheck {
 
         @JvmField
         val ALLOWED = Regex(
-            """@return\s+(failure|null)\b|@throws|https?://|\b[A-Z][A-Z0-9]+-\d+\b|#\d+|\b(bug|workaround|quirk|issue)""",
+            """@return\s+(failure|null)\b|@throws|https?://|\b[A-Z][A-Z0-9]+-\d+\b|#\d+|""" +
+                """\b(bug|workaround|quirk|issue)""",
             RegexOption.IGNORE_CASE
         )
     }
