@@ -147,6 +147,9 @@ complexity:
 
 coroutines:
   active: true
+  # Accepts only `fun test() = runTest { }`; our RunTestResult asks for `return runTest { }` and enforces runTest.
+  CoroutineLaunchedInTestWithoutRunTest:
+    active: false
   GlobalCoroutineUsage:
     active: false
   InjectDispatcher:
@@ -639,6 +642,9 @@ style:
   UnnecessaryInnerClass:
     active: false
   UnnecessaryLet:
+    active: false
+  # Off in detekt's defaults; allRules turned it on, and the rules write assertEquals(expected, actual) unnamed.
+  UnnamedParameterUse:
     active: false
   UnnecessaryParentheses:
     active: false
