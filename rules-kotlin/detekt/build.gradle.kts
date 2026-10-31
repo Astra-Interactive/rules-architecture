@@ -29,6 +29,8 @@ dependencies {
     implementation(projects.core)
     compileOnly(libs.detekt.api)
     compileOnly(libs.detekt.psi.utils)
+    // TryCatchCancellation runs detekt's SuspendFunSwallowedCancellation, which detekt itself puts on the classpath
+    compileOnly(libs.detekt.rules.coroutines)
 
     testImplementation(libs.detekt.core)
     testImplementation(libs.detekt.rules.coroutines)

@@ -134,3 +134,5 @@ architecture:
     active: true
   TrivialLambdaReference:
     active: true
+  TryCatchCancellation:
+    active: true

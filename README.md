@@ -10,7 +10,7 @@ sources and tell you which file breaks which rule and how to fix it.
 
 ## ✨ Features
 
-- **Per-file rules for detekt**: 65 custom rules plus settings for detekt's own rules, with IDE support and
+- **Per-file rules for detekt**: 66 custom rules plus settings for detekt's own rules, with IDE support and
   `@Suppress`.
 - **Cross-file checks with Konsist**: role import direction, use case shape, contract and implementation
   levels, DI placement, test mirroring and more.
@@ -287,6 +287,7 @@ val violations: List<StructureViolation> = checker.check(
 | `ExpressionBodyOnOneLine`      | an expression-body function whose signature and body are not one line            |
 | `BooleanOperatorWrapping` | a line break on either side of `&&` or `\|\|` |
 | `ArgumentPerLine` | a call or constructor call with three or more arguments, a trailing lambda included, whose arguments in parentheses are not each on its own line |
+| `TryCatchCancellation` | a `catch` in suspend code that also catches `CancellationException` without rethrowing it first (detekt's `SuspendFunSwallowedCancellation` without its `runCatching` half, which rejects the documented `.propagateCancellationException()`) |
 | `HardcodedDispatcher` | a dispatcher read from `kotlinx.coroutines.Dispatchers` (`IO`, `Default`, `Unconfined`) outside `di`, a provider's `override` property and tests, matched through the Analysis API; a dispatcher from any injected interface passes; replaces detekt's `InjectDispatcher` |
 | `PropertyReadBeforeDeclaration` | a property read while the object is constructed (an initializer, a delegate, an `init` block) before its declaration; lambdas, functions and `const val` are not judged; replaces detekt's `PropertyUsedBeforeDeclaration` |
 | `GuardIfBraces` | an `if` without `else` whose body is one `return` in braces, when it fits one line of 120 columns |

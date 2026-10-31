@@ -63,6 +63,7 @@ import ru.astrainteractive.klibs.rules.result.detekt.GetOrThrowInMain
 import ru.astrainteractive.klibs.rules.result.detekt.ResultConsumption
 import ru.astrainteractive.klibs.rules.result.detekt.RunCatchingCancellation
 import ru.astrainteractive.klibs.rules.result.detekt.ThrowInsideRunCatching
+import ru.astrainteractive.klibs.rules.result.detekt.TryCatchCancellation
 import ru.astrainteractive.klibs.rules.testing.detekt.RunBlockingInTest
 import ru.astrainteractive.klibs.rules.testing.detekt.RunTestResult
 import ru.astrainteractive.klibs.rules.time.detekt.ClockSystemOutsideDi
@@ -153,6 +154,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::ThrowInsideRunCatching,
             ::TimeAsPrimitive,
             ::TrivialLambdaReference,
+            ::TryCatchCancellation,
         )
     }
 }

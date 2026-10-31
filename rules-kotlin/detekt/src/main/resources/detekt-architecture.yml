@@ -7,8 +7,10 @@ coroutines:
   # The no-callbacks rule: CancellationException is rethrown and cleanup that suspends runs in NonCancellable.
   SuspendFunInFinallySection:
     active: true
+  # Reports runCatching { … }.propagateCancellationException(), which error-handling prescribes; its catch half lives
+  # on in architecture's TryCatchCancellation, its runCatching half in RunCatchingCancellation.
   SuspendFunSwallowedCancellation:
-    active: true
+    active: false
 naming:
   # A package name is lowercase, one word per segment.
   PackageNaming:
