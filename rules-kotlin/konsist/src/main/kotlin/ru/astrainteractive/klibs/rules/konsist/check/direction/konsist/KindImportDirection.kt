@@ -108,9 +108,11 @@ internal class KindImportDirection : ArchitectureCheck {
             to
         )
         if (isUiImport) return null
+        val kindName = fromKind.name.lowercase().replace('_', ' ')
+        val article = if (kindName.first() in VOWELS) "an" else "a"
+        val allowed = allowedTargets(fromKind).joinToString { kind -> kind.name.lowercase().replace('_', ' ') }
         return "${from.describe()} must not import $importedName from ${to.describe()}: " +
-            "a ${fromKind.name.lowercase()} kind depends on " +
-            allowedTargets(fromKind).joinToString { kind -> kind.name.lowercase() } + " only."
+            "$article $kindName kind depends on $allowed only."
     }
 
     private fun checkFile(sources: UnitSources, file: KoFileDeclaration): List<Violation> {
@@ -149,6 +151,7 @@ internal class KindImportDirection : ArchitectureCheck {
         const val SCREEN_SUB_KIND = "screen"
 
         const val COMPONENT_WORD = "component"
+        const val VOWELS = "aeiou"
         const val ROUTER_CONCEPT = "router"
 
         @JvmField

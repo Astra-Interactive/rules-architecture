@@ -239,6 +239,30 @@ internal class KindImportDirectionTest {
     }
 
     @Test
+    fun GIVEN_entry_point_violation_WHEN_reported_THEN_names_the_kind_in_words(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.jail.jail.command",
+                "JailCommand.kt",
+                "import x.jail.jail.di.JailModule\n\nclass JailCommand"
+            )
+            .main(
+                "x.jail.jail.di",
+                "JailModule.kt",
+                "class JailModule"
+            )
+            .load(UnitKind.CONTEXT, unitPath = ":jail")
+
+        assertEquals(
+            listOf(
+                "'jail/command' must not import x.jail.jail.di.JailModule from 'jail/di': " +
+                    "an entry point kind depends on model, contract, util, usecase, theme only."
+            ),
+            KindImportDirection().check(sources).map(Violation::message)
+        )
+    }
+
+    @Test
     fun GIVEN_compose_theme_package_WHEN_checked_THEN_applies_the_theme_rows_of_the_direction_table(
         @TempDir directory: File
     ) {
