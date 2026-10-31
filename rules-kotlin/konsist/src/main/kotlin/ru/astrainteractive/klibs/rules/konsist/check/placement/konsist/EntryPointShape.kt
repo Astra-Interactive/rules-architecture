@@ -69,6 +69,7 @@ internal class EntryPointShape : ArchitectureCheck {
             "LifecycleService",
             "ListenableWorker",
             "Service",
+            "SuspendingTileService",
             "TileService",
             "Worker"
         )
