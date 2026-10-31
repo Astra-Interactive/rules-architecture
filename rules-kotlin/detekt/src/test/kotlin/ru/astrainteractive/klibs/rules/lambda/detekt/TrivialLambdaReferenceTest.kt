@@ -125,4 +125,29 @@ internal class TrivialLambdaReferenceTest {
             messages
         )
     }
+
+    @Test
+    fun GIVEN_member_and_top_level_extensions_WHEN_linted_THEN_reports_only_the_top_level_one() {
+        val code = """
+            class Shop(val name: String)
+
+            fun Shop.exported(): Shop = this
+
+            class FakeShopRepository(private val shops: List<Shop>) {
+                private fun Shop.deepCopy(): Shop = Shop(name)
+
+                fun copies(): List<Shop> = shops.map { shop -> shop.deepCopy() }
+
+                fun exports(): List<Shop> = shops.map { shop -> shop.exported() }
+            }
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "Replace the lambda with the function reference <Type>::exported: the lambda only passes its " +
+                    "parameters on."
+            ),
+            rule.lintWithContext(environment, code).map { finding -> finding.message }
+        )
+    }
 }

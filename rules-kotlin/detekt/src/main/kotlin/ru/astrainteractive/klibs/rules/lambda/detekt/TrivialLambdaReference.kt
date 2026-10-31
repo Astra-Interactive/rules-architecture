@@ -32,8 +32,8 @@ import ru.astrainteractive.klibs.rules.detekt.util.findCallName
  * It stays silent where a reference may not compile or may mean another function: for a `suspend` callee (resolved
  * in coroutine code, a `suspend` function or a coroutine builder's lambda, and declared `suspend` in the file
  * elsewhere), for a callee declared in the file more than once, and for type, named, spread or trailing-lambda
- * arguments. A companion function of `Result` is suggested as an imported `::success`, since `Result::success`
- * does not compile.
+ * arguments, and for an extension declared as a member of a class, which no reference can name. A companion function
+ * of `Result` is suggested as an imported `::success`, since `Result::success` does not compile.
  */
 internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION), RequiresAnalysisApi {
     private var functionCounts: Map<String, Int> = emptyMap()
@@ -101,6 +101,14 @@ internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION
         return (functionCounts[callee] ?: 0) > 1 || callee in suspendNames
     }
 
+    private fun isMemberExtension(call: KtCallExpression?): Boolean {
+        if (call == null) return false
+        return analyze(call) {
+            val symbol = call.resolveToCall()?.singleFunctionCallOrNull()?.symbol ?: return@analyze false
+            symbol.isExtension && symbol.callableId?.classId != null
+        }
+    }
+
     private fun mayBeSuspend(lambda: KtLambdaExpression, call: KtCallExpression?): Boolean {
         if (call == null || !isInCoroutine(lambda)) return false
         return !isResolvedNonSuspend(call)
@@ -125,6 +133,7 @@ internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION
         val body = lambdaExpression.bodyExpression?.statements?.singleOrNull() ?: return
         val reference = findReference(body, names) ?: return
         if (isAmbiguous(reference.call) || mayBeSuspend(lambdaExpression, reference.call)) return
+        if (isMemberExtension(reference.call)) return
         val message = "Replace the lambda with the function reference ${reference.text}: the lambda only passes " +
             "its parameters on."
         report(Finding(Entity.from(lambdaExpression), message))
