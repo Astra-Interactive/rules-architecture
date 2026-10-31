@@ -215,11 +215,11 @@ internal class DetektArchitectureSettingsTest {
     }
 
     @Test
-    fun GIVEN_coroutine_settings_WHEN_read_THEN_cancellation_rules_are_active() {
+    fun GIVEN_coroutine_settings_WHEN_read_THEN_finally_rule_is_active_and_swallowed_one_is_replaced() {
         val coroutines = settings.subConfig("coroutines")
 
         assertEquals(
-            listOf(true, true),
+            listOf(true, false),
             listOf("SuspendFunInFinallySection", "SuspendFunSwallowedCancellation")
                 .map { rule -> coroutines.subConfig(rule).valueOrDefault("active", false) }
         )
