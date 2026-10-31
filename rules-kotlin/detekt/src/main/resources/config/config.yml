@@ -107,6 +107,7 @@ architecture:
     technologyWords: [ ]
   RunCatchingCancellation:
     active: true
+    inlineCancellationCheck: true
   RunTestResult:
     active: true
   SharedFlowEvent:
