@@ -35,6 +35,27 @@ internal class KindNameInPackageTest {
     }
 
     @Test
+    fun GIVEN_platform_service_subclass_in_root_package_WHEN_linted_THEN_reports_only_the_own_service() {
+        val code = """
+            package com.makeevrserg.empireprojekt.mobile.wear
+
+            import android.app.Service
+            import android.service.quicksettings.TileService
+
+            interface StatusService
+
+            class StatusesTileService : TileService()
+
+            class DefaultStatusService : Service(), StatusService
+        """.trimIndent()
+
+        assertEquals(
+            listOf("Move 'StatusService' to a 'service' package, or drop 'Service' from its name."),
+            rule.lint(code).map { finding -> finding.message }
+        )
+    }
+
+    @Test
     fun GIVEN_model_and_entity_suffix_in_domain_model_WHEN_linted_THEN_reports_each() {
         val code = """
             package ru.astrainteractive.aspekt.module.jail.model
