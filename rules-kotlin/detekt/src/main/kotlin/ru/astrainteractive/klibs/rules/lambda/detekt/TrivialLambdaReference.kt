@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaSyntheticJavaPropertySymbol
+import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtCallExpression
@@ -35,8 +36,9 @@ import ru.astrainteractive.klibs.rules.detekt.util.findCallName
  * in coroutine code, a `suspend` function or a coroutine builder's lambda, and declared `suspend` in the file
  * elsewhere), for a callee declared in the file more than once, and for type, named, spread or trailing-lambda
  * arguments, for an extension declared as a member of a class, which no reference can name, and for a Java getter
- * read as a property (`record.level`), whose reference does not compile. A companion function
- * of `Result` is suggested as an imported `::success`, since `Result::success` does not compile.
+ * read as a property (`record.level`), whose reference does not compile, and for a property read in a `suspend`
+ * lambda (`flow.map { message -> message.value }`), since a property reference is no `suspend` function. A
+ * companion function of `Result` is suggested as an imported `::success`, since `Result::success` does not compile.
  */
 internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION), RequiresAnalysisApi {
     private var functionCounts: Map<String, Int> = emptyMap()
@@ -107,6 +109,10 @@ internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION
         return (functionCounts[callee] ?: 0) > 1 || callee in suspendNames
     }
 
+    private fun isSuspendLambda(lambda: KtLambdaExpression): Boolean {
+        return analyze(lambda) { (lambda.expressionType as? KaFunctionType)?.isSuspend == true }
+    }
+
     private fun isMemberExtension(call: KtCallExpression?): Boolean {
         if (call == null) return false
         return analyze(call) {
@@ -140,6 +146,7 @@ internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION
         val reference = findReference(body, names) ?: return
         if (isAmbiguous(reference.call) || mayBeSuspend(lambdaExpression, reference.call)) return
         if (isMemberExtension(reference.call)) return
+        if (reference.call == null && isSuspendLambda(lambdaExpression)) return
         val message = "Replace the lambda with the function reference ${reference.text}: the lambda only passes " +
             "its parameters on."
         report(Finding(Entity.from(lambdaExpression), message))

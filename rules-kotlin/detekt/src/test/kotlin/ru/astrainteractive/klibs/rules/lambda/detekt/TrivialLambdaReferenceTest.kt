@@ -171,4 +171,25 @@ internal class TrivialLambdaReferenceTest {
             rule.lintWithContext(environment, code).map { finding -> finding.message }
         )
     }
+
+    @Test
+    fun GIVEN_property_read_in_a_suspend_lambda_WHEN_linted_THEN_reports_only_the_plain_lambda() {
+        val code = """
+            class Message<T>(val value: T)
+
+            fun <T, R> List<T>.mapSuspending(transform: suspend (T) -> R): List<R> = emptyList()
+
+            fun suspending(messages: List<Message<String>>) = messages.mapSuspending { message -> message.value }
+
+            fun plain(messages: List<Message<String>>) = messages.map { message -> message.value }
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "Replace the lambda with the function reference <Type>::value: the lambda only passes its " +
+                    "parameters on."
+            ),
+            rule.lintWithContext(environment, code).map { finding -> finding.message }
+        )
+    }
 }
