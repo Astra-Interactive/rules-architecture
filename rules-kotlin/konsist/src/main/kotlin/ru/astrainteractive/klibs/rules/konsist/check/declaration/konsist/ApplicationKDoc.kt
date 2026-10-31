@@ -11,9 +11,10 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
 /**
  * Reports KDoc in application code, any unit but a published library: it is written only for the failure case of
- * a contract (`@return failure …`, `@throws`) or for a reason that points outside the code, recognised by a link, an
- * issue key (`KT-12345`, `#42`) or the words bug, workaround, quirk and issue. A KDoc is reported once, on the
- * declaration it stands before: Konsist hands a class's KDoc to the properties of its primary constructor too.
+ * a contract (`@return failure …`, `@return null when …`, `@throws`) or for a reason that points outside the code,
+ * recognised by a link, an issue key (`KT-12345`, `#42`) or the words bug, workaround, quirk and issue. A KDoc is
+ * reported once, on the declaration it stands before: Konsist hands a class's KDoc to the properties of its primary
+ * constructor too.
  */
 internal class ApplicationKDoc : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet() - UnitKind.LIBRARY
@@ -52,7 +53,7 @@ internal class ApplicationKDoc : ArchitectureCheck {
 
         @JvmField
         val ALLOWED = Regex(
-            """@return\s+failure|@throws|https?://|\b[A-Z][A-Z0-9]+-\d+\b|#\d+|\b(bug|workaround|quirk|issue)""",
+            """@return\s+(failure|null)\b|@throws|https?://|\b[A-Z][A-Z0-9]+-\d+\b|#\d+|\b(bug|workaround|quirk|issue)""",
             RegexOption.IGNORE_CASE
         )
     }

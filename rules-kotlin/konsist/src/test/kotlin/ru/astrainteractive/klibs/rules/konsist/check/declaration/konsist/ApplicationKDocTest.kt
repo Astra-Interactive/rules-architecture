@@ -96,4 +96,27 @@ internal class ApplicationKDocTest {
             ApplicationKDoc().check(sources).map(Violation::subject).sorted()
         )
     }
+
+    @Test
+    fun GIVEN_nullable_contract_kdoc_WHEN_checked_THEN_accepts_the_null_outcome(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.core.item.api/ItemRegistry.kt",
+                """
+                interface ItemRegistry {
+                    /** @return null when the ItemsAdder registry has no such item */
+                    fun findItem(id: String): Item?
+
+                    /** Finds an item. */
+                    fun findAny(): Item?
+                }
+                """
+            )
+            .load(UnitKind.CONTEXT, rootPackage = "x.core")
+
+        assertEquals(
+            listOf("findAny"),
+            ApplicationKDoc().check(sources).map(Violation::subject)
+        )
+    }
 }
