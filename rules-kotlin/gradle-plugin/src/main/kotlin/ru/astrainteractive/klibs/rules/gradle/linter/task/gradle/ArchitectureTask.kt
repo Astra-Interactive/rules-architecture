@@ -91,6 +91,9 @@ internal abstract class ArchitectureTask : DefaultTask() {
     abstract val platformClasses: SetProperty<String>
 
     @get:Input
+    abstract val extensionKinds: SetProperty<String>
+
+    @get:Input
     abstract val projectDependencies: SetProperty<String>
 
     /**
@@ -125,7 +128,8 @@ internal abstract class ArchitectureTask : DefaultTask() {
             "--entry-point-word" to entryPointWords.get(),
             "--technology-word" to technologyWords.get(),
             "--plural-concept" to pluralConcepts.get(),
-            "--platform-class" to platformClasses.get()
+            "--platform-class" to platformClasses.get(),
+            "--extension-kind" to extensionKinds.get()
         )
         return words.flatMap { (option, values) -> values.sorted().flatMap { value -> listOf(option, value) } }
     }

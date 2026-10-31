@@ -41,7 +41,8 @@ internal class EntryPointShapeTest {
             entryPointWords = emptySet(),
             technologyWords = emptySet(),
             pluralConcepts = emptySet(),
-            platformClasses = setOf("WatchFaceService")
+            platformClasses = setOf("WatchFaceService"),
+            extensionKinds = emptySet()
         )
         val sources = SourceTree(directory)
             .main("x.mobile/MainActivity.kt", "class MainActivity : ComponentActivity()")

@@ -13,7 +13,8 @@ internal class KindTest {
             entryPointWords = setOf("slot"),
             technologyWords = setOf("mongo"),
             pluralConcepts = emptySet(),
-            platformClasses = emptySet()
+            platformClasses = emptySet(),
+            extensionKinds = emptySet()
         )
 
         assertEquals(

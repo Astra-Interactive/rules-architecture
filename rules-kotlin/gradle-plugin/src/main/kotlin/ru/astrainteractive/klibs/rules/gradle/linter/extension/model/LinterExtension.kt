@@ -35,4 +35,10 @@ public abstract class LinterExtension {
      * `Activity`, `Service`, `Worker`, …): such a class sits in the root package of the entry-point unit.
      */
     public abstract val platformClasses: SetProperty<String>
+
+    /**
+     * The project's UI kinds whose parts are extension functions of the kind's context (`slot`:
+     * `fun SlotContext.backSlot()` in `slot/BackSlot.kt`): there an extension is the part itself, not a `util`.
+     */
+    public abstract val extensionKinds: SetProperty<String>
 }

@@ -108,6 +108,8 @@ linter {
     pluralConcepts.add("goods")
     // Supertypes of classes the platform constructs, added to Application, Activity, Service, Worker and the others
     platformClasses.add("WatchFaceService")
+    // UI kinds whose parts are extensions of the kind's context: fun SlotContext.backSlot() in slot/BackSlot.kt
+    extensionKinds.add("slot")
 }
 ```
 
@@ -364,7 +366,7 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `UseCaseShape`         | `*UseCase` outside `usecase`, other names in `usecase`, more than one entry, a use case taking another, a pass-through `invoke` that is one call on one of its properties |
 | `ContractPlacement`    | a plain interface outside `api` (a use case's in `usecase` and a DI module's in `di` aside), a state holder's interface (`…Component`, `…ViewModel`) outside `component`/`viewmodel`, `api` included, an implementation inside `api`, a `network`/`local`/`remote` package; a Compose scope (`: ColumnScope`) is not a contract |
 | `ForbiddenPackageName` | a forbidden word in a package created inside the unit; the root package may keep its unit's word; `table`, `entity` and `database` outside a technology unit or package |
-| `UtilShape`            | a class or object in `util`, an extension function outside `util`, its receiver's file and entry-point kinds included, except a `private` one in a composable file; names `util/<Subject>Ext.kt`, the element type for a collection |
+| `UtilShape`            | a class or object in `util`, an extension function outside `util`, its receiver's file and entry-point kinds included, except a `private` one in a composable file; names `util/<Subject>Ext.kt`, the element type for a collection; extensions in a kind listed in `extensionKinds` (`slot`) are allowed |
 | `EntryPointVisibility` | a public class in a kind the platform invokes (`command`, `event`, `expansion`, `route`, `service`, `warmup`, ...), outside a `library` unit |
 | `ErrorPlacement`       | an error type outside a `model` package                                                                   |
 | `DiModuleVisibility` | a public DI module that a file of its own unit constructs, outside a library |
