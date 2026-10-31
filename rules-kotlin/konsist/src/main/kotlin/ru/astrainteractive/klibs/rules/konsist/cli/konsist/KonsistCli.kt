@@ -2,6 +2,7 @@
 
 package ru.astrainteractive.klibs.rules.konsist.cli.konsist
 
+import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.AnonymousProjectObject
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.ApplicationKDoc
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.ContractName
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.DiModuleVisibility
@@ -71,6 +72,7 @@ public fun main(args: Array<String>) {
     val checker = ArchitectureChecker(
         listOf(
             AndroidNamespace(),
+            AnonymousProjectObject(),
             ApplicationKDoc(),
             ComposeKindWithoutCompose(),
             ContractName(),
