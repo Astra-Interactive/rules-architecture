@@ -305,7 +305,7 @@ val violations: List<StructureViolation> = checker.check(
 | `ClockSystemOutsideDi` | `Clock.System` outside a `di` package and the test sources |
 | `RolelessClassName` | a `…Validator` or `…Factory` class (a Decompose `fun interface Factory` is allowed), `…WarmUp`/`…Migration`/`…ViewModel` outside its `warmup`/`migration`/`viewmodel` package |
 | `DiModuleLifecycle` | a `…Module` that declares `enable`, `disable`, `reload`, `onEnable`, `onDisable` or `onReload`, or that starts a warm-up, migration, listener, task, service or `launch` without a `lifecycle` property |
-| `RootModuleConstruction` | a `RootModule` constructor call that constructs anything but a `…Module` or a `Lifecycle` |
+| `RootModuleConstruction` | a `RootModule` constructor call that constructs anything but a DI module (a class of a `di` package, found through the call's import) or a `Lifecycle` |
 | `SystemTimeCall` | `System.currentTimeMillis()` and `System.nanoTime()` |
 | `RunBlockingInTest` | `runBlocking` in a test source set |
 | `RunTestResult` | a `@Test` that calls `runTest` without declaring `TestResult` and returning `runTest { … }` |
