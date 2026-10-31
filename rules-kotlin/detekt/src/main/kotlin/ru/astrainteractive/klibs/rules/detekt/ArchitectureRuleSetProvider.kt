@@ -18,6 +18,7 @@ import ru.astrainteractive.klibs.rules.coroutine.detekt.CallbackFlowShape
 import ru.astrainteractive.klibs.rules.coroutine.detekt.ChannelFlowShape
 import ru.astrainteractive.klibs.rules.coroutine.detekt.CompletableDeferredUse
 import ru.astrainteractive.klibs.rules.coroutine.detekt.EventCollection
+import ru.astrainteractive.klibs.rules.coroutine.detekt.HardcodedDispatcher
 import ru.astrainteractive.klibs.rules.coroutine.detekt.ImpureUpdateLambda
 import ru.astrainteractive.klibs.rules.coroutine.detekt.MutableStateFlowEmit
 import ru.astrainteractive.klibs.rules.coroutine.detekt.RunBlockingOutsideBoundary
@@ -117,6 +118,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::FunctionVerb,
             ::GetOrThrowInMain,
             ::GuardIfBraces,
+            ::HardcodedDispatcher,
             ::ImplementationName,
             ::ImplicitItParameter,
             ::ImpureUpdateLambda,

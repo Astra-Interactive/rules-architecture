@@ -61,6 +61,8 @@ architecture:
     active: true
   GuardIfBraces:
     active: true
+  HardcodedDispatcher:
+    active: true
   ImplementationName:
     active: true
   ImplicitItParameter:

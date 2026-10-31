@@ -152,12 +152,10 @@ coroutines:
     active: false
   GlobalCoroutineUsage:
     active: false
+  # Compares the source text of the receiver's type with its full name, so an imported KotlinDispatchers counts as
+  # not injected; architecture's HardcodedDispatcher replaces it.
   InjectDispatcher:
-    active: true
-    dispatcherNames:
-      - 'IO'
-      - 'Default'
-      - 'Unconfined'
+    active: false
   RedundantSuspendModifier:
     active: true
   SleepInsteadOfDelay:
