@@ -283,7 +283,7 @@ val violations: List<StructureViolation> = checker.check(
 | `PropertyReadBeforeDeclaration` | a property read while the object is constructed (an initializer, a delegate, an `init` block) before its declaration; lambdas, functions and `const val` are not judged; replaces detekt's `PropertyUsedBeforeDeclaration` |
 | `GuardIfBraces` | an `if` without `else` whose body is one `return` in braces, when it fits one line of 120 columns |
 | `EventCollection` | one-off `events` collected in `LaunchedEffect` without `withContext(Dispatchers.Main.immediate)`, or elsewhere without `repeatOnLifecycle` |
-| `CompletableDeferredUse` | a `CompletableDeferred` created and awaited in one function, or held in a property as a `Unit`/`Boolean` readiness flag |
+| `CompletableDeferredUse` | a `CompletableDeferred` created and awaited in one function by the same coroutine (a gate awaited in a `launch`/`async` is allowed), or held in a property as a `Unit`/`Boolean` readiness flag |
 | `BridgeCleanup` | an `awaitClose` or `invokeOnCancellation` cleanup that assigns state declared outside its bridge (the `callbackFlow`/`suspendCancellableCoroutine` block) or calls `launch` |
 | `ExplicitInvoke` | a call `name(…)` of a parameter, property or local value instead of `name.invoke(…)` |
 | `FunctionVerb` | a function whose first word is `get` (but a view model's `getState`), `map`, `make`, `do`, `handle` or `process` |

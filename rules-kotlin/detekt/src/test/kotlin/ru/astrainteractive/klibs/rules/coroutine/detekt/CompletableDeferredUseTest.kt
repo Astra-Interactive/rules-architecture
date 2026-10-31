@@ -55,4 +55,37 @@ internal class CompletableDeferredUseTest {
 
         assertEquals(0, rule.lint(code).size)
     }
+
+    @Test
+    fun GIVEN_deferred_gate_awaited_by_another_coroutine_WHEN_linted_THEN_reports_only_the_one_awaited_in_place() {
+        val code = """
+            class ChannelTest {
+                @Test
+                fun GIVEN_stuck_receiver_WHEN_resumed_THEN_gets_newest(): TestResult {
+                    return runTest {
+                        val gate = CompletableDeferred<Unit>()
+                        backgroundScope.launch { channel.collect { event -> gate.await() } }
+                        gate.complete(Unit)
+                    }
+                }
+
+                @Test
+                fun GIVEN_answer_WHEN_awaited_THEN_reads_it(): TestResult {
+                    return runTest {
+                        val answer = CompletableDeferred<Int>()
+                        sdk.request { value -> answer.complete(value) }
+                        answer.await()
+                    }
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "Bridge this result with suspendCancellableCoroutine instead of the CompletableDeferred 'answer': " +
+                    "a deferred created and awaited in one function replaces a suspend function.",
+            ),
+            rule.lint(code).map(Finding::message)
+        )
+    }
 }
