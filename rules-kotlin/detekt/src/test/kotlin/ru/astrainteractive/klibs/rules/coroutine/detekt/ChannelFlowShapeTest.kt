@@ -64,4 +64,24 @@ internal class ChannelFlowShapeTest {
 
         assertEquals(0, rule.lint(code).size)
     }
+
+    @Test
+    fun GIVEN_channel_flow_holding_a_resource_until_await_close_WHEN_linted_THEN_suggests_callback_flow() {
+        val code = """
+            fun bots(token: String): Flow<Application> = channelFlow {
+                val application = Application()
+                application.register(token)
+                send(application)
+                awaitClose { application.close() }
+            }
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "Write this producer as callbackFlow { }: it launches no coroutine of its own and holds what it " +
+                    "sends until awaitClose, which flow { } has no place for.",
+            ),
+            rule.lint(code).map(Finding::message)
+        )
+    }
 }

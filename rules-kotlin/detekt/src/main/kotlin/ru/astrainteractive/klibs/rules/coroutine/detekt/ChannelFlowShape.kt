@@ -12,7 +12,8 @@ import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
  * Reports a `channelFlow` out of its use: one that registers a listener or a callback, which stays registered after
  * the block completes, so that the next `send` hits a closed channel and throws `ClosedSendChannelException` (unless
  * the block ends with `awaitClose { unregister }`, the shape of a `callbackFlow`), and one that launches no coroutine
- * of its own, which is a plain `flow { }`.
+ * of its own: a plain `flow { }`, or a `callbackFlow` when it holds a resource until `awaitClose`, which `flow { }`
+ * cannot do.
  */
 internal class ChannelFlowShape(config: Config) : Rule(config, DESCRIPTION) {
 
@@ -37,11 +38,14 @@ internal class ChannelFlowShape(config: Config) : Rule(config, DESCRIPTION) {
                 "ClosedSendChannelException."
             report(Finding(Entity.from(expression), message))
         }
-        if (names.none { name -> name in COROUTINE_BUILDERS }) {
-            val message = "Write this producer as flow { }: channelFlow is for a producer that launches " +
-                "coroutines of its own."
-            report(Finding(Entity.from(expression), message))
+        if (names.any { name -> name in COROUTINE_BUILDERS }) return
+        val message = if (AWAIT_CLOSE in names) {
+            "Write this producer as callbackFlow { }: it launches no coroutine of its own and holds what it sends " +
+                "until awaitClose, which flow { } has no place for."
+        } else {
+            "Write this producer as flow { }: channelFlow is for a producer that launches coroutines of its own."
         }
+        report(Finding(Entity.from(expression), message))
     }
 
     private companion object {
