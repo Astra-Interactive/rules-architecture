@@ -39,7 +39,8 @@ internal class ComposableName(config: Config) : Rule(config, DESCRIPTION) {
         if (isThemeFunction(function)) return findThemeMessage(fileName, name)
         if (PREVIEW in name || function.hasModifier(KtTokens.OVERRIDE_KEYWORD)) return null
         if (!name.endsWith(COMPOSABLE)) {
-            return "Name '$name' for what it shows, ending in Composable ('${name}Composable'): a composable that " +
+            val suggestion = name.replace(COMPOSABLE, "") + COMPOSABLE
+            return "Name '$name' for what it shows, ending in Composable ('$suggestion'): a composable that " +
                 "emits UI is named <Thing>Composable, a screen <Feature>ScreenComposable."
         }
         val expectedFile = "$name$KOTLIN_EXTENSION"

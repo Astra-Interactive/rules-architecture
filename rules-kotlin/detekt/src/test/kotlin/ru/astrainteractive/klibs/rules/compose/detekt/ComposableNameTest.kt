@@ -38,6 +38,22 @@ internal class ComposableNameTest {
     }
 
     @Test
+    fun GIVEN_composable_word_inside_the_name_WHEN_linted_THEN_suggests_it_only_at_the_end() {
+        val code = """
+            @Composable
+            fun MainComposableScreen() = Column { }
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "Name 'MainComposableScreen' for what it shows, ending in Composable ('MainScreenComposable'): a " +
+                    "composable that emits UI is named <Thing>Composable, a screen <Feature>ScreenComposable."
+            ),
+            rule.lint(code).map(Finding::message)
+        )
+    }
+
+    @Test
     fun GIVEN_suffixed_value_returning_and_exempt_composables_WHEN_linted_THEN_reports_nothing() {
         val code = """
             @Composable
