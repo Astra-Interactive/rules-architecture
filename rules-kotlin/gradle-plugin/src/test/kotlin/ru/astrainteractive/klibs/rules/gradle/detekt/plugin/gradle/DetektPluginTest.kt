@@ -276,8 +276,45 @@ class DetektPluginTest {
         )
     }
 
+    @Test
+    fun GIVEN_generated_sources_in_the_build_directory_WHEN_main_detekt_runs_THEN_skips_them(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            plugins {
+                id("org.jetbrains.kotlin.jvm")
+                id("ru.astrainteractive.klibs.rules.gradle.detekt")
+            }
+
+            kotlin.sourceSets.named("main") { kotlin.srcDir("build/generated/resources/kotlin") }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "library", buildScript = moduleScript)
+            .withSourceFile("library/src/main/kotlin/com/example/Main.kt", MAIN_SOURCE)
+            .withSourceFile("library/build/generated/resources/kotlin/com/example/Generated.kt", GENERATED_SOURCE)
+
+        val result = build.runAndFail(":library:detektMain")
+
+        assertTrue(
+            result.output.contains("Private function `unusedHelper` is unused"),
+            "the main source was not analysed:\n${result.output}"
+        )
+        assertTrue(
+            !result.output.contains("unusedGeneratedHelper"),
+            "the generated source was analysed:\n${result.output}"
+        )
+    }
+
     private companion object {
         const val CONFIG_REPORT_NAME = "detekt-config-path.txt"
+
+        val GENERATED_SOURCE = """
+            package com.example
+
+            private fun unusedGeneratedHelper() = Unit
+        """.trimIndent()
 
         val MAIN_SOURCE = """
             package com.example

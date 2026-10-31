@@ -75,7 +75,8 @@ plugins {
 - `detekt` and `detektFormat` read every `.kt` and `.kts` file of the project directory; the source-set tasks
   (`detektMain`, `detektTest`, …) read only their source set, so each is resolved against its own classpath. No
   task enters a directory that is a build or a checkout of its own (a Gradle build or settings file, or a `.git`
-  entry, such as a worktree under `.claude/worktrees`), nor `build` and `resources`.
+  entry, such as a worktree under `.claude/worktrees`), nor `build` and `resources`; sources generated into a
+  project's `build` directory (moko-resources) are skipped by the source-set tasks too.
 
 **Linter plugin.** Apply it instead of the detekt plugin.
 
