@@ -351,7 +351,7 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | Check                  | Reports                                                                                                   |
 |------------------------|-----------------------------------------------------------------------------------------------------------|
 | `KindShape`            | a file loose in the unit root or a concept package, a package below a kind package (`theme` included); below `composable`, a second level, a `model`/`util`/`theme` sub-package, or files next to sub-packages |
-| `RootPackagePath` | a root package that does not end with the unit name from its path, outside the entry point and libraries |
+| `RootPackagePath` | a root package that does not end with the unit name from its path, outside the entry point and libraries; a `core` unit may end at `core`, and the last segment may be the singular of a plural unit name |
 | `ThemeVisibility` | a `theme` object that is not `internal` in a feature unit, or hidden in the design-system unit `core/ui` |
 | `AnonymousProjectObject` | an anonymous `object :` implementing a type of the project instead of a library type |
 | `KindImportDirection`  | an import against the first table of `arch-context.md`: `model` and contracts depend on `model` only, implementations on contracts, `model`, `util` and their own technology packages, entry points on use cases, contracts, `model` and `util`, one entry point on another only between UI kinds, a router's implementation on the UI it opens, a screen only from what hosts or opens it, nothing on `di` |

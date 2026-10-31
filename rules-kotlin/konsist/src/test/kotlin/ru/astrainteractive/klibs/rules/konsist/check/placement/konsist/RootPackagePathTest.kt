@@ -45,4 +45,50 @@ internal class RootPackagePathTest {
             violation.message
         )
     }
+
+    @Test
+    fun GIVEN_core_units_and_a_singular_package_WHEN_checked_THEN_reports_only_the_core_outside_core(
+        @TempDir directory: File
+    ) {
+        val coreApi = SourceTree(File(directory, "core-api"))
+            .main("x.astrarating.core.settings.model/Config.kt", "class Config")
+            .load(
+                UnitKind.CONTEXT,
+                rootPackage = "x.astrarating.core",
+                unitPath = ":modules:core:api"
+            )
+        val coreBukkit = SourceTree(File(directory, "core-bukkit"))
+            .main("x.astrarating.core.di/BukkitModule.kt", "class BukkitModule")
+            .load(
+                UnitKind.CONTEXT,
+                rootPackage = "x.astrarating.core",
+                unitPath = ":modules:core:bukkit"
+            )
+        val advancement = SourceTree(File(directory, "advancement"))
+            .main("x.aspekt.module.moneyadvancement.event/AdvancementEvent.kt", "class AdvancementEvent")
+            .load(
+                UnitKind.CONTEXT,
+                rootPackage = "x.aspekt.module.moneyadvancement",
+                unitPath = ":modules:money-advancements"
+            )
+        val outside = SourceTree(File(directory, "outside"))
+            .main("x.aspekt.settings.model/Config.kt", "class Config")
+            .load(
+                UnitKind.CONTEXT,
+                rootPackage = "x.aspekt",
+                unitPath = ":modules:core:api"
+            )
+
+        val messages = listOf(coreApi, coreBukkit, advancement, outside)
+            .flatMap { sources -> RootPackagePath().check(sources) }
+            .map(Violation::message)
+
+        assertEquals(
+            listOf(
+                "Name the root package x.aspekt after the unit :modules:core:api: it ends with core, the unit path " +
+                    "in the project's convention."
+            ),
+            messages
+        )
+    }
 }
