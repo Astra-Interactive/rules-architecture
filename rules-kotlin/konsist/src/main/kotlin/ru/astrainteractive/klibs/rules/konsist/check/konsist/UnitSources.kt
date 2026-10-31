@@ -165,7 +165,7 @@ internal class UnitSources(
          * `[integration, papi]`, `[integrationpapi]`, `[integration]`), each first with its parent segments in
          * front (`:modules:data:dao` tries `[data, dao]` before `[dao]`).
          */
-        private fun unitNameCandidates(unitPath: String): List<List<String>> {
+        internal fun unitNameCandidates(unitPath: String): List<List<String>> {
             val pathSegments = unitPath.split(':').filter(String::isNotEmpty)
             val parents = pathSegments.dropLast(1)
             val parts = pathSegments.lastOrNull().orEmpty().split('-').filter(String::isNotEmpty)
