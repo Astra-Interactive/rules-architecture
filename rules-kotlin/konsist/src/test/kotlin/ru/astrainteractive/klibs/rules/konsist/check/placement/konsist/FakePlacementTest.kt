@@ -90,6 +90,16 @@ internal class FakePlacementTest {
     }
 
     @Test
+    fun GIVEN_product_code_in_a_fake_unit_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main("com.example.monetization.fake.offer/FakeOfferRepository.kt", "class FakeOfferRepository")
+            .main("com.example.monetization.fake.offer/OfferPricing.kt", "class OfferPricing")
+            .load(UnitKind.CONTEXT, unitPath = ":monetization:fake")
+
+        assertEquals(listOf("OfferPricing"), FakePlacement().check(sources).map(Violation::subject))
+    }
+
+    @Test
     fun GIVEN_main_class_and_test_class_named_alike_WHEN_checked_THEN_reports_only_the_main_class(
         @TempDir directory: File
     ) {

@@ -93,8 +93,28 @@ internal class FakePlacement : ArchitectureCheck {
             }
     }
 
+    private fun findProductCode(sources: UnitSources): List<Violation> {
+        if (sources.layout.rootPackage.substringAfterLast('.') != FAKE_SEGMENT) return emptyList()
+        return sources.mainFiles.flatMap { file ->
+            file.topLevelClasses()
+                .plus(file.objects(includeNested = false))
+                .filterNot { declaration -> FAKE_NAME.matches(declaration.name) }
+                .map { declaration ->
+                    val message = "Move ${declaration.name} out of this fake unit: a <feature>/fake unit is tooling " +
+                        "and holds the shared fakes only, no product code."
+                    sources.createViolation(
+                        RULE,
+                        file,
+                        declaration,
+                        declaration.name,
+                        message
+                    )
+                }
+        }
+    }
+
     override fun check(sources: UnitSources): List<Violation> {
-        return findTestFakes(sources) + findMainFakes(sources) + findForeignFakes(sources)
+        return findTestFakes(sources) + findMainFakes(sources) + findForeignFakes(sources) + findProductCode(sources)
     }
 
     private companion object {

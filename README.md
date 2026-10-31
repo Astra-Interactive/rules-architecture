@@ -354,7 +354,7 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `DiPlacement`          | a `*Module` outside a `di` package                                                                        |
 | `NestedDataClass`      | a top-level data class used as a property type by exactly one class, except a sealed variant or a `*State` |
 | `TestMirror`           | a test in another package or source set than its owner                                                    |
-| `FakePlacement`        | a `Fake*` outside a `fake` package of the tests, or in the main sources outside a `<feature>/fake` unit, and a test fake of another unit's contract outside `testFixtures` |
+| `FakePlacement`        | a `Fake*` outside a `fake` package of the tests, or in the main sources outside a `<feature>/fake` unit, and a test fake of another unit's contract outside `testFixtures`, and a class other than a fake in a `<feature>/fake` unit |
 | `InMemoryPlacement`    | an `InMemory*` outside a `memory` package of the main sources                                              |
 | `SealedFamilyFile` | a class or object whose direct supertype is a sealed type declared in another file |
 | `StateTypePlacement`   | a `<Screen>State` declared in a UI kind (a state holder, a composable, a menu), nested in a type there or beside it, instead of its own file in `model` |
