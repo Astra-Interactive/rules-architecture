@@ -246,6 +246,36 @@ internal class TrivialLambdaReferenceTest {
     }
 
     @Test
+    fun GIVEN_vararg_callee_without_spread_WHEN_linted_THEN_conservatively_skips_a_compilable_reference(
+        @TempDir originalDirectory: File,
+        @TempDir referenceDirectory: File
+    ) {
+        val declarations = "fun append(vararg values: Int) = Unit"
+        val original = """
+            $declarations
+            fun process(values: List<Int>) = values.forEach { value -> append(value) }
+        """.trimIndent()
+        val reference = """
+            $declarations
+            fun process(values: List<Int>) = values.forEach(::append)
+        """.trimIndent()
+
+        assertEquals(emptyList(), rule.lintWithContext(environment, original).map { finding -> finding.message })
+        val originalCompilation = compile(original, originalDirectory)
+        assertEquals(
+            ExitCode.OK,
+            originalCompilation.exitCode,
+            originalCompilation.messages
+        )
+        val referenceCompilation = compile(reference, referenceDirectory)
+        assertEquals(
+            ExitCode.OK,
+            referenceCompilation.exitCode,
+            referenceCompilation.messages
+        )
+    }
+
+    @Test
     fun GIVEN_bound_and_unbound_plain_references_WHEN_compiled_THEN_are_accepted(@TempDir directory: File) {
         val source = """
             class User(val name: String) {
