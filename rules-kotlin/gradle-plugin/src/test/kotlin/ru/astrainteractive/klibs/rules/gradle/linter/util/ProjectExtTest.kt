@@ -138,6 +138,51 @@ internal class ProjectExtTest {
     }
 
     @Test
+    fun GIVEN_entry_point_conventions_and_explicit_roles_WHEN_configured_THEN_explicit_roles_win(
+        @TempDir rootDirectory: File
+    ) {
+        val inferred = unitKindScript("`java-library`")
+        val explicitTechnology = inferred + """
+
+            linter { unitKind(ru.astrainteractive.klibs.rules.core.unit.model.UnitKind.TECHNOLOGY) }
+        """.trimIndent()
+        val explicitEntryPoint = inferred + """
+
+            linter { unitKind(ru.astrainteractive.klibs.rules.core.unit.model.UnitKind.ENTRY_POINT) }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .withRootBuildScript("")
+            .withModule(name = "instances:forge", buildScript = inferred)
+            .withModule(name = "instances:neoforge", buildScript = inferred)
+            .withModule(name = "instances:core:api", buildScript = inferred)
+            .withModule(name = "instances:exposed", buildScript = explicitTechnology)
+            .withModule(name = "exposed", buildScript = explicitEntryPoint)
+            .withModule(name = "memory", buildScript = unitKindScript("application"))
+        val modules = listOf(
+            "instances:forge",
+            "instances:neoforge",
+            "instances:core:api",
+            "instances:exposed",
+            "exposed",
+            "memory"
+        )
+
+        build.run(*modules.map { module -> ":$module:reportUnitKind" }.toTypedArray())
+
+        assertEquals(
+            listOf(
+                "entry-point",
+                "entry-point",
+                "entry-point",
+                "technology",
+                "entry-point",
+                "entry-point"
+            ),
+            modules.map { module -> readContext(build, module).kind.cliName }
+        )
+    }
+
+    @Test
     fun GIVEN_units_named_and_built_by_convention_WHEN_configured_THEN_detects_their_kind(
         @TempDir rootDirectory: File
     ) {

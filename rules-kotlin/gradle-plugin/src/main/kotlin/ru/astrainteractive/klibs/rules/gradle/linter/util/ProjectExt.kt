@@ -101,6 +101,7 @@ private fun detectCoreKind(unitName: String, segments: List<String>, technologyW
 }
 
 internal fun Project.detectUnitKind(technologyWords: Set<String> = emptySet()): UnitKind {
+    if (isEntryPointByConvention()) return UnitKind.ENTRY_POINT
     val unitName = path.substringAfterLast(':')
     val segments = path.split(':')
     if (CORE_SEGMENT in segments) {
@@ -117,7 +118,6 @@ internal fun Project.detectUnitKind(technologyWords: Set<String> = emptySet()): 
         unitName == UnitKind.IMPL.cliName -> UnitKind.IMPL
         unitName == UnitKind.FAKE.cliName -> UnitKind.FAKE
         isTechnologyUnitName(unitName) || unitName in technologyWords -> UnitKind.TECHNOLOGY
-        isEntryPointByConvention() -> UnitKind.ENTRY_POINT
         isPlatformUnit() -> UnitKind.PLATFORM
         else -> UnitKind.CONTEXT
     }
