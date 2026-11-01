@@ -377,12 +377,14 @@ class LinterPluginTest {
 
             val detektTask = tasks.named<Detekt>("detekt").get()
             val detektArguments = detektTask.freeCompilerArgs
+            val detektTestArguments = tasks.named<Detekt>("detektTest").get().freeCompilerArgs
             val detektConfig = detektTask.config
             val detektPluginNames = configurations.getByName("detektPlugins").dependencies
                 .map { dependency -> "${'$'}{dependency.group}:${'$'}{dependency.name}" }
             val linterReport = layout.buildDirectory.file("linter-report.txt")
             tasks.register("reportLinter") {
                 val arguments = detektArguments
+                val testArguments = detektTestArguments
                 val configFiles = detektConfig
                 val pluginNames = detektPluginNames
                 val reportFile = linterReport
@@ -392,6 +394,7 @@ class LinterPluginTest {
                         "args=" + arguments.get(),
                         "config=" + configFiles.files.map { file -> file.parentFile.parentFile.name + "/" + file.name },
                         "plugins=" + pluginNames,
+                        "testArgs=" + testArguments.get(),
                     )
                     reportFile.get().asFile.writeText(lines.joinToString(separator = "\n"))
                 }
@@ -412,6 +415,7 @@ class LinterPluginTest {
             report[1]
         )
         assertTrue(report[2].contains("ru.astrainteractive.klibs.rules:detekt"), "rules missing: ${report[2]}")
+        assertTrue("-Xexplicit-api" !in report[3], "explicit API leaked into test compilation: ${report[3]}")
     }
 
     @Test

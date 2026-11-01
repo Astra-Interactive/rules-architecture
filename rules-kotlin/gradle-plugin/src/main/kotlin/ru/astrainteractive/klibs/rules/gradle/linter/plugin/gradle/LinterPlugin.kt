@@ -98,7 +98,7 @@ internal class LinterPlugin : Plugin<Project> {
         val explicitApiArguments = provider { explicitApiArguments() }
         tasks.withType(Detekt::class.java).configureEach { task ->
             task.usesService(configService)
-            task.freeCompilerArgs.addAll(explicitApiArguments)
+            if (task.name == DETEKT_TASK_NAME) task.freeCompilerArgs.addAll(explicitApiArguments)
         }
     }
 
@@ -270,6 +270,7 @@ internal class LinterPlugin : Plugin<Project> {
         const val CHECK_TASK_NAME = "architectureCheck"
         const val LINT_TASK_NAME = "architectureLint"
         private const val DETEKT_FORMAT_TASK_NAME = "detektFormat"
+        private const val DETEKT_TASK_NAME = "detekt"
         const val GRAPH_CHECK_TASK_NAME = "architectureGraphCheck"
         const val BASELINE_TASK_NAME = "architectureBaseline"
         const val BASELINE_FILE_NAME = "architecture-baseline.txt"
