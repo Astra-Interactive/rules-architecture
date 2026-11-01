@@ -566,4 +566,44 @@ internal class KindImportDirectionTest {
             KindImportDirection().check(sources).map(Violation::subject)
         )
     }
+
+    @Test
+    fun GIVEN_framework_contract_fake_WHEN_checked_THEN_allows_required_signature_types_only(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.check.component/Check.kt",
+                """
+                interface Check {
+                    val context: Context
+                    fun check(input: Input): Output
+                }
+                class Context
+                class Input
+                class Output
+                class Helper
+                """
+            )
+            .test(
+                "x.check.fake/FakeCheck.kt",
+                """
+                import x.check.component.Check
+                import x.check.component.Context
+                import x.check.component.Input as Value
+                import x.check.component.Output
+                import x.check.component.Helper
+
+                class FakeCheck : Check {
+                    override val context: Context = TODO()
+                    override fun check(input: Value): Output = TODO()
+                    val helper = Helper()
+                }
+                """
+            )
+            .load(UnitKind.CONTEXT, rootPackage = "x.check")
+
+        assertEquals(
+            listOf("x.check.component.Helper"),
+            KindImportDirection().check(sources).map(Violation::subject)
+        )
+    }
 }

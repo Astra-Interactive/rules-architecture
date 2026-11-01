@@ -65,3 +65,23 @@ internal fun KoFileDeclaration.topLevelNames(): List<String> {
         properties(includeNested = false).map(KoNameProvider::name) +
         typeAliases.map(KoNameProvider::name)
 }
+
+/**
+ * A fake must name its implemented contract and the types required by its override signatures, even when a
+ * framework contract's context types live with the mechanism instead of in a product model package.
+ */
+internal fun KoFileDeclaration.isRequiredOverrideReference(reference: String, projectInterfaces: Set<String>): Boolean {
+    val imported = imports.firstOrNull { declaration -> declaration.name == reference }
+    val visibleName = imported?.alias?.name ?: reference.substringAfterLast('.')
+    val implementsContract = reference in projectInterfaces && topLevelClasses().any { declaration ->
+        declaration.parents().any { parent -> parent.name == visibleName }
+    }
+    if (implementsContract) return true
+    val functionTypes = functions(includeNested = true, includeLocal = false)
+        .filter { function -> function.hasOverrideModifier }
+        .flatMap { function -> function.parameters.map { parameter -> parameter.type } + function.returnType }
+    val propertyTypes = properties(includeNested = true)
+        .filter { property -> property.hasOverrideModifier }
+        .map { property -> property.type }
+    return functionTypes.plus(propertyTypes).filterNotNull().any { type -> visibleName in type.typeNames }
+}
