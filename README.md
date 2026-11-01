@@ -315,7 +315,7 @@ val violations: List<StructureViolation> = checker.check(
 | `HardcodedDispatcher` | a dispatcher read from `kotlinx.coroutines.Dispatchers` (`IO`, `Default`, `Unconfined`) outside `di`, a provider's `override` property and tests, matched through the Analysis API; a dispatcher from any injected interface passes; replaces detekt's `InjectDispatcher` |
 | `PropertyReadBeforeDeclaration` | a property read while the object is constructed (an initializer, a delegate, an `init` block) before its declaration; lambdas, functions and `const val` are not judged; replaces detekt's `PropertyUsedBeforeDeclaration` |
 | `GuardIfBraces` | an `if` without `else` whose body is one `return` in braces, when it fits the project's `style.MaxLineLength.maxLineLength` (120 by default) |
-| `BridgeCleanup` | an `awaitClose` or `invokeOnCancellation` cleanup that assigns state declared outside its bridge (the `callbackFlow`/`suspendCancellableCoroutine` block) or calls `launch` |
+| `BridgeCleanup` | a resolved bridge cleanup that writes proven external state, including aliases and indexed writes, or launches on its own cancelled bridge scope; registration-local objects and independent cleanup scopes are allowed, with unknown ownership left to review (type resolution required) |
 | `ExplicitInvoke` | a call `name(…)` of a parameter, property or local value instead of `name.invoke(…)` |
 | `FunctionVerb` | a function whose first word is `get` (but a view model's `getState`), `map`, `make`, `do`, `handle` or `process` |
 | `PropertyAsFunction` | a function with no parameters that only returns a property of its class or file |
