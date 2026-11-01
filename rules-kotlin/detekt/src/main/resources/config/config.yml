@@ -45,6 +45,9 @@ architecture:
     active: true
   DiModuleLifecycle:
     active: true
+    lifecycleTypes:
+      - 'ru.astrainteractive.astralibs.lifecycle.Lifecycle'
+      - 'ru.astrainteractive.astralibs.lifecycle.api.Lifecycle'
   DurationOverloadCall:
     active: true
   ExplicitInvoke:

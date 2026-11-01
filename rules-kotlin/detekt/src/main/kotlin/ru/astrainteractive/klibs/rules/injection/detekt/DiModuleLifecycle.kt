@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
+import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.analysis.api.types.symbol
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.name.ClassId
@@ -26,27 +27,63 @@ import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 import ru.astrainteractive.klibs.rules.detekt.util.ownedConstructionOrNull
+import dev.detekt.api.config as ruleConfig
 
 /**
- * A module exposes the lifecycle of resources it directly constructs, including construction deferred by `lazy`.
+ * In projects using the configured lifecycle convention, a module exposes the lifecycle of resources it directly
+ * constructs, including construction deferred by `lazy`. The convention is not mandatory for every DI module.
  * Injected modules and their aliases remain the provider's responsibility. Unknown factories give no ownership
  * evidence; a service-like class name alone gives no lifecycle evidence.
  */
 internal class DiModuleLifecycle(config: Config) : Rule(config, DESCRIPTION), RequiresAnalysisApi {
+    private val lifecycleTypes: List<String> by ruleConfig(LIFECYCLE_TYPES)
+
+    private fun KaType.isModuleLifecycle(element: KtClassOrObject): Boolean {
+        return analyze(element) {
+            lifecycleTypes.any { name -> isSubtypeOf(ClassId.topLevel(FqName(name))) }
+        }
+    }
 
     private fun isModule(module: KtClassOrObject): Boolean {
-        if (module.name?.endsWith(MODULE_SUFFIX) == true) return true
-        return module.containingKtFile.packageFqName.pathSegments().any { segment -> segment.asString() == DI_SEGMENT }
+        return analyze(module) {
+            val symbol = module.classSymbol ?: return@analyze false
+            if (symbol.defaultType.isModuleLifecycle(module)) return@analyze false
+            val namedModule = module.name?.endsWith(MODULE_SUFFIX) == true
+            val implementsModule = symbol.superTypes.any { type ->
+                type.symbol?.name?.asString()?.endsWith(MODULE_SUFFIX) == true
+            }
+            namedModule || implementsModule
+        }
+    }
+
+    private fun hasLifecycleProperty(call: KtCallExpression, module: KtClassOrObject): Boolean {
+        return analyze(call) {
+            val type = call.expressionType ?: return@analyze false
+            (type.symbol as? KaClassSymbol)?.memberScope?.callables.orEmpty()
+                .filterIsInstance<KaPropertySymbol>()
+                .any { member -> member.name.asString() == LIFECYCLE && member.returnType.isModuleLifecycle(module) }
+        }
+    }
+
+    private fun usesLifecycleConvention(module: KtClassOrObject): Boolean {
+        val imported = module.containingKtFile.importDirectives.mapNotNull { directive -> directive.importedFqName }
+        val importedLifecycle = analyze(module) {
+            lifecycleTypes.any { name ->
+                val fqName = FqName(name)
+                fqName in imported && findClass(ClassId.topLevel(fqName)) != null
+            }
+        }
+        if (importedLifecycle) return true
+        return module.declarations.filterIsInstance<KtProperty>()
+            .mapNotNull(KtProperty::ownedConstructionOrNull)
+            .any { call -> hasLifecycleProperty(call, module) }
     }
 
     private fun isLifecycleResource(call: KtCallExpression): Boolean {
         return analyze(call) {
             val type = call.expressionType ?: return@analyze false
-            val hasLifecycle = (type.symbol as? KaClassSymbol)?.memberScope?.callables.orEmpty()
-                .filterIsInstance<KaPropertySymbol>()
-                .any { member ->
-                    member.name.asString() == LIFECYCLE && member.returnType.symbol?.name?.asString() == "Lifecycle"
-                }
+            val module = call.getStrictParentOfType<KtClassOrObject>() ?: return@analyze false
+            val hasLifecycle = hasLifecycleProperty(call, module)
             if (hasLifecycle) return@analyze true
             val javaCloseable = type.isSubtypeOf(ClassId.topLevel(FqName("java.lang.AutoCloseable")))
             val kotlinCloseable = type.isSubtypeOf(ClassId.topLevel(FqName("kotlin.AutoCloseable")))
@@ -89,7 +126,9 @@ internal class DiModuleLifecycle(config: Config) : Rule(config, DESCRIPTION), Re
         super.visitDotQualifiedExpression(expression)
         if ((expression.selectorExpression as? KtNameReferenceExpression)?.getReferencedName() != LIFECYCLE) return
         val module = expression.getStrictParentOfType<KtClassOrObject>() ?: return
-        if (!isModule(module)) return
+        if (!isModule(module) || !usesLifecycleConvention(module)) return
+        val actualLifecycle = analyze(expression) { expression.expressionType?.isModuleLifecycle(module) == true }
+        if (!actualLifecycle) return
         val lifecycleProperty = expression.getStrictParentOfType<KtProperty>()?.name == LIFECYCLE
         val outer = expression.parent as? KtDotQualifiedExpression
         val transition = (outer?.selectorExpression as? KtCallExpression)?.calleeExpression?.text in LIFECYCLE_NAMES
@@ -108,7 +147,7 @@ internal class DiModuleLifecycle(config: Config) : Rule(config, DESCRIPTION), Re
     override fun visitClassOrObject(classOrObject: KtClassOrObject) {
         super.visitClassOrObject(classOrObject)
         val name = classOrObject.name ?: return
-        if (!isModule(classOrObject)) return
+        if (!isModule(classOrObject) || !usesLifecycleConvention(classOrObject)) return
         val hasLifecycle = classOrObject.declarations
             .filterIsInstance<KtProperty>()
             .any { property -> property.name == LIFECYCLE }
@@ -122,7 +161,7 @@ internal class DiModuleLifecycle(config: Config) : Rule(config, DESCRIPTION), Re
     override fun visitNamedFunction(function: KtNamedFunction) {
         super.visitNamedFunction(function)
         val owner = function.containingClassOrObject ?: return
-        if (!isModule(owner) || function.name !in LIFECYCLE_NAMES) return
+        if (!isModule(owner) || !usesLifecycleConvention(owner) || function.name !in LIFECYCLE_NAMES) return
         val message = "Remove '${function.name}' from ${owner.name}: expose val lifecycle: Lifecycle and let " +
             "the parent module collect it."
         report(Finding(Entity.atName(function), message))
@@ -131,7 +170,12 @@ internal class DiModuleLifecycle(config: Config) : Rule(config, DESCRIPTION), Re
     private companion object {
         const val MODULE_SUFFIX = "Module"
         const val LIFECYCLE = "lifecycle"
-        const val DI_SEGMENT = "di"
+
+        @JvmField
+        val LIFECYCLE_TYPES = listOf(
+            "ru.astrainteractive.astralibs.lifecycle.Lifecycle",
+            "ru.astrainteractive.astralibs.lifecycle.api.Lifecycle"
+        )
 
         @JvmField
         val LIFECYCLE_NAMES = setOf(
@@ -142,6 +186,6 @@ internal class DiModuleLifecycle(config: Config) : Rule(config, DESCRIPTION), Re
             "onDisable",
             "onReload"
         )
-        const val DESCRIPTION = "A DI module exposes val lifecycle: Lifecycle, never its own enable/disable/reload."
+        const val DESCRIPTION = "Modules using the lifecycle convention expose owned lifecycles, not borrowed ones."
     }
 }
