@@ -1,8 +1,8 @@
 package ru.astrainteractive.klibs.rules.gradle.linter.util
 
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
-import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 
 private const val BUILD_FILE = "build.gradle.kts"
 private const val STRICT = "strict"
@@ -71,7 +71,8 @@ private fun isPlatformGroup(dependency: String): Boolean {
 }
 
 private fun UnitBuild.findPlatformDependencyFindings(): List<ArchitectureFinding> {
-    if (unitKind != UnitKind.API) return emptyList()
+    if (isPublished) return emptyList()
+    if (unitKind != UnitKind.API && unitKind != UnitKind.CORE_API) return emptyList()
     return platformDependencies.filter(::isPlatformGroup).map { dependency ->
         ArchitectureFinding(
             rule = "ApiUnitPlatformDependency",

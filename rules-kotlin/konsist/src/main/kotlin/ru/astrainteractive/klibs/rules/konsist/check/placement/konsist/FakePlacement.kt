@@ -2,12 +2,12 @@ package ru.astrainteractive.klibs.rules.konsist.check.placement.konsist
 
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import com.lemonappdev.konsist.api.provider.KoNameProvider
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.packageName
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelClasses
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
 /**
  * Reports a test fake (`Fake*`) outside a `fake` package of the test tree, which sits inside the concept of the

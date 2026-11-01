@@ -3,7 +3,7 @@
 package ru.astrainteractive.klibs.rules.konsist.cli.model
 
 import org.junit.jupiter.api.Test
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Vocabulary
 import java.io.File
 import kotlin.test.assertEquals
@@ -73,7 +73,8 @@ internal class CliArgumentsTest {
                     extensionKinds = setOf("slot")
                 ),
                 dependencyDirectories = listOf(File("/data/dao/src/main/kotlin")),
-                androidNamespace = "com.example"
+                androidNamespace = "com.example",
+                unitContext = null
             ),
             arguments
         )

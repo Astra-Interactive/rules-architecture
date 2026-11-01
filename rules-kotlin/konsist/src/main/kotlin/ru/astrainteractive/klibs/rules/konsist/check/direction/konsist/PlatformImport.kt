@@ -1,12 +1,12 @@
 package ru.astrainteractive.klibs.rules.konsist.check.direction.konsist
 
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.sourceReferences
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
 /**
  * Reports a platform, framework or ORM import in `model`, `api` and `usecase`, and anywhere in an `api` unit,
@@ -15,16 +15,16 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
  * `api` unit whose state holder declares `Render()` is such a unit.
  */
 internal class PlatformImport : ArchitectureCheck {
-    override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet() - UnitKind.TECHNOLOGY
+    override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet() - UnitKind.TECHNOLOGY - UnitKind.PLATFORM
 
     private fun isChecked(sources: UnitSources, file: KoFileDeclaration): Boolean {
-        if (sources.kind == UnitKind.API) return true
+        if (sources.kind == UnitKind.API || sources.kind == UnitKind.CORE_API) return true
         return sources.placementOf(file)?.kind in CHECKED_KINDS
     }
 
     private fun isAllowedCompose(sources: UnitSources, file: KoFileDeclaration, importedName: String): Boolean {
         val isUiKind = sources.placementOf(file)?.kind in COMPOSE_KINDS
-        return sources.isComposeUnit && isUiKind && UnitSources.isComposeImport(importedName)
+        return sources.isComposeFile(file) == true && isUiKind && UnitSources.isComposeImport(importedName)
     }
 
     override fun check(sources: UnitSources): List<Violation> {

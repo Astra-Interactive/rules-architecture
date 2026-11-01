@@ -5,6 +5,8 @@ package ru.astrainteractive.klibs.rules.gradle.linter.task.gradle
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
+import ru.astrainteractive.klibs.rules.core.unit.util.toUnitContext
 import ru.astrainteractive.klibs.rules.gradle.fixture.IsolatedProjectsBuild
 import java.io.File
 
@@ -33,6 +35,14 @@ class DetektSettingsTaskTest {
 
         build.run(":modules:jail:architectureDetektSettings")
 
+        val lines = build.file("modules/jail/build/detekt/architecture-settings.yml").readLines()
+        val contexts = lines.filter { line -> line.trimStart().startsWith("unitContext:") }
+            .map { line -> line.substringAfter("'").substringBeforeLast("'").toUnitContext() }
+        assertEquals(3, contexts.size)
+        contexts.forEach { context ->
+            assertEquals(UnitKind.CONTEXT, context.kind)
+            assertEquals(setOf("mongo", "mongodb"), context.technologyWords)
+        }
         assertEquals(
             listOf(
                 "architecture:",
@@ -45,7 +55,7 @@ class DetektSettingsTaskTest {
                 "  RunCatchingCancellation:",
                 "    inlineCancellationCheck: true",
             ),
-            build.file("modules/jail/build/detekt/architecture-settings.yml").readLines()
+            lines.filterNot { line -> line.trimStart().startsWith("unitContext:") }
         )
     }
 

@@ -8,20 +8,29 @@ import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.artifacts.VersionCatalogsExtension
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.file.FileCollection
 import org.gradle.api.provider.Provider
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 import org.jetbrains.kotlin.gradle.dsl.KotlinBaseExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.dsl.KotlinSingleTargetExtension
+import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
 import org.jetbrains.kotlin.gradle.plugin.mpp.Framework
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
-import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
+import ru.astrainteractive.klibs.rules.gradle.linter.service.ArchitectureGraphService
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
 import ru.astrainteractive.klibs.rules.structure.unit.structure.isPlatformUnitName
 import ru.astrainteractive.klibs.rules.structure.unit.structure.isTechnologyUnitName
 import java.io.File
+
+private const val GRAPH_SERVICE_NAME = "klibsArchitectureGraph"
 
 private const val ENTRY_POINT_PATH_PREFIX = ":instances:"
 
@@ -52,6 +61,19 @@ private val PRODUCTION_CONFIGURATION_SUFFIXES = listOf(
     "runtimeOnly"
 )
 
+internal fun Project.graphService(): Provider<ArchitectureGraphService> {
+    return gradle.sharedServices.registerIfAbsent(
+        GRAPH_SERVICE_NAME,
+        ArchitectureGraphService::class.java
+    ) { }
+}
+
+internal fun Project.graphParameters(): ArchitectureGraphService.Parameters {
+    graphService()
+    val registration = requireNotNull(gradle.sharedServices.registrations.findByName(GRAPH_SERVICE_NAME))
+    return registration.parameters as ArchitectureGraphService.Parameters
+}
+
 private fun Project.isEntryPointByConvention(): Boolean {
     return ENTRY_POINT_PLUGIN_IDS
         .any(pluginManager::hasPlugin)
@@ -79,25 +101,81 @@ internal fun Project.explicitApiMode(): String? {
 }
 
 /**
- * A published library is a unit applying `maven-publish` with strict explicit API mode; explicit API mode alone does
- * not make an application unit a library.
+ * Publishing identifies the library independently of its role. Strict explicit API is verified separately.
  */
-private fun Project.isPublishedLibrary(): Boolean {
-    val isStrict = hasKotlinPlugin() && explicitApiMode() == "strict"
-    return isStrict && pluginManager.hasPlugin(PUBLISH_PLUGIN_ID)
+internal fun Project.isPublishedLibrary(): Boolean {
+    return pluginManager.hasPlugin(PUBLISH_PLUGIN_ID)
 }
 
-internal fun Project.detectUnitKind(): UnitKind {
+private fun detectCoreKind(unitName: String, segments: List<String>, technologyWords: Set<String>): UnitKind {
+    return when {
+        isPlatformUnitName(unitName) -> UnitKind.CORE_PLATFORM
+        "ui" in segments.dropWhile { segment -> segment != CORE_SEGMENT } -> UnitKind.CORE_UI
+        isTechnologyUnitName(unitName) || unitName in technologyWords -> UnitKind.TECHNOLOGY
+        else -> UnitKind.CORE_API
+    }
+}
+
+internal fun Project.detectUnitKind(technologyWords: Set<String> = emptySet()): UnitKind {
     val unitName = path.substringAfterLast(':')
+    val segments = path.split(':')
+    if (CORE_SEGMENT in segments) {
+        return detectCoreKind(
+            unitName,
+            segments,
+            technologyWords
+        )
+    }
     return when {
         unitName == UnitKind.API.cliName -> UnitKind.API
         unitName == UnitKind.CONTRACT.cliName -> UnitKind.CONTRACT
-        isTechnologyUnitName(unitName) -> UnitKind.TECHNOLOGY
+        unitName == "dao" -> UnitKind.STORAGE_CONTRACT
+        unitName == UnitKind.IMPL.cliName -> UnitKind.IMPL
+        unitName == UnitKind.FAKE.cliName -> UnitKind.FAKE
+        isTechnologyUnitName(unitName) || unitName in technologyWords -> UnitKind.TECHNOLOGY
         isEntryPointByConvention() -> UnitKind.ENTRY_POINT
-        isPlatformUnit() -> UnitKind.TECHNOLOGY
-        isPublishedLibrary() -> UnitKind.LIBRARY
+        isPlatformUnit() -> UnitKind.PLATFORM
         else -> UnitKind.CONTEXT
     }
+}
+
+private fun Project.kotlinCompilations(): List<KotlinCompilation<*>> {
+    if (!hasKotlinPlugin()) return emptyList()
+    return when (val kotlin = extensions.findByName("kotlin")) {
+        is KotlinMultiplatformExtension -> kotlin.targets.flatMap { target -> target.compilations }
+        is KotlinSingleTargetExtension<*> -> kotlin.target.compilations.toList()
+        else -> emptyList()
+    }
+}
+
+@OptIn(ExperimentalKotlinGradlePluginApi::class)
+private fun Project.readCompilation(compilation: KotlinCompilation<*>): UnitContext.Compilation {
+    val visible = compilation.allAssociatedCompilations + compilation
+    val sourceSets = buildMap {
+        visible.flatMap { associated -> associated.allKotlinSourceSets }.forEach { sourceSet ->
+            val directories = sourceSet.kotlin.srcDirs
+                .filterNot { directory -> directory.toPath().startsWith(layout.buildDirectory.get().asFile.toPath()) }
+                .map(File::getAbsolutePath)
+                .toSet()
+            put(sourceSet.name, directories)
+        }
+    }
+    val configuration = configurations.getByName(compilation.compileDependencyConfigurationName)
+    val compose = configuration.incoming.resolutionResult.allComponents.any { component ->
+        val id = component.id as? ModuleComponentIdentifier ?: return@any false
+        id.group.startsWith("androidx.compose.") || id.group.startsWith("org.jetbrains.compose.")
+    }
+    val dependencies = configuration.allDependencies.withType(ProjectDependency::class.java)
+        .map(ProjectDependency::getPath)
+        .filter { dependency -> dependency != path }
+        .toSet()
+    return UnitContext.Compilation(
+        "${compilation.target.name}:${compilation.name}",
+        sourceSets,
+        compilation.name.contains("test", ignoreCase = true),
+        compose,
+        dependencies
+    )
 }
 
 private fun isProductionConfiguration(name: String): Boolean {
@@ -191,6 +269,30 @@ internal fun Project.hasMikroCoreInCatalog(): Boolean {
 internal fun Project.findUnitTechnologyWords(extension: LinterExtension): Provider<Set<String>> {
     val libraryWords = provider { findTechnologyWords(externalProductionDependencies()) }
     return extension.technologyWords.zip(libraryWords) { projectWords, words -> projectWords + words }
+}
+
+internal fun Project.readUnitContext(
+    extension: LinterExtension,
+    rootProductKind: ProductKind?,
+    includeCompilations: Boolean = true
+): UnitContext {
+    val localProduct = extension.configuredProductKind
+    require(localProduct == null || rootProductKind == null || localProduct == rootProductKind) {
+        "Conflicting linter.productKind for $path: root declares $rootProductKind, unit declares $localProduct"
+    }
+    val technologies = findUnitTechnologyWords(extension).get()
+    val compilations = if (includeCompilations) {
+        kotlinCompilations().map { compilation -> readCompilation(compilation) }
+    } else {
+        emptyList()
+    }
+    return UnitContext(
+        extension.configuredUnitKind ?: detectUnitKind(technologies),
+        localProduct ?: rootProductKind,
+        isPublishedLibrary(),
+        technologies,
+        compilations
+    )
 }
 
 internal fun Project.readUnitBuild(unitKind: UnitKind): UnitBuild {

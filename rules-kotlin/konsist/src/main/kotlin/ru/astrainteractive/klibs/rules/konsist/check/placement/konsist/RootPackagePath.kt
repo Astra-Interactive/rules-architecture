@@ -1,9 +1,9 @@
 package ru.astrainteractive.klibs.rules.konsist.check.placement.konsist
 
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
 /**
  * Reports a unit whose root package does not end with the unit's name taken from its path: `modules/jail` ends
@@ -13,7 +13,7 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
  * The entry point, named for the application, and a published library are not judged.
  */
 internal class RootPackagePath : ArchitectureCheck {
-    override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet() - UnitKind.ENTRY_POINT - UnitKind.LIBRARY
+    override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet() - UnitKind.ENTRY_POINT
 
     private fun coreEndings(pathSegments: List<String>): List<List<String>> {
         val coreIndex = pathSegments.indexOf(CORE)
@@ -32,6 +32,7 @@ internal class RootPackagePath : ArchitectureCheck {
     }
 
     override fun check(sources: UnitSources): List<Violation> {
+        if (sources.context.publishedLibrary) return emptyList()
         val unitPath = sources.unitPath ?: return emptyList()
         val rootPackage = sources.layout.rootPackage
         if (rootPackage.isEmpty()) return emptyList()

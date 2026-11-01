@@ -1,7 +1,7 @@
 package ru.astrainteractive.klibs.rules.konsist.check.konsist
 
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
 // Kept beside the checks it types by the owner's decision of 2026-10-31.
 

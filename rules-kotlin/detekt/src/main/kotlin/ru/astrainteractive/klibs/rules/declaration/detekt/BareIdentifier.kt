@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtUserType
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 import ru.astrainteractive.klibs.rules.detekt.util.isTechnologySegment
+import ru.astrainteractive.klibs.rules.detekt.util.projectTechnologyWords
 import dev.detekt.api.config as ruleConfig
 
 /**
@@ -26,6 +27,7 @@ import dev.detekt.api.config as ruleConfig
  */
 internal class BareIdentifier(config: Config) : Rule(config, DESCRIPTION) {
     private val technologyWords: List<String> by ruleConfig(emptyList())
+    private val allTechnologyWords: List<String> by lazy { config.projectTechnologyWords(technologyWords) }
 
     private fun primitiveTypeName(declaration: KtCallableDeclaration): String? {
         val typeElement = declaration.typeReference?.typeElement
@@ -39,7 +41,9 @@ internal class BareIdentifier(config: Config) : Rule(config, DESCRIPTION) {
 
     private fun isTechnologyPackage(declaration: KtCallableDeclaration): Boolean {
         val segments = declaration.containingKtFile.packageFqName.pathSegments().map(Name::asString)
-        return segments.any { segment -> isTechnologySegment(segment, technologyWords) || segment == CONTRACT_SEGMENT }
+        return segments.any { segment ->
+            isTechnologySegment(segment, allTechnologyWords) || segment == CONTRACT_SEGMENT
+        }
     }
 
     private fun isExempt(declaration: KtCallableDeclaration, owner: KtClassOrObject): Boolean {

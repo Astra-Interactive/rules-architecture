@@ -17,13 +17,13 @@ import org.gradle.api.attributes.java.TargetJvmEnvironment
 import org.gradle.api.file.FileCollection
 import org.gradle.api.provider.Provider
 import org.gradle.language.base.plugins.LifecycleBasePlugin
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
+import ru.astrainteractive.klibs.rules.core.unit.util.encode
 import ru.astrainteractive.klibs.rules.gradle.detekt.extension.model.DetektRulesExtension
 import ru.astrainteractive.klibs.rules.gradle.detekt.plugin.gradle.DetektPlugin
 import ru.astrainteractive.klibs.rules.gradle.detekt.service.DetektConfigService
 import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
-import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
-import ru.astrainteractive.klibs.rules.gradle.linter.service.ArchitectureGraphService
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureBaselineTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureCheckTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureGraphTask
@@ -35,9 +35,12 @@ import ru.astrainteractive.klibs.rules.gradle.linter.util.detectUnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.util.explicitApiMode
 import ru.astrainteractive.klibs.rules.gradle.linter.util.findBuildFindings
 import ru.astrainteractive.klibs.rules.gradle.linter.util.findUnitTechnologyWords
+import ru.astrainteractive.klibs.rules.gradle.linter.util.graphParameters
+import ru.astrainteractive.klibs.rules.gradle.linter.util.graphService
 import ru.astrainteractive.klibs.rules.gradle.linter.util.hasMikroCoreInCatalog
 import ru.astrainteractive.klibs.rules.gradle.linter.util.productionProjectDependencies
 import ru.astrainteractive.klibs.rules.gradle.linter.util.readUnitBuild
+import ru.astrainteractive.klibs.rules.gradle.linter.util.readUnitContext
 import ru.astrainteractive.klibs.rules.gradle.linter.util.toLine
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
 import java.util.Properties
@@ -61,7 +64,7 @@ internal class LinterPlugin : Plugin<Project> {
         return listOf("-Xexplicit-api=$mode")
     }
 
-    private fun Project.configureDetekt(rulesVersion: String, extension: LinterExtension) {
+    private fun Project.configureDetekt(rulesVersion: String, context: Provider<UnitContext>) {
         dependencies.add("detektPlugins", "$RULES_GROUP:detekt:$rulesVersion")
         val configService = gradle.sharedServices.registerIfAbsent(
             CONFIG_SERVICE_NAME,
@@ -77,7 +80,8 @@ internal class LinterPlugin : Plugin<Project> {
             DETEKT_SETTINGS_TASK_NAME,
             DetektSettingsTask::class.java
         ) { task ->
-            task.technologyWords.set(findUnitTechnologyWords(extension))
+            task.technologyWords.set(context.map(UnitContext::technologyWords))
+            task.unitContext.set(context.map(UnitContext::encode))
             task.inlineCancellationCheck.set(provider { !hasMikroCoreInCatalog() })
             task.configFile.set(layout.buildDirectory.file("detekt/$DETEKT_SETTINGS_FILE_NAME"))
         }
@@ -134,6 +138,7 @@ internal class LinterPlugin : Plugin<Project> {
     private fun ArchitectureTask.configureFrom(
         project: Project,
         extension: LinterExtension,
+        context: Provider<UnitContext>,
         classpath: NamedDomainObjectProvider<ResolvableConfiguration>
     ) {
         group = LifecycleBasePlugin.VERIFICATION_GROUP
@@ -143,7 +148,7 @@ internal class LinterPlugin : Plugin<Project> {
         projectDirectory.set(project.layout.projectDirectory)
         rootDirectory.set(project.isolated.rootProject.projectDirectory)
         projectPath.set(project.path)
-        unitKind.set(extension.unitKind)
+        unitContext.set(context.map(UnitContext::encode))
         rootPackage.set(extension.rootPackage)
         androidNamespace.set(project.provider { project.androidNamespace() })
         entryPointWords.set(extension.entryPointWords)
@@ -155,23 +160,28 @@ internal class LinterPlugin : Plugin<Project> {
         projectDependencies.set(project.provider { project.productionProjectDependencies() })
     }
 
-    private fun Project.graphService(): Provider<ArchitectureGraphService> {
-        return gradle.sharedServices.registerIfAbsent(
-            GRAPH_SERVICE_NAME,
-            ArchitectureGraphService::class.java
-        ) { }
-    }
-
-    private fun Project.configureGraphContribution(extension: LinterExtension) {
-        val service = graphService()
+    private fun Project.configureGraphContribution(extension: LinterExtension): Provider<UnitContext> {
+        val rootProduct = graphParameters().productKind
+        val context = provider { readUnitContext(extension, rootProduct.orNull) }
         afterEvaluate { project ->
-            val parameters = service.get().parameters
+            val parameters = project.graphParameters()
+            if (project.path == project.isolated.rootProject.path) {
+                extension.configuredProductKind?.let(parameters.productKind::set)
+            }
+            // Root graph inputs must not resolve another project's compilation classpath.
+            val snapshot = project.readUnitContext(
+                extension,
+                parameters.productKind.orNull,
+                includeCompilations = false
+            )
+            val metadata = listOf(project.path, snapshot.encode())
+                .plus(project.productionProjectDependencies())
+                .joinToString("\t")
             synchronized(parameters) {
-                val dependencies = project.productionProjectDependencies()
-                val metadata = listOf(project.path, extension.unitKind.get()).plus(dependencies).joinToString("\t")
                 parameters.unitMetadata.add(metadata)
             }
         }
+        return context
     }
 
     private fun Project.configureGraphCheck() {
@@ -182,7 +192,7 @@ internal class LinterPlugin : Plugin<Project> {
         ) { task ->
             task.description = "Checks that the unit graph is acyclic and that nothing depends on an entry point"
             task.usesService(service)
-            task.unitMetadata.set(service.get().parameters.unitMetadata.map { metadata -> metadata })
+            task.unitMetadata.set(graphParameters().unitMetadata.map { metadata -> metadata })
         }
         plugins.withType(LifecycleBasePlugin::class.java) {
             tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) { task ->
@@ -195,10 +205,8 @@ internal class LinterPlugin : Plugin<Project> {
         target.pluginManager.apply(DetektPlugin::class.java)
         val rulesVersion = readRulesVersion()
         val extension = target.extensions.create(EXTENSION_NAME, LinterExtension::class.java)
-        extension.unitKind.convention(target.provider { target.detectUnitKind().cliName })
-        target.configureDetekt(rulesVersion, extension)
-
-        target.configureGraphContribution(extension)
+        val context = target.configureGraphContribution(extension)
+        target.configureDetekt(rulesVersion, context)
         val classpath = target.konsistClasspath(rulesVersion)
 
         val checkTask = target.tasks.register(
@@ -209,6 +217,7 @@ internal class LinterPlugin : Plugin<Project> {
             task.configureFrom(
                 target,
                 extension,
+                context,
                 classpath
             )
             task.baseline.from(target.layout.projectDirectory.file(BASELINE_FILE_NAME))
@@ -222,12 +231,14 @@ internal class LinterPlugin : Plugin<Project> {
             task.configureFrom(
                 target,
                 extension,
+                context,
                 classpath
             )
             task.baselineFile.set(target.layout.projectDirectory.file(BASELINE_FILE_NAME))
         }
         target.afterEvaluate { project ->
-            val kind = UnitKind.fromCliName(extension.unitKind.get()) ?: UnitKind.CONTEXT
+            val technologies = project.findUnitTechnologyWords(extension).get()
+            val kind = extension.configuredUnitKind ?: project.detectUnitKind(technologies)
             val findings = project.readUnitBuild(kind).findBuildFindings().map(ArchitectureFinding::toLine)
             checkTask.configure { task -> task.buildFindings.set(findings) }
             baselineTask.configure { task -> task.buildFindings.set(findings) }
@@ -262,7 +273,6 @@ internal class LinterPlugin : Plugin<Project> {
         private const val RULES_VERSION_FILE = "klibs-rules.properties"
         private const val ARCHITECTURE_CONFIG_FILE_NAME = "detekt-architecture.yml"
         private const val CONFIG_SERVICE_NAME = "klibsDetektArchitectureConfig"
-        private const val GRAPH_SERVICE_NAME = "klibsArchitectureGraph"
         private const val KONSIST_CONFIGURATION = "klibsArchitectureKonsist"
     }
 }

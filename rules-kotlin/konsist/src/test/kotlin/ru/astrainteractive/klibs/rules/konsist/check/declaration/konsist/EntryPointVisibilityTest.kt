@@ -4,11 +4,11 @@ package ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureChecker
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.SuppressionPolicy
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 import java.io.File
 import kotlin.test.assertEquals
 
@@ -93,7 +93,11 @@ internal class EntryPointVisibilityTest {
                 "EventListener.kt",
                 "class EventListener"
             )
-            .load(UnitKind.LIBRARY, unitPath = ":command")
+            .load(
+                UnitKind.CONTEXT,
+                publishedLibrary = true,
+                unitPath = ":command"
+            )
 
         val checker = ArchitectureChecker(listOf(EntryPointVisibility()), SuppressionPolicy())
         assertEquals(emptyList(), checker.check(sources))

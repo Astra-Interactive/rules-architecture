@@ -20,6 +20,9 @@ internal abstract class DetektSettingsTask : DefaultTask() {
     abstract val technologyWords: SetProperty<String>
 
     @get:Input
+    abstract val unitContext: Property<String>
+
+    @get:Input
     abstract val inlineCancellationCheck: Property<Boolean>
 
     @get:OutputFile
@@ -33,6 +36,7 @@ internal abstract class DetektSettingsTask : DefaultTask() {
             TECHNOLOGY_RULES.forEach { rule ->
                 appendLine("  $rule:")
                 appendLine("    technologyWords: [ $words ]")
+                appendLine("    unitContext: '${unitContext.get()}'")
             }
             appendLine("  RunCatchingCancellation:")
             appendLine("    inlineCancellationCheck: ${inlineCancellationCheck.get()}")

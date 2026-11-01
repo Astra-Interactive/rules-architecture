@@ -1,10 +1,10 @@
 package ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist
 
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelClasses
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
 /**
  * Reports a public class or object in a kind the platform invokes (`command`, `event`, `expansion`, `route`,
@@ -13,9 +13,10 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
  * library, whose public API may live in these kinds.
  */
 internal class EntryPointVisibility : ArchitectureCheck {
-    override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet() - UnitKind.LIBRARY
+    override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
 
     override fun check(sources: UnitSources): List<Violation> {
+        if (sources.context.publishedLibrary) return emptyList()
         return sources.mainFiles
             .filter { file -> sources.placementOf(file)?.kindWord in PLATFORM_INVOKED_KINDS }
             .flatMap { file ->

@@ -9,6 +9,7 @@ architecture:
   BareIdentifier:
     active: true
     technologyWords: [ ]
+    unitContext: ''
   BooleanOperatorWrapping:
     active: true
   BridgeCleanup:
@@ -70,6 +71,7 @@ architecture:
   KindNameInPackage:
     active: true
     technologyWords: [ ]
+    unitContext: ''
   LambdaSingleIfGuard:
     active: true
   LocalOrInnerClass:
@@ -103,6 +105,7 @@ architecture:
   RunBlockingOutsideBoundary:
     active: true
     technologyWords: [ ]
+    unitContext: ''
   RunCatchingCancellation:
     active: true
     inlineCancellationCheck: true

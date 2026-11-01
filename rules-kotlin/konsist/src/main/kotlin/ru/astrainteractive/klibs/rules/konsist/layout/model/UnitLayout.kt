@@ -1,5 +1,7 @@
 package ru.astrainteractive.klibs.rules.konsist.layout.model
 
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
+
 /**
  * The package layout of one build unit: its root package, its kind and the project's own kind words.
  */
@@ -30,7 +32,8 @@ internal class UnitLayout(
             segments.indexOfLast { segment -> Kind.fromSegment(segment, vocabulary) != null }
         }
         if (kindIndex < 0) {
-            val kind = Kind.IMPLEMENTATION.takeIf { unitKind == UnitKind.TECHNOLOGY && segments.isNotEmpty() }
+            val technologyUnit = unitKind == UnitKind.TECHNOLOGY || unitKind == UnitKind.PLATFORM
+            val kind = Kind.IMPLEMENTATION.takeIf { technologyUnit && segments.isNotEmpty() }
             return Placement(
                 concepts = segments,
                 kind = kind,

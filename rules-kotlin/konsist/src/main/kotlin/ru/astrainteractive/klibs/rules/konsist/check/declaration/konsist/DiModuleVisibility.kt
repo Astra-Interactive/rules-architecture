@@ -1,12 +1,12 @@
 package ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist
 
 import com.lemonappdev.konsist.api.KoModifier
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelClasses
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
 /**
  * Reports a public DI module that a file of its own unit constructs: it is a child in the unit's tree of DI
@@ -14,9 +14,10 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
  * judged.
  */
 internal class DiModuleVisibility : ArchitectureCheck {
-    override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet() - UnitKind.LIBRARY
+    override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
 
     override fun check(sources: UnitSources): List<Violation> {
+        if (sources.context.publishedLibrary) return emptyList()
         return sources.mainFiles
             .filter { file -> sources.placementOf(file)?.kind == Kind.DI }
             .flatMap { file ->

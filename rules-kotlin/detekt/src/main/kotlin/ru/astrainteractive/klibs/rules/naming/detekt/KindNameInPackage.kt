@@ -8,6 +8,7 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtSuperTypeCallEntry
 import ru.astrainteractive.klibs.rules.detekt.util.isTechnologySegment
+import ru.astrainteractive.klibs.rules.detekt.util.projectTechnologyWords
 import dev.detekt.api.config as ruleConfig
 
 /**
@@ -22,11 +23,12 @@ import dev.detekt.api.config as ruleConfig
  */
 internal class KindNameInPackage(config: Config) : Rule(config, DESCRIPTION) {
     private val technologyWords: List<String> by ruleConfig(emptyList())
+    private val allTechnologyWords: List<String> by lazy { config.projectTechnologyWords(technologyWords) }
 
     private fun isDomainModelPackage(segments: List<String>): Boolean {
         val modelIndex = segments.indexOf(MODEL_SEGMENT)
         if (modelIndex < 0) return false
-        return segments.take(modelIndex).none { segment -> isTechnologySegment(segment, technologyWords) }
+        return segments.take(modelIndex).none { segment -> isTechnologySegment(segment, allTechnologyWords) }
     }
 
     private fun isPlatformService(classOrObject: KtClassOrObject): Boolean {

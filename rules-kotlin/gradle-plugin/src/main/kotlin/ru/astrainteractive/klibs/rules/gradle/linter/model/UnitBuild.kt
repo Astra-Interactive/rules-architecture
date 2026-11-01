@@ -1,5 +1,7 @@
 package ru.astrainteractive.klibs.rules.gradle.linter.model
 
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
+
 /**
  * What a unit's own build declares, read at configuration time for the build findings.
  *

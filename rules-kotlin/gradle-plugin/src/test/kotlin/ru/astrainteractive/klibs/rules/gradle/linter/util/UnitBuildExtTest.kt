@@ -2,9 +2,9 @@
 
 package ru.astrainteractive.klibs.rules.gradle.linter.util
 
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
-import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

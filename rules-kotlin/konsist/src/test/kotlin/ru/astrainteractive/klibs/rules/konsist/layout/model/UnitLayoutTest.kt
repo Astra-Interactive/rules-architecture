@@ -3,6 +3,7 @@
 package ru.astrainteractive.klibs.rules.konsist.layout.model
 
 import org.junit.jupiter.api.Test
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

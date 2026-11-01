@@ -4,9 +4,9 @@ package ru.astrainteractive.klibs.rules.konsist.check.direction.konsist
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 import java.io.File
 import kotlin.test.assertEquals
 
@@ -94,7 +94,11 @@ internal class PlatformImportTest {
                 "LoadOfferUseCase.kt",
                 "import androidx.compose.runtime.State\n\ninterface LoadOfferUseCase"
             )
-            .load(UnitKind.API, unitPath = ":payment:api")
+            .load(
+                UnitKind.API,
+                unitPath = ":payment:api",
+                compose = true
+            )
 
         assertEquals(
             listOf("androidx.compose.runtime.State", "androidx.lifecycle.ViewModel"),
@@ -128,7 +132,11 @@ internal class PlatformImportTest {
                 "BenefitComposable.kt",
                 "import androidx.compose.runtime.Composable\n\nfun benefit() = Unit"
             )
-            .load(UnitKind.CONTEXT, unitPath = ":paywall:impl")
+            .load(
+                UnitKind.IMPL,
+                unitPath = ":paywall:impl",
+                compose = true
+            )
 
         val subjects = PlatformImport().check(sources).map(Violation::subject).sorted()
 

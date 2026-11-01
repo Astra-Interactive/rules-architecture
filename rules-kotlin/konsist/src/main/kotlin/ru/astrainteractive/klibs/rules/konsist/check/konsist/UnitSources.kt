@@ -3,6 +3,9 @@ package ru.astrainteractive.klibs.rules.konsist.check.konsist
 import com.lemonappdev.konsist.api.Konsist
 import com.lemonappdev.konsist.api.declaration.KoBaseDeclaration
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
+import ru.astrainteractive.klibs.rules.core.unit.util.isCompose
 import ru.astrainteractive.klibs.rules.konsist.check.model.DeclarationOrigin
 import ru.astrainteractive.klibs.rules.konsist.check.model.ExternalOrigin
 import ru.astrainteractive.klibs.rules.konsist.check.model.FileOrigin
@@ -12,7 +15,6 @@ import ru.astrainteractive.klibs.rules.konsist.check.model.util.packageName
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelNames
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Placement
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitLayout
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Vocabulary
 import java.io.File
@@ -34,18 +36,9 @@ internal class UnitSources(
     val androidNamespace: String?,
     private val mainSourceSets: Map<String, File>,
     private val testSourceSets: Map<String, File>,
-    private val projectDirectory: File
+    private val projectDirectory: File,
+    val context: UnitContext
 ) {
-    /**
-     * Whether the unit is a Compose UI unit: a main file outside `model` imports Compose, so its build depends
-     * on it. A `model` import alone does not count, as it is the import this fact judges.
-     */
-    val isComposeUnit: Boolean by lazy {
-        mainFiles
-            .filterNot { file -> layout.placementOf(file.packageName)?.kind == Kind.MODEL }
-            .any { file -> file.imports.any { import -> isComposeImport(import.importedName) } }
-    }
-
     /**
      * The files of the units this one depends on that sit in a `model` package outside any technology package: the
      * models a type of this unit may copy or extend.
@@ -68,6 +61,8 @@ internal class UnitSources(
             }
         }
     }
+
+    fun isComposeFile(file: KoFileDeclaration): Boolean? = context.isCompose(File(file.path))
 
     private fun qualify(packageName: String, name: String): String {
         return if (packageName.isEmpty()) name else "$packageName.$name"
@@ -239,8 +234,16 @@ internal class UnitSources(
             projectDirectory: File,
             vocabulary: Vocabulary,
             dependencyDirectories: List<File>,
-            androidNamespace: String?
+            androidNamespace: String?,
+            context: UnitContext? = null,
+            publishedLibrary: Boolean = false
         ): UnitSources {
+            require(context == null || context.kind == kind) {
+                "The --unit-kind and --unit-context roles disagree"
+            }
+            val effectiveVocabulary = vocabulary.copy(
+                technologyWords = vocabulary.technologyWords + context?.technologyWords.orEmpty()
+            )
             val mainFiles = parse(mainDirectories)
             val packages = mainFiles.map(KoFileDeclaration::packageName).distinct()
             val layout = createUnitLayout(
@@ -248,7 +251,7 @@ internal class UnitSources(
                 rootPackage,
                 unitPath,
                 kind,
-                vocabulary
+                effectiveVocabulary
             )
             return UnitSources(
                 kind = kind,
@@ -261,7 +264,14 @@ internal class UnitSources(
                 androidNamespace = androidNamespace,
                 mainSourceSets = mainSourceSets,
                 testSourceSets = testSourceSets,
-                projectDirectory = projectDirectory
+                projectDirectory = projectDirectory,
+                context = context ?: UnitContext(
+                    kind,
+                    null,
+                    publishedLibrary,
+                    effectiveVocabulary.technologyWords,
+                    emptyList()
+                )
             )
         }
     }

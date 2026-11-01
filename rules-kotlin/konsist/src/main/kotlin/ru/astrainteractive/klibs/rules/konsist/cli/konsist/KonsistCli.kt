@@ -65,7 +65,8 @@ public fun main(args: Array<String>) {
         projectDirectory = arguments.projectDirectory,
         vocabulary = arguments.vocabulary,
         dependencyDirectories = arguments.dependencyDirectories,
-        androidNamespace = arguments.androidNamespace
+        androidNamespace = arguments.androidNamespace,
+        context = arguments.unitContext
     )
     val checker = ArchitectureChecker(
         listOf(

@@ -1,18 +1,18 @@
 package ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist
 
 import com.lemonappdev.konsist.api.KoModifier
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
 /**
  * Reports a `theme` object of the wrong visibility: it is `internal` in a feature unit, and public in the
  * design-system unit (`core/ui`), whose theme other units read. A published library is not judged.
  */
 internal class ThemeVisibility : ArchitectureCheck {
-    override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet() - UnitKind.LIBRARY
+    override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
 
     private fun isDesignSystem(sources: UnitSources): Boolean {
         val segments = sources.unitPath.orEmpty().split(':')
@@ -20,6 +20,7 @@ internal class ThemeVisibility : ArchitectureCheck {
     }
 
     override fun check(sources: UnitSources): List<Violation> {
+        if (sources.context.publishedLibrary) return emptyList()
         val isDesignSystem = isDesignSystem(sources)
         return sources.mainFiles
             .filter { file -> sources.placementOf(file)?.kind == Kind.THEME }

@@ -364,7 +364,6 @@ class LinterPluginTest {
     ) {
         val moduleScript = """
             import dev.detekt.gradle.Detekt
-            import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
 
             plugins {
                 id("org.jetbrains.kotlin.jvm")
@@ -379,14 +378,12 @@ class LinterPluginTest {
             val detektTask = tasks.named<Detekt>("detekt").get()
             val detektArguments = detektTask.freeCompilerArgs
             val detektConfig = detektTask.config
-            val linterUnitKind = extensions.getByType<LinterExtension>().unitKind
             val detektPluginNames = configurations.getByName("detektPlugins").dependencies
                 .map { dependency -> "${'$'}{dependency.group}:${'$'}{dependency.name}" }
             val linterReport = layout.buildDirectory.file("linter-report.txt")
             tasks.register("reportLinter") {
                 val arguments = detektArguments
                 val configFiles = detektConfig
-                val unitKind = linterUnitKind
                 val pluginNames = detektPluginNames
                 val reportFile = linterReport
                 outputs.file(reportFile)
@@ -394,7 +391,6 @@ class LinterPluginTest {
                     val lines = listOf(
                         "args=" + arguments.get(),
                         "config=" + configFiles.files.map { file -> file.parentFile.parentFile.name + "/" + file.name },
-                        "kind=" + unitKind.get(),
                         "plugins=" + pluginNames,
                     )
                     reportFile.get().asFile.writeText(lines.joinToString(separator = "\n"))
@@ -415,17 +411,16 @@ class LinterPluginTest {
                 "config/detekt.yml]",
             report[1]
         )
-        assertEquals("kind=library", report[2])
-        assertTrue(report[3].contains("ru.astrainteractive.klibs.rules:detekt"), "rules missing: ${report[3]}")
+        assertTrue(report[2].contains("ru.astrainteractive.klibs.rules:detekt"), "rules missing: ${report[2]}")
     }
 
     @Test
-    fun GIVEN_unknown_unit_kind_WHEN_architecture_checked_THEN_fails_listing_the_kinds(@TempDir rootDirectory: File) {
+    fun GIVEN_string_unit_kind_WHEN_configured_THEN_requires_the_enum(@TempDir rootDirectory: File) {
         val moduleScript = """
             $JAVA_MODULE_SCRIPT
 
             linter {
-                unitKind.set("service")
+                unitKind("service")
             }
         """.trimIndent()
         val build = IsolatedProjectsBuild(rootDirectory)
@@ -437,8 +432,7 @@ class LinterPluginTest {
 
         assertTrue(
             result.output.contains(
-                "linter.unitKind of :modules:jail is 'service', expected one of context, library, api, contract, " +
-                    "entry-point"
+                "UnitKind"
             ),
             "the unknown kind was not reported:\n${result.output}"
         )

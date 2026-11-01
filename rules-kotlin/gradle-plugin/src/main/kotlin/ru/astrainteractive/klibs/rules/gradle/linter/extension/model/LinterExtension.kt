@@ -2,12 +2,15 @@ package ru.astrainteractive.klibs.rules.gradle.linter.extension.model
 
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
+import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 
 public abstract class LinterExtension {
-    /**
-     * `context`, `library`, `api`, `contract`, `entry-point` or `technology`; detected when not set.
-     */
-    public abstract val unitKind: Property<String>
+    internal var configuredUnitKind: UnitKind? = null
+        private set
+
+    internal var configuredProductKind: ProductKind? = null
+        private set
 
     /**
      * Detected from the sources when not set.
@@ -41,4 +44,18 @@ public abstract class LinterExtension {
      * `fun SlotContext.backSlot()` in `slot/BackSlot.kt`): there an extension is the part itself, not a `util`.
      */
     public abstract val extensionKinds: SetProperty<String>
+
+    public fun unitKind(value: UnitKind) {
+        require(configuredUnitKind == null || configuredUnitKind == value) {
+            "Conflicting linter.unitKind declarations: $configuredUnitKind and $value"
+        }
+        configuredUnitKind = value
+    }
+
+    public fun productKind(value: ProductKind) {
+        require(configuredProductKind == null || configuredProductKind == value) {
+            "Conflicting linter.productKind declarations: $configuredProductKind and $value"
+        }
+        configuredProductKind = value
+    }
 }

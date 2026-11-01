@@ -78,7 +78,7 @@ internal class KonsistCliTest {
                 "--project-dir",
                 directory.absolutePath,
                 "--unit-kind",
-                "library",
+                "context",
                 "--root-package",
                 "com.example",
                 "--report",

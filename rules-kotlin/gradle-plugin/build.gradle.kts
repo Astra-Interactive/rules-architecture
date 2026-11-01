@@ -47,6 +47,7 @@ dependencies {
     compileOnly(libs.kotlin.gradle)
 
     implementation(libs.detekt.gradle)
+    implementation(projects.core)
     implementation(projects.structure)
     // The linter reads detekt-architecture.yml from the rules jar
     runtimeOnly(projects.detekt)
@@ -121,6 +122,7 @@ tasks.test {
     useJUnitPlatform()
     // The tests resolve the rules from Maven Local: this version is not on Central yet
     dependsOn(
+        ":core:publishToMavenLocal",
         ":detekt:publishToMavenLocal",
         ":konsist:publishToMavenLocal",
         ":structure:publishToMavenLocal"
