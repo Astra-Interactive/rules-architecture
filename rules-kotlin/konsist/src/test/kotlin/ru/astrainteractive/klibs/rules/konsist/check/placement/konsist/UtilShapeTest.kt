@@ -187,4 +187,73 @@ internal class UtilShapeTest {
             UtilShape().check(sources).map(Violation::subject)
         )
     }
+
+    @Test
+    fun GIVEN_private_composable_extensions_WHEN_receiver_belongs_to_project_THEN_requires_util(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main("x.offer.model/Offer.kt", "data class Offer(val id: String)")
+            .dependency("x.price.model/Price.kt", "data class Price(val amount: Int)")
+            .main(
+                "x.offer.composable/OfferComposable.kt",
+                """
+                import x.offer.model.Offer as Item
+                import x.price.model.*
+                import androidx.compose.ui.Modifier
+
+                @Composable fun OfferComposable() = Unit
+                private fun Item.title() = id
+                private fun x.offer.model.Offer.subtitle() = id
+                private fun Price.label() = amount.toString()
+                private fun Modifier.card() = this
+                private fun String.label() = this
+                """
+            )
+            .load(UnitKind.CONTEXT, rootPackage = "x.offer")
+
+        assertEquals(
+            listOf(
+                "Item.title",
+                "Offer.subtitle",
+                "Price.label"
+            ),
+            UtilShape().check(sources).map(Violation::subject).sorted()
+        )
+    }
+
+    @Test
+    fun GIVEN_external_type_with_a_project_namesake_WHEN_imported_explicitly_THEN_keeps_private_extension(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main("x.offer.model/Modifier.kt", "class Modifier")
+            .main(
+                "x.offer.composable/OfferComposable.kt",
+                """
+                import androidx.compose.ui.Modifier
+
+                @Composable fun OfferComposable() = Unit
+                private fun Modifier.card() = this
+                """
+            )
+            .load(UnitKind.CONTEXT, rootPackage = "x.offer")
+
+        assertEquals(emptyList(), UtilShape().check(sources))
+    }
+
+    @Test
+    fun GIVEN_own_type_in_composable_package_WHEN_extended_privately_THEN_still_requires_util(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main("x.offer.composable/Offer.kt", "class Offer")
+            .main(
+                "x.offer.composable/OfferComposable.kt",
+                "@Composable fun OfferComposable() = Unit\nprivate fun Offer.title() = toString()"
+            )
+            .load(UnitKind.CONTEXT, rootPackage = "x.offer")
+
+        assertEquals(listOf("Offer.title"), UtilShape().check(sources).map(Violation::subject))
+    }
 }

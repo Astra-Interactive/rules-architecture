@@ -182,4 +182,73 @@ internal class PlatformImportTest {
             PlatformImport().check(sources).map(Violation::subject).sorted()
         )
     }
+
+    @Test
+    fun GIVEN_framework_exception_subclass_WHEN_in_mechanism_model_THEN_allows_only_the_base_type(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.command.rating.model/RatingCommandException.kt",
+                """
+                import org.bukkit.command.CommandException as FrameworkFailure
+                import org.bukkit.Location
+                import org.bukkit.command.OtherException
+
+                class RatingCommandException : FrameworkFailure()
+                """
+            )
+            .main(
+                "x.command.rating.model/OtherCommandException.kt",
+                "class OtherCommandException : org.bukkit.command.CommandException()"
+            )
+            .main(
+                "x.command.rating.model/PlainCommandException.kt",
+                "import org.bukkit.command.CommandException\nclass PlainCommandException : CommandException()"
+            )
+            .load(UnitKind.CONTEXT, rootPackage = "x.command")
+
+        assertEquals(
+            listOf("org.bukkit.Location", "org.bukkit.command.OtherException"),
+            PlatformImport().check(sources).map(Violation::subject).sorted()
+        )
+    }
+
+    @Test
+    fun GIVEN_framework_exception_in_a_platform_free_api_WHEN_checked_THEN_keeps_the_boundary(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.command.api.rating.model/RatingCommandException.kt",
+                "import org.bukkit.command.CommandException\nclass RatingCommandException : CommandException()"
+            )
+            .load(UnitKind.API, rootPackage = "x.command.api")
+
+        assertEquals(
+            listOf("org.bukkit.command.CommandException"),
+            PlatformImport().check(sources).map(Violation::subject)
+        )
+    }
+
+    @Test
+    fun GIVEN_exception_type_in_contract_and_core_WHEN_checked_THEN_keeps_platform_types_out(
+        @TempDir directory: File
+    ) {
+        val tree = SourceTree(directory)
+            .main(
+                "x.offer.api/OfferApi.kt",
+                "import org.bukkit.command.CommandException\ninterface OfferApi { fun fail(): CommandException }"
+            )
+            .main("x.offer.theme/Theme.kt", "import androidx.lifecycle.ViewModel\nobject Theme")
+            .main("x.outside/Other.kt", "import org.bukkit.Location\nclass Other")
+
+        val context = tree.load(UnitKind.CONTEXT, rootPackage = "x.offer")
+        assertEquals(
+            listOf("org.bukkit.command.CommandException"),
+            PlatformImport().check(context).map(Violation::subject)
+        )
+        val core = tree.load(UnitKind.CORE_API, rootPackage = "x.offer")
+        assertEquals(3, PlatformImport().check(core).size)
+    }
 }

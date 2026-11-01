@@ -6,6 +6,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.sourceReferences
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelClasses
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 
 /**
@@ -27,6 +28,21 @@ internal class PlatformImport : ArchitectureCheck {
         return sources.isComposeFile(file) == true && isUiKind && UnitSources.isComposeImport(importedName)
     }
 
+    private fun isFrameworkExceptionBase(
+        sources: UnitSources,
+        file: KoFileDeclaration,
+        reference: String
+    ): Boolean {
+        if (sources.kind in PLATFORM_FREE_UNITS || sources.placementOf(file)?.kind != Kind.MODEL) return false
+        val name = reference.substringAfterLast('.')
+        if (!EXCEPTION_NAME.matches(name)) return false
+        val importDeclaration = file.imports.firstOrNull { declaration -> declaration.name == reference }
+        val alias = importDeclaration?.alias?.name ?: name
+        return file.topLevelClasses().any { declaration ->
+            declaration.parents().any { parent -> parent.name == reference || parent.name == alias }
+        }
+    }
+
     override fun check(sources: UnitSources): List<Violation> {
         return sources.mainFiles
             .filter { file -> isChecked(sources, file) }
@@ -38,6 +54,13 @@ internal class PlatformImport : ArchitectureCheck {
                             sources,
                             file,
                             importedName
+                        )
+                    }
+                    .filterNot { reference ->
+                        isFrameworkExceptionBase(
+                            sources,
+                            file,
+                            reference
                         )
                     }
                     .map { importedName ->
@@ -60,6 +83,17 @@ internal class PlatformImport : ArchitectureCheck {
         val COMPOSE_KINDS = setOf(Kind.MODEL, Kind.ENTRY_POINT)
 
         @JvmField
+        val PLATFORM_FREE_UNITS = setOf(
+            UnitKind.API,
+            UnitKind.CORE_API,
+            UnitKind.STORAGE_CONTRACT,
+            UnitKind.CONTRACT
+        )
+
+        @JvmField
+        val EXCEPTION_NAME = Regex("""\w*(Exception|Error|Throwable)""")
+
+        @JvmField
         val CHECKED_KINDS = setOf(
             Kind.MODEL,
             Kind.CONTRACT,
@@ -80,6 +114,7 @@ internal class PlatformImport : ArchitectureCheck {
             "net.neoforged.",
             "org.bukkit.",
             "org.jetbrains.exposed.",
+            "org.jetbrains.compose.",
             "org.spigotmc.",
         )
     }

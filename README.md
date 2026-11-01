@@ -314,7 +314,7 @@ val violations: List<StructureViolation> = checker.check(
 | `TryCatchCancellation` | a `catch` in suspend code that also catches `CancellationException` without rethrowing it first (detekt's `SuspendFunSwallowedCancellation` without its `runCatching` half, which rejects the documented `.propagateCancellationException()`) |
 | `HardcodedDispatcher` | a dispatcher read from `kotlinx.coroutines.Dispatchers` (`IO`, `Default`, `Unconfined`) outside `di`, a provider's `override` property and tests, matched through the Analysis API; a dispatcher from any injected interface passes; replaces detekt's `InjectDispatcher` |
 | `PropertyReadBeforeDeclaration` | a property read while the object is constructed (an initializer, a delegate, an `init` block) before its declaration; lambdas, functions and `const val` are not judged; replaces detekt's `PropertyUsedBeforeDeclaration` |
-| `GuardIfBraces` | an `if` without `else` whose body is one `return` in braces, when it fits one line of 120 columns |
+| `GuardIfBraces` | an `if` without `else` whose body is one `return` in braces, when it fits the project's `style.MaxLineLength.maxLineLength` (120 by default) |
 | `BridgeCleanup` | an `awaitClose` or `invokeOnCancellation` cleanup that assigns state declared outside its bridge (the `callbackFlow`/`suspendCancellableCoroutine` block) or calls `launch` |
 | `ExplicitInvoke` | a call `name(…)` of a parameter, property or local value instead of `name.invoke(…)` |
 | `FunctionVerb` | a function whose first word is `get` (but a view model's `getState`), `map`, `make`, `do`, `handle` or `process` |
@@ -363,8 +363,11 @@ val violations: List<StructureViolation> = checker.check(
 
 `detekt-architecture.yml` configures detekt's own rules: `ClassOrdering` off, replaced by `DeclarationOrder`,
 which puts `init` blocks after the functions they call; `ForbiddenComment` for region
-markers and separator comments; `ForbiddenImport` for `kotlinx.datetime.Instant`, `kotlinx.datetime.Clock` and `java.util.Date`, for `java.time` types and `java.util.Calendar` outside technology packages (`ForbiddenImport/time`), and for platform and ORM
-types in `model`, Compose excepted, outside technology packages (`exposed`, `room`, ...); `RedundantVisibilityModifier`; `WildcardImport` with no exceptions; ktlint `ImportOrdering`.
+markers and separator comments; `ForbiddenImport` for `kotlinx.datetime.Instant`, `kotlinx.datetime.Clock` and `java.util.Date`, for `java.time` types and `java.util.Calendar` outside technology packages (`ForbiddenImport/time`);
+`RedundantVisibilityModifier`; `WildcardImport` with no exceptions; ktlint `ImportOrdering`.
+Konsist's `PlatformImport` checks model/framework boundaries with the actual unit and compilation context,
+including Compose and a framework exception's base type in a mechanism unit's model. The former path-only
+`ForbiddenImport/model` is removed because it rejects those documented exceptions.
 `DataClassContainsFunctions`, with no conversion exception, and `DataClassShouldBeImmutable`: a data class
 holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with a lowercase-only pattern.
 `MagicNumber` accepts a number in a property declaration, where the Compose rule names a value.
@@ -373,7 +376,8 @@ the callback and thread tools of the no-callbacks rule: `suspendCoroutine`, `try
 `Handler`, `thread`; `Executor`/`Executors` outside `core` (`ForbiddenImport/executor`) and `CompletableFuture`
 outside technology packages (`ForbiddenImport/future`), and Compose's `painterResource` and `stringResource`
 outside `util`, where the `asPainter()` and `asComposableString()` extensions wrap them
-(`ForbiddenImport/resource`). `SuspendFunSwallowedCancellation` and
+(`ForbiddenImport/resource`); typed `ForbiddenMethodCall/resource` also catches fully qualified calls.
+`SuspendFunSwallowedCancellation` and
 `SuspendFunInFinallySection` are active.
 
 ### Konsist checks
