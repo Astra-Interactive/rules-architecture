@@ -21,8 +21,6 @@ architecture:
     active: true
   CalleeBeforeCaller:
     active: true
-  ChannelFlowShape:
-    active: true
   ClockSystemOutsideDi:
     active: true
   CompanionFactoryFunction:

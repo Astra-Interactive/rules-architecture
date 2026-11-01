@@ -12,6 +12,106 @@ internal class CallbackFlowShapeTest {
     private val rule = CallbackFlowShape(Config.empty)
 
     @Test
+    fun GIVEN_lazy_jda_connection_owned_by_scope_WHEN_linted_THEN_preserves_resource_lifetime() {
+        val code = """
+            val jdaFlow = callbackFlow {
+                val jda = createJdaBuilder().build()
+                awaitReady(jda)
+                send(jda)
+                awaitClose { shutdown(jda) }
+            }.retryWhen { failure, attempt -> shouldRetry(failure) }
+                .shareIn(ioScope, SharingStarted.Lazily, replay = 1)
+        """.trimIndent()
+
+        assertEquals(emptyList(), rule.lint(code).map(Finding::message))
+    }
+
+    @Test
+    fun GIVEN_eager_reconnecting_session_WHEN_linted_THEN_does_not_choose_its_sharing_policy() {
+        val code = """
+            val sessionFlow = callbackFlow {
+                val session = connect()
+                send(session)
+                while (currentCoroutineContext().isActive) {
+                    delay(retryDelay)
+                    reconnect(session)
+                }
+                awaitClose { session.disconnect() }
+            }.shareIn(scope, SharingStarted.Eagerly, replay = 1)
+        """.trimIndent()
+
+        assertEquals(emptyList(), rule.lint(code).map(Finding::message))
+    }
+
+    @Test
+    fun GIVEN_named_state_in_and_custom_sharing_policy_WHEN_linted_THEN_keeps_the_declared_policy() {
+        val code = """
+            val resource = callbackFlow {
+                send(open())
+                awaitClose { close() }
+            }.stateIn(scope = scope, started = policy, initialValue = null)
+            val events = callbackFlow {
+                awaitClose { unregister() }
+            }.shareIn(scope, SharingStarted.WhileSubscribed())
+        """.trimIndent()
+
+        assertEquals(emptyList(), rule.lint(code).map(Finding::message))
+    }
+
+    @Test
+    fun GIVEN_eager_bridge_with_callback_launch_WHEN_linted_THEN_still_reports_the_send() {
+        val code = """
+            val events = callbackFlow {
+                val listener = Listener { value -> launch { send(value) } }
+                register(listener)
+                awaitClose { unregister(listener) }
+            }.shareIn(scope, SharingStarted.Eagerly)
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "Call trySend(value) from the callback instead of launch { send(value) }: a coroutine per event " +
+                    "loses their order."
+            ),
+            rule.lint(code).map(Finding::message)
+        )
+    }
+
+    @Test
+    fun GIVEN_lazy_bridge_with_rendezvous_buffer_WHEN_linted_THEN_still_reports_the_buffer() {
+        val code = """
+            val events = callbackFlow {
+                awaitClose { unregister() }
+            }.buffer(capacity = 0).shareIn(scope, SharingStarted.Lazily)
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "Keep the default buffer, Channel.UNLIMITED or conflate() instead of a rendezvous buffer: the " +
+                    "producer can deadlock and trySend fails while the collector is busy."
+            ),
+            rule.lint(code).map(Finding::message)
+        )
+    }
+
+    @Test
+    fun GIVEN_shared_bridge_without_cleanup_WHEN_linted_THEN_still_reports_missing_await_close() {
+        val code = """
+            val events = callbackFlow {
+                addListener { value -> trySend(value) }
+            }.shareIn(scope, SharingStarted.Eagerly)
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "End this callbackFlow block with awaitClose { unregister }: the builder throws " +
+                    "IllegalStateException at run time when the block completes without it, and the listener leaks."
+            ),
+            rule.lint(code).map(Finding::message)
+        )
+    }
+
+    @Test
     fun GIVEN_regular_flow_with_rendezvous_buffer_WHEN_linted_THEN_accepts_it() {
         val code = """
             val values = flowOf(1).buffer(0)
@@ -74,7 +174,7 @@ internal class CallbackFlowShapeTest {
     }
 
     @Test
-    fun GIVEN_bridge_shared_eagerly_WHEN_linted_THEN_reports_the_start() {
+    fun GIVEN_bridge_shared_eagerly_WHEN_linted_THEN_leaves_sharing_policy_to_review() {
         val code = """
             fun ExoPlayer.asShared(scope: CoroutineScope): Flow<Int> = callbackFlow { awaitClose { } }
                 .conflate()
@@ -84,13 +184,7 @@ internal class CallbackFlowShapeTest {
                 .stateIn(scope = scope, started = SharingStarted.WhileSubscribed(), initialValue = 0)
         """.trimIndent()
 
-        assertEquals(
-            listOf(
-                "Share this bridge with SharingStarted.WhileSubscribed(): it registers the callback while someone " +
-                    "collects and unregisters after the last collector leaves.",
-            ),
-            rule.lint(code).map(Finding::message)
-        )
+        assertEquals(emptyList(), rule.lint(code).map(Finding::message))
     }
 
     @Test

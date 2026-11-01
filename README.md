@@ -281,6 +281,12 @@ Every unit has the shape `<unit root>[/<concept>]/<kind>/<File>`. The unit kind 
 | `entry-point` | holds the platform main class, which may sit at the root, and `RootModule`                |
 | `technology`  | is wholly one technology's implementation (`data/exposed`); its concepts hold implementations directly |
 
+Choosing `flow`, `channelFlow` or `callbackFlow`, and choosing a sharing policy, still requires review of
+concurrency, cleanup and resource ownership. Operators and helpers can launch coroutines indirectly.
+The usefulness of a test likewise depends on the behaviour it exercises, including model extensions and
+computed properties; a data-class or enum filename does not prove the test is useless. These documentation
+requirements remain in force without the removed `ChannelFlowShape` and `TestOwnerBehaviour` checks.
+
 ### Structure checks
 
 The structure checks need the project's dependencies, so they are a plain Kotlin library for build logic,
@@ -356,14 +362,13 @@ val violations: List<StructureViolation> = checker.check(
 | `RunTestResult` | a `@Test` that calls `runTest` without declaring `TestResult` and returning `runTest { … }` from a block body; `= runTest { }` is reported too |
 | `RunBlockingOutsideBoundary` | `runBlocking` in the main sources outside a top-level `main` function and outside a technology package |
 | `ThreadPrimitive` | `Thread` constructed or used through its static members in the main sources |
-| `CallbackFlowShape` | a `callbackFlow` whose block does not end with `awaitClose` (it throws at run time), `launch { send }` in a callback of it (not in the producer block itself), a rendezvous `buffer` on a callbackFlow chain, a bridge shared with `shareIn`/`stateIn` not `WhileSubscribed()` |
-| `ChannelFlowShape` | a `channelFlow` that registers a listener without ending in `awaitClose`, or launches no coroutine of its own (a `flow { }`, or a `callbackFlow` when it waits in `awaitClose`); helpers receiving a coroutine scope prevent the latter recommendation because they may launch indirectly (type resolution required) |
+| `CallbackFlowShape` | a `callbackFlow` whose block does not end with `awaitClose` (it throws at run time), `launch { send }` in a callback of it (not in the producer block itself), or a rendezvous `buffer` on a callbackFlow chain; sharing policy remains a manual review of the resource lifetime |
 | `SharedFlowEvent` | a `MutableSharedFlow` without explicit `extraBufferCapacity` fed through `tryEmit`; broadcast versus one-off UI semantics are reviewed |
 | `CallbackDeclaration` | an `on…` parameter or property of a function type outside a `@Composable` and a `Modifier` factory, an `…Listener` interface, an `…Callback` interface other than a Decompose `fun interface On…Callback`; a top-level `On…Callback` output not nested in its component |
 | `KDocFiller` | a KDoc filler phrase, a `@return` of "the result" or of the return type's own words, a `@param` whose words only repeat its name, a summary of more than four sentences |
 | `LambdaSingleIfGuard` | a lambda whose whole body is one `if` without `else`, unless the `if` only throws |
 | `OperatorBeforeTrailingCall` | arithmetic in parentheses before a call or property (`(a * b).sp`), a chain of `plus`/`minus`/`times`/`div`/`rem` calls |
-| `TrivialLambdaReference` | a lambda that only passes its parameters to one function, or a `{ obj.foo() }` callback, instead of a function reference; resolved `suspend` callees are exempt regardless of the enclosing builder, and unresolved calls in coroutine contexts remain exempt (type resolution required) |
+| `TrivialLambdaReference` | a lambda forwarding its parameters to a resolved call, or a `{ obj.foo() }` callback, instead of a function reference; suspend callees require an expected suspend function type; unresolved calls/properties, omitted defaults, varargs and same-file overloads are skipped conservatively (type resolution required) |
 | `ComposableWhenBranch` | a `when` branch of a `@Composable` function that spans several lines, except a block of several statements |
 | `NonComposableFileInComposable` | a file in a `composable` package with no `@Composable` function, outside test sources |
 | `DurationOverloadCall` | `.inWholeMilliseconds`/`.inWholeSeconds`/`.inWholeNanoseconds` passed to `delay`, `withTimeout`, `debounce` and other calls with a `Duration` overload |
@@ -452,7 +457,6 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `ComposeKindWithoutCompose` | a `composable` or `theme` kind package in a unit that imports no Compose; the root package and concepts are not judged |
 | `PlatformPackage` | a package named after a platform (`android`, `ios`, `jvm`, …) in a unit with several main source sets |
 | `PluralPackageName` | a plural package name below the unit root, except an inherently plural concept (`news`, `settings`) |
-| `TestOwnerBehaviour` | a `<Owner>Test.kt` whose owner is a data class or enum without functions or init validation; invariant tests are allowed |
 
 ### Structure checks
 

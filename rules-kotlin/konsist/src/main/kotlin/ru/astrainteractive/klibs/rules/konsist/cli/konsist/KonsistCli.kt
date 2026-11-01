@@ -35,7 +35,6 @@ import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.PluralPac
 import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.RootModulePlacement
 import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.RootPackagePath
 import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.TestMirror
-import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.TestOwnerBehaviour
 import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.UtilFileName
 import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.UtilFunctionAsExtension
 import ru.astrainteractive.klibs.rules.konsist.check.placement.konsist.UtilShape
@@ -97,7 +96,6 @@ public fun main(args: Array<String>) {
             RootPackagePath(),
             SealedFamilyFile(),
             TestMirror(),
-            TestOwnerBehaviour(),
             ThemeVisibility(),
             UseCaseAbstraction(),
             UseCaseShape(),
