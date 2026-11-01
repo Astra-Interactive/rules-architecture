@@ -13,6 +13,103 @@ internal class ResultConsumptionTest {
     private val environment = createEnvironment()
 
     @Test
+    fun GIVEN_result_in_an_assigned_if_WHEN_linted_THEN_keeps_both_branch_values() {
+        val code = """
+            fun load(exists: Boolean): Result<Int> {
+                val result = if (exists) {
+                    runCatching { 1 }
+                } else {
+                    runCatching { 2 }
+                }
+                return result.onSuccess { value -> println(value) }
+            }
+        """.trimIndent()
+
+        assertEquals(0, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
+    fun GIVEN_result_in_returned_when_and_try_WHEN_linted_THEN_keeps_branch_values() {
+        val code = """
+            fun load(mode: Int): Result<Int> {
+                return when (mode) {
+                    0 -> { runCatching { 1 } }
+                    else -> {
+                        try {
+                            runCatching { 2 }
+                        } catch (error: Exception) {
+                            Result.failure(error)
+                        }
+                    }
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(0, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
+    fun GIVEN_nested_branch_in_value_lambda_WHEN_linted_THEN_keeps_the_result() {
+        val code = """
+            fun load(enabled: Boolean): () -> Result<Int> = {
+                if (enabled) {
+                    when {
+                        enabled -> { runCatching { 1 } }
+                        else -> { runCatching { 2 } }
+                    }
+                } else {
+                    runCatching { 3 }
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(0, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
+    fun GIVEN_discarded_branch_values_WHEN_linted_THEN_reports_each_result() {
+        val code = """
+            fun load(enabled: Boolean) {
+                if (enabled) { runCatching { 1 } } else { runCatching { 2 } }
+                when (enabled) {
+                    true -> { runCatching { 3 } }
+                    false -> { runCatching { 4 } }
+                }
+                try { runCatching { 5 } } catch (error: Exception) { runCatching { 6 } }
+            }
+        """.trimIndent()
+
+        assertEquals(6, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
+    fun GIVEN_branch_values_in_unit_lambda_WHEN_linted_THEN_reports_discarded_results() {
+        val code = """
+            fun load(values: List<Boolean>) {
+                values.forEach { enabled ->
+                    if (enabled) { runCatching { 1 } } else { runCatching { 2 } }
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(2, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
+    fun GIVEN_unused_statement_and_finally_in_used_try_WHEN_linted_THEN_reports_only_discarded_results() {
+        val code = """
+            fun load(): Result<Int> = try {
+                runCatching { 1 }
+                runCatching { 2 }
+            } finally {
+                runCatching { 3 }
+            }
+        """.trimIndent()
+
+        assertEquals(2, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
     fun GIVEN_discarded_results_WHEN_linted_THEN_reports_each_statement() {
         val code = """
             fun consume() {
