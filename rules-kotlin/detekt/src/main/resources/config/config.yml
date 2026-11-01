@@ -71,6 +71,8 @@ architecture:
     active: true
   KindNameInPackage:
     active: true
+    serviceBaseTypes: [ ]
+    serviceAnnotations: [ ]
     technologyWords: [ ]
     unitContext: ''
     unitContextFile: ''
