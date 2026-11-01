@@ -103,4 +103,17 @@ internal class PackageDependencyCycleTest {
     fun GIVEN_empty_sources_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
         assertEquals(emptyList(), PackageDependencyCycle().check(SourceTree(directory).load(UnitKind.CONTEXT)))
     }
+
+    @Test
+    fun GIVEN_mirrored_test_using_its_fake_WHEN_checked_THEN_keeps_test_and_main_package_vertices_separate(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main("x.offer.api/OfferApi.kt", "interface OfferApi")
+            .test("x.offer.fake/FakeOfferApi.kt", "import x.offer.api.OfferApi\nclass FakeOfferApi : OfferApi")
+            .test("x.offer.api/OfferApiTest.kt", "import x.offer.fake.FakeOfferApi\nclass OfferApiTest")
+            .load(UnitKind.CONTEXT)
+
+        assertEquals(emptyList(), PackageDependencyCycle().check(sources))
+    }
 }

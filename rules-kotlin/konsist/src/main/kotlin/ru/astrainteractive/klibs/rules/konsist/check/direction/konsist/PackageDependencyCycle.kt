@@ -27,18 +27,31 @@ internal class PackageDependencyCycle : ArchitectureCheck {
         }
     }
 
-    private fun packageOfReference(reference: String, packages: Map<String, Set<String>>): String? {
-        if (reference.endsWith(".*")) return reference.removeSuffix(".*").takeIf(packages::containsKey)
-        return generateSequence(reference) { name -> name.substringBeforeLast('.', "").ifEmpty { null } }
-            .firstNotNullOfOrNull { name ->
-                val parent = name.substringBeforeLast('.', "")
-                parent.takeIf { name.substringAfterLast('.') in packages[parent].orEmpty() }
-            }
+    private fun nodeOf(file: KoFileDeclaration, testPaths: Set<String>): String {
+        val scope = if (file.path in testPaths) "test" else "main"
+        return "$scope:${file.packageName}"
     }
 
-    private fun dependencyGraph(files: List<KoFileDeclaration>): Map<String, Set<String>> {
-        val packages = files.groupBy(KoFileDeclaration::packageName)
-        val names = packages.mapValues { entry -> entry.value.flatMap(KoFileDeclaration::topLevelNames).toSet() }
+    private fun packageOfReference(reference: String, declarations: Map<String, Set<String>>): String? {
+        if (reference.endsWith(".*")) {
+            val packageName = reference.removeSuffix(".*")
+            return declarations.filterKeys { name -> name.substringBeforeLast('.') == packageName }
+                .values.flatten().toSet().singleOrNull()
+        }
+        return generateSequence(reference) { name -> name.substringBeforeLast('.', "").ifEmpty { null } }
+            .firstNotNullOfOrNull { name -> declarations[name]?.singleOrNull() }
+    }
+
+    private fun dependencyGraph(files: List<KoFileDeclaration>, testPaths: Set<String>): Map<String, Set<String>> {
+        val packages = files.groupBy { file -> nodeOf(file, testPaths) }
+        val names = buildMap<String, MutableSet<String>> {
+            files.forEach { file ->
+                file.topLevelNames().forEach { name ->
+                    val qualified = "${file.packageName}.$name".trimStart('.')
+                    getOrPut(qualified) { mutableSetOf() }.add(nodeOf(file, testPaths))
+                }
+            }
+        }
         return packages.mapValues { entry ->
             entry.value.flatMap { file -> file.sourceReferences() }
                 .mapNotNull { reference -> packageOfReference(reference, names) }
@@ -71,8 +84,8 @@ internal class PackageDependencyCycle : ArchitectureCheck {
         }
     }
 
-    private fun cycles(files: List<KoFileDeclaration>): List<String> {
-        val graph = dependencyGraph(files)
+    private fun cycles(files: List<KoFileDeclaration>, testPaths: Set<String>): List<String> {
+        val graph = dependencyGraph(files, testPaths)
         val visited = mutableSetOf<String>()
         return graph.keys.sorted().flatMap { source ->
             visit(
@@ -85,14 +98,20 @@ internal class PackageDependencyCycle : ArchitectureCheck {
     }
 
     override fun check(sources: UnitSources): List<Violation> {
-        return compilationFiles(sources).flatMap(::cycles).distinct().sorted().map { cycle ->
+        val testPaths = sources.testFiles.map(KoFileDeclaration::path).toSet()
+        val foundCycles = compilationFiles(sources).flatMap { files -> cycles(files, testPaths) }
+        return foundCycles.distinct().sorted().map { cycle ->
             val first = cycle.substringBefore(" -> ")
-            val file = sources.mainFiles.plus(sources.testFiles).first { candidate -> candidate.packageName == first }
+            val file = sources.mainFiles.plus(sources.testFiles)
+                .first { candidate -> nodeOf(candidate, testPaths) == first }
+            val packages = cycle.split(" -> ").joinToString(" -> ") { node -> node.substringAfter(':') }
+            val message = "Break the package dependency cycle $packages: packages visible in one compilation " +
+                "form an acyclic graph."
             sources.createViolation(
                 RULE,
                 file,
-                cycle,
-                "Break the package dependency cycle $cycle: packages visible in one compilation form an acyclic graph."
+                packages,
+                message
             )
         }
     }
