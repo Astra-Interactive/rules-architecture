@@ -343,7 +343,7 @@ val violations: List<StructureViolation> = checker.check(
 | `StateFlowTimeout` | `StateFlow.first()` inside `withTimeout` or `withTimeoutOrNull` |
 | `ThrowInsideRunCatching` | a `throw` inside the lambda of `runCatching`, `mapCatching` or `recoverCatching` |
 | `RunCatchingCancellation` | a `runCatching` in a `suspend` function or coroutine lambda not followed by `.propagateCancellationException()` or the inline `onFailure` check for `CancellationException` |
-| `ResultConsumption` | a `Result` discarded as a statement without consuming its success or failure |
+| `ResultConsumption` | a `Result` discarded as a statement without consuming its success or failure; values used through branches and value-returning lambdas are preserved (type resolution required) |
 | `GetOrThrowInMain` | `getOrThrow()` outside the test sources |
 | `BareIdentifier` | a property named `id`/`…Id` typed `String`, `Int`, `Long` or `UUID` outside a `@Serializable` class or technology package, a `…Id` class that is not a value class |
 | `CompanionFactoryFunction` | a `create…` function in a companion object |
@@ -357,13 +357,13 @@ val violations: List<StructureViolation> = checker.check(
 | `RunBlockingOutsideBoundary` | `runBlocking` in the main sources outside a top-level `main` function and outside a technology package |
 | `ThreadPrimitive` | `Thread` constructed or used through its static members in the main sources |
 | `CallbackFlowShape` | a `callbackFlow` whose block does not end with `awaitClose` (it throws at run time), `launch { send }` in a callback of it (not in the producer block itself), a rendezvous `buffer` on a callbackFlow chain, a bridge shared with `shareIn`/`stateIn` not `WhileSubscribed()` |
-| `ChannelFlowShape` | a `channelFlow` that registers a listener without ending in `awaitClose`, or launches no coroutine of its own (a `flow { }`, or a `callbackFlow` when it waits in `awaitClose`) |
+| `ChannelFlowShape` | a `channelFlow` that registers a listener without ending in `awaitClose`, or launches no coroutine of its own (a `flow { }`, or a `callbackFlow` when it waits in `awaitClose`); helpers receiving a coroutine scope prevent the latter recommendation because they may launch indirectly (type resolution required) |
 | `SharedFlowEvent` | a `MutableSharedFlow` without explicit `extraBufferCapacity` fed through `tryEmit`; broadcast versus one-off UI semantics are reviewed |
 | `CallbackDeclaration` | an `on…` parameter or property of a function type outside a `@Composable` and a `Modifier` factory, an `…Listener` interface, an `…Callback` interface other than a Decompose `fun interface On…Callback`; a top-level `On…Callback` output not nested in its component |
 | `KDocFiller` | a KDoc filler phrase, a `@return` of "the result" or of the return type's own words, a `@param` whose words only repeat its name, a summary of more than four sentences |
 | `LambdaSingleIfGuard` | a lambda whose whole body is one `if` without `else`, unless the `if` only throws |
 | `OperatorBeforeTrailingCall` | arithmetic in parentheses before a call or property (`(a * b).sp`), a chain of `plus`/`minus`/`times`/`div`/`rem` calls |
-| `TrivialLambdaReference` | a lambda that only passes its parameters to one function, or a `{ obj.foo() }` callback, instead of a function reference; in coroutine code only when the callee resolves to a non-`suspend` function |
+| `TrivialLambdaReference` | a lambda that only passes its parameters to one function, or a `{ obj.foo() }` callback, instead of a function reference; resolved `suspend` callees are exempt regardless of the enclosing builder, and unresolved calls in coroutine contexts remain exempt (type resolution required) |
 | `ComposableWhenBranch` | a `when` branch of a `@Composable` function that spans several lines, except a block of several statements |
 | `NonComposableFileInComposable` | a file in a `composable` package with no `@Composable` function, outside test sources |
 | `DurationOverloadCall` | `.inWholeMilliseconds`/`.inWholeSeconds`/`.inWholeNanoseconds` passed to `delay`, `withTimeout`, `debounce` and other calls with a `Duration` overload |
