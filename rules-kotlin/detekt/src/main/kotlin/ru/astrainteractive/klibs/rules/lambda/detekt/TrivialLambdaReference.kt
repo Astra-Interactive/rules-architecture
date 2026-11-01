@@ -10,8 +10,8 @@ import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaSyntheticJavaPropertySymbol
+import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
 import org.jetbrains.kotlin.idea.references.mainReference
-import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtExpression
@@ -23,8 +23,6 @@ import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
-import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
-import ru.astrainteractive.klibs.rules.detekt.util.findCallName
 import ru.astrainteractive.klibs.rules.detekt.util.isSuspend
 
 /**
@@ -32,9 +30,9 @@ import ru.astrainteractive.klibs.rules.detekt.util.isSuspend
  * (`{ p -> foo(p) }`, `{ p -> Foo(p) }`, `{ p -> p.foo() }`, `{ p -> p.prop }`, `{ p -> obj.foo(p) }`), and a
  * callback `{ obj.foo() }` passed as a named argument or stored in a property: a function reference says the same.
  *
- * It stays silent where a reference may not compile or may mean another function: for a `suspend` callee (resolved
- * from its symbol regardless of the enclosing builder, and declared `suspend` in the file elsewhere), for a
- * callee declared in the file more than once, and for type, named, spread or trailing-lambda
+ * It stays silent where a reference may not compile or may mean another function: for a resolved `suspend`
+ * callee unless the receiving function type is also `suspend`, for a callee declared in the file more than once,
+ * and for type, named, spread or trailing-lambda
  * arguments, for an extension declared as a member of a class, which no reference can name, and for a Java getter
  * read as a property (`record.level`), whose reference does not compile, and for a property read in a `suspend`
  * lambda (`flow.map { message -> message.value }`), since a property reference is no `suspend` function. A
@@ -42,20 +40,10 @@ import ru.astrainteractive.klibs.rules.detekt.util.isSuspend
  */
 internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION), RequiresAnalysisApi {
     private var functionCounts: Map<String, Int> = emptyMap()
-    private var suspendNames: Set<String> = emptySet()
 
-    private fun isInCoroutine(lambda: KtLambdaExpression): Boolean {
-        for (parent in lambda.parentsWithSelf) {
-            if (parent is KtLambdaExpression && parent.isSuspend()) return true
-            if (parent is KtLambdaExpression && parent.findCallName() in COROUTINE_CALLS) return true
-            if (parent is KtNamedFunction) return parent.hasModifier(KtTokens.SUSPEND_KEYWORD)
-        }
-        return false
-    }
-
-    private fun resolvedSuspend(call: KtCallExpression): Boolean? {
+    private fun resolvedSuspend(call: KtCallExpression): Boolean {
         return analyze(call) {
-            val symbol = call.resolveToCall()?.singleFunctionCallOrNull()?.symbol ?: return@analyze null
+            val symbol = call.resolveToCall()?.singleFunctionCallOrNull()?.symbol ?: return@analyze false
             symbol is KaNamedFunctionSymbol && symbol.isSuspend
         }
     }
@@ -84,10 +72,12 @@ internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION
         val callee = (selector as? KtCallExpression)?.calleeExpression?.text
         if (receiverName == names.firstOrNull()) {
             if (selector is KtNameReferenceExpression && names.size == 1) {
-                val isSyntheticJavaProperty = analyze(selector) {
-                    selector.mainReference.resolveToSymbol() is KaSyntheticJavaPropertySymbol
+                val isResolvedKotlinProperty = analyze(selector) {
+                    val symbol = selector.mainReference.resolveToSymbol()
+                    symbol != null && symbol !is KaSyntheticJavaPropertySymbol
                 }
-                return Reference("<Type>::${selector.getReferencedName()}", null).takeUnless { isSyntheticJavaProperty }
+                return Reference("<Type>::${selector.getReferencedName()}", null)
+                    .takeIf { isResolvedKotlinProperty }
             }
             if (selector !is KtCallExpression || !passesParameters(selector, names.drop(1))) return null
             return Reference("<Type>::$callee", selector)
@@ -107,7 +97,7 @@ internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION
 
     private fun isAmbiguous(call: KtCallExpression?): Boolean {
         val callee = call?.calleeExpression?.text ?: return false
-        return (functionCounts[callee] ?: 0) > 1 || callee in suspendNames
+        return (functionCounts[callee] ?: 0) > 1
     }
 
     private fun isMemberExtension(call: KtCallExpression?): Boolean {
@@ -118,18 +108,24 @@ internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION
         }
     }
 
+    private fun hasCompatibleArity(call: KtCallExpression?): Boolean {
+        if (call == null) return true
+        return analyze(call) {
+            val symbol = call.resolveToCall()?.singleFunctionCallOrNull()?.symbol ?: return@analyze false
+            if (symbol.valueParameters.size != call.valueArguments.size) return@analyze false
+            symbol.valueParameters.none { parameter -> parameter.isVararg }
+        }
+    }
+
     private fun mayBeSuspend(lambda: KtLambdaExpression, call: KtCallExpression?): Boolean {
         if (call == null) return false
-        return resolvedSuspend(call) ?: isInCoroutine(lambda)
+        if (!resolvedSuspend(call)) return false
+        return analyze(lambda) { (lambda.expectedType as? KaFunctionType)?.isSuspend != true }
     }
 
     override fun visitKtFile(file: KtFile) {
         val functions = file.collectDescendantsOfType<KtNamedFunction>()
         functionCounts = functions.mapNotNull(KtNamedFunction::getName).groupingBy { name -> name }.eachCount()
-        suspendNames = functions
-            .filter { function -> function.hasModifier(KtTokens.SUSPEND_KEYWORD) }
-            .mapNotNull(KtNamedFunction::getName)
-            .toSet()
         super.visitKtFile(file)
     }
 
@@ -141,7 +137,8 @@ internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION
         if (names.isEmpty() && !isCallback(lambdaExpression)) return
         val body = lambdaExpression.bodyExpression?.statements?.singleOrNull() ?: return
         val reference = findReference(body, names) ?: return
-        if (isAmbiguous(reference.call) || mayBeSuspend(lambdaExpression, reference.call)) return
+        if (isAmbiguous(reference.call) || !hasCompatibleArity(reference.call)) return
+        if (mayBeSuspend(lambdaExpression, reference.call)) return
         if (isMemberExtension(reference.call)) return
         if (reference.call == null && lambdaExpression.isSuspend()) return
         val message = "Replace the lambda with the function reference ${reference.text}: the lambda only passes " +
@@ -154,19 +151,6 @@ internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION
     private companion object {
         const val RESULT = "Result"
 
-        @JvmField
-        val COROUTINE_CALLS = setOf(
-            "launch",
-            "async",
-            "withContext",
-            "coroutineScope",
-            "supervisorScope",
-            "flow",
-            "collect",
-            "collectLatest",
-            "runTest",
-            "LaunchedEffect"
-        )
         const val DESCRIPTION = "A lambda that only passes its parameters to one function is a function reference."
     }
 }
