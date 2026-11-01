@@ -24,13 +24,10 @@ import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
-import ru.astrainteractive.klibs.rules.gradle.linter.service.ArchitectureGraphService
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
 import ru.astrainteractive.klibs.rules.structure.unit.structure.isPlatformUnitName
 import ru.astrainteractive.klibs.rules.structure.unit.structure.isTechnologyUnitName
 import java.io.File
-
-private const val GRAPH_SERVICE_NAME = "klibsArchitectureGraph"
 
 private const val ENTRY_POINT_PATH_PREFIX = ":instances:"
 
@@ -60,19 +57,6 @@ private val PRODUCTION_CONFIGURATION_SUFFIXES = listOf(
     "compileOnly",
     "runtimeOnly"
 )
-
-internal fun Project.graphService(): Provider<ArchitectureGraphService> {
-    return gradle.sharedServices.registerIfAbsent(
-        GRAPH_SERVICE_NAME,
-        ArchitectureGraphService::class.java
-    ) { }
-}
-
-internal fun Project.graphParameters(): ArchitectureGraphService.Parameters {
-    graphService()
-    val registration = requireNotNull(gradle.sharedServices.registrations.findByName(GRAPH_SERVICE_NAME))
-    return registration.parameters as ArchitectureGraphService.Parameters
-}
 
 private fun Project.isEntryPointByConvention(): Boolean {
     return ENTRY_POINT_PLUGIN_IDS

@@ -3,6 +3,8 @@ package ru.astrainteractive.klibs.rules.gradle.linter.task.gradle
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
@@ -10,7 +12,6 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
-import ru.astrainteractive.klibs.rules.gradle.linter.plugin.gradle.LinterPlugin
 import ru.astrainteractive.klibs.rules.gradle.linter.util.describe
 import java.io.File
 
@@ -19,6 +20,9 @@ internal abstract class ArchitectureCheckTask : ArchitectureTask() {
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.NONE)
     abstract val baseline: ConfigurableFileCollection
+
+    @get:Input
+    abstract val baselineTaskPath: Property<String>
 
     @get:OutputFile
     abstract val reportFile: RegularFileProperty
@@ -35,9 +39,9 @@ internal abstract class ArchitectureCheckTask : ArchitectureTask() {
         return buildString {
             appendLine("Architecture check found ${findings.size} violation(s) in ${projectPath.get()}:")
             findings.forEach { finding -> appendLine("  ${finding.describe()}") }
-            val baselineTask = "${projectPath.get().removeSuffix(":")}:${LinterPlugin.BASELINE_TASK_NAME}"
             appendLine("Fix them, or suppress a Kotlin rule with @Suppress(\"RuleName\").")
-            append("For findings without a Kotlin declaration, run $baselineTask to accept the current ones.")
+            append("For findings without a Kotlin declaration, run ${baselineTaskPath.get()} ")
+            append("to accept the current ones.")
         }
     }
 

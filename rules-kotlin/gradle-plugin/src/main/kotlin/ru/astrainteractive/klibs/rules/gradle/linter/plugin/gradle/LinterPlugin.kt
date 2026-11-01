@@ -24,6 +24,7 @@ import ru.astrainteractive.klibs.rules.gradle.detekt.plugin.gradle.DetektPlugin
 import ru.astrainteractive.klibs.rules.gradle.detekt.service.DetektConfigService
 import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
+import ru.astrainteractive.klibs.rules.gradle.linter.service.ArchitectureGraphService
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureBaselineTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureCheckTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureGraphTask
@@ -35,8 +36,6 @@ import ru.astrainteractive.klibs.rules.gradle.linter.util.detectUnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.util.explicitApiMode
 import ru.astrainteractive.klibs.rules.gradle.linter.util.findBuildFindings
 import ru.astrainteractive.klibs.rules.gradle.linter.util.findUnitTechnologyWords
-import ru.astrainteractive.klibs.rules.gradle.linter.util.graphParameters
-import ru.astrainteractive.klibs.rules.gradle.linter.util.graphService
 import ru.astrainteractive.klibs.rules.gradle.linter.util.hasMikroCoreInCatalog
 import ru.astrainteractive.klibs.rules.gradle.linter.util.productionProjectDependencies
 import ru.astrainteractive.klibs.rules.gradle.linter.util.readUnitBuild
@@ -62,6 +61,15 @@ internal class LinterPlugin : Plugin<Project> {
         if (!hasKotlinPlugin()) return emptyList()
         val mode = explicitApiMode() ?: return emptyList()
         return listOf("-Xexplicit-api=$mode")
+    }
+
+    private fun Project.graphParameters(): ArchitectureGraphService.Parameters {
+        gradle.sharedServices.registerIfAbsent(
+            GRAPH_SERVICE_NAME,
+            ArchitectureGraphService::class.java
+        ) { }
+        val registration = requireNotNull(gradle.sharedServices.registrations.findByName(GRAPH_SERVICE_NAME))
+        return registration.parameters as ArchitectureGraphService.Parameters
     }
 
     private fun Project.configureDetekt(rulesVersion: String, context: Provider<UnitContext>) {
@@ -186,13 +194,11 @@ internal class LinterPlugin : Plugin<Project> {
     }
 
     private fun Project.configureGraphCheck() {
-        val service = graphService()
         tasks.register(
             GRAPH_CHECK_TASK_NAME,
             ArchitectureGraphTask::class.java
         ) { task ->
             task.description = "Checks that the unit graph is acyclic and that nothing depends on an entry point"
-            task.usesService(service)
             task.unitMetadata.set(graphParameters().unitMetadata.map { metadata -> metadata })
         }
         plugins.withType(LifecycleBasePlugin::class.java) {
@@ -222,6 +228,7 @@ internal class LinterPlugin : Plugin<Project> {
                 classpath
             )
             task.baseline.from(target.layout.projectDirectory.file(BASELINE_FILE_NAME))
+            task.baselineTaskPath.set("${target.path.removeSuffix(":")}:$BASELINE_TASK_NAME")
             task.reportFile.set(target.layout.buildDirectory.file("reports/architecture/violations.txt"))
         }
         val baselineTask = target.tasks.register(
@@ -274,6 +281,7 @@ internal class LinterPlugin : Plugin<Project> {
         private const val RULES_VERSION_FILE = "klibs-rules.properties"
         private const val ARCHITECTURE_CONFIG_FILE_NAME = "detekt-architecture.yml"
         private const val CONFIG_SERVICE_NAME = "klibsDetektArchitectureConfig"
+        private const val GRAPH_SERVICE_NAME = "klibsArchitectureGraph"
         private const val KONSIST_CONFIGURATION = "klibsArchitectureKonsist"
     }
 }
