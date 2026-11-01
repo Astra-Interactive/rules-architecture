@@ -3,7 +3,12 @@ package ru.astrainteractive.klibs.rules.coroutine.detekt
 import dev.detekt.api.Config
 import dev.detekt.api.Entity
 import dev.detekt.api.Finding
+import dev.detekt.api.RequiresAnalysisApi
 import dev.detekt.api.Rule
+import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
+import org.jetbrains.kotlin.analysis.api.resolution.symbol
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtLambdaExpression
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
@@ -13,9 +18,10 @@ import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
  * the block completes, so that the next `send` hits a closed channel and throws `ClosedSendChannelException` (unless
  * the block ends with `awaitClose { unregister }`, the shape of a `callbackFlow`), and one that launches no coroutine
  * of its own: a plain `flow { }`, or a `callbackFlow` when it holds a resource until `awaitClose`, which `flow { }`
- * cannot do.
+ * cannot do. A helper receiving a coroutine scope may launch indirectly; its absence of child coroutines cannot
+ * be established from this lambda, so no replacement is suggested in that case.
  */
-internal class ChannelFlowShape(config: Config) : Rule(config, DESCRIPTION) {
+internal class ChannelFlowShape(config: Config) : Rule(config, DESCRIPTION), RequiresAnalysisApi {
 
     private fun callNames(lambda: KtLambdaExpression): List<String> {
         return lambda.collectDescendantsOfType<KtCallExpression>().mapNotNull { call -> call.calleeExpression?.text }
@@ -24,6 +30,20 @@ internal class ChannelFlowShape(config: Config) : Rule(config, DESCRIPTION) {
     private fun endsWithAwaitClose(lambda: KtLambdaExpression): Boolean {
         val last = lambda.bodyExpression?.statements?.lastOrNull() as? KtCallExpression
         return last?.calleeExpression?.text == AWAIT_CLOSE
+    }
+
+    private fun receivesScope(call: KtCallExpression): Boolean {
+        return analyze(call) {
+            if (call.valueArguments.any { argument ->
+                    argument.getArgumentExpression()?.expressionType?.isSubtypeOf(COROUTINE_SCOPE) == true
+                }
+            ) {
+                return@analyze true
+            }
+            val resolved = call.resolveToCall()?.singleFunctionCallOrNull() ?: return@analyze false
+            if (resolved.symbol.callableId?.asSingleFqName()?.asString() == AWAIT_CLOSE_ID) return@analyze false
+            resolved.extensionReceiver?.type?.isSubtypeOf(COROUTINE_SCOPE) == true
+        }
     }
 
     override fun visitCallExpression(expression: KtCallExpression) {
@@ -39,6 +59,7 @@ internal class ChannelFlowShape(config: Config) : Rule(config, DESCRIPTION) {
             report(Finding(Entity.from(expression), message))
         }
         if (names.any { name -> name in COROUTINE_BUILDERS }) return
+        if (lambda.collectDescendantsOfType<KtCallExpression>().any(::receivesScope)) return
         val message = if (AWAIT_CLOSE in names) {
             "Write this producer as callbackFlow { }: it launches no coroutine of its own and holds what it sends " +
                 "until awaitClose, which flow { } has no place for."
@@ -51,6 +72,10 @@ internal class ChannelFlowShape(config: Config) : Rule(config, DESCRIPTION) {
     private companion object {
         const val CHANNEL_FLOW = "channelFlow"
         const val AWAIT_CLOSE = "awaitClose"
+        const val AWAIT_CLOSE_ID = "kotlinx.coroutines.channels.awaitClose"
+
+        @JvmField
+        val COROUTINE_SCOPE = ClassId.fromString("kotlinx/coroutines/CoroutineScope")
 
         @JvmField
         val REGISTRATION = Regex("""(add|register)\w*(Listener|Callback|Observer|Receiver)|subscribe""")
