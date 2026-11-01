@@ -309,7 +309,6 @@ val violations: List<StructureViolation> = checker.check(
 | `ImplicitItParameter`          | the implicit lambda parameter `it`                                               |
 | `AnonymousTuple`               | `Pair` and `Triple` used as a type, constructed by name, or made with `to` outside `mapOf(…)` |
 | `DataClassDefaultValue`        | a default value in a data class that is not `@Serializable`                      |
-| `ConstructorDefaultDependency` | a constructor default that creates a dependency, such as `= Foo()`               |
 | `TestFunctionName`             | a `@Test` not named `GIVEN_<state>_WHEN_<action>_THEN_<outcome>`                 |
 | `CalleeBeforeCaller`           | a function that calls a function declared below it in the same class or file     |
 | `DeclarationOrder`             | properties, secondary constructors, functions, `init` blocks, companion: out of this order; a top-level `PREVIEW_*`/`Preview*` fixture may follow the composables; anything after the companion object, nested types included |
@@ -351,7 +350,6 @@ val violations: List<StructureViolation> = checker.check(
 | `ClockSystemOutsideDi` | `Clock.System` outside a `di` package, the test sources and previews (`@Preview…`) |
 | `RolelessClassName` | a `…Validator` or `…Factory` class (a Decompose `fun interface Factory` and a type named like the supertype it implements, `object Factory : PageContext.Factory`, are allowed), `…WarmUp`/`…Migration`/`…ViewModel` outside its `warmup`/`migration`/`viewmodel` package |
 | `DiModuleLifecycle` | in modules using the configured lifecycle convention: custom lifecycle functions, directly/lazily constructed lifecycle resources or coroutine jobs without a `lifecycle`, or lifecycle management of injected modules; lifecycle implementations themselves are exempt (type resolution required) |
-| `FieldDependencyConstruction` | a resolved constructor of a dependency with behavior retained or called outside `di`; directly returned instances and their return-only aliases, value types and proven owned state are allowed; an entry point may construct DI modules (type resolution required) |
 | `RootModuleConstruction` | a `RootModule` constructor call that constructs anything but a DI module (a class of a `di` package, found through the call's import) or a `Lifecycle` |
 | `SystemTimeCall` | `System.currentTimeMillis()` and `System.nanoTime()` |
 | `RunBlockingInTest` | `runBlocking` in a test source set |
@@ -392,10 +390,9 @@ that lifecycle. Having AstraLibs on the classpath alone is insufficient. Both
 `architecture.DiModuleLifecycle.lifecycleTypes` replaces this list with fully qualified types for another
 convention. Classes implementing those lifecycle types keep their lifecycle overrides.
 
-`FieldDependencyConstruction` now runs in detekt with type resolution instead of the Konsist source check.
-Its rule ID remains unchanged. Unknown calls are not classified from capitalized names or dependency-like
-suffixes. Owned-state recognition is conservative: source-defined mutable state is allowed when its calls
-only operate on that state or construct values. It is not a general proof that arbitrary code has no effects.
+Whether a constructed object is a dependency, owned state or an operation's result is a review decision.
+The general requirement to construct dependencies in DI, including constructor defaults, is not checked
+automatically. The DI guidelines remain in `.claude/docs` for development and code review.
 
 ### detekt settings
 

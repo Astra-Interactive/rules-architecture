@@ -37,8 +37,6 @@ architecture:
     active: true
   ConstantOutsideCompanion:
     active: true
-  ConstructorDefaultDependency:
-    active: true
   DataClassDefaultValue:
     active: true
   DeclarationOrder:
@@ -54,10 +52,6 @@ architecture:
     active: true
   ExpressionBodyOnOneLine:
     active: true
-  FieldDependencyConstruction:
-    active: true
-    unitContext: ''
-    unitContextFile: ''
   FunctionVerb:
     active: true
   GetOrThrowInMain:

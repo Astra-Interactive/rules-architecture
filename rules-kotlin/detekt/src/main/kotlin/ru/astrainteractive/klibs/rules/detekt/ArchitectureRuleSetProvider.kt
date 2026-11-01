@@ -38,9 +38,7 @@ import ru.astrainteractive.klibs.rules.formatting.detekt.ExplicitInvoke
 import ru.astrainteractive.klibs.rules.formatting.detekt.ExpressionBodyOnOneLine
 import ru.astrainteractive.klibs.rules.formatting.detekt.GuardIfBraces
 import ru.astrainteractive.klibs.rules.formatting.detekt.OperatorBeforeTrailingCall
-import ru.astrainteractive.klibs.rules.injection.detekt.ConstructorDefaultDependency
 import ru.astrainteractive.klibs.rules.injection.detekt.DiModuleLifecycle
-import ru.astrainteractive.klibs.rules.injection.detekt.FieldDependencyConstruction
 import ru.astrainteractive.klibs.rules.injection.detekt.RootModuleConstruction
 import ru.astrainteractive.klibs.rules.kdoc.detekt.KDocFiller
 import ru.astrainteractive.klibs.rules.kdoc.detekt.KDocHtmlTag
@@ -103,14 +101,12 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::ComposableWhenBranch,
             ::ComposeConstantCase,
             ::ConstantOutsideCompanion,
-            ::ConstructorDefaultDependency,
             ::DataClassDefaultValue,
             ::DeclarationOrder,
             ::DiModuleLifecycle,
             ::DurationOverloadCall,
             ::ExplicitInvoke,
             ::ExpressionBodyOnOneLine,
-            ::FieldDependencyConstruction,
             ::FunctionVerb,
             ::GetOrThrowInMain,
             ::GuardIfBraces,
