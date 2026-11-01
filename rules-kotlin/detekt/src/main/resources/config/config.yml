@@ -10,6 +10,7 @@ architecture:
     active: true
     technologyWords: [ ]
     unitContext: ''
+    unitContextFile: ''
   BooleanOperatorWrapping:
     active: true
   BridgeCleanup:
@@ -72,6 +73,7 @@ architecture:
     active: true
     technologyWords: [ ]
     unitContext: ''
+    unitContextFile: ''
   LambdaSingleIfGuard:
     active: true
   LocalOrInnerClass:
@@ -106,6 +108,7 @@ architecture:
     active: true
     technologyWords: [ ]
     unitContext: ''
+    unitContextFile: ''
   RunCatchingCancellation:
     active: true
     inlineCancellationCheck: true

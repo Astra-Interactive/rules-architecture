@@ -28,15 +28,22 @@ internal abstract class DetektSettingsTask : DefaultTask() {
     @get:OutputFile
     abstract val configFile: RegularFileProperty
 
+    @get:OutputFile
+    abstract val unitContextFile: RegularFileProperty
+
     @TaskAction
     fun write() {
+        val contextFile = unitContextFile.get().asFile
+        contextFile.parentFile.mkdirs()
+        contextFile.writeText(unitContext.get())
+        val contextPath = contextFile.absolutePath.replace("'", "''")
         val words = technologyWords.get().sorted().joinToString { word -> "'$word'" }
         val content = buildString {
             appendLine("architecture:")
             TECHNOLOGY_RULES.forEach { rule ->
                 appendLine("  $rule:")
                 appendLine("    technologyWords: [ $words ]")
-                appendLine("    unitContext: '${unitContext.get()}'")
+                appendLine("    unitContextFile: '$contextPath'")
             }
             appendLine("  RunCatchingCancellation:")
             appendLine("    inlineCancellationCheck: ${inlineCancellationCheck.get()}")

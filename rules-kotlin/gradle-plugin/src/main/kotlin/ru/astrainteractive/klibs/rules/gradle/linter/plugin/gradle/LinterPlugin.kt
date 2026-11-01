@@ -16,6 +16,7 @@ import org.gradle.api.attributes.Usage
 import org.gradle.api.attributes.java.TargetJvmEnvironment
 import org.gradle.api.file.FileCollection
 import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
 import ru.astrainteractive.klibs.rules.core.unit.util.encode
@@ -92,12 +93,16 @@ internal class LinterPlugin : Plugin<Project> {
             task.unitContext.set(context.map(UnitContext::encode))
             task.inlineCancellationCheck.set(provider { !hasMikroCoreInCatalog() })
             task.configFile.set(layout.buildDirectory.file("detekt/$DETEKT_SETTINGS_FILE_NAME"))
+            task.unitContextFile.set(layout.buildDirectory.file("detekt/unit-context.txt"))
         }
         val settingsFile = settingsTask.flatMap(DetektSettingsTask::configFile)
         extensions.getByType(DetektRulesExtension::class.java).ruleConfigs.from(architectureConfigFile, settingsFile)
         val explicitApiArguments = provider { explicitApiArguments() }
         tasks.withType(Detekt::class.java).configureEach { task ->
             task.usesService(configService)
+            task.inputs.file(settingsTask.flatMap(DetektSettingsTask::unitContextFile))
+                .withPropertyName("architectureUnitContext")
+                .withPathSensitivity(PathSensitivity.NONE)
             if (task.name == DETEKT_TASK_NAME) task.freeCompilerArgs.addAll(explicitApiArguments)
         }
     }

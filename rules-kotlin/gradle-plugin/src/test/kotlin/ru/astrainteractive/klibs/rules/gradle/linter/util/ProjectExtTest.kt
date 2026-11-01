@@ -27,10 +27,7 @@ internal class ProjectExtTest {
 
     private fun readContext(build: IsolatedProjectsBuild, module: String): UnitContext {
         val path = module.replace(':', '/')
-        val encoded = build.file("$path/build/detekt/architecture-settings.yml").readLines()
-            .first { line -> line.trimStart().startsWith("unitContext:") }
-            .substringAfter("'")
-            .substringBeforeLast("'")
+        val encoded = build.file("$path/build/detekt/unit-context.txt").readText()
         return encoded.toUnitContext()
     }
 
