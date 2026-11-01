@@ -28,6 +28,33 @@ internal class UnitDependencyDirectionTest {
         return UnitDependencyDirection.findForbidden(unit)
     }
 
+    private fun explicitUnit(
+        path: String,
+        kind: UnitKind,
+        dependencies: Map<String, UnitKind>,
+        isLibrary: Boolean = false
+    ): BuildUnit {
+        val context = UnitContext(
+            kind,
+            ProductKind.PLATFORM_PLUGIN,
+            isLibrary,
+            emptySet(),
+            emptyList()
+        )
+        return BuildUnit(
+            path = path,
+            directory = File("/project"),
+            isEntryPoint = false,
+            isRoot = false,
+            projectDependencies = dependencies.keys,
+            isLibrary = isLibrary,
+            context = context,
+            dependencyContexts = dependencies.mapValues { (_, dependencyKind) ->
+                context.copy(kind = dependencyKind)
+            }
+        )
+    }
+
     @Test
     fun GIVEN_documented_unit_dependencies_WHEN_classified_THEN_accepts_only_allowed_targets() {
         val allowed = mapOf(
@@ -111,24 +138,132 @@ internal class UnitDependencyDirectionTest {
     }
 
     @Test
-    fun GIVEN_design_system_split_into_units_WHEN_classified_THEN_each_depends_on_core_and_the_others() {
-        val designSystemUnits = listOf(
-            ":services:core:ui:common",
-            ":services:core:ui:theme",
-            ":services:core:ui:sheet"
+    fun GIVEN_product_platform_adapters_WHEN_classified_THEN_accepts_their_contracts_and_platform_core() {
+        val messenger = explicitUnit(
+            ":modules:messenger:bukkit",
+            UnitKind.PLATFORM,
+            mapOf(
+                ":modules:messenger:api" to UnitKind.API,
+                ":modules:core:api" to UnitKind.CORE_API,
+                ":modules:core:bukkit" to UnitKind.CORE_PLATFORM
+            )
+        )
+        val soulService = explicitUnit(
+            ":modules:service:forge",
+            UnitKind.PLATFORM,
+            mapOf(
+                ":modules:service:api" to UnitKind.API,
+                ":modules:data:dao" to UnitKind.STORAGE_CONTRACT,
+                ":modules:core:forge" to UnitKind.CORE_PLATFORM
+            )
         )
 
-        designSystemUnits.forEach { path ->
+        assertEquals(emptyList(), UnitDependencyDirection.findForbidden(messenger))
+        assertEquals(emptyList(), UnitDependencyDirection.findForbidden(soulService))
+    }
+
+    @Test
+    fun GIVEN_platform_and_technology_service_roles_WHEN_classified_THEN_technology_rejects_api_and_platform_core() {
+        val corePlatform = explicitUnit(
+            ":modules:core:bukkit",
+            UnitKind.CORE_PLATFORM,
+            mapOf(":modules:core:api" to UnitKind.CORE_API)
+        )
+        val dependencies = mapOf(
+            ":modules:service:api" to UnitKind.API,
+            ":modules:data:dao" to UnitKind.STORAGE_CONTRACT,
+            ":modules:core:api" to UnitKind.CORE_API,
+            ":modules:core:forge" to UnitKind.CORE_PLATFORM
+        )
+        val platform = explicitUnit(
+            ":modules:service:forge",
+            UnitKind.PLATFORM,
+            dependencies
+        )
+        val technology = explicitUnit(
+            ":modules:service:forge",
+            UnitKind.TECHNOLOGY,
+            dependencies
+        )
+
+        assertEquals(emptyList(), UnitDependencyDirection.findForbidden(corePlatform))
+        assertEquals(emptyList(), UnitDependencyDirection.findForbidden(platform))
+        assertEquals(
+            listOf(":modules:core:forge", ":modules:service:api"),
+            UnitDependencyDirection.findForbidden(technology)
+        )
+    }
+
+    @Test
+    fun GIVEN_explicit_roles_on_conventional_paths_WHEN_classified_THEN_explicit_roles_win() {
+        val platform = explicitUnit(
+            ":modules:service:forge",
+            UnitKind.PLATFORM,
+            mapOf(":modules:core-bukkit" to UnitKind.CORE_PLATFORM)
+        )
+        val corePlatform = explicitUnit(
+            ":modules:core-bukkit",
+            UnitKind.CORE_PLATFORM,
+            mapOf(":modules:gui:api" to UnitKind.API)
+        )
+
+        assertEquals(emptyList(), UnitDependencyDirection.findForbidden(platform))
+        assertEquals(
+            listOf(":modules:core-bukkit"),
+            forbidden(":modules:service:forge", setOf(":modules:core-bukkit"))
+        )
+        assertEquals(listOf(":modules:gui:api"), UnitDependencyDirection.findForbidden(corePlatform))
+        assertEquals(emptyList(), forbidden(":modules:core-bukkit", setOf(":modules:gui:api")))
+    }
+
+    @Test
+    fun GIVEN_published_astralibs_menu_adapter_WHEN_classified_THEN_keeps_library_dependencies() {
+        val dependencies = mapOf(
+            ":core" to UnitKind.CORE_API,
+            ":core-bukkit" to UnitKind.TECHNOLOGY
+        )
+        val publishedMenuBukkit = explicitUnit(
+            ":menu-bukkit",
+            UnitKind.TECHNOLOGY,
+            dependencies,
+            isLibrary = true
+        )
+        val productTechnology = explicitUnit(
+            ":menu-bukkit",
+            UnitKind.TECHNOLOGY,
+            dependencies
+        )
+
+        assertEquals(emptyList(), UnitDependencyDirection.findForbidden(publishedMenuBukkit))
+        assertEquals(
+            listOf(":core-bukkit"),
+            UnitDependencyDirection.findForbidden(productTechnology)
+        )
+    }
+
+    @Test
+    fun GIVEN_design_system_split_into_units_WHEN_classified_THEN_accepts_acyclic_ui_dependencies() {
+        val designSystemDependencies = mapOf(
+            ":services:core:ui:common" to setOf(
+                ":services:core:common",
+                ":services:core:resources",
+                ":services:core:ui:theme"
+            ),
+            ":services:core:ui:theme" to setOf(
+                ":services:core:common",
+                ":services:core:resources"
+            ),
+            ":services:core:ui:sheet" to setOf(
+                ":services:core:common",
+                ":services:core:resources",
+                ":services:core:ui:theme"
+            )
+        )
+
+        designSystemDependencies.forEach { (path, dependencies) ->
             assertEquals(
                 emptyList(),
-                forbidden(
-                    path,
-                    setOf(
-                        ":services:core:common",
-                        ":services:core:resources",
-                        ":services:core:ui:theme"
-                    )
-                ),
+                forbidden(path, dependencies),
                 path
             )
         }
@@ -138,6 +273,25 @@ internal class UnitDependencyDirectionTest {
                 ":services:core:ui:common",
                 setOf(":features:rating:api")
             )
+        )
+    }
+
+    @Test
+    fun GIVEN_custom_core_ui_units_WHEN_classified_THEN_allow_ui_and_reject_other_roles() {
+        val components = explicitUnit(
+            ":design:components",
+            UnitKind.CORE_UI,
+            mapOf(
+                ":design:tokens" to UnitKind.CORE_UI,
+                ":services:settings" to UnitKind.CORE_API,
+                ":features:rating:api" to UnitKind.API,
+                ":platform:android" to UnitKind.CORE_PLATFORM
+            )
+        )
+
+        assertEquals(
+            listOf(":features:rating:api", ":platform:android"),
+            UnitDependencyDirection.findForbidden(components)
         )
     }
 

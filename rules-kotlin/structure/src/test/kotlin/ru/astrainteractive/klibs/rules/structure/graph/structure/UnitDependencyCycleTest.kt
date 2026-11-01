@@ -32,9 +32,13 @@ internal class UnitDependencyCycleTest {
         )
     }
 
-    private fun compiledUnit(path: String, vararg compilations: UnitContext.Compilation): BuildUnit {
+    private fun compiledUnit(
+        path: String,
+        vararg compilations: UnitContext.Compilation,
+        kind: UnitKind = UnitKind.API
+    ): BuildUnit {
         val context = UnitContext(
-            UnitKind.API,
+            kind,
             ProductKind.APP,
             false,
             emptySet(),
@@ -138,6 +142,64 @@ internal class UnitDependencyCycleTest {
         )
 
         assertEquals(emptyList(), UnitDependencyCycle().check(units))
+    }
+
+    @Test
+    fun GIVEN_split_design_system_WHEN_checked_THEN_allows_acyclic_ui_dependencies_and_reports_a_real_cycle() {
+        val settings = compiledUnit(
+            ":services:settings",
+            compilation("jvm:jvm:main"),
+            kind = UnitKind.CORE_API
+        )
+        val theme = compiledUnit(
+            ":design:tokens",
+            compilation("jvm:jvm:main", ":services:settings"),
+            kind = UnitKind.CORE_UI
+        )
+        val components = compiledUnit(
+            ":design:components",
+            compilation("jvm:jvm:main", ":design:tokens"),
+            kind = UnitKind.CORE_UI
+        )
+        val sheet = compiledUnit(
+            ":design:sheet",
+            compilation(
+                "jvm:jvm:main",
+                ":design:components",
+                ":design:tokens"
+            ),
+            kind = UnitKind.CORE_UI
+        )
+
+        assertEquals(
+            emptyList(),
+            UnitDependencyCycle().check(
+                listOf(
+                    settings,
+                    theme,
+                    components,
+                    sheet
+                )
+            )
+        )
+
+        val cyclicTheme = compiledUnit(
+            ":design:tokens",
+            compilation("jvm:jvm:main", ":design:components"),
+            kind = UnitKind.CORE_UI
+        )
+        assertEquals(
+            listOf(":design:components -> :design:tokens -> :design:components"),
+            UnitDependencyCycle().check(
+                listOf(
+                    settings,
+                    cyclicTheme,
+                    components,
+                    sheet
+                )
+            )
+                .map(StructureViolation::subject)
+        )
     }
 
     @Test
