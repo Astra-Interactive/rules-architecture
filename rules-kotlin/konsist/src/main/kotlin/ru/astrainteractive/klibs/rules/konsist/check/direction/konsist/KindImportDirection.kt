@@ -34,6 +34,11 @@ internal class KindImportDirection : ArchitectureCheck {
                 Kind.CONTRACT,
                 Kind.UTIL
             )
+            Kind.FAKE -> setOf(
+                Kind.CONTRACT,
+                Kind.MODEL,
+                Kind.UTIL
+            )
             Kind.UTIL -> setOf(
                 Kind.MODEL,
                 Kind.CONTRACT,
@@ -143,7 +148,8 @@ internal class KindImportDirection : ArchitectureCheck {
     }
 
     override fun check(sources: UnitSources): List<Violation> {
-        return sources.mainFiles.flatMap { file -> checkFile(sources, file) }
+        val testFakes = sources.testFiles.filter { file -> sources.placementOf(file)?.kind == Kind.FAKE }
+        return sources.mainFiles.plus(testFakes).flatMap { file -> checkFile(sources, file) }
     }
 
     private companion object {

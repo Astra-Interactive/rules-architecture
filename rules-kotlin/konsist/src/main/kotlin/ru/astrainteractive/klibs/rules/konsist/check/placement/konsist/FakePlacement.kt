@@ -8,6 +8,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.packageName
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelClasses
+import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 
 /**
  * Reports a test fake (`Fake*`) outside a `fake` package of the test tree, which sits inside the concept of the
@@ -54,13 +55,16 @@ internal class FakePlacement : ArchitectureCheck {
     }
 
     private fun findMainFakes(sources: UnitSources): List<Violation> {
-        if (sources.layout.rootPackage.substringAfterLast('.') == FAKE_SEGMENT) return emptyList()
+        val files = if (sources.kind == UnitKind.FAKE) {
+            sources.mainFiles.filterNot { file -> sources.placementOf(file)?.kind == Kind.FAKE }
+        } else {
+            sources.mainFiles
+        }
         return findFakes(
             sources,
-            sources.mainFiles
+            files
         ) { name ->
-            "Move $name out of the main sources: a fake lives in the test tree, in a fake package inside the " +
-                "concept of the contract it replaces, or in testFixtures of the unit that owns the contract."
+            "Move $name to a fake package of the test tree, testFixtures, or a dedicated <feature>/fake unit."
         }
     }
 
@@ -94,7 +98,7 @@ internal class FakePlacement : ArchitectureCheck {
     }
 
     private fun findProductCode(sources: UnitSources): List<Violation> {
-        if (sources.layout.rootPackage.substringAfterLast('.') != FAKE_SEGMENT) return emptyList()
+        if (sources.kind != UnitKind.FAKE) return emptyList()
         return sources.mainFiles.flatMap { file ->
             file.topLevelClasses()
                 .plus(file.objects(includeNested = false))

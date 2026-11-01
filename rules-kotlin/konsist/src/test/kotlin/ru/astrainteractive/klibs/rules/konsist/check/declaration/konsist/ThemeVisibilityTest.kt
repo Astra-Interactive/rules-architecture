@@ -31,7 +31,7 @@ internal class ThemeVisibilityTest {
         val sources = SourceTree(directory)
             .main("x.core.ui.theme/AppTheme.kt", "object AppTheme")
             .main("x.core.ui.theme/AppSpacing.kt", "internal object AppSpacing")
-            .load(UnitKind.CONTEXT, unitPath = ":core:ui")
+            .load(UnitKind.CORE_UI, unitPath = ":core:ui")
 
         val violation = ThemeVisibility().check(sources).single()
 
@@ -40,5 +40,14 @@ internal class ThemeVisibilityTest {
             "Make AppSpacing public: the design-system unit's theme is read by other units.",
             violation.message
         )
+    }
+
+    @Test
+    fun GIVEN_design_system_descendant_WHEN_checked_THEN_keeps_public_theme(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main("x.core.ui.colors.theme/AppColors.kt", "object AppColors")
+            .load(UnitKind.CORE_UI, unitPath = ":core:ui:colors")
+
+        assertEquals(emptyList(), ThemeVisibility().check(sources))
     }
 }

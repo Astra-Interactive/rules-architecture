@@ -14,6 +14,7 @@ internal enum class Kind(val words: Set<String>) {
     USECASE(setOf("usecase")),
     UTIL(setOf("util")),
     DI(setOf("di")),
+    FAKE(setOf("fake")),
 
     /**
      * Compose only: the values several composables of a level share, and in the design-system unit the theme.

@@ -14,6 +14,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.ThemeVi
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.UseCaseAbstraction
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.UseCaseShape
 import ru.astrainteractive.klibs.rules.konsist.check.direction.konsist.KindImportDirection
+import ru.astrainteractive.klibs.rules.konsist.check.direction.konsist.PackageDependencyCycle
 import ru.astrainteractive.klibs.rules.konsist.check.direction.konsist.PlatformImport
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureChecker
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.SuppressionPolicy
@@ -90,6 +91,7 @@ public fun main(args: Array<String>) {
             KindShape(),
             NestedDataClass(),
             NestedEnum(),
+            PackageDependencyCycle(),
             PlatformImport(),
             PlatformPackage(),
             PluralPackageName(),

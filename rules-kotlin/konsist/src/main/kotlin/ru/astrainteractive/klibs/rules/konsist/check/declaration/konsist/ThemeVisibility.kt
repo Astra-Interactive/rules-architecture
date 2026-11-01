@@ -14,14 +14,9 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 internal class ThemeVisibility : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
 
-    private fun isDesignSystem(sources: UnitSources): Boolean {
-        val segments = sources.unitPath.orEmpty().split(':')
-        return CORE in segments && segments.last() == DESIGN_SYSTEM_NAME
-    }
-
     override fun check(sources: UnitSources): List<Violation> {
         if (sources.context.publishedLibrary) return emptyList()
-        val isDesignSystem = isDesignSystem(sources)
+        val isDesignSystem = sources.kind == UnitKind.CORE_UI
         return sources.mainFiles
             .filter { file -> sources.placementOf(file)?.kind == Kind.THEME }
             .flatMap { file ->
@@ -49,8 +44,6 @@ internal class ThemeVisibility : ArchitectureCheck {
 
     private companion object {
         const val RULE = "ThemeVisibility"
-        const val CORE = "core"
-        const val DESIGN_SYSTEM_NAME = "ui"
 
         @JvmField
         val HIDDEN = listOf(KoModifier.INTERNAL, KoModifier.PRIVATE)

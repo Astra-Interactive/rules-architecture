@@ -538,4 +538,32 @@ internal class KindImportDirectionTest {
             KindImportDirection().check(sources).map(Violation::subject)
         )
     }
+
+    @Test
+    fun GIVEN_fake_references_WHEN_checked_THEN_accepts_contracts_models_and_rules_but_rejects_usecases(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main("x.offer.api/OfferApi.kt", "interface OfferApi")
+            .main("x.offer.model/Offer.kt", "class Offer")
+            .main("x.offer.util/OfferExt.kt", "fun offerRule() = Unit")
+            .main("x.offer.usecase/BuyOfferUseCase.kt", "class BuyOfferUseCase")
+            .test(
+                "x.offer.fake/FakeOfferApi.kt",
+                """
+                import x.offer.api.OfferApi
+                import x.offer.model.Offer
+                import x.offer.util.offerRule
+                import x.offer.usecase.BuyOfferUseCase
+
+                class FakeOfferApi : OfferApi
+                """
+            )
+            .load(UnitKind.CONTEXT, rootPackage = "x.offer")
+
+        assertEquals(
+            listOf("x.offer.usecase.BuyOfferUseCase"),
+            KindImportDirection().check(sources).map(Violation::subject)
+        )
+    }
 }
