@@ -96,6 +96,16 @@ plugins {
   plugin, an `instances` path); root `check` depends on it. Units contribute their dependencies through an isolated-projects-compatible
   shared build service.
 
+Structure checks consume the explicit unit roles too, including dependencies on units with custom names. A
+production dependency on a shared-fake unit is rejected even from an entry point. `APP`/`PLATFORM_PLUGIN`
+determines whether `impl` is allowed; a platform-looking project name does not determine the product kind.
+
+Package cycles use each actual production or test compilation. Unit cycles use compatible production backends
+and variants, retaining the Native target identity. Several ambiguous targets with the same backend and variant
+are not merged; their selection remains a review/Gradle-resolution responsibility. Test dependencies never become
+production edges. A missing context fact, such as unresolved Compose capability in graph-only metadata, stays
+unknown rather than being encoded as a negative fact.
+
 The unit kind decides which layout rules apply. It is detected by convention and can be set:
 
 ```kotlin

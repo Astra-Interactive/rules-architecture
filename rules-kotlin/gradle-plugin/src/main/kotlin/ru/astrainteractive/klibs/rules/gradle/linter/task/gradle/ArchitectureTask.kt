@@ -24,6 +24,7 @@ import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
 import ru.astrainteractive.klibs.rules.structure.buildfile.structure.RootBuildSubprojects
 import ru.astrainteractive.klibs.rules.structure.graph.structure.ApiUnitDependency
 import ru.astrainteractive.klibs.rules.structure.graph.structure.EntryPointDependency
+import ru.astrainteractive.klibs.rules.structure.graph.structure.PluginImplUnit
 import ru.astrainteractive.klibs.rules.structure.graph.structure.TechnologyDependency
 import ru.astrainteractive.klibs.rules.structure.graph.structure.UnitDependency
 import ru.astrainteractive.klibs.rules.structure.nesting.structure.ContainerSources
@@ -68,6 +69,9 @@ internal abstract class ArchitectureTask : DefaultTask() {
 
     @get:Input
     abstract val unitContext: Property<String>
+
+    @get:Input
+    abstract val unitMetadata: ListProperty<String>
 
     @get:Input
     @get:Optional
@@ -213,13 +217,21 @@ internal abstract class ArchitectureTask : DefaultTask() {
     }
 
     private fun runStructureChecks(context: UnitContext): List<ArchitectureFinding> {
+        val contexts = buildMap {
+            unitMetadata.get().forEach { metadata ->
+                val parts = metadata.split("\t")
+                put(parts[0], parts[1].toUnitContext())
+            }
+        }
         val unit = BuildUnit(
             path = projectPath.get(),
             directory = projectDirectory.get().asFile,
             isEntryPoint = context.kind == UnitKind.ENTRY_POINT,
             isRoot = rootOfBuild.get(),
             projectDependencies = projectDependencies.get(),
-            isLibrary = context.publishedLibrary
+            isLibrary = context.publishedLibrary,
+            context = context,
+            dependencyContexts = contexts
         )
         val checker = StructureChecker(
             listOf(
@@ -237,7 +249,7 @@ internal abstract class ArchitectureTask : DefaultTask() {
                 UnitReadme()
             )
         )
-        return checker.check(unit).map { violation ->
+        return checker.check(unit).plus(PluginImplUnit().check(listOf(unit))).map { violation ->
             ArchitectureFinding(
                 violation.rule,
                 violation.path,

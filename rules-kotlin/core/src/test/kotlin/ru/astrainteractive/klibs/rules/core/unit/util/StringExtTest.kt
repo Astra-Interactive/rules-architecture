@@ -72,7 +72,7 @@ internal class StringExtTest {
         ).encode()
 
         assertFailsWith<IllegalArgumentException> { "not base64!".toUnitContext() }
-        assertFailsWith<IllegalArgumentException> { "AAAAAg==".toUnitContext() }
+        assertFailsWith<IllegalArgumentException> { "AAAAAw==".toUnitContext() }
         assertFailsWith<IllegalArgumentException> {
             replaceWireText(
                 encoded,
@@ -90,6 +90,33 @@ internal class StringExtTest {
         val trailing = Base64.getDecoder().decode(encoded) + byteArrayOf(0)
         assertFailsWith<IllegalArgumentException> {
             Base64.getEncoder().encodeToString(trailing).toUnitContext()
+        }
+    }
+
+    @Test
+    fun GIVEN_invalid_compose_capability_WHEN_decoded_THEN_rejects_corrupt_context() {
+        val context = UnitContext(
+            UnitKind.CONTEXT,
+            ProductKind.APP,
+            false,
+            emptySet(),
+            listOf(
+                UnitContext.Compilation(
+                    "jvm:main",
+                    emptyMap(),
+                    false,
+                    false,
+                    emptySet()
+                )
+            )
+        )
+
+        assertFailsWith<IllegalStateException> {
+            replaceWireText(
+                context.encode(),
+                "false",
+                "bogus"
+            ).toUnitContext()
         }
     }
 }

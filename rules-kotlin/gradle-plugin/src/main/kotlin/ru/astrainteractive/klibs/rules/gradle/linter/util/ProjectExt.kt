@@ -149,7 +149,10 @@ private fun Project.kotlinCompilations(): List<KotlinCompilation<*>> {
 }
 
 @OptIn(ExperimentalKotlinGradlePluginApi::class)
-private fun Project.readCompilation(compilation: KotlinCompilation<*>): UnitContext.Compilation {
+private fun Project.readCompilation(
+    compilation: KotlinCompilation<*>,
+    resolveCompose: Boolean
+): UnitContext.Compilation {
     val visible = compilation.allAssociatedCompilations + compilation
     val sourceSets = buildMap {
         visible.flatMap { associated -> associated.allKotlinSourceSets }.forEach { sourceSet ->
@@ -161,16 +164,26 @@ private fun Project.readCompilation(compilation: KotlinCompilation<*>): UnitCont
         }
     }
     val configuration = configurations.getByName(compilation.compileDependencyConfigurationName)
-    val compose = configuration.incoming.resolutionResult.allComponents.any { component ->
-        val id = component.id as? ModuleComponentIdentifier ?: return@any false
-        id.group.startsWith("androidx.compose.") || id.group.startsWith("org.jetbrains.compose.")
+    val compose = if (resolveCompose) {
+        configuration.incoming.resolutionResult.allComponents.any { component ->
+            val id = component.id as? ModuleComponentIdentifier ?: return@any false
+            id.group.startsWith("androidx.compose.") || id.group.startsWith("org.jetbrains.compose.")
+        }
+    } else {
+        null
     }
     val dependencies = configuration.allDependencies.withType(ProjectDependency::class.java)
         .map(ProjectDependency::getPath)
         .filter { dependency -> dependency != path }
         .toSet()
+    val target = compilation.target
+    val platform = if (target is KotlinNativeTarget) {
+        "native-${target.konanTarget.name}"
+    } else {
+        target.platformType.name
+    }
     return UnitContext.Compilation(
-        "${compilation.target.name}:${compilation.name}",
+        "$platform:${target.name}:${compilation.name}",
         sourceSets,
         compilation.name.contains("test", ignoreCase = true),
         compose,
@@ -274,18 +287,14 @@ internal fun Project.findUnitTechnologyWords(extension: LinterExtension): Provid
 internal fun Project.readUnitContext(
     extension: LinterExtension,
     rootProductKind: ProductKind?,
-    includeCompilations: Boolean = true
+    resolveCompose: Boolean = true
 ): UnitContext {
     val localProduct = extension.configuredProductKind
     require(localProduct == null || rootProductKind == null || localProduct == rootProductKind) {
         "Conflicting linter.productKind for $path: root declares $rootProductKind, unit declares $localProduct"
     }
     val technologies = findUnitTechnologyWords(extension).get()
-    val compilations = if (includeCompilations) {
-        kotlinCompilations().map { compilation -> readCompilation(compilation) }
-    } else {
-        emptyList()
-    }
+    val compilations = kotlinCompilations().map { compilation -> readCompilation(compilation, resolveCompose) }
     return UnitContext(
         extension.configuredUnitKind ?: detectUnitKind(technologies),
         localProduct ?: rootProductKind,

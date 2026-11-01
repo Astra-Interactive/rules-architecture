@@ -10,6 +10,7 @@ import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.core.unit.util.toUnitContext
 import ru.astrainteractive.klibs.rules.structure.graph.structure.EntryPointGraphDependency
 import ru.astrainteractive.klibs.rules.structure.graph.structure.PluginImplUnit
+import ru.astrainteractive.klibs.rules.structure.graph.structure.UnitDependency
 import ru.astrainteractive.klibs.rules.structure.graph.structure.UnitDependencyCycle
 import ru.astrainteractive.klibs.rules.structure.unit.model.BuildUnit
 import ru.astrainteractive.klibs.rules.structure.unit.model.StructureViolation
@@ -25,6 +26,12 @@ internal abstract class ArchitectureGraphTask : DefaultTask() {
 
     @TaskAction
     fun check() {
+        val contexts = buildMap {
+            unitMetadata.get().forEach { metadata ->
+                val parts = metadata.split("\t")
+                put(parts[0], parts[1].toUnitContext())
+            }
+        }
         val units = unitMetadata.get().map { metadata ->
             val parts = metadata.split("\t")
             val path = parts.first()
@@ -35,12 +42,15 @@ internal abstract class ArchitectureGraphTask : DefaultTask() {
                 isEntryPoint = context.kind == UnitKind.ENTRY_POINT,
                 isRoot = path == ":",
                 projectDependencies = parts.drop(2).toSet(),
-                isLibrary = context.publishedLibrary
+                isLibrary = context.publishedLibrary,
+                context = context,
+                dependencyContexts = contexts
             )
         }
         val violations = UnitDependencyCycle().check(units) +
             EntryPointGraphDependency().check(units) +
-            PluginImplUnit().check(units)
+            PluginImplUnit().check(units) +
+            units.flatMap { unit -> UnitDependency().check(unit) }
         if (violations.isEmpty()) return
         val message = violations.joinToString(separator = "\n", transform = StructureViolation::message)
         throw GradleException(message)

@@ -1,5 +1,6 @@
 package ru.astrainteractive.klibs.rules.structure.unit.model
 
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
 import java.io.File
 
 /**
@@ -17,7 +18,9 @@ public class BuildUnit(
     public val isEntryPoint: Boolean,
     public val isRoot: Boolean,
     public val projectDependencies: Set<String>,
-    public val isLibrary: Boolean = false
+    public val isLibrary: Boolean = false,
+    public val context: UnitContext? = null,
+    public val dependencyContexts: Map<String, UnitContext> = emptyMap()
 ) {
     /**
      * The last segment of [path]: `impl` for `:modules:jail:impl`.

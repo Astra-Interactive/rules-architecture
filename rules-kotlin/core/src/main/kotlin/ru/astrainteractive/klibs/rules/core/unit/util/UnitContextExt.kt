@@ -17,7 +17,7 @@ private fun writeStrings(output: DataOutputStream, values: Collection<String>) {
 public fun UnitContext.encode(): String {
     val bytes = ByteArrayOutputStream()
     DataOutputStream(bytes).use { output ->
-        output.writeInt(1)
+        output.writeInt(2)
         output.writeUTF(kind.cliName)
         output.writeUTF(productKind?.name.orEmpty())
         output.writeBoolean(publishedLibrary)
@@ -26,7 +26,7 @@ public fun UnitContext.encode(): String {
         compilations.sortedBy(UnitContext.Compilation::name).forEach { compilation ->
             output.writeUTF(compilation.name)
             output.writeBoolean(compilation.test)
-            output.writeBoolean(compilation.compose)
+            output.writeUTF(compilation.compose?.toString().orEmpty())
             writeStrings(output, compilation.projectDependencies)
             output.writeInt(compilation.sourceSets.size)
             compilation.sourceSets.toSortedMap().forEach { (name, directories) ->
@@ -53,5 +53,8 @@ public fun UnitContext.compilationsFor(file: File): List<UnitContext.Compilation
 public fun UnitContext.isCompose(file: File): Boolean? {
     val selected = compilationsFor(file)
     if (selected.isEmpty()) return null
-    return selected.all(UnitContext.Compilation::compose)
+    val capabilities = selected.map(UnitContext.Compilation::compose)
+    if (false in capabilities) return false
+    if (null in capabilities) return null
+    return true
 }

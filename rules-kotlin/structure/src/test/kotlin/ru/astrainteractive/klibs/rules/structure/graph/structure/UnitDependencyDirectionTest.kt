@@ -3,6 +3,9 @@
 package ru.astrainteractive.klibs.rules.structure.graph.structure
 
 import org.junit.jupiter.api.Test
+import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.structure.unit.model.BuildUnit
 import java.io.File
 import kotlin.test.assertEquals
@@ -134,6 +137,51 @@ internal class UnitDependencyDirectionTest {
             forbidden(
                 ":services:core:ui:common",
                 setOf(":features:rating:api")
+            )
+        )
+    }
+
+    @Test
+    fun GIVEN_explicit_roles_on_custom_paths_WHEN_classified_THEN_uses_context_instead_of_names() {
+        val api = UnitContext(
+            UnitKind.API,
+            ProductKind.APP,
+            false,
+            emptySet(),
+            emptyList()
+        )
+        val technology = api.copy(kind = UnitKind.TECHNOLOGY)
+        val unit = BuildUnit(
+            path = ":feature:exports",
+            directory = File("/project"),
+            isEntryPoint = false,
+            isRoot = false,
+            projectDependencies = setOf(":storage:adapter"),
+            context = api,
+            dependencyContexts = mapOf(":storage:adapter" to technology)
+        )
+
+        assertEquals(listOf(":storage:adapter"), UnitDependencyDirection.findForbidden(unit))
+        assertEquals(listOf(":storage:adapter"), ApiUnitDependency().check(unit).map { finding -> finding.subject })
+        assertEquals(listOf(":storage:adapter"), TechnologyDependency().check(unit).map { finding -> finding.subject })
+    }
+
+    @Test
+    fun GIVEN_production_dependency_on_shared_fakes_WHEN_entrypoint_or_library_checked_THEN_rejects_it() {
+        assertEquals(
+            listOf(":feature:fake"),
+            forbidden(
+                ":instances:jvm",
+                setOf(":feature:fake"),
+                isEntryPoint = true
+            )
+        )
+        assertEquals(
+            listOf(":feature:fake"),
+            forbidden(
+                ":published",
+                setOf(":feature:fake"),
+                isLibrary = true
             )
         )
     }

@@ -149,6 +149,7 @@ internal class LinterPlugin : Plugin<Project> {
         rootDirectory.set(project.isolated.rootProject.projectDirectory)
         projectPath.set(project.path)
         unitContext.set(context.map(UnitContext::encode))
+        unitMetadata.set(project.graphParameters().unitMetadata.map { metadata -> metadata })
         rootPackage.set(extension.rootPackage)
         androidNamespace.set(project.provider { project.androidNamespace() })
         entryPointWords.set(extension.entryPointWords)
@@ -172,7 +173,7 @@ internal class LinterPlugin : Plugin<Project> {
             val snapshot = project.readUnitContext(
                 extension,
                 parameters.productKind.orNull,
-                includeCompilations = false
+                resolveCompose = false
             )
             val metadata = listOf(project.path, snapshot.encode())
                 .plus(project.productionProjectDependencies())

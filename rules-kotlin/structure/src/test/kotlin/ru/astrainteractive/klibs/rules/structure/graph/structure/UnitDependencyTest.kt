@@ -112,4 +112,21 @@ internal class UnitDependencyTest {
             UnitDependency().check(core).map(StructureViolation::message)
         )
     }
+
+    @Test
+    fun GIVEN_fake_or_entrypoint_dependency_WHEN_reported_THEN_explains_the_boundary() {
+        val entryPoint = unit(
+            ":instances:jvm",
+            isEntryPoint = true,
+            dependencies = setOf(":feature:fake", ":instances:other")
+        )
+
+        assertEquals(
+            listOf(
+                "Drop the production dependency on :feature:fake: shared fakes are consumed only by tests.",
+                "Drop :instances:other: nothing depends on an entry-point unit."
+            ),
+            UnitDependency().check(entryPoint).map(StructureViolation::message)
+        )
+    }
 }

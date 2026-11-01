@@ -18,7 +18,7 @@ private fun readStrings(input: DataInputStream): Set<String> {
 public fun String.toUnitContext(): UnitContext {
     val bytes = Base64.getDecoder().decode(this)
     return DataInputStream(ByteArrayInputStream(bytes)).use { input ->
-        require(input.readInt() == 1) { "Unsupported unit context transport version" }
+        require(input.readInt() == 2) { "Unsupported unit context transport version" }
         val kindName = input.readUTF()
         val kind = requireNotNull(kindName.toUnitKindOrNull()) { "Unknown unit kind '$kindName'" }
         val productName = input.readUTF()
@@ -32,7 +32,12 @@ public fun String.toUnitContext(): UnitContext {
         val compilations = List(input.readInt()) {
             val name = input.readUTF()
             val test = input.readBoolean()
-            val compose = input.readBoolean()
+            val compose = when (val capability = input.readUTF()) {
+                "" -> null
+                "true" -> true
+                "false" -> false
+                else -> error("Unknown Compose capability '$capability'")
+            }
             val dependencies = readStrings(input)
             val sourceSets = buildMap {
                 repeat(input.readInt()) {

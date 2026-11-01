@@ -11,7 +11,7 @@ public data class UnitContext(
         val name: String,
         val sourceSets: Map<String, Set<String>>,
         val test: Boolean,
-        val compose: Boolean,
+        val compose: Boolean?,
         val projectDependencies: Set<String>
     )
 }

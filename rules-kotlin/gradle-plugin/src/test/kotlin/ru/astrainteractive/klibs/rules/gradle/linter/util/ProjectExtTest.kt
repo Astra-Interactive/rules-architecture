@@ -264,12 +264,13 @@ internal class ProjectExtTest {
         val production = readContext(build, "production").compilations
         val testOnly = readContext(build, "testonly").compilations
         val common = readContext(build, "multiplatform").compilations
-        assertTrue(production.all(UnitContext.Compilation::compose))
-        assertTrue(testOnly.filterNot(UnitContext.Compilation::test).none(UnitContext.Compilation::compose))
-        assertTrue(testOnly.filter(UnitContext.Compilation::test).all(UnitContext.Compilation::compose))
-        assertTrue(common.filterNot(UnitContext.Compilation::test).all(UnitContext.Compilation::compose))
+        assertTrue(production.all { compilation -> compilation.compose == true })
+        val testOnlyProduction = testOnly.filterNot(UnitContext.Compilation::test)
+        assertTrue(testOnlyProduction.none { compilation -> compilation.compose == true })
+        assertTrue(testOnly.filter(UnitContext.Compilation::test).all { compilation -> compilation.compose == true })
+        assertTrue(common.filterNot(UnitContext.Compilation::test).all { compilation -> compilation.compose == true })
         assertTrue(common.any { compilation -> "commonMain" in compilation.sourceSets })
-        assertTrue(readContext(build, "importonly").compilations.none(UnitContext.Compilation::compose))
+        assertTrue(readContext(build, "importonly").compilations.none { compilation -> compilation.compose == true })
     }
 
     private companion object {

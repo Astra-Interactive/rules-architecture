@@ -13,7 +13,15 @@ class ArchitectureGraphTaskTest {
     fun GIVEN_acyclic_unit_graph_WHEN_graph_checked_THEN_passes(@TempDir rootDirectory: File) {
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
-            .withRootBuildScript(JAVA_MODULE_SCRIPT)
+            .withRootBuildScript(
+                """
+                import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
+
+                $JAVA_MODULE_SCRIPT
+
+                linter { productKind(ProductKind.APP) }
+                """.trimIndent()
+            )
             .withModule(name = "api", buildScript = JAVA_MODULE_SCRIPT)
             .withModule(name = "impl", buildScript = JAVA_MODULE_SCRIPT)
 
@@ -71,6 +79,34 @@ class ArchitectureGraphTaskTest {
         val result = build.runAndFail(":architectureGraphCheck")
 
         assertTrue(result.output.contains(":a -> :b -> :a"), result.output)
+    }
+
+    @Test
+    fun GIVEN_entrypoint_depending_on_a_custom_named_fake_unit_WHEN_checked_THEN_rejects_the_production_edge(
+        @TempDir rootDirectory: File
+    ) {
+        val fake = """
+            import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
+
+            $JAVA_MODULE_SCRIPT
+
+            linter { unitKind(UnitKind.FAKE) }
+        """.trimIndent()
+        val app = """
+            $JAVA_MODULE_SCRIPT
+
+            apply(plugin = "application")
+            dependencies { implementation(project(":feature:helpers")) }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript(JAVA_MODULE_SCRIPT)
+            .withModule(name = "app", buildScript = app)
+            .withModule(name = "feature:helpers", buildScript = fake)
+
+        val result = build.runAndFail(":architectureGraphCheck")
+
+        assertTrue(result.output.contains("shared fakes are consumed only by tests"), result.output)
     }
 
     private companion object {

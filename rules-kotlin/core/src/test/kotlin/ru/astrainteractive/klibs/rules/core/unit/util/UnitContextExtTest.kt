@@ -114,4 +114,28 @@ internal class UnitContextExtTest {
         assertEquals(context.encode(), reversed.encode())
         assertEquals(context, context.encode().toUnitContext())
     }
+
+    @Test
+    fun GIVEN_unresolved_compose_capability_WHEN_transported_THEN_preserves_unknown_instead_of_false() {
+        val root = File("project/src/main/kotlin").absoluteFile
+        val compilation = UnitContext.Compilation(
+            "jvm:main",
+            mapOf("main" to setOf(root.path)),
+            false,
+            null,
+            setOf(":feature:api")
+        )
+        val context = UnitContext(
+            UnitKind.CONTEXT,
+            ProductKind.APP,
+            false,
+            emptySet(),
+            listOf(compilation)
+        )
+
+        assertEquals(context, context.encode().toUnitContext())
+        assertNull(context.isCompose(File(root, "Screen.kt")))
+        val mixed = context.copy(compilations = listOf(compilation, compilation.copy(name = "other", compose = false)))
+        assertEquals(false, mixed.isCompose(File(root, "Screen.kt")))
+    }
 }

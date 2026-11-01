@@ -1,5 +1,6 @@
 package ru.astrainteractive.klibs.rules.structure.graph.structure
 
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
 import ru.astrainteractive.klibs.rules.structure.unit.model.BuildUnit
 import ru.astrainteractive.klibs.rules.structure.unit.model.StructureViolation
 
@@ -8,6 +9,31 @@ import ru.astrainteractive.klibs.rules.structure.unit.model.StructureViolation
  * Gradle, since they cannot form a cycle in the described graph.
  */
 public class UnitDependencyCycle {
+    private fun compilationGroup(compilation: UnitContext.Compilation): String {
+        return compilation.name.substringBefore(':') + ":" + compilation.name.substringAfterLast(':')
+    }
+
+    private fun dependencyGraphs(units: List<BuildUnit>): List<Map<String, Set<String>>> {
+        val production = units.flatMap { unit -> unit.context?.compilations.orEmpty() }
+            .filterNot(UnitContext.Compilation::test)
+        if (production.isEmpty()) {
+            return listOf(buildMap { units.forEach { unit -> put(unit.path, unit.projectDependencies) } })
+        }
+        return production.map(::compilationGroup).distinct().map { group ->
+            buildMap {
+                units.forEach { unit ->
+                    val compilations = unit.context?.compilations.orEmpty()
+                        .filterNot(UnitContext.Compilation::test)
+                        .filter { compilation -> compilationGroup(compilation) == group }
+                    val compilation = compilations.singleOrNull()
+                    if (compilation != null) {
+                        put(unit.path, compilation.projectDependencies)
+                    }
+                }
+            }
+        }
+    }
+
     private fun canonicalCycle(cycle: List<String>): String {
         val first = cycle.indices.minBy(cycle::get)
         val ordered = cycle.drop(first).plus(cycle.take(first))
@@ -34,17 +60,15 @@ public class UnitDependencyCycle {
     }
 
     public fun check(units: List<BuildUnit>): List<StructureViolation> {
-        val dependencies = buildMap {
-            units.forEach { unit -> put(unit.path, unit.projectDependencies) }
-        }
-        return dependencies.keys
-            .flatMap { path ->
+        return dependencyGraphs(units).flatMap { dependencies ->
+            dependencies.keys.flatMap { path ->
                 cyclesFrom(
                     path,
                     dependencies,
                     listOf(path)
                 )
             }
+        }
             .toSet()
             .sorted()
             .map { cycle ->
