@@ -317,7 +317,7 @@ val violations: List<StructureViolation> = checker.check(
 | `LocalOrInnerClass`            | a class inside a function body and an `inner class`                              |
 | `KDocHtmlTag`                  | Javadoc HTML (`<p>`, `<code>`) in KDoc                                           |
 | `ImplementationName`           | the `Impl` and `Interface` suffixes and the `I` prefix on an interface           |
-| `KindNameInPackage`            | `Service` outside a `service` package, `Model`/`Entity` in a `model` with no technology word (`exposed`, `room`, ...) before it, `Helper`/`Util`/`Manager` names |
+| `KindNameInPackage`            | a resolved platform service outside a `service` package or entry-point unit (type resolution required); `Model`/`Entity` in a `model` with no technology word (`exposed`, `room`, ...) before it; `Helper`/`Util`/`Manager` names |
 | `ExpressionBodyOnOneLine`      | an expression-body function whose signature and body are not one line            |
 | `BooleanOperatorWrapping` | a line break on either side of `&&` or `\|\|` |
 | `ArgumentPerLine` | a call or constructor call with three or more arguments, a trailing lambda included, whose arguments in parentheses are not each on its own line |
@@ -350,7 +350,8 @@ val violations: List<StructureViolation> = checker.check(
 | `CompanionFactoryFunction` | a `create…` function in a companion object |
 | `ClockSystemOutsideDi` | `Clock.System` outside a `di` package, the test sources and previews (`@Preview…`) |
 | `RolelessClassName` | a `…Validator` or `…Factory` class (a Decompose `fun interface Factory` and a type named like the supertype it implements, `object Factory : PageContext.Factory`, are allowed), `…WarmUp`/`…Migration`/`…ViewModel` outside its `warmup`/`migration`/`viewmodel` package |
-| `DiModuleLifecycle` | a DI module with custom lifecycle functions, a proven directly/lazily constructed lifecycle resource or coroutine job without a `lifecycle`, or lifecycle management of an injected module or its alias; factory ownership and service-name semantics remain review decisions (type resolution required) |
+| `DiModuleLifecycle` | in modules using the configured lifecycle convention: custom lifecycle functions, directly/lazily constructed lifecycle resources or coroutine jobs without a `lifecycle`, or lifecycle management of injected modules; lifecycle implementations themselves are exempt (type resolution required) |
+| `FieldDependencyConstruction` | a resolved constructor of a dependency with behavior retained or called outside `di`; directly returned instances and their return-only aliases, value types and proven owned state are allowed; an entry point may construct DI modules (type resolution required) |
 | `RootModuleConstruction` | a `RootModule` constructor call that constructs anything but a DI module (a class of a `di` package, found through the call's import) or a `Lifecycle` |
 | `SystemTimeCall` | `System.currentTimeMillis()` and `System.nanoTime()` |
 | `RunBlockingInTest` | `runBlocking` in a test source set |
@@ -368,6 +369,33 @@ val violations: List<StructureViolation> = checker.check(
 | `ComposableWhenBranch` | a `when` branch of a `@Composable` function that spans several lines, except a block of several statements |
 | `NonComposableFileInComposable` | a file in a `composable` package with no `@Composable` function, outside test sources |
 | `DurationOverloadCall` | `.inWholeMilliseconds`/`.inWholeSeconds`/`.inWholeNanoseconds` passed to `delay`, `withTimeout`, `debounce` and other calls with a `Duration` overload |
+
+`KindNameInPackage` recognizes platform services by resolved base types and annotations, including indirect
+inheritance and import aliases. The defaults cover Android `android.app.Service`, AstraLibs
+`ru.astrainteractive.astralibs.service.Service`, and IntelliJ's `com.intellij.openapi.components.Service`
+annotation. Names such as `ServiceCategoryItem` alone do not establish a service role. The registry is
+incomplete: no finding does not prove that an unknown type is a domain value. The diagnostic states this
+limitation and identifies the base type or annotation that triggered it. Extend the defaults in detekt YAML:
+
+```yaml
+architecture:
+  KindNameInPackage:
+    serviceBaseTypes: [ 'example.framework.BackgroundWorker' ]
+    serviceAnnotations: [ 'example.framework.ManagedService' ]
+```
+
+`DiModuleLifecycle` does not impose AstraLibs lifecycle management on every DI module. It activates when
+a module's file imports a resolved configured lifecycle type, or when the module constructs a child exposing
+that lifecycle. Having AstraLibs on the classpath alone is insufficient. Both
+`ru.astrainteractive.astralibs.lifecycle.Lifecycle` and
+`ru.astrainteractive.astralibs.lifecycle.api.Lifecycle` are recognized by default;
+`architecture.DiModuleLifecycle.lifecycleTypes` replaces this list with fully qualified types for another
+convention. Classes implementing those lifecycle types keep their lifecycle overrides.
+
+`FieldDependencyConstruction` now runs in detekt with type resolution instead of the Konsist source check.
+Its rule ID remains unchanged. Unknown calls are not classified from capitalized names or dependency-like
+suffixes. Owned-state recognition is conservative: source-defined mutable state is allowed when its calls
+only operate on that state or construct values. It is not a general proof that arbitrary code has no effects.
 
 ### detekt settings
 
@@ -427,7 +455,6 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `ComposeKindWithoutCompose` | a `composable` or `theme` kind package in a unit that imports no Compose; the root package and concepts are not judged |
 | `PlatformPackage` | a package named after a platform (`android`, `ios`, `jvm`, …) in a unit with several main source sets |
 | `PluralPackageName` | a plural package name below the unit root, except an inherently plural concept (`news`, `settings`) |
-| `FieldDependencyConstruction` | a behaviour class of the unit, or a library class named for a dependency's role (`HttpClient`, `…Repository`, `…Gateway`, `…Database`, `…DataSource`), constructed outside `di`; a value holder (no supertype, no function body, no `init` block) is not a dependency |
 | `TestOwnerBehaviour` | a `<Owner>Test.kt` whose owner is a data class or enum without functions or init validation; invariant tests are allowed |
 
 ### Structure checks
