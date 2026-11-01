@@ -340,7 +340,7 @@ val violations: List<StructureViolation> = checker.check(
 | `CompanionFactoryFunction` | a `create…` function in a companion object |
 | `ClockSystemOutsideDi` | `Clock.System` outside a `di` package, the test sources and previews (`@Preview…`) |
 | `RolelessClassName` | a `…Validator` or `…Factory` class (a Decompose `fun interface Factory` and a type named like the supertype it implements, `object Factory : PageContext.Factory`, are allowed), `…WarmUp`/`…Migration`/`…ViewModel` outside its `warmup`/`migration`/`viewmodel` package |
-| `DiModuleLifecycle` | a `…Module` that declares `enable`, `disable`, `reload`, `onEnable`, `onDisable` or `onReload`, or that starts a warm-up, migration, listener, task, service or `launch` without a `lifecycle` property |
+| `DiModuleLifecycle` | a DI module with custom lifecycle functions, a proven directly/lazily constructed lifecycle resource or coroutine job without a `lifecycle`, or lifecycle management of an injected module or its alias; factory ownership and service-name semantics remain review decisions (type resolution required) |
 | `RootModuleConstruction` | a `RootModule` constructor call that constructs anything but a DI module (a class of a `di` package, found through the call's import) or a `Lifecycle` |
 | `SystemTimeCall` | `System.currentTimeMillis()` and `System.nanoTime()` |
 | `RunBlockingInTest` | `runBlocking` in a test source set |
