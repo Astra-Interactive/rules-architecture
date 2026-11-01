@@ -4,31 +4,33 @@ import com.intellij.psi.tree.IElementType
 import dev.detekt.api.Config
 import dev.detekt.api.Entity
 import dev.detekt.api.Finding
+import dev.detekt.api.RequiresAnalysisApi
 import dev.detekt.api.Rule
+import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtBinaryExpression
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtParenthesizedExpression
 import org.jetbrains.kotlin.psi.KtQualifiedExpression
-import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
 /**
  * Reports arithmetic in parentheses before a trailing call or property (`(a * b).sp`): one operator is written as
  * its named function (`a.times(b).sp`), two or more are named in a `val` first. A chain of two or more of `plus`,
- * `minus`, `times`, `div` and `rem` calls is reported too. Only arithmetic at the top of the parentheses counts,
- * and string concatenation is left alone.
+ * `minus`, `times`, `div` and `rem` calls is reported too. Nested parentheses count towards the arithmetic;
+ * string concatenation is left alone, whether written with operators or named calls.
  */
-internal class OperatorBeforeTrailingCall(config: Config) : Rule(config, DESCRIPTION) {
+internal class OperatorBeforeTrailingCall(config: Config) : Rule(config, DESCRIPTION), RequiresAnalysisApi {
+
+    private fun isString(expression: KtExpression): Boolean {
+        return analyze(expression) { expression.expressionType?.isStringType == true }
+    }
 
     private fun arithmeticOperations(expression: KtExpression?): List<KtBinaryExpression> {
+        if (expression is KtParenthesizedExpression) return arithmeticOperations(expression.expression)
         val binary = expression as? KtBinaryExpression ?: return emptyList()
         if (binary.operationToken !in OPERATOR_NAMES.keys) return emptyList()
         return listOf(binary) + arithmeticOperations(binary.left) + arithmeticOperations(binary.right)
-    }
-
-    private fun isStringConcatenation(binary: KtBinaryExpression): Boolean {
-        return binary.left is KtStringTemplateExpression || binary.right is KtStringTemplateExpression
     }
 
     private fun arithmeticCallName(expression: KtExpression?): String? {
@@ -40,8 +42,9 @@ internal class OperatorBeforeTrailingCall(config: Config) : Rule(config, DESCRIP
     private fun checkParenthesizedReceiver(expression: KtQualifiedExpression) {
         val receiver = expression.receiverExpression as? KtParenthesizedExpression ?: return
         val inner = receiver.expression ?: return
+        if (isString(inner)) return
         val operations = arithmeticOperations(inner)
-        if (operations.isEmpty() || operations.any(::isStringConcatenation)) return
+        if (operations.isEmpty()) return
         val message = if (operations.size == 1) {
             val binary = operations.single()
             val name = OPERATOR_NAMES.getValue(binary.operationToken)
@@ -55,6 +58,7 @@ internal class OperatorBeforeTrailingCall(config: Config) : Rule(config, DESCRIP
 
     private fun checkArithmeticChain(expression: KtQualifiedExpression) {
         if (arithmeticCallName(expression) == null) return
+        if (isString(expression)) return
         if (arithmeticCallName(expression.receiverExpression) == null) return
         val parent = expression.parent as? KtQualifiedExpression
         if (parent?.receiverExpression == expression && arithmeticCallName(parent) != null) return
