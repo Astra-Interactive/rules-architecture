@@ -13,6 +13,102 @@ internal class TrivialLambdaReferenceTest {
     private val environment = createEnvironment()
 
     @Test
+    fun GIVEN_unresolved_call_in_custom_suspend_lambda_WHEN_linted_THEN_avoids_an_unverified_reference() {
+        val code = """
+            fun produce(block: suspend () -> Unit) = Unit
+
+            fun start() {
+                produce {
+                    listOf(1).forEach { value -> unresolved(value) }
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(0, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
+    fun GIVEN_resolved_constructor_WHEN_linted_THEN_suggests_its_reference() {
+        val code = """
+            class UserId(val value: Int)
+
+            fun ids(values: List<Int>) = values.map { value -> UserId(value) }
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "Replace the lambda with the function reference ::UserId: the lambda only passes its parameters on."
+            ),
+            rule.lintWithContext(environment, code).map { finding -> finding.message }
+        )
+    }
+
+    @Test
+    fun GIVEN_emit_inside_on_start_WHEN_linted_THEN_keeps_the_inline_lambda() {
+        val code = """
+            import kotlinx.coroutines.flow.Flow
+            import kotlinx.coroutines.flow.onStart
+
+            fun start(values: Flow<Int>, initial: Int?): Flow<Int> = values.onStart {
+                initial?.let { value -> emit(value) }
+            }
+        """.trimIndent()
+
+        assertEquals(0, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
+    fun GIVEN_suspend_call_inside_custom_builder_WHEN_linted_THEN_keeps_the_inline_lambda() {
+        val code = """
+            import kotlinx.coroutines.flow.FlowCollector
+
+            fun produce(block: suspend FlowCollector<Int>.() -> Unit) = Unit
+
+            fun start() {
+                produce {
+                    listOf(1).forEach { value -> emit(value) }
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(0, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
+    fun GIVEN_bound_suspend_call_in_suspend_value_WHEN_linted_THEN_keeps_the_inline_lambda() {
+        val code = """
+            import kotlinx.coroutines.flow.FlowCollector
+
+            fun action(collector: FlowCollector<Int>): suspend () -> Unit = {
+                1.let { value -> collector.emit(value) }
+            }
+        """.trimIndent()
+
+        assertEquals(0, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
+    fun GIVEN_plain_call_inside_on_start_WHEN_linted_THEN_still_suggests_a_reference() {
+        val code = """
+            import kotlinx.coroutines.flow.Flow
+            import kotlinx.coroutines.flow.onStart
+
+            fun format(value: Int): String = value.toString()
+
+            fun start(values: Flow<Int>, initial: Int?): Flow<Int> = values.onStart {
+                initial?.let { value -> format(value) }
+            }
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "Replace the lambda with the function reference ::format: the lambda only passes its parameters on."
+            ),
+            rule.lintWithContext(environment, code).map { finding -> finding.message }
+        )
+    }
+
+    @Test
     fun GIVEN_lambdas_that_only_pass_their_parameters_WHEN_linted_THEN_reports_each_with_its_reference() {
         val code = """
             fun render(ids: List<Long>, users: List<User>, repository: Repository, viewModel: PaywallViewModel) {

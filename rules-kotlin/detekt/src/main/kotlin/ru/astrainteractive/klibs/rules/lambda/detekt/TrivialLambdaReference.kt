@@ -33,8 +33,8 @@ import ru.astrainteractive.klibs.rules.detekt.util.isSuspend
  * callback `{ obj.foo() }` passed as a named argument or stored in a property: a function reference says the same.
  *
  * It stays silent where a reference may not compile or may mean another function: for a `suspend` callee (resolved
- * in coroutine code, a `suspend` function or a coroutine builder's lambda, and declared `suspend` in the file
- * elsewhere), for a callee declared in the file more than once, and for type, named, spread or trailing-lambda
+ * from its symbol regardless of the enclosing builder, and declared `suspend` in the file elsewhere), for a
+ * callee declared in the file more than once, and for type, named, spread or trailing-lambda
  * arguments, for an extension declared as a member of a class, which no reference can name, and for a Java getter
  * read as a property (`record.level`), whose reference does not compile, and for a property read in a `suspend`
  * lambda (`flow.map { message -> message.value }`), since a property reference is no `suspend` function. A
@@ -46,16 +46,17 @@ internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION
 
     private fun isInCoroutine(lambda: KtLambdaExpression): Boolean {
         for (parent in lambda.parentsWithSelf) {
+            if (parent is KtLambdaExpression && parent.isSuspend()) return true
             if (parent is KtLambdaExpression && parent.findCallName() in COROUTINE_CALLS) return true
             if (parent is KtNamedFunction) return parent.hasModifier(KtTokens.SUSPEND_KEYWORD)
         }
         return false
     }
 
-    private fun isResolvedNonSuspend(call: KtCallExpression): Boolean {
+    private fun resolvedSuspend(call: KtCallExpression): Boolean? {
         return analyze(call) {
-            val symbol = call.resolveToCall()?.singleFunctionCallOrNull()?.symbol ?: return@analyze false
-            symbol !is KaNamedFunctionSymbol || !symbol.isSuspend
+            val symbol = call.resolveToCall()?.singleFunctionCallOrNull()?.symbol ?: return@analyze null
+            symbol is KaNamedFunctionSymbol && symbol.isSuspend
         }
     }
 
@@ -118,8 +119,8 @@ internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION
     }
 
     private fun mayBeSuspend(lambda: KtLambdaExpression, call: KtCallExpression?): Boolean {
-        if (call == null || !isInCoroutine(lambda)) return false
-        return !isResolvedNonSuspend(call)
+        if (call == null) return false
+        return resolvedSuspend(call) ?: isInCoroutine(lambda)
     }
 
     override fun visitKtFile(file: KtFile) {
