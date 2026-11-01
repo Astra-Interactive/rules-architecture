@@ -171,6 +171,13 @@ internal class LinterPlugin : Plugin<Project> {
         platformClasses.set(extension.platformClasses)
         extensionKinds.set(extension.extensionKinds)
         rootOfBuild.set(project.path == project.isolated.rootProject.path)
+        conventionPlugin.set(
+            project.provider {
+                val kotlinDsl = project.pluginManager.hasPlugin("org.gradle.kotlin.kotlin-dsl")
+                val groovyDsl = project.pluginManager.hasPlugin("groovy-gradle-plugin")
+                kotlinDsl || groovyDsl
+            }
+        )
         projectDependencies.set(project.provider { project.productionProjectDependencies() })
     }
 

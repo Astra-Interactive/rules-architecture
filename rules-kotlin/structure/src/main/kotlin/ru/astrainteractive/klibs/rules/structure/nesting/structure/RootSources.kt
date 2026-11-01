@@ -10,6 +10,7 @@ import java.io.File
  */
 public class RootSources : StructureCheck {
     override fun check(unit: BuildUnit): List<StructureViolation> {
+        if (unit.isConventionPlugin) return emptyList()
         if (!unit.isRoot || !File(unit.directory, SOURCES).isDirectory) return emptyList()
         val message = "Move the sources of the root project into a unit: the root project holds no sources."
         return listOf(

@@ -81,6 +81,9 @@ internal abstract class ArchitectureTask : DefaultTask() {
     abstract val rootOfBuild: Property<Boolean>
 
     @get:Input
+    abstract val conventionPlugin: Property<Boolean>
+
+    @get:Input
     @get:Optional
     abstract val androidNamespace: Property<String>
 
@@ -231,7 +234,8 @@ internal abstract class ArchitectureTask : DefaultTask() {
             projectDependencies = projectDependencies.get(),
             isLibrary = context.publishedLibrary,
             context = context,
-            dependencyContexts = contexts
+            dependencyContexts = contexts,
+            isConventionPlugin = conventionPlugin.get()
         )
         val checker = StructureChecker(
             listOf(

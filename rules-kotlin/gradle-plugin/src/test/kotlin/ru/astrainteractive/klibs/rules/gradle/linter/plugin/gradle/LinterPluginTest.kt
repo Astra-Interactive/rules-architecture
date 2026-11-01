@@ -506,6 +506,41 @@ class LinterPluginTest {
     }
 
     @Test
+    fun GIVEN_kotlin_convention_plugin_WHEN_root_checked_THEN_allows_sources(@TempDir rootDirectory: File) {
+        val script = """
+            plugins {
+                `kotlin-dsl`
+                id("ru.astrainteractive.klibs.rules.gradle.linter")
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript(script)
+            .withSourceFile("src/main/kotlin/example.java-library.gradle.kts", "plugins { `java-library` }")
+
+        build.run(":architectureCheck")
+    }
+
+    @Test
+    fun GIVEN_convention_plugin_applied_after_linter_WHEN_root_checked_THEN_allows_sources_and_reuses_cache(
+        @TempDir rootDirectory: File
+    ) {
+        val script = JAVA_MODULE_SCRIPT + """
+
+            apply(plugin = "groovy-gradle-plugin")
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript(script)
+            .withSourceFile("src/main/groovy/example.java-library.gradle", "plugins { id 'java-library' }")
+
+        build.run(":architectureCheck")
+        val second = build.run(":architectureCheck")
+
+        assertTrue(second.output.contains("Reusing configuration cache"), second.output)
+    }
+
+    @Test
     fun GIVEN_kotlin_unit_with_explicit_api_warning_WHEN_configured_THEN_detekt_gets_the_warning_mode(
         @TempDir rootDirectory: File
     ) {

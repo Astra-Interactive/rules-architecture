@@ -11,13 +11,14 @@ import kotlin.test.assertEquals
 
 internal class RootSourcesTest {
 
-    private fun unit(directory: File, isRoot: Boolean): BuildUnit {
+    private fun unit(directory: File, isRoot: Boolean, isConventionPlugin: Boolean = false): BuildUnit {
         return BuildUnit(
             path = ":",
             directory = directory,
             isEntryPoint = false,
             isRoot = isRoot,
-            projectDependencies = emptySet()
+            projectDependencies = emptySet(),
+            isConventionPlugin = isConventionPlugin
         )
     }
 
@@ -29,6 +30,18 @@ internal class RootSourcesTest {
             listOf("src"),
             RootSources().check(unit(directory, isRoot = true)).map(StructureViolation::path)
         )
+    }
+
+    @Test
+    fun GIVEN_convention_plugin_root_with_sources_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+        File(directory, "src/main/kotlin").mkdirs()
+
+        val convention = unit(
+            directory,
+            isRoot = true,
+            isConventionPlugin = true
+        )
+        assertEquals(emptyList(), RootSources().check(convention))
     }
 
     @Test
