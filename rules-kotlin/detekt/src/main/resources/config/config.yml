@@ -54,6 +54,10 @@ architecture:
     active: true
   ExpressionBodyOnOneLine:
     active: true
+  FieldDependencyConstruction:
+    active: true
+    unitContext: ''
+    unitContextFile: ''
   FunctionVerb:
     active: true
   GetOrThrowInMain:

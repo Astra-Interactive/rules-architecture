@@ -40,7 +40,7 @@ class DetektSettingsTaskTest {
         val lines = build.file("modules/jail/build/detekt/architecture-settings.yml").readLines()
         val contexts = lines.filter { line -> line.trimStart().startsWith("unitContextFile:") }
             .map { line -> File(line.substringAfter("'").substringBeforeLast("'")).readText().toUnitContext() }
-        assertEquals(3, contexts.size)
+        assertEquals(4, contexts.size)
         contexts.forEach { context ->
             assertEquals(UnitKind.CONTEXT, context.kind)
             assertEquals(setOf("mongo", "mongodb"), context.technologyWords)
@@ -54,6 +54,7 @@ class DetektSettingsTaskTest {
                 "    technologyWords: [ 'mongo', 'mongodb' ]",
                 "  RunBlockingOutsideBoundary:",
                 "    technologyWords: [ 'mongo', 'mongodb' ]",
+                "  FieldDependencyConstruction:",
                 "  RunCatchingCancellation:",
                 "    inlineCancellationCheck: true",
             ),

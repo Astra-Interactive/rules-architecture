@@ -5,7 +5,6 @@ package ru.astrainteractive.klibs.rules.konsist.cli.konsist
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.AnonymousProjectObject
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.DiModuleVisibility
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.EntryPointVisibility
-import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.FieldDependencyConstruction
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.ImplementationVisibility
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.NestedDataClass
 import ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist.NestedEnum
@@ -83,7 +82,6 @@ public fun main(args: Array<String>) {
             EntryPointVisibility(),
             ErrorPlacement(),
             FakePlacement(),
-            FieldDependencyConstruction(),
             ForbiddenPackageName(),
             ImplementationVisibility(),
             InMemoryPlacement(),

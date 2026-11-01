@@ -45,6 +45,8 @@ internal abstract class DetektSettingsTask : DefaultTask() {
                 appendLine("    technologyWords: [ $words ]")
                 appendLine("    unitContextFile: '$contextPath'")
             }
+            appendLine("  FieldDependencyConstruction:")
+            appendLine("    unitContextFile: '$contextPath'")
             appendLine("  RunCatchingCancellation:")
             appendLine("    inlineCancellationCheck: ${inlineCancellationCheck.get()}")
         }
