@@ -6,20 +6,15 @@ import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.isRequiredOverrideReference
-import ru.astrainteractive.klibs.rules.konsist.check.model.util.packageName
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.sourceReferences
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Placement
 import ru.astrainteractive.klibs.rules.konsist.layout.util.describe
 
 /**
- * Checks the direction table of `arch-context.md` through imports and fully qualified references between kinds:
- * `model` on `model`, contracts on `model`, use cases on contracts, `model` and `util`, implementations on those and
- * their own technology packages, entry points on use cases, contracts, `model` and `util`, `theme` on `model`, and
- * nothing on `di`; `util` and the entry points also reach `theme`, and `util` of a one-technology unit its `table`,
- * `entity` and `database`. Entry points import each other only between UI kinds (`component`, `composable`, `gui`,
- * `slot`, the project's own words), and a router's implementation reaches the UI kinds it opens.
- *
+ * Checks the direction table of `arch-context.md` through imports and fully qualified references between kinds.
+ * Interfaces in `component`, `viewmodel` and `usecase` are contract targets; concrete classes retain their kind,
+ * and a use case still cannot call another use case through its interface.
  * A screen is used only by what hosts or opens it: another screen, a component's `Render()`, a router, and `di`.
  *
  * Imports that leave the unit, and packages of no known kind, are not judged.
@@ -134,7 +129,14 @@ internal class KindImportDirection : ArchitectureCheck {
                 return@mapNotNull null
             }
             val targetPackage = sources.packageOfImport(importedName) ?: return@mapNotNull null
-            val to = sources.layout.placementOf(targetPackage) ?: return@mapNotNull null
+            val placement = sources.layout.placementOf(targetPackage) ?: return@mapNotNull null
+            val isContractHome = placement.kindWord in STATE_HOLDER_WORDS || placement.kind == Kind.USECASE
+            val isUsecaseCall = fromKind == Kind.USECASE && placement.kind == Kind.USECASE
+            val to = if (isContractHome && !isUsecaseCall && importedName in projectInterfaces) {
+                placement.copy(kind = Kind.CONTRACT)
+            } else {
+                placement
+            }
             val message = findScreenMessage(
                 from,
                 fromKind,
@@ -158,7 +160,7 @@ internal class KindImportDirection : ArchitectureCheck {
 
     override fun check(sources: UnitSources): List<Violation> {
         val projectInterfaces = sources.mainFiles.flatMap { file ->
-            file.interfaces(includeNested = false).map { declaration -> "${file.packageName}.${declaration.name}" }
+            file.interfaces(includeNested = true).mapNotNull { declaration -> declaration.fullyQualifiedName }
         }.toSet()
         val testFakes = sources.testFiles.filter { file -> sources.placementOf(file)?.kind == Kind.FAKE }
         return sources.mainFiles.plus(testFakes).flatMap { file ->
@@ -177,6 +179,9 @@ internal class KindImportDirection : ArchitectureCheck {
         const val COMPONENT_WORD = "component"
         const val VOWELS = "aeiou"
         const val ROUTER_CONCEPT = "router"
+
+        @JvmField
+        val STATE_HOLDER_WORDS = setOf("component", "viewmodel")
 
         @JvmField
         val PLATFORM_INVOKED_WORDS = setOf(
