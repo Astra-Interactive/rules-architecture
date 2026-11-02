@@ -15,7 +15,13 @@ public class PluginImplUnit {
         return units
             .filter { unit ->
                 val context = unit.context ?: return@filter false
-                if (context.publishedLibrary || context.kind != UnitKind.IMPL) return@filter false
+                val appOnlyRole = context.kind in setOf(
+                    UnitKind.IMPL,
+                    UnitKind.IMPL_UI,
+                    UnitKind.CORE
+                )
+                if (!appOnlyRole) return@filter false
+                if (context.kind == UnitKind.IMPL && context.publishedLibrary) return@filter false
                 val product = requireNotNull(context.productKind) {
                     "Set linter.productKind(ProductKind.APP or ProductKind.PLATFORM_PLUGIN) " +
                         "before checking implementation unit ${unit.path}"
@@ -27,7 +33,13 @@ public class PluginImplUnit {
                     RULE,
                     ".",
                     unit.path,
-                    "Fold ${unit.path} into its api unit or its platform unit: a plugin has no impl unit."
+                    when (unit.context?.kind) {
+                        UnitKind.CORE ->
+                            "Use a platform-free core role for ${unit.path}: " +
+                                "mixed CORE is an app-only role."
+                        UnitKind.IMPL_UI -> "Use an app product kind for ${unit.path}: IMPL_UI is an app-only role."
+                        else -> "Fold ${unit.path} into its api unit or its platform unit: a plugin has no impl unit."
+                    }
                 )
             }
     }

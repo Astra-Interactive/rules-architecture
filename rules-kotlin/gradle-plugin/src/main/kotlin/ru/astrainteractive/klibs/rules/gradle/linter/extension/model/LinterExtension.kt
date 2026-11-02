@@ -4,8 +4,14 @@ import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
 import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitPolicy
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitRole
+import ru.astrainteractive.klibs.rules.core.unit.util.toPolicy
 
 public abstract class LinterExtension {
+    internal var configuredUnitPolicy: UnitPolicy? = null
+        private set
+
     internal var configuredUnitKind: UnitKind? = null
         private set
 
@@ -44,6 +50,18 @@ public abstract class LinterExtension {
      * `fun SlotContext.backSlot()` in `slot/BackSlot.kt`): there an extension is the part itself, not a `util`.
      */
     public abstract val extensionKinds: SetProperty<String>
+
+    public fun unit(value: UnitRole) {
+        val policy = value.toPolicy()
+        require(configuredUnitKind == null || configuredUnitKind == value.kind) {
+            "Conflicting linter unit roles: $configuredUnitKind and ${value.kind}"
+        }
+        require(configuredUnitPolicy == null || configuredUnitPolicy == policy) {
+            "Conflicting linter.unit policies for ${value.kind}: $configuredUnitPolicy and $policy"
+        }
+        configuredUnitKind = value.kind
+        configuredUnitPolicy = policy
+    }
 
     public fun unitKind(value: UnitKind) {
         require(configuredUnitKind == null || configuredUnitKind == value) {

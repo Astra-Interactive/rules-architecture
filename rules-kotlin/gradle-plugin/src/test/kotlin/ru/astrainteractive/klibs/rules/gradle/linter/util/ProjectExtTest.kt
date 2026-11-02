@@ -2,16 +2,51 @@
 
 package ru.astrainteractive.klibs.rules.gradle.linter.util
 
+import org.gradle.testfixtures.ProjectBuilder
+import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.core.unit.util.toUnitContext
 import ru.astrainteractive.klibs.rules.gradle.fixture.IsolatedProjectsBuild
 import java.io.File
 
 internal class ProjectExtTest {
+    @Test
+    fun GIVEN_custom_depends_on_and_test_source_sets_WHEN_read_THEN_preserves_declaration_and_consumers(
+        @TempDir rootDirectory: File
+    ) {
+        val project = ProjectBuilder.builder().withProjectDir(rootDirectory).build()
+        project.pluginManager.apply("org.jetbrains.kotlin.multiplatform")
+        val kotlin = project.extensions.getByType(KotlinMultiplatformExtension::class.java)
+        kotlin.jvm("desktop")
+        val shared = kotlin.sourceSets.create("sharedMain")
+        kotlin.sourceSets.getByName("desktopMain").dependsOn(shared)
+        val common = kotlin.sourceSets.getByName("commonMain")
+        val test = kotlin.sourceSets.getByName("desktopTest")
+        project.dependencies.add(shared.implementationConfigurationName, "androidx.core:core-ktx:1.0")
+        project.dependencies.add(common.implementationConfigurationName, "androidx.core:core-splashscreen:1.0")
+        project.dependencies.add(test.implementationConfigurationName, "androidx.core:core-ktx:1.0")
+
+        val declarations = project.readUnitBuild(UnitKind.CORE, ProductKind.APP).externalDependencies
+
+        val custom = declarations.single { declaration -> declaration.sourceSet == "sharedMain" }
+        assertEquals("sharedMainImplementation", custom.configuration)
+        assertEquals(true, custom.production)
+        assertEquals(setOf("desktop"), custom.targetCompilations.map { use -> use.target }.toSet())
+        assertEquals(setOf("main"), custom.targetCompilations.map { use -> use.compilation }.toSet())
+        val commonDeclaration = declarations.single { declaration -> declaration.sourceSet == "commonMain" }
+        assertEquals(true, commonDeclaration.production)
+        assertEquals("commonMain", commonDeclaration.sourceSet)
+        val testDeclaration = declarations.single { declaration -> declaration.sourceSet == "desktopTest" }
+        assertEquals(false, testDeclaration.production)
+        assertEquals(true, testDeclaration.test)
+    }
+
     private fun unitKindScript(plugins: String): String {
         return """
             plugins {

@@ -6,9 +6,19 @@ import java.io.DataOutputStream
 import java.io.File
 import java.util.Base64
 
+internal const val UNIT_CONTEXT_TRANSPORT_VERSION = 3
+
 private fun writeStrings(output: DataOutputStream, values: Collection<String>) {
     output.writeInt(values.size)
     values.sorted().forEach(output::writeUTF)
+}
+
+private fun writeReasons(output: DataOutputStream, reasons: Map<String, String>) {
+    output.writeInt(reasons.size)
+    reasons.toSortedMap().forEach { (target, reason) ->
+        output.writeUTF(target)
+        output.writeUTF(reason)
+    }
 }
 
 /**
@@ -17,7 +27,7 @@ private fun writeStrings(output: DataOutputStream, values: Collection<String>) {
 public fun UnitContext.encode(): String {
     val bytes = ByteArrayOutputStream()
     DataOutputStream(bytes).use { output ->
-        output.writeInt(2)
+        output.writeInt(UNIT_CONTEXT_TRANSPORT_VERSION)
         output.writeUTF(kind.cliName)
         output.writeUTF(productKind?.name.orEmpty())
         output.writeBoolean(publishedLibrary)
@@ -34,6 +44,10 @@ public fun UnitContext.encode(): String {
                 writeStrings(output, directories)
             }
         }
+        output.writeUTF(policy.composition.name)
+        output.writeUTF(policy.implementationAccess.name)
+        writeReasons(output, policy.checks.disabledRules)
+        writeReasons(output, policy.checks.allowedDependencies)
     }
     return Base64.getEncoder().encodeToString(bytes.toByteArray())
 }

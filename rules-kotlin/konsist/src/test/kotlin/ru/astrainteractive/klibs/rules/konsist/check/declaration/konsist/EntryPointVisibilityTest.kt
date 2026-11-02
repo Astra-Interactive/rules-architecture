@@ -4,6 +4,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import ru.astrainteractive.klibs.rules.core.unit.model.RuleId
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureChecker
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.SuppressionPolicy
@@ -99,7 +100,10 @@ internal class EntryPointVisibilityTest {
                 unitPath = ":command"
             )
 
-        val checker = ArchitectureChecker(listOf(EntryPointVisibility()), SuppressionPolicy())
+        val checker = ArchitectureChecker(
+            mapOf(RuleId.ENTRY_POINT_VISIBILITY to EntryPointVisibility()),
+            SuppressionPolicy()
+        )
         assertEquals(emptyList(), checker.check(sources))
     }
 }

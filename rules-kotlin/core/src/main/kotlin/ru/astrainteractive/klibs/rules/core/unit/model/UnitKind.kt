@@ -12,5 +12,7 @@ public enum class UnitKind(public val cliName: String) {
     CORE_API("core-api"),
     CORE_PLATFORM("core-platform"),
     CORE_UI("core-ui"),
-    STORAGE_CONTRACT("storage-contract")
+    STORAGE_CONTRACT("storage-contract"),
+    IMPL_UI("impl-ui"),
+    CORE("core")
 }

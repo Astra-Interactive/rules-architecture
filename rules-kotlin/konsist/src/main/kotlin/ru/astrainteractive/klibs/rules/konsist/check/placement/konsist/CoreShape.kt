@@ -14,7 +14,7 @@ internal class CoreShape : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
 
     override fun check(sources: UnitSources): List<Violation> {
-        val isCore = sources.unitPath.orEmpty().split(':').contains(CORE)
+        val isCore = sources.kind == UnitKind.CORE || sources.unitPath.orEmpty().split(':').contains(CORE)
         if (!isCore) return emptyList()
         return sources.mainFiles.flatMap { file ->
             val useCases = file.topLevelClasses()

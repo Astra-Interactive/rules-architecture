@@ -266,7 +266,8 @@ internal abstract class ArchitectureTask : DefaultTask() {
     protected fun findFindings(): List<ArchitectureFinding> {
         val context = unitContext.get().toUnitContext()
         val buildFindings = buildFindings.get().map(ArchitectureFinding::parse)
-        return runKonsist(context) + runStructureChecks(context) + buildFindings
+        return (runKonsist(context) + runStructureChecks(context) + buildFindings)
+            .filterNot { finding -> finding.rule in context.policy.checks.disabledRules }
     }
 
     private companion object {

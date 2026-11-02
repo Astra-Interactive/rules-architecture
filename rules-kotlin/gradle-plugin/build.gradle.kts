@@ -53,6 +53,7 @@ dependencies {
     runtimeOnly(projects.detekt)
 
     testImplementation(gradleTestKit())
+    testImplementation(libs.kotlin.gradle)
     testImplementation(libs.tests.kotlin.test)
     testImplementation(platform(libs.tests.junit.bom))
     testImplementation(libs.tests.junit.jupiter)

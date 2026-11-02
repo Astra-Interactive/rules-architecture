@@ -158,6 +158,24 @@ internal class SourceTree(
         )
     }
 
+    fun loadMultipleSourceSets(kind: UnitKind, context: UnitContext, vararg sourceSetNames: String): UnitSources {
+        val sourceSets = sourceSetNames.associateWith { name -> File(projectDirectory, "src/$name/kotlin") }
+        return UnitSources.load(
+            kind = kind,
+            rootPackage = "x.core",
+            unitPath = ":core",
+            mainDirectories = sourceSets.values.toList(),
+            testDirectories = emptyList(),
+            mainSourceSets = sourceSets,
+            testSourceSets = emptyMap(),
+            projectDirectory = projectDirectory,
+            vocabulary = NO_PROJECT_WORDS,
+            dependencyDirectories = emptyList(),
+            androidNamespace = androidNamespace,
+            context = context
+        )
+    }
+
     fun load(
         kind: UnitKind,
         rootPackage: String? = null,

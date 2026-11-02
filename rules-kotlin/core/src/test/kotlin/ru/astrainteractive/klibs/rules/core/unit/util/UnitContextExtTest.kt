@@ -3,16 +3,78 @@
 package ru.astrainteractive.klibs.rules.core.unit.util
 
 import org.junit.jupiter.api.Test
+import ru.astrainteractive.klibs.rules.core.unit.model.CheckPolicy
+import ru.astrainteractive.klibs.rules.core.unit.model.ImplementationAccess
 import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
+import ru.astrainteractive.klibs.rules.core.unit.model.UiComposition
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitPolicy
+import java.io.ByteArrayOutputStream
+import java.io.DataOutputStream
 import java.io.File
+import java.util.Base64
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 internal class UnitContextExtTest {
+    @Test
+    fun GIVEN_v2_context_WHEN_decoded_THEN_uses_legacy_policy_defaults() {
+        val bytes = ByteArrayOutputStream()
+        DataOutputStream(bytes).use { output ->
+            output.writeInt(2)
+            output.writeUTF("api")
+            output.writeUTF("APP")
+            output.writeBoolean(false)
+            output.writeInt(0)
+            output.writeInt(0)
+        }
+
+        val decoded = Base64.getEncoder().encodeToString(bytes.toByteArray()).toUnitContext()
+
+        assertEquals(UnitKind.API, decoded.kind)
+        assertEquals(
+            UnitPolicy(
+                UiComposition.LOCAL,
+                ImplementationAccess.NONE,
+                CheckPolicy(emptyMap(), emptyMap())
+            ),
+            decoded.policy
+        )
+    }
+
+    @Test
+    fun GIVEN_v3_policy_with_checks_WHEN_encoded_THEN_round_trips_and_orders_maps() {
+        val first = UnitContext(
+            UnitKind.IMPL_UI,
+            ProductKind.APP,
+            false,
+            emptySet(),
+            emptyList(),
+            UnitPolicy(
+                UiComposition.HOST,
+                ImplementationAccess.NONE,
+                CheckPolicy(
+                    linkedMapOf("UnitDependency" to "legacy edge", "ApiUnitDependency" to "migration"),
+                    linkedMapOf(":z:impl" to "old split", ":a:impl" to "migration")
+                )
+            )
+        )
+        val reversed = first.copy(
+            policy = first.policy.copy(
+                checks = CheckPolicy(
+                    first.policy.checks.disabledRules.toList().reversed().toMap(),
+                    first.policy.checks.allowedDependencies.toList().reversed().toMap()
+                )
+            )
+        )
+
+        assertEquals(first, first.encode().toUnitContext())
+        assertEquals(first.encode(), reversed.encode())
+    }
+
     @Test
     fun GIVEN_shared_sources_WHEN_selecting_context_THEN_uses_only_compilations_containing_the_file() {
         val root = File("project").absoluteFile

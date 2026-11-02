@@ -98,7 +98,8 @@ plugins {
 
 Structure checks consume the explicit unit roles too, including dependencies on units with custom names. A
 production dependency on a shared-fake unit is rejected even from an entry point. `APP`/`PLATFORM_PLUGIN`
-determines whether `impl` is allowed; a platform-looking project name does not determine the product kind.
+determines whether `impl` and `impl-ui` are allowed; a platform-looking project name does not determine the
+product kind.
 
 Package cycles use each actual production or test compilation. Unit cycles use compatible production backends
 and variants, retaining the Native target identity. Several ambiguous targets with the same backend and variant
@@ -128,16 +129,60 @@ linter {
 ```
 
 `unitKind(...)` and `productKind(...)` accept enums. Replace old `unitKind.set("api")` with
-`unitKind(UnitKind.API)`. Conflicting explicit declarations fail configuration. `ProductKind` distinguishes
+`unitKind(UnitKind.API)`. The sealed `unit(UnitRole...)` configuration offers role-specific options; existing
+enum declarations remain valid with their default policy. Repeating the same normalized declaration is safe;
+conflicting declarations fail configuration. `ProductKind` distinguishes
 `APP` from `PLATFORM_PLUGIN`; an API unit exposing use-case interfaces requires it. Publication is separate
 from the role: applying `maven-publish` marks a published library, and strict explicit API is checked separately.
 Replace the old `library` role with the actual role of the unit.
+
+An app UI unit may use its declared sibling `IMPL` dependencies. The immediate parent of each Gradle path must
+match, so `:rating:ui` may depend on `:rating:impl` or `:rating:renderer` when either target has the `IMPL`
+role; `:ratings:impl` is another feature. `LOCAL` and `SIBLINGS` are the defaults. `HOST` additionally permits
+declared dependencies on other `IMPL_UI` units, while `NONE` removes sibling implementation access. Neither
+mode permits another feature's `IMPL` or a dependency cycle. An unsplit app core with shared contracts and
+small implementations uses `UnitRole.Core`; it has no outgoing project dependencies. `CORE_API` keeps the
+strict common-contract boundary of a split core API unit.
+
+```kotlin
+import ru.astrainteractive.klibs.rules.core.unit.model.Checks
+import ru.astrainteractive.klibs.rules.core.unit.model.RuleId
+import ru.astrainteractive.klibs.rules.core.unit.model.UiComposition
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitRole
+import ru.astrainteractive.klibs.rules.gradle.linter.util.toUnitReference
+
+linter {
+    unit(UnitRole.ImplUi(
+        composition = UiComposition.HOST,
+        checks = Checks(
+            disabled = mapOf(RuleId.UNIT_README to "README migration is tracked in issue 123"),
+            allowedDependencies = mapOf(projects.foo.toUnitReference() to "Reviewed integration boundary")
+        )
+    ))
+}
+```
+
+The rule id and target are typed; each exception needs a nonempty reason. An allowed dependency remains in
+cycle detection. Disable `UNIT_DEPENDENCY_CYCLE` at the root only if the root graph check itself is the intended
+exception. `architectureCheck` writes active findings to `build/reports/architecture/violations.txt` and
+accepted exceptions or skipped rules to `build/reports/architecture/policy.txt`. Local Kotlin `@Suppress`
+still works for declaration-level findings. Checks affect this linter's own structure, Konsist and Detekt
+rules, not unrelated Detekt or formatting rules.
 
 Detekt and Konsist receive the same encoded unit context. It includes the role, product kind, publication,
 technology vocabulary and actual Kotlin compilations with their visible source directories and project
 dependencies. Compose comes from each compilation's resolved dependency graph, including inherited common
 sources. Imports, a compiler plugin alone and dependencies present only in tests do not enable Compose in
 production sources.
+
+The build check also retains each direct external dependency's declaring Gradle configuration, source set,
+production/test use and consuming compilations. An Android dependency declared in `androidMain` is valid for
+that Android source set in an app `API`, `CORE_API` or `CORE` unit; the same declaration in `commonMain` stays
+common even if Android is its only current
+target. Custom source sets follow their actual compilation and `dependsOn` links. The mixed app `CORE` role may
+wire a common Ktor client in `di` and use Android types in Android-only `util`; shared `api`, `model` and
+`usecase` packages still guard their platform boundary. A plugin API remains platform-free. When the origin
+cannot be established, the build reports missing metadata instead of claiming a boundary violation.
 
 The technology words also come from the unit's build file: the last segment of each library's group and the first
 word of its artifact (`org.mongodb:mongodb-driver-kotlin-coroutine` gives `mongodb`), also cut at its first
@@ -146,7 +191,9 @@ and `runtime` aside. The Konsist checks and the detekt rules that judge technolo
 `KindNameInPackage`, `RunBlockingOutsideBoundary`) get the same words; `architectureDetektSettings` writes them into
 `build/detekt/architecture-settings.yml`, read before the project's own detekt config, together with whether
 `RunCatchingCancellation` accepts the inline `CancellationException` check: only when mikro-core is not in the
-project's version catalog. A convention plugin sets
+project's version catalog. Direct Detekt runs must set `active: false` for each disabled own rule in YAML as well
+as pass `unitContextFile` to rules that use unit metadata; the context file alone does not disable a Detekt rule.
+The Gradle plugin writes these settings automatically. A convention plugin sets
 `unitKind` for the units it builds, which maps each plugin to a row of the unit direction table.
 
 | Detected as       | When                                                                                     |
@@ -479,7 +526,8 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `ApiConfiguration` | a directly declared `api` dependency that is not exported through a Multiplatform framework (Gradle plugin) |
 | `PublishedLibraryExplicitApi` | a Kotlin unit applying `maven-publish` without strict explicit API mode (Gradle plugin) |
 | `UnpublishedExplicitApi` | a Kotlin unit with explicit API mode that does not apply `maven-publish` (Gradle plugin) |
-| `ApiUnitPlatformDependency` | an external platform dependency (Paper, Bukkit, Fabric, Forge, Android, `androidx` but Compose, annotation and collection) in an `api` unit (Gradle plugin) |
+| `ApiUnitPlatformDependency` | a platform dependency in a plugin `API`/`CORE_API`, or an app `API`/`CORE_API`/`CORE` declaration outside a matching platform source set (Gradle plugin) |
+| `PlatformDependencyMetadata` | a platform dependency in a checked role whose product kind or declaring source set/production compilation cannot be established (Gradle plugin) |
 
 ## 🗂️ Repository
 

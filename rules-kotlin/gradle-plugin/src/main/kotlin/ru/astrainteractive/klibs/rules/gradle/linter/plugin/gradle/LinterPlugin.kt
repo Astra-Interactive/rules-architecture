@@ -33,7 +33,6 @@ import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureTas
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.DetektSettingsTask
 import ru.astrainteractive.klibs.rules.gradle.linter.util.androidNamespace
 import ru.astrainteractive.klibs.rules.gradle.linter.util.dependencyInputs
-import ru.astrainteractive.klibs.rules.gradle.linter.util.detectUnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.util.explicitApiMode
 import ru.astrainteractive.klibs.rules.gradle.linter.util.findBuildFindings
 import ru.astrainteractive.klibs.rules.gradle.linter.util.findUnitTechnologyWords
@@ -262,9 +261,13 @@ internal class LinterPlugin : Plugin<Project> {
             task.baselineFile.set(target.layout.projectDirectory.file(BASELINE_FILE_NAME))
         }
         target.afterEvaluate { project ->
-            val technologies = project.findUnitTechnologyWords(extension).get()
-            val kind = extension.configuredUnitKind ?: project.detectUnitKind(technologies)
-            val findings = project.readUnitBuild(kind).findBuildFindings().map(ArchitectureFinding::toLine)
+            val unit = project.readUnitContext(
+                extension,
+                project.graphParameters().productKind.orNull,
+                resolveCompose = false
+            )
+            val findings = project.readUnitBuild(unit.kind, unit.productKind)
+                .findBuildFindings().map(ArchitectureFinding::toLine)
             checkTask.configure { task -> task.buildFindings.set(findings) }
             baselineTask.configure { task -> task.buildFindings.set(findings) }
         }

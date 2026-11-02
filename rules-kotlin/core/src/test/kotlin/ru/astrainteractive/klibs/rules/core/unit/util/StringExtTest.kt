@@ -6,12 +6,35 @@ import org.junit.jupiter.api.Test
 import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
+import java.io.ByteArrayOutputStream
+import java.io.DataOutputStream
 import java.util.Base64
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 internal class StringExtTest {
+    private fun policyWire(disabledCount: Int, vararg fields: String): String {
+        val bytes = ByteArrayOutputStream()
+        DataOutputStream(bytes).use { output ->
+            output.writeInt(UNIT_CONTEXT_TRANSPORT_VERSION)
+            output.writeUTF("impl-ui")
+            output.writeUTF("APP")
+            output.writeBoolean(false)
+            output.writeInt(0)
+            output.writeInt(0)
+            output.writeUTF("LOCAL")
+            output.writeUTF("NONE")
+            output.writeInt(disabledCount)
+            fields.toList().chunked(2).forEach { entry ->
+                output.writeUTF(entry[0])
+                output.writeUTF(entry[1])
+            }
+            output.writeInt(0)
+        }
+        return Base64.getEncoder().encodeToString(bytes.toByteArray())
+    }
+
     private fun replaceWireText(encoded: String, old: String, replacement: String): String {
         val bytes = Base64.getDecoder().decode(encoded)
         val oldBytes = old.encodeToByteArray()
@@ -117,6 +140,63 @@ internal class StringExtTest {
                 "false",
                 "bogus"
             ).toUnitContext()
+        }
+    }
+
+    @Test
+    fun GIVEN_unknown_ui_policy_values_WHEN_decoded_THEN_reports_the_corrupt_field() {
+        val encoded = UnitContext(
+            UnitKind.IMPL_UI,
+            ProductKind.APP,
+            false,
+            emptySet(),
+            emptyList()
+        ).encode()
+
+        val composition = assertFailsWith<IllegalArgumentException> {
+            replaceWireText(
+                encoded,
+                "LOCAL",
+                "OTHER"
+            ).toUnitContext()
+        }
+        val access = assertFailsWith<IllegalArgumentException> {
+            replaceWireText(
+                encoded,
+                "SIBLINGS",
+                "INVALIDX"
+            ).toUnitContext()
+        }
+
+        assertEquals(true, composition.message?.contains("UI composition"))
+        assertEquals(true, access.message?.contains("implementation access"))
+    }
+
+    @Test
+    fun GIVEN_corrupt_reason_entries_WHEN_decoded_THEN_rejects_each_malformed_policy() {
+        val malformed = listOf(
+            policyWire(-1),
+            policyWire(
+                1,
+                " ",
+                "reason"
+            ),
+            policyWire(
+                1,
+                "UnitDependency",
+                " "
+            ),
+            policyWire(
+                2,
+                "UnitDependency",
+                "first",
+                "UnitDependency",
+                "second"
+            )
+        )
+
+        malformed.forEach { encoded ->
+            assertFailsWith<IllegalArgumentException> { encoded.toUnitContext() }
         }
     }
 }

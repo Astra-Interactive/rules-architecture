@@ -89,6 +89,45 @@ class DetektSettingsTaskTest {
     }
 
     @Test
+    fun GIVEN_disabled_owned_rules_WHEN_settings_written_THEN_each_rule_is_disabled_once(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            plugins {
+                `java-library`
+                id("ru.astrainteractive.klibs.rules.gradle.linter")
+            }
+
+            linter {
+                unit(ru.astrainteractive.klibs.rules.core.unit.model.UnitRole.Context(
+                    checks = ru.astrainteractive.klibs.rules.core.unit.model.Checks(
+                        disabled = mapOf(
+                            ru.astrainteractive.klibs.rules.core.unit.model.RuleId.BARE_IDENTIFIER to "legacy names",
+                            ru.astrainteractive.klibs.rules.core.unit.model.RuleId.RUN_CATCHING_CANCELLATION to "migration",
+                            ru.astrainteractive.klibs.rules.core.unit.model.RuleId.ANONYMOUS_TUPLE to "migration"
+                        )
+                    )
+                ))
+                technologyWords.add("mongo")
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .withRootBuildScript("")
+            .withModule(name = "modules:jail", buildScript = moduleScript)
+
+        build.run(":modules:jail:architectureDetektSettings")
+
+        val lines = build.file("modules/jail/build/detekt/architecture-settings.yml").readLines()
+        assertEquals(1, lines.count { line -> line == "  BareIdentifier:" })
+        assertEquals(1, lines.count { line -> line == "  RunCatchingCancellation:" })
+        assertEquals(1, lines.count { line -> line == "  AnonymousTuple:" })
+        assertEquals(3, lines.count { line -> line == "    active: false" })
+        assertTrue(lines.contains("    technologyWords: [ 'mongo' ]"))
+        assertTrue(lines.contains("    inlineCancellationCheck: true"))
+        assertTrue(lines.indexOf("  AnonymousTuple:") > lines.indexOf("  RunCatchingCancellation:"))
+    }
+
+    @Test
     fun GIVEN_context_larger_than_yaml_limit_WHEN_detekt_runs_THEN_reads_it_and_tracks_context_changes(
         @TempDir rootDirectory: File
     ) {

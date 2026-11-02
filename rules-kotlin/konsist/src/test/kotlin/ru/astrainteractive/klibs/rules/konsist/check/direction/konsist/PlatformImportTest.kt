@@ -4,6 +4,8 @@ package ru.astrainteractive.klibs.rules.konsist.check.direction.konsist
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
@@ -11,6 +13,161 @@ import java.io.File
 import kotlin.test.assertEquals
 
 internal class PlatformImportTest {
+    private fun coreTree(directory: File): SourceTree {
+        return SourceTree(directory)
+            .main(
+                "commonMain",
+                "x.core.http.di",
+                "HttpModule.kt",
+                """
+                import io.ktor.client.HttpClient
+                import io.ktor.client.engine.HttpClientEngine
+                import io.ktor.client.engine.HttpClientEngineFactory
+                import io.ktor.serialization.kotlinx.json.json
+                class HttpModule
+                """
+            )
+            .main(
+                "androidMain",
+                "x.core.context.util",
+                "ContextExt.kt",
+                """
+                import android.content.Context
+                import androidx.core.content.ContextCompat
+                fun Context.name() = packageName
+                """
+            )
+            .main(
+                "commonMain",
+                "x.core.http.model",
+                "HttpModel.kt",
+                "import io.ktor.client.HttpClient\nclass HttpModel"
+            )
+            .main(
+                "commonMain",
+                "x.core.http.api",
+                "HttpApi.kt",
+                "import io.ktor.client.HttpClient\ninterface HttpApi"
+            )
+            .main(
+                "commonMain",
+                "x.core.http.usecase",
+                "GetHttpUseCase.kt",
+                "import io.ktor.client.HttpClient\nclass GetHttpUseCase"
+            )
+            .main(
+                "commonMain",
+                "x.core.context.util",
+                "CommonContextExt.kt",
+                "import android.content.Context\nimport androidx.core.content.ContextCompat\nclass CommonContextExt"
+            )
+            .main(
+                "commonMain",
+                "x.core.http.di",
+                "ServerModule.kt",
+                "import io.ktor.server.netty.Netty\nimport io.ktor.client.engine.android.Android\nclass ServerModule"
+            )
+    }
+
+    private fun coreContext(directory: File): UnitContext {
+        return UnitContext(
+            UnitKind.CORE,
+            ProductKind.APP,
+            false,
+            emptySet(),
+            listOf(
+                UnitContext.Compilation(
+                    "androidJvm:android:main",
+                    mapOf(
+                        "commonMain" to setOf(File(directory, "src/commonMain/kotlin").absolutePath),
+                        "androidMain" to setOf(File(directory, "src/androidMain/kotlin").absolutePath)
+                    ),
+                    false,
+                    false,
+                    emptySet()
+                )
+            )
+        )
+    }
+
+    @Test
+    fun GIVEN_core_common_di_and_android_util_WHEN_checked_THEN_allows_local_integrations(@TempDir directory: File) {
+        val tree = coreTree(directory)
+        val context = coreContext(directory)
+        val sources = tree.loadMultipleSourceSets(
+            UnitKind.CORE,
+            context,
+            "commonMain",
+            "androidMain"
+        )
+
+        assertEquals(
+            listOf(
+                "android.content.Context",
+                "androidx.core.content.ContextCompat",
+                "io.ktor.client.HttpClient",
+                "io.ktor.client.HttpClient",
+                "io.ktor.client.HttpClient",
+                "io.ktor.client.engine.android.Android",
+                "io.ktor.server.netty.Netty"
+            ),
+            PlatformImport().check(sources).map(Violation::subject).sorted()
+        )
+    }
+
+    @Test
+    fun GIVEN_custom_android_and_shared_source_sets_WHEN_checked_THEN_uses_compilation_membership(
+        @TempDir directory: File
+    ) {
+        val tree = SourceTree(directory)
+            .main(
+                "androidSharedMain",
+                "x.core.context.util",
+                "AndroidContextExt.kt",
+                "import android.content.Context\nfun Context.name() = packageName"
+            )
+            .main(
+                "mobileMain",
+                "x.core.context.util",
+                "MobileContextExt.kt",
+                "import android.content.Context\nclass MobileContextExt"
+            )
+        val android = File(directory, "src/androidSharedMain/kotlin").absolutePath
+        val mobile = File(directory, "src/mobileMain/kotlin").absolutePath
+        val context = UnitContext(
+            UnitKind.CORE,
+            ProductKind.APP,
+            false,
+            emptySet(),
+            listOf(
+                UnitContext.Compilation(
+                    "androidJvm:android:main",
+                    mapOf(
+                        "androidSharedMain" to setOf(android),
+                        "mobileMain" to setOf(mobile)
+                    ),
+                    false,
+                    false,
+                    emptySet()
+                ),
+                UnitContext.Compilation(
+                    "native-ios_arm64:ios:main",
+                    mapOf("mobileMain" to setOf(mobile)),
+                    false,
+                    false,
+                    emptySet()
+                )
+            )
+        )
+        val sources = tree.loadMultipleSourceSets(
+            UnitKind.CORE,
+            context,
+            "androidSharedMain",
+            "mobileMain"
+        )
+
+        assertEquals(listOf("android.content.Context"), PlatformImport().check(sources).map(Violation::subject))
+    }
 
     @Test
     fun GIVEN_platform_imports_in_model_api_and_usecase_WHEN_checked_THEN_reports_each(@TempDir directory: File) {

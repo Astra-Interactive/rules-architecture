@@ -11,7 +11,8 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 
 /**
  * Reports a platform, framework or ORM import in `model`, `api` and `usecase`, and anywhere in an `api` unit,
- * which holds platform-free code only. A technology unit is not checked: it is that technology's
+ * which holds platform-free code only. Mixed app core admits common Ktor client wiring in `di` and Android types in
+ * Android-only `util` source sets. A technology unit is not checked: it is that technology's
  * implementation, its own `model` included. In a Compose UI unit, `model` and the UI kinds may import Compose: an
  * `api` unit whose state holder declares `Render()` is such a unit.
  */
@@ -19,8 +20,32 @@ internal class PlatformImport : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet() - UnitKind.TECHNOLOGY - UnitKind.PLATFORM
 
     private fun isChecked(sources: UnitSources, file: KoFileDeclaration): Boolean {
-        if (sources.kind == UnitKind.API || sources.kind == UnitKind.CORE_API) return true
+        if (sources.kind == UnitKind.API || sources.kind == UnitKind.CORE_API || sources.kind == UnitKind.CORE) {
+            return true
+        }
         return sources.placementOf(file)?.kind in CHECKED_KINDS
+    }
+
+    private fun isAllowedCoreIntegration(sources: UnitSources, file: KoFileDeclaration, reference: String): Boolean {
+        if (sources.kind != UnitKind.CORE) return false
+        val sourceSet = sources.mainSourceSetOf(file) ?: return false
+        val kind = sources.placementOf(file)?.kind
+        val clientImport = reference.startsWith("io.ktor.client.")
+        val engineImport = reference.startsWith("io.ktor.client.engine.")
+        val client = clientImport && !engineImport
+        val engineApi = reference.removePrefix("io.ktor.client.engine.")
+        val commonEngineApi = engineImport && '.' !in engineApi
+        val serialization = reference.startsWith("io.ktor.serialization.kotlinx.json.")
+        val commonKtor = client || commonEngineApi || serialization
+        if (kind == Kind.DI && commonKtor) return true
+        val androidType = reference.startsWith("android.") || reference.startsWith("androidx.")
+        if (kind != Kind.UTIL || !androidType) return false
+        if (sourceSet == "commonMain") return false
+        val platforms = sources.context.compilations
+            .filterNot { compilation -> compilation.test }
+            .filter { compilation -> sourceSet in compilation.sourceSets }
+            .map { compilation -> compilation.name.substringBefore(':') }
+        return platforms.isNotEmpty() && platforms.all { platform -> platform == "androidJvm" }
     }
 
     private fun isAllowedCompose(sources: UnitSources, file: KoFileDeclaration, importedName: String): Boolean {
@@ -57,6 +82,13 @@ internal class PlatformImport : ArchitectureCheck {
                         )
                     }
                     .filterNot { reference ->
+                        isAllowedCoreIntegration(
+                            sources,
+                            file,
+                            reference
+                        )
+                    }
+                    .filterNot { reference ->
                         isFrameworkExceptionBase(
                             sources,
                             file,
@@ -86,6 +118,7 @@ internal class PlatformImport : ArchitectureCheck {
         val PLATFORM_FREE_UNITS = setOf(
             UnitKind.API,
             UnitKind.CORE_API,
+            UnitKind.CORE,
             UnitKind.STORAGE_CONTRACT,
             UnitKind.CONTRACT
         )

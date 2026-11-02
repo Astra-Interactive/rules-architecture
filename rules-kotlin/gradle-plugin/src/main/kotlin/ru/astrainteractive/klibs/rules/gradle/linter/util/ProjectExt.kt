@@ -10,6 +10,7 @@ import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.file.FileCollection
+import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Provider
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
@@ -246,6 +247,75 @@ private fun Project.externalProductionDependencies(): List<String> {
         .sorted()
 }
 
+private fun Project.sourceSetConfigurationOrigins(): Map<String, String> {
+    val kotlinSourceSets = when (val kotlin = extensions.findByName("kotlin")) {
+        is KotlinMultiplatformExtension -> kotlin.sourceSets.toList()
+        is KotlinSingleTargetExtension<*> -> kotlin.sourceSets.toList()
+        else -> emptyList()
+    }
+    val sourceSetConfigurations = buildMap {
+        kotlinSourceSets.forEach { sourceSet ->
+            listOf(
+                sourceSet.apiConfigurationName,
+                sourceSet.implementationConfigurationName,
+                sourceSet.compileOnlyConfigurationName,
+                sourceSet.runtimeOnlyConfigurationName
+            ).forEach { configuration -> put(configuration, sourceSet.name) }
+        }
+    }
+    return buildMap {
+        extensions.findByType(JavaPluginExtension::class.java)?.sourceSets?.forEach { sourceSet ->
+            listOf(
+                sourceSet.apiConfigurationName,
+                sourceSet.implementationConfigurationName,
+                sourceSet.compileOnlyConfigurationName,
+                sourceSet.runtimeOnlyConfigurationName
+            ).forEach { configuration -> put(configuration, sourceSet.name) }
+        }
+        putAll(sourceSetConfigurations)
+    }
+}
+
+/** Direct declaration origins, separate from the compilations that later consume each source set. */
+private fun Project.externalDependencyDeclarations(): List<UnitBuild.ExternalDependency> {
+    val compilations = kotlinCompilations()
+    val origins = sourceSetConfigurationOrigins()
+    return configurations.flatMap { configuration ->
+        val sourceSet = origins[configuration.name]
+        val consumers = compilations.filter { compilation ->
+            compilation.allKotlinSourceSets.any { candidate -> candidate.name == sourceSet }
+        }
+        val production = if (sourceSet != null && consumers.isNotEmpty()) {
+            consumers.any { compilation -> !compilation.name.contains("test", ignoreCase = true) }
+        } else {
+            isProductionConfiguration(configuration.name)
+        }
+        configuration.dependencies.withType(ExternalModuleDependency::class.java).map { dependency ->
+            UnitBuild.ExternalDependency(
+                coordinate = "${dependency.group}:${dependency.name}",
+                configuration = configuration.name,
+                sourceSet = sourceSet,
+                production = production,
+                test = consumers.any { compilation -> compilation.name.contains("test", ignoreCase = true) },
+                targetCompilations = consumers.map { compilation ->
+                    val target = compilation.target
+                    val platform = if (target is KotlinNativeTarget) {
+                        "native-${target.konanTarget.name}"
+                    } else {
+                        target.platformType.name
+                    }
+                    UnitBuild.CompilationUse(
+                        target = target.name,
+                        compilation = compilation.name,
+                        platform = platform,
+                        test = compilation.name.contains("test", ignoreCase = true)
+                    )
+                }.toSet()
+            )
+        }
+    }.sortedWith(compareBy(UnitBuild.ExternalDependency::configuration, UnitBuild.ExternalDependency::coordinate))
+}
+
 /**
  * Whether the project's version catalog offers mikro-core, whose `propagateCancellationException()` then replaces the
  * inline `CancellationException` check.
@@ -279,16 +349,17 @@ internal fun Project.readUnitContext(
     }
     val technologies = findUnitTechnologyWords(extension).get()
     val compilations = kotlinCompilations().map { compilation -> readCompilation(compilation, resolveCompose) }
-    return UnitContext(
+    val context = UnitContext(
         extension.configuredUnitKind ?: detectUnitKind(technologies),
         localProduct ?: rootProductKind,
         isPublishedLibrary(),
         technologies,
         compilations
     )
+    return extension.configuredUnitPolicy?.let { policy -> context.copy(policy = policy) } ?: context
 }
 
-internal fun Project.readUnitBuild(unitKind: UnitKind): UnitBuild {
+internal fun Project.readUnitBuild(unitKind: UnitKind, productKind: ProductKind? = null): UnitBuild {
     val isKotlin = hasKotlinPlugin()
     return UnitBuild(
         unitKind = unitKind,
@@ -297,7 +368,9 @@ internal fun Project.readUnitBuild(unitKind: UnitKind): UnitBuild {
         isPublished = pluginManager.hasPlugin(PUBLISH_PLUGIN_ID),
         isKotlin = isKotlin,
         explicitApiMode = if (isKotlin) explicitApiMode() else null,
-        platformDependencies = externalProductionDependencies()
+        platformDependencies = externalProductionDependencies(),
+        productKind = productKind,
+        externalDependencies = externalDependencyDeclarations()
     )
 }
 

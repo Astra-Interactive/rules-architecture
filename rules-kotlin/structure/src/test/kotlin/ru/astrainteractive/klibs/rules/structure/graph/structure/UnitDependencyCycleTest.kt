@@ -117,6 +117,14 @@ internal class UnitDependencyCycleTest {
     }
 
     @Test
+    fun GIVEN_unit_without_compilation_metadata_WHEN_checked_THEN_does_not_invent_compatible_cycle() {
+        val compiled = compiledUnit(":feature:api", compilation("jvm:jvm:main", ":feature:impl"))
+        val unknown = unit(":feature:impl", ":feature:api")
+
+        assertEquals(emptyList(), UnitDependencyCycle().check(listOf(compiled, unknown)))
+    }
+
+    @Test
     fun GIVEN_cycle_in_compatible_jvm_compilations_WHEN_checked_THEN_reports_it_despite_different_target_names() {
         val units = listOf(
             compiledUnit(":a", compilation("jvm:desktop:main", ":b")),

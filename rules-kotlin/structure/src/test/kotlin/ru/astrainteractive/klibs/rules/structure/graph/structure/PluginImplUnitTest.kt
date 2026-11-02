@@ -63,4 +63,86 @@ internal class PluginImplUnitTest {
             PluginImplUnit().check(units(null, ":feature:impl"))
         }
     }
+
+    @Test
+    fun GIVEN_plugin_with_explicit_ui_and_mixed_core_WHEN_checked_THEN_reports_both_roles() {
+        val plugin = units(
+            ProductKind.PLATFORM_PLUGIN,
+            ":feature:ui",
+            ":core:common"
+        )
+        val ui = plugin[0].context!!.copy(kind = UnitKind.IMPL_UI)
+        val core = plugin[1].context!!.copy(kind = UnitKind.CORE)
+        val units = listOf(
+            BuildUnit(
+                ":feature:ui",
+                File("/project"),
+                false,
+                false,
+                emptySet(),
+                context = ui
+            ),
+            BuildUnit(
+                ":core:common",
+                File("/project"),
+                false,
+                false,
+                emptySet(),
+                context = core
+            )
+        )
+
+        assertEquals(
+            listOf(":feature:ui", ":core:common"),
+            PluginImplUnit().check(units).map(StructureViolation::subject)
+        )
+    }
+
+    @Test
+    fun GIVEN_ui_role_without_product_context_WHEN_checked_THEN_requests_product_kind() {
+        val context = UnitContext(
+            UnitKind.IMPL_UI,
+            null,
+            false,
+            emptySet(),
+            emptyList()
+        )
+        val ui = BuildUnit(
+            ":feature:ui",
+            File("/project"),
+            false,
+            false,
+            emptySet(),
+            context = context
+        )
+
+        assertFailsWith<IllegalArgumentException> { PluginImplUnit().check(listOf(ui)) }
+    }
+
+    @Test
+    fun GIVEN_missing_context_or_published_impl_WHEN_checked_THEN_preserves_legacy_exemptions() {
+        val contextless = BuildUnit(
+            ":feature:impl",
+            File("/project"),
+            false,
+            false,
+            emptySet()
+        )
+        val published = BuildUnit(
+            ":feature:impl",
+            File("/project"),
+            false,
+            false,
+            emptySet(),
+            context = UnitContext(
+                UnitKind.IMPL,
+                ProductKind.PLATFORM_PLUGIN,
+                true,
+                emptySet(),
+                emptyList()
+            )
+        )
+
+        assertEquals(emptyList(), PluginImplUnit().check(listOf(contextless, published)))
+    }
 }

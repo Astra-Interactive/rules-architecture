@@ -34,6 +34,19 @@ internal class CoreShapeTest {
     }
 
     @Test
+    fun GIVEN_explicit_mixed_core_on_custom_path_WHEN_checked_THEN_keeps_core_shape_checks(@TempDir directory: File) {
+        val sources = writeTree(directory).load(
+            UnitKind.CORE,
+            unitPath = ":services:foundation:common"
+        )
+
+        assertEquals(
+            listOf("RatePlayerUseCase", "RatingRepository"),
+            CoreShape().check(sources).map(Violation::subject).sorted()
+        )
+    }
+
+    @Test
     fun GIVEN_feature_unit_or_unknown_path_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
         val feature = writeTree(directory).load(UnitKind.API, unitPath = ":modules:gui:api")
         val unknown = writeTree(directory).load(UnitKind.API)
