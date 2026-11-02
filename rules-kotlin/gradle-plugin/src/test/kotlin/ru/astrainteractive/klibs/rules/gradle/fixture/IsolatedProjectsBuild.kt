@@ -7,6 +7,12 @@ import java.io.File
 internal class IsolatedProjectsBuild(private val rootDirectory: File) {
     private val moduleNames = mutableListOf<String>()
     private var offline = true
+    private var typeSafeAccessors = false
+
+    fun withTypeSafeAccessors(): IsolatedProjectsBuild {
+        typeSafeAccessors = true
+        return this
+    }
 
     private fun writeFile(path: String, content: String) {
         val file = File(rootDirectory, path)
@@ -45,6 +51,7 @@ internal class IsolatedProjectsBuild(private val rootDirectory: File) {
         writeFile(
             path = "settings.gradle.kts",
             content = """
+                ${if (typeSafeAccessors) "enableFeaturePreview(\"TYPESAFE_PROJECT_ACCESSORS\")" else ""}
                 dependencyResolutionManagement {
                     repositories {
                         // The test task publishes the rules here

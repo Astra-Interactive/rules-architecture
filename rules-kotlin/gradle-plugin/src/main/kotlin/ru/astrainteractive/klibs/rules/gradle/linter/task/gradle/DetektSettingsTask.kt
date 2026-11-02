@@ -8,6 +8,8 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
+import ru.astrainteractive.klibs.rules.core.unit.model.RuleId
+import ru.astrainteractive.klibs.rules.core.unit.util.toUnitContext
 
 /**
  * Writes the unit's own settings of the architecture detekt rules: its technology words, so that detekt and the
@@ -20,22 +22,49 @@ internal abstract class DetektSettingsTask : DefaultTask() {
     abstract val technologyWords: SetProperty<String>
 
     @get:Input
+    abstract val unitContext: Property<String>
+
+    @get:Input
     abstract val inlineCancellationCheck: Property<Boolean>
 
     @get:OutputFile
     abstract val configFile: RegularFileProperty
 
+    @get:OutputFile
+    abstract val unitContextFile: RegularFileProperty
+
     @TaskAction
     fun write() {
+        val contextFile = unitContextFile.get().asFile
+        contextFile.parentFile.mkdirs()
+        contextFile.writeText(unitContext.get())
+        val contextPath = contextFile.absolutePath.replace("'", "''")
         val words = technologyWords.get().sorted().joinToString { word -> "'$word'" }
+        val disabledDetektRules = unitContext.get().toUnitContext().policy.checks.disabledRules.keys
+            .filter { ruleName ->
+                RuleId.entries.any { ruleId ->
+                    ruleId.engine == RuleId.Engine.DETEKT && ruleId.ruleName == ruleName
+                }
+            }
+            .toSet()
         val content = buildString {
             appendLine("architecture:")
             TECHNOLOGY_RULES.forEach { rule ->
                 appendLine("  $rule:")
                 appendLine("    technologyWords: [ $words ]")
+                appendLine("    unitContextFile: '$contextPath'")
+                if (rule in disabledDetektRules) appendLine("    active: false")
             }
             appendLine("  RunCatchingCancellation:")
             appendLine("    inlineCancellationCheck: ${inlineCancellationCheck.get()}")
+            if ("RunCatchingCancellation" in disabledDetektRules) appendLine("    active: false")
+            disabledDetektRules
+                .minus(TECHNOLOGY_RULES.toSet() + "RunCatchingCancellation")
+                .sorted()
+                .forEach { ruleName ->
+                    appendLine("  $ruleName:")
+                    appendLine("    active: false")
+                }
         }
         val file = configFile.get().asFile
         file.parentFile.mkdirs()

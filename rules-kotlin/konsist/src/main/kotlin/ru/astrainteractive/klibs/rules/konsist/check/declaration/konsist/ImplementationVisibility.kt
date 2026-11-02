@@ -1,12 +1,12 @@
 package ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist
 
 import com.lemonappdev.konsist.api.KoModifier
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelClasses
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
 /**
  * Reports a public top-level class in a technology package (`exposed`, `file`, …) or directly in a concept of a
@@ -15,9 +15,10 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
  * (`core/cache/cache4k/RefreshingCache`). A published library is not judged.
  */
 internal class ImplementationVisibility : ArchitectureCheck {
-    override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet() - UnitKind.LIBRARY
+    override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
 
     override fun check(sources: UnitSources): List<Violation> {
+        if (sources.context.publishedLibrary) return emptyList()
         val isCore = sources.unitPath.orEmpty().split(':').contains(CORE)
         if (isCore) return emptyList()
         return sources.mainFiles

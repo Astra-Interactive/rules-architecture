@@ -15,9 +15,6 @@ import ru.astrainteractive.klibs.rules.compose.detekt.RememberInName
 import ru.astrainteractive.klibs.rules.compose.detekt.ThemeObjectFunction
 import ru.astrainteractive.klibs.rules.coroutine.detekt.BridgeCleanup
 import ru.astrainteractive.klibs.rules.coroutine.detekt.CallbackFlowShape
-import ru.astrainteractive.klibs.rules.coroutine.detekt.ChannelFlowShape
-import ru.astrainteractive.klibs.rules.coroutine.detekt.CompletableDeferredUse
-import ru.astrainteractive.klibs.rules.coroutine.detekt.EventCollection
 import ru.astrainteractive.klibs.rules.coroutine.detekt.HardcodedDispatcher
 import ru.astrainteractive.klibs.rules.coroutine.detekt.ImpureUpdateLambda
 import ru.astrainteractive.klibs.rules.coroutine.detekt.MutableStateFlowEmit
@@ -30,7 +27,6 @@ import ru.astrainteractive.klibs.rules.declaration.detekt.BareIdentifier
 import ru.astrainteractive.klibs.rules.declaration.detekt.CallbackDeclaration
 import ru.astrainteractive.klibs.rules.declaration.detekt.CompanionFactoryFunction
 import ru.astrainteractive.klibs.rules.declaration.detekt.DataClassDefaultValue
-import ru.astrainteractive.klibs.rules.declaration.detekt.FileLength
 import ru.astrainteractive.klibs.rules.declaration.detekt.LocalOrInnerClass
 import ru.astrainteractive.klibs.rules.declaration.detekt.NamespaceObject
 import ru.astrainteractive.klibs.rules.declaration.detekt.OneTypeFamilyPerFile
@@ -41,7 +37,6 @@ import ru.astrainteractive.klibs.rules.formatting.detekt.ExplicitInvoke
 import ru.astrainteractive.klibs.rules.formatting.detekt.ExpressionBodyOnOneLine
 import ru.astrainteractive.klibs.rules.formatting.detekt.GuardIfBraces
 import ru.astrainteractive.klibs.rules.formatting.detekt.OperatorBeforeTrailingCall
-import ru.astrainteractive.klibs.rules.injection.detekt.ConstructorDefaultDependency
 import ru.astrainteractive.klibs.rules.injection.detekt.DiModuleLifecycle
 import ru.astrainteractive.klibs.rules.injection.detekt.RootModuleConstruction
 import ru.astrainteractive.klibs.rules.kdoc.detekt.KDocFiller
@@ -69,7 +64,6 @@ import ru.astrainteractive.klibs.rules.testing.detekt.RunTestResult
 import ru.astrainteractive.klibs.rules.time.detekt.ClockSystemOutsideDi
 import ru.astrainteractive.klibs.rules.time.detekt.DurationOverloadCall
 import ru.astrainteractive.klibs.rules.time.detekt.SystemTimeCall
-import ru.astrainteractive.klibs.rules.time.detekt.TimeAsPrimitive
 import ru.astrainteractive.klibs.rules.tuple.detekt.AnonymousTuple
 
 /**
@@ -98,24 +92,19 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::CallbackDeclaration,
             ::CallbackFlowShape,
             ::CalleeBeforeCaller,
-            ::ChannelFlowShape,
             ::ClockSystemOutsideDi,
             ::CompanionFactoryFunction,
-            ::CompletableDeferredUse,
             ::ComposableFileType,
             ::ComposableName,
             ::ComposableWhenBranch,
             ::ComposeConstantCase,
             ::ConstantOutsideCompanion,
-            ::ConstructorDefaultDependency,
             ::DataClassDefaultValue,
             ::DeclarationOrder,
             ::DiModuleLifecycle,
             ::DurationOverloadCall,
-            ::EventCollection,
             ::ExplicitInvoke,
             ::ExpressionBodyOnOneLine,
-            ::FileLength,
             ::FunctionVerb,
             ::GetOrThrowInMain,
             ::GuardIfBraces,
@@ -152,7 +141,6 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::ThemeObjectFunction,
             ::ThreadPrimitive,
             ::ThrowInsideRunCatching,
-            ::TimeAsPrimitive,
             ::TrivialLambdaReference,
             ::TryCatchCancellation,
         )

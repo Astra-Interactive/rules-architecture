@@ -8,23 +8,16 @@ import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
-import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 
 /**
- * Reports a `SharedFlow` used for things the no-callbacks rule sends elsewhere: a `SharedFlow` property of a view
- * model, where a one-off event to the UI is a `Channel(Channel.BUFFERED).receiveAsFlow()`, and a
- * `MutableSharedFlow()` without `extraBufferCapacity` fed through `tryEmit`, which then drops every value.
+ * Reports a `MutableSharedFlow()` without explicit `extraBufferCapacity` fed through `tryEmit`.
+ * Whether a stream is a broadcast or a one-off UI event is a review decision.
  */
 internal class SharedFlowEvent(config: Config) : Rule(config, DESCRIPTION) {
 
     private fun sharedFlowConstructor(property: KtProperty): KtCallExpression? {
         val initializer = property.initializer as? KtCallExpression ?: return null
         return initializer.takeIf { call -> call.calleeExpression?.text == MUTABLE_SHARED_FLOW }
-    }
-
-    private fun isSharedFlow(property: KtProperty): Boolean {
-        val typeText = property.typeReference?.text.orEmpty()
-        return SHARED_FLOW_TYPES.any(typeText::startsWith) || sharedFlowConstructor(property) != null
     }
 
     private fun hasBuffer(constructor: KtCallExpression): Boolean {
@@ -42,14 +35,7 @@ internal class SharedFlowEvent(config: Config) : Rule(config, DESCRIPTION) {
 
     override fun visitProperty(property: KtProperty) {
         super.visitProperty(property)
-        if (property.isLocal || !isSharedFlow(property)) return
-        val owner = property.containingClassOrObject?.name.orEmpty()
-        if (owner.endsWith(VIEW_MODEL_SUFFIX)) {
-            val message = "Send the one-off events of '$owner' through Channel(Channel.BUFFERED).receiveAsFlow(): a " +
-                "SharedFlow drops an event while the UI does not collect."
-            report(Finding(Entity.atName(property), message))
-            return
-        }
+        if (property.isLocal) return
         val constructor = sharedFlowConstructor(property) ?: return
         val name = property.name ?: return
         if (hasBuffer(constructor)) return
@@ -66,11 +52,8 @@ internal class SharedFlowEvent(config: Config) : Rule(config, DESCRIPTION) {
         const val MUTABLE_SHARED_FLOW = "MutableSharedFlow"
         const val EXTRA_BUFFER_CAPACITY = "extraBufferCapacity"
         const val TRY_EMIT = "tryEmit"
-        const val VIEW_MODEL_SUFFIX = "ViewModel"
         const val BUFFER_ARGUMENT_POSITION = 2
 
-        @JvmField
-        val SHARED_FLOW_TYPES = listOf("SharedFlow", MUTABLE_SHARED_FLOW)
-        const val DESCRIPTION = "A view model sends events through a Channel; a SharedFlow fed by tryEmit has a buffer."
+        const val DESCRIPTION = "A SharedFlow fed by tryEmit has an explicit buffer."
     }
 }

@@ -1,13 +1,15 @@
 package ru.astrainteractive.klibs.rules.konsist.check.direction.konsist
 
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.isRequiredOverrideReference
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.packageName
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.sourceReferences
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Placement
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.layout.util.describe
 
 /**
@@ -32,6 +34,11 @@ internal class KindImportDirection : ArchitectureCheck {
             Kind.USECASE -> setOf(
                 Kind.MODEL,
                 Kind.CONTRACT,
+                Kind.UTIL
+            )
+            Kind.FAKE -> setOf(
+                Kind.CONTRACT,
+                Kind.MODEL,
                 Kind.UTIL
             )
             Kind.UTIL -> setOf(
@@ -115,10 +122,17 @@ internal class KindImportDirection : ArchitectureCheck {
             "$article $kindName kind depends on $allowed only."
     }
 
-    private fun checkFile(sources: UnitSources, file: KoFileDeclaration): List<Violation> {
+    private fun checkFile(
+        sources: UnitSources,
+        file: KoFileDeclaration,
+        projectInterfaces: Set<String>
+    ): List<Violation> {
         val from = sources.placementOf(file) ?: return emptyList()
         val fromKind = from.kind ?: return emptyList()
         return file.sourceReferences().mapNotNull { importedName ->
+            if (fromKind == Kind.FAKE && file.isRequiredOverrideReference(importedName, projectInterfaces)) {
+                return@mapNotNull null
+            }
             val targetPackage = sources.packageOfImport(importedName) ?: return@mapNotNull null
             val to = sources.layout.placementOf(targetPackage) ?: return@mapNotNull null
             val message = findScreenMessage(
@@ -143,7 +157,17 @@ internal class KindImportDirection : ArchitectureCheck {
     }
 
     override fun check(sources: UnitSources): List<Violation> {
-        return sources.mainFiles.flatMap { file -> checkFile(sources, file) }
+        val projectInterfaces = sources.mainFiles.flatMap { file ->
+            file.interfaces(includeNested = false).map { declaration -> "${file.packageName}.${declaration.name}" }
+        }.toSet()
+        val testFakes = sources.testFiles.filter { file -> sources.placementOf(file)?.kind == Kind.FAKE }
+        return sources.mainFiles.plus(testFakes).flatMap { file ->
+            checkFile(
+                sources,
+                file,
+                projectInterfaces
+            )
+        }
     }
 
     private companion object {

@@ -4,9 +4,9 @@ package ru.astrainteractive.klibs.rules.konsist.check.placement.konsist
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 import java.io.File
 import kotlin.test.assertEquals
 
@@ -21,7 +21,24 @@ internal class CoreShapeTest {
 
     @Test
     fun GIVEN_core_unit_with_use_case_and_repository_WHEN_checked_THEN_reports_both(@TempDir directory: File) {
-        val sources = writeTree(directory).load(UnitKind.LIBRARY, unitPath = ":modules:core:api")
+        val sources = writeTree(directory).load(
+            UnitKind.CONTEXT,
+            publishedLibrary = true,
+            unitPath = ":modules:core:api"
+        )
+
+        assertEquals(
+            listOf("RatePlayerUseCase", "RatingRepository"),
+            CoreShape().check(sources).map(Violation::subject).sorted()
+        )
+    }
+
+    @Test
+    fun GIVEN_explicit_mixed_core_on_custom_path_WHEN_checked_THEN_keeps_core_shape_checks(@TempDir directory: File) {
+        val sources = writeTree(directory).load(
+            UnitKind.CORE,
+            unitPath = ":services:foundation:common"
+        )
 
         assertEquals(
             listOf("RatePlayerUseCase", "RatingRepository"),

@@ -7,6 +7,7 @@ import dev.detekt.api.Rule
 import dev.detekt.psi.hasAnnotation
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 
 /**
  * Reports a `@Composable` that emits UI, a PascalCase function returning `Unit`, whose name does not end in
@@ -38,6 +39,8 @@ internal class ComposableName(config: Config) : Rule(config, DESCRIPTION) {
         val fileName = function.containingKtFile.name
         if (isThemeFunction(function)) return findThemeMessage(fileName, name)
         if (PREVIEW in name || function.hasModifier(KtTokens.OVERRIDE_KEYWORD)) return null
+        val owner = function.containingClassOrObject?.name.orEmpty()
+        if (name == RENDER && owner.endsWith(COMPONENT_SUFFIX)) return null
         if (!name.endsWith(COMPOSABLE)) {
             val suggestion = name.replace(COMPOSABLE, "") + COMPOSABLE
             return "Name '$name' for what it shows, ending in Composable ('$suggestion'): a composable that " +
@@ -58,6 +61,8 @@ internal class ComposableName(config: Config) : Rule(config, DESCRIPTION) {
 
     private companion object {
         const val COMPOSABLE = "Composable"
+        const val RENDER = "Render"
+        const val COMPONENT_SUFFIX = "Component"
         const val SCREEN_SUFFIX = "ScreenComposable"
         const val PREVIEW = "Preview"
         const val UNIT = "Unit"

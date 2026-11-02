@@ -3,13 +3,13 @@ package ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist
 import com.lemonappdev.konsist.api.KoModifier
 import com.lemonappdev.konsist.api.declaration.KoClassDeclaration
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelClasses
 import ru.astrainteractive.klibs.rules.konsist.check.util.pathsNaming
 import ru.astrainteractive.klibs.rules.konsist.check.util.propertyTypeNames
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
 /**
  * Reports a top-level enum class that is the property type of exactly one class and is named in no file but its

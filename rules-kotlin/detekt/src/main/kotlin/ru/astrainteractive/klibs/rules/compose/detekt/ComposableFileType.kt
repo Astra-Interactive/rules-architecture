@@ -8,7 +8,6 @@ import dev.detekt.psi.hasAnnotation
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNamedFunction
-import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import ru.astrainteractive.klibs.rules.detekt.util.isComponentDefaults
 
 /**
@@ -19,7 +18,7 @@ internal class ComposableFileType(config: Config) : Rule(config, DESCRIPTION) {
 
     override fun visitKtFile(file: KtFile) {
         super.visitKtFile(file)
-        val hasComposable = file.collectDescendantsOfType<KtNamedFunction>()
+        val hasComposable = file.declarations.filterIsInstance<KtNamedFunction>()
             .any { function -> function.hasAnnotation(COMPOSABLE) }
         if (!hasComposable) return
         file.declarations

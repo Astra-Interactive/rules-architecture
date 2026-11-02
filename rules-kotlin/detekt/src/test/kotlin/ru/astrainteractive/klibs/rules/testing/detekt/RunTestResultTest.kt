@@ -12,6 +12,19 @@ internal class RunTestResultTest {
     private val rule = RunTestResult(Config.empty)
 
     @Test
+    fun GIVEN_setup_before_returning_run_test_WHEN_linted_THEN_accepts_the_result() {
+        val code = """
+            @Test
+            fun GIVEN_value_WHEN_checked_THEN_matches(): kotlinx.coroutines.test.TestResult {
+                val expected = 2
+                return runTest { assertEquals(expected, 2) }
+            }
+        """.trimIndent()
+
+        assertEquals(emptyList(), rule.lint(code).map(Finding::message))
+    }
+
+    @Test
     fun GIVEN_tests_that_do_not_return_run_test_WHEN_linted_THEN_reports_each() {
         val code = """
             class OrderTest {

@@ -4,11 +4,13 @@ package ru.astrainteractive.klibs.rules.konsist.check.placement.konsist
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 import java.io.File
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 internal class ComposeKindWithoutComposeTest {
 
@@ -34,7 +36,11 @@ internal class ComposeKindWithoutComposeTest {
     fun GIVEN_compose_words_in_a_compose_unit_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
         val sources = SourceTree(directory)
             .main("x.gui.rating.composable/RatingComposable.kt", "import androidx.compose.runtime.Composable")
-            .load(UnitKind.CONTEXT, rootPackage = "x.gui")
+            .load(
+                UnitKind.CONTEXT,
+                rootPackage = "x.gui",
+                compose = true
+            )
 
         assertEquals(emptyList(), ComposeKindWithoutCompose().check(sources))
     }
@@ -47,5 +53,22 @@ internal class ComposeKindWithoutComposeTest {
             .load(UnitKind.API, rootPackage = "x.features.theme")
 
         assertEquals(emptyList(), ComposeKindWithoutCompose().check(sources))
+    }
+
+    @Test
+    fun GIVEN_compose_kind_without_compilation_metadata_WHEN_checked_THEN_requests_build_context(
+        @TempDir directory: File
+    ) {
+        val tree = SourceTree(directory)
+            .main("x.offer.composable/Offer.kt", "fun Offer() = Unit")
+        val sources = tree.load(
+            UnitKind.CONTEXT,
+            rootPackage = "x.offer",
+            context = null
+        )
+
+        val error = assertFailsWith<IllegalArgumentException> { ComposeKindWithoutCompose().check(sources) }
+
+        assertTrue(error.message.orEmpty().contains("Compilation context is missing"))
     }
 }

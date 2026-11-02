@@ -19,8 +19,8 @@ import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
  * `awaitClose { … }` (or `try { … awaitClose() } finally { … }`), which throws `IllegalStateException` at run time
  * when the block completes and leaks the listener; a `launch { send }` inside a callback of it, which loses the
  * order and starts a coroutine per event (a `launch` of the producer block itself runs once and is not judged); a
- * `buffer(Channel.RENDEZVOUS)` or `buffer(0)`, which can deadlock the producer; and a bridge shared with
- * `shareIn`/`stateIn` started otherwise than `SharingStarted.WhileSubscribed()`.
+ * `buffer(Channel.RENDEZVOUS)` or `buffer(0)`, which can deadlock the producer.
+ * The sharing policy depends on the resource's lifetime and is reviewed manually.
  */
 internal class CallbackFlowShape(config: Config) : Rule(config, DESCRIPTION) {
 
@@ -47,33 +47,6 @@ internal class CallbackFlowShape(config: Config) : Rule(config, DESCRIPTION) {
         return isAwaitClose(tryBlock.statements.lastOrNull())
     }
 
-    private fun findSharingStart(call: KtCallExpression): KtExpression? {
-        val named = call.valueArguments.firstOrNull { argument ->
-            argument.getArgumentName()?.asName?.asString() == STARTED
-        }
-        val positional = call.valueArguments.getOrNull(STARTED_POSITION)?.takeIf { argument ->
-            argument.getArgumentName() == null
-        }
-        return (named ?: positional)?.getArgumentExpression()
-    }
-
-    private fun checkSharing(callbackFlow: KtCallExpression) {
-        var element: KtExpression = callbackFlow
-        while (true) {
-            val chain = element.parent as? KtDotQualifiedExpression ?: return
-            if (chain.receiverExpression != element) return
-            val selector = chain.selectorExpression as? KtCallExpression
-            val started = selector?.takeIf { call -> call.calleeExpression?.text in SHARING_CALLS }
-                ?.let(::findSharingStart)
-            if (started != null && WHILE_SUBSCRIBED !in started.text) {
-                val message = "Share this bridge with SharingStarted.WhileSubscribed(): it registers the callback " +
-                    "while someone collects and unregisters after the last collector leaves."
-                report(Finding(Entity.from(started), message))
-            }
-            element = chain
-        }
-    }
-
     private fun checkCallbackFlow(call: KtCallExpression) {
         val lambda = lambdaOf(call) ?: return
         if (!endsWithAwaitClose(lambda)) {
@@ -89,11 +62,25 @@ internal class CallbackFlowShape(config: Config) : Rule(config, DESCRIPTION) {
                     "per event loses their order."
                 report(Finding(Entity.from(launch), message))
             }
-        checkSharing(call)
     }
 
     private fun isRendezvous(argument: KtValueArgument): Boolean {
         return argument.getArgumentExpression()?.text in RENDEZVOUS_CAPACITIES
+    }
+
+    private fun isCallbackBridgeBuffer(call: KtCallExpression): Boolean {
+        val qualified = call.parent as? KtDotQualifiedExpression ?: return false
+        if (qualified.selectorExpression != call) return false
+        return generateSequence(qualified.receiverExpression) { receiver ->
+            (receiver as? KtDotQualifiedExpression)?.receiverExpression
+        }.any { receiver ->
+            val producer = when (receiver) {
+                is KtCallExpression -> receiver
+                is KtDotQualifiedExpression -> receiver.selectorExpression as? KtCallExpression
+                else -> null
+            }
+            producer?.calleeExpression?.text == CALLBACK_FLOW
+        }
     }
 
     override fun visitCallExpression(expression: KtCallExpression) {
@@ -101,7 +88,7 @@ internal class CallbackFlowShape(config: Config) : Rule(config, DESCRIPTION) {
         when (expression.calleeExpression?.text) {
             CALLBACK_FLOW -> checkCallbackFlow(expression)
             BUFFER -> {
-                if (expression.valueArguments.none(::isRendezvous)) return
+                if (!isCallbackBridgeBuffer(expression) || expression.valueArguments.none(::isRendezvous)) return
                 val message = "Keep the default buffer, Channel.UNLIMITED or conflate() instead of a rendezvous " +
                     "buffer: the producer can deadlock and trySend fails while the collector is busy."
                 report(Finding(Entity.from(expression), message))
@@ -115,12 +102,6 @@ internal class CallbackFlowShape(config: Config) : Rule(config, DESCRIPTION) {
         const val LAUNCH = "launch"
         const val SEND = "send"
         const val BUFFER = "buffer"
-        const val STARTED = "started"
-        const val STARTED_POSITION = 1
-        const val WHILE_SUBSCRIBED = "WhileSubscribed"
-
-        @JvmField
-        val SHARING_CALLS = setOf("shareIn", "stateIn")
 
         @JvmField
         val RENDEZVOUS_CAPACITIES = setOf(
@@ -128,7 +109,6 @@ internal class CallbackFlowShape(config: Config) : Rule(config, DESCRIPTION) {
             "RENDEZVOUS",
             "Channel.RENDEZVOUS"
         )
-        const val DESCRIPTION = "A callbackFlow ends with awaitClose, sends with trySend, has a buffer and is " +
-            "shared while subscribed."
+        const val DESCRIPTION = "A callbackFlow ends with awaitClose, sends with trySend and has a buffer."
     }
 }

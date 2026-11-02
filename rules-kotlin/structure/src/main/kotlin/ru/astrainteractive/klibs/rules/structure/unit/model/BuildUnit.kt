@@ -1,5 +1,6 @@
 package ru.astrainteractive.klibs.rules.structure.unit.model
 
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
 import java.io.File
 
 /**
@@ -10,6 +11,7 @@ import java.io.File
  * @property isRoot whether the unit is the root project of the build
  * @property projectDependencies paths of the project units the production code depends on
  * @property isLibrary whether the unit is a published library, whose dependencies are not product-unit boundaries
+ * @property isConventionPlugin whether the build compiles Kotlin or Groovy convention scripts
  */
 public class BuildUnit(
     public val path: String,
@@ -17,7 +19,10 @@ public class BuildUnit(
     public val isEntryPoint: Boolean,
     public val isRoot: Boolean,
     public val projectDependencies: Set<String>,
-    public val isLibrary: Boolean = false
+    public val isLibrary: Boolean = false,
+    public val context: UnitContext? = null,
+    public val dependencyContexts: Map<String, UnitContext> = emptyMap(),
+    public val isConventionPlugin: Boolean = false
 ) {
     /**
      * The last segment of [path]: `impl` for `:modules:jail:impl`.

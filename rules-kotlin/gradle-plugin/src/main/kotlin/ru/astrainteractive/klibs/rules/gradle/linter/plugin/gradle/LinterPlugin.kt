@@ -16,13 +16,15 @@ import org.gradle.api.attributes.Usage
 import org.gradle.api.attributes.java.TargetJvmEnvironment
 import org.gradle.api.file.FileCollection
 import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.language.base.plugins.LifecycleBasePlugin
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
+import ru.astrainteractive.klibs.rules.core.unit.util.encode
 import ru.astrainteractive.klibs.rules.gradle.detekt.extension.model.DetektRulesExtension
 import ru.astrainteractive.klibs.rules.gradle.detekt.plugin.gradle.DetektPlugin
 import ru.astrainteractive.klibs.rules.gradle.detekt.service.DetektConfigService
 import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
-import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.service.ArchitectureGraphService
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureBaselineTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureCheckTask
@@ -31,13 +33,13 @@ import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureTas
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.DetektSettingsTask
 import ru.astrainteractive.klibs.rules.gradle.linter.util.androidNamespace
 import ru.astrainteractive.klibs.rules.gradle.linter.util.dependencyInputs
-import ru.astrainteractive.klibs.rules.gradle.linter.util.detectUnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.util.explicitApiMode
 import ru.astrainteractive.klibs.rules.gradle.linter.util.findBuildFindings
 import ru.astrainteractive.klibs.rules.gradle.linter.util.findUnitTechnologyWords
 import ru.astrainteractive.klibs.rules.gradle.linter.util.hasMikroCoreInCatalog
 import ru.astrainteractive.klibs.rules.gradle.linter.util.productionProjectDependencies
 import ru.astrainteractive.klibs.rules.gradle.linter.util.readUnitBuild
+import ru.astrainteractive.klibs.rules.gradle.linter.util.readUnitContext
 import ru.astrainteractive.klibs.rules.gradle.linter.util.toLine
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
 import java.util.Properties
@@ -61,7 +63,16 @@ internal class LinterPlugin : Plugin<Project> {
         return listOf("-Xexplicit-api=$mode")
     }
 
-    private fun Project.configureDetekt(rulesVersion: String, extension: LinterExtension) {
+    private fun Project.graphParameters(): ArchitectureGraphService.Parameters {
+        gradle.sharedServices.registerIfAbsent(
+            GRAPH_SERVICE_NAME,
+            ArchitectureGraphService::class.java
+        ) { }
+        val registration = requireNotNull(gradle.sharedServices.registrations.findByName(GRAPH_SERVICE_NAME))
+        return registration.parameters as ArchitectureGraphService.Parameters
+    }
+
+    private fun Project.configureDetekt(rulesVersion: String, context: Provider<UnitContext>) {
         dependencies.add("detektPlugins", "$RULES_GROUP:detekt:$rulesVersion")
         val configService = gradle.sharedServices.registerIfAbsent(
             CONFIG_SERVICE_NAME,
@@ -77,16 +88,26 @@ internal class LinterPlugin : Plugin<Project> {
             DETEKT_SETTINGS_TASK_NAME,
             DetektSettingsTask::class.java
         ) { task ->
-            task.technologyWords.set(findUnitTechnologyWords(extension))
+            task.technologyWords.set(context.map(UnitContext::technologyWords))
+            task.unitContext.set(context.map(UnitContext::encode))
             task.inlineCancellationCheck.set(provider { !hasMikroCoreInCatalog() })
             task.configFile.set(layout.buildDirectory.file("detekt/$DETEKT_SETTINGS_FILE_NAME"))
+            task.unitContextFile.set(layout.buildDirectory.file("detekt/unit-context.txt"))
         }
         val settingsFile = settingsTask.flatMap(DetektSettingsTask::configFile)
         extensions.getByType(DetektRulesExtension::class.java).ruleConfigs.from(architectureConfigFile, settingsFile)
         val explicitApiArguments = provider { explicitApiArguments() }
         tasks.withType(Detekt::class.java).configureEach { task ->
             task.usesService(configService)
-            task.freeCompilerArgs.addAll(explicitApiArguments)
+            task.inputs.file(settingsTask.flatMap(DetektSettingsTask::unitContextFile))
+                .withPropertyName("architectureUnitContext")
+                .withPathSensitivity(PathSensitivity.NONE)
+            // Detekt creates separate tasks for compilations and KMP source sets. Public is required
+            // in their production sources when Kotlin explicit API mode is enabled. Match the Test
+            // token, not its letters inside a production name such as LatestMain.
+            if (!TEST_TASK_TOKEN.containsMatchIn(task.name)) {
+                task.freeCompilerArgs.addAll(explicitApiArguments)
+            }
         }
     }
 
@@ -134,6 +155,7 @@ internal class LinterPlugin : Plugin<Project> {
     private fun ArchitectureTask.configureFrom(
         project: Project,
         extension: LinterExtension,
+        context: Provider<UnitContext>,
         classpath: NamedDomainObjectProvider<ResolvableConfiguration>
     ) {
         group = LifecycleBasePlugin.VERIFICATION_GROUP
@@ -143,7 +165,8 @@ internal class LinterPlugin : Plugin<Project> {
         projectDirectory.set(project.layout.projectDirectory)
         rootDirectory.set(project.isolated.rootProject.projectDirectory)
         projectPath.set(project.path)
-        unitKind.set(extension.unitKind)
+        unitContext.set(context.map(UnitContext::encode))
+        unitMetadata.set(project.graphParameters().unitMetadata.map { metadata -> metadata })
         rootPackage.set(extension.rootPackage)
         androidNamespace.set(project.provider { project.androidNamespace() })
         entryPointWords.set(extension.entryPointWords)
@@ -152,37 +175,47 @@ internal class LinterPlugin : Plugin<Project> {
         platformClasses.set(extension.platformClasses)
         extensionKinds.set(extension.extensionKinds)
         rootOfBuild.set(project.path == project.isolated.rootProject.path)
+        conventionPlugin.set(
+            project.provider {
+                val kotlinDsl = project.pluginManager.hasPlugin("org.gradle.kotlin.kotlin-dsl")
+                val groovyDsl = project.pluginManager.hasPlugin("groovy-gradle-plugin")
+                kotlinDsl || groovyDsl
+            }
+        )
         projectDependencies.set(project.provider { project.productionProjectDependencies() })
     }
 
-    private fun Project.graphService(): Provider<ArchitectureGraphService> {
-        return gradle.sharedServices.registerIfAbsent(
-            GRAPH_SERVICE_NAME,
-            ArchitectureGraphService::class.java
-        ) { }
-    }
-
-    private fun Project.configureGraphContribution(extension: LinterExtension) {
-        val service = graphService()
+    private fun Project.configureGraphContribution(extension: LinterExtension): Provider<UnitContext> {
+        val rootProduct = graphParameters().productKind
+        val context = provider { readUnitContext(extension, rootProduct.orNull) }
         afterEvaluate { project ->
-            val parameters = service.get().parameters
+            val parameters = project.graphParameters()
+            if (project.path == project.isolated.rootProject.path) {
+                extension.configuredProductKind?.let(parameters.productKind::set)
+            }
+            // Root graph inputs must not resolve another project's compilation classpath.
+            val snapshot = project.readUnitContext(
+                extension,
+                parameters.productKind.orNull,
+                resolveCompose = false
+            )
+            val metadata = listOf(project.path, snapshot.encode())
+                .plus(project.productionProjectDependencies())
+                .joinToString("\t")
             synchronized(parameters) {
-                val dependencies = project.productionProjectDependencies()
-                val metadata = listOf(project.path, extension.unitKind.get()).plus(dependencies).joinToString("\t")
                 parameters.unitMetadata.add(metadata)
             }
         }
+        return context
     }
 
     private fun Project.configureGraphCheck() {
-        val service = graphService()
         tasks.register(
             GRAPH_CHECK_TASK_NAME,
             ArchitectureGraphTask::class.java
         ) { task ->
             task.description = "Checks that the unit graph is acyclic and that nothing depends on an entry point"
-            task.usesService(service)
-            task.unitMetadata.set(service.get().parameters.unitMetadata.map { metadata -> metadata })
+            task.unitMetadata.set(graphParameters().unitMetadata.map { metadata -> metadata })
         }
         plugins.withType(LifecycleBasePlugin::class.java) {
             tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) { task ->
@@ -195,10 +228,8 @@ internal class LinterPlugin : Plugin<Project> {
         target.pluginManager.apply(DetektPlugin::class.java)
         val rulesVersion = readRulesVersion()
         val extension = target.extensions.create(EXTENSION_NAME, LinterExtension::class.java)
-        extension.unitKind.convention(target.provider { target.detectUnitKind().cliName })
-        target.configureDetekt(rulesVersion, extension)
-
-        target.configureGraphContribution(extension)
+        val context = target.configureGraphContribution(extension)
+        target.configureDetekt(rulesVersion, context)
         val classpath = target.konsistClasspath(rulesVersion)
 
         val checkTask = target.tasks.register(
@@ -209,9 +240,11 @@ internal class LinterPlugin : Plugin<Project> {
             task.configureFrom(
                 target,
                 extension,
+                context,
                 classpath
             )
             task.baseline.from(target.layout.projectDirectory.file(BASELINE_FILE_NAME))
+            task.baselineTaskPath.set("${target.path.removeSuffix(":")}:$BASELINE_TASK_NAME")
             task.reportFile.set(target.layout.buildDirectory.file("reports/architecture/violations.txt"))
         }
         val baselineTask = target.tasks.register(
@@ -222,13 +255,19 @@ internal class LinterPlugin : Plugin<Project> {
             task.configureFrom(
                 target,
                 extension,
+                context,
                 classpath
             )
             task.baselineFile.set(target.layout.projectDirectory.file(BASELINE_FILE_NAME))
         }
         target.afterEvaluate { project ->
-            val kind = UnitKind.fromCliName(extension.unitKind.get()) ?: UnitKind.CONTEXT
-            val findings = project.readUnitBuild(kind).findBuildFindings().map(ArchitectureFinding::toLine)
+            val unit = project.readUnitContext(
+                extension,
+                project.graphParameters().productKind.orNull,
+                resolveCompose = false
+            )
+            val findings = project.readUnitBuild(unit.kind, unit.productKind)
+                .findBuildFindings().map(ArchitectureFinding::toLine)
             checkTask.configure { task -> task.buildFindings.set(findings) }
             baselineTask.configure { task -> task.buildFindings.set(findings) }
         }
@@ -251,6 +290,7 @@ internal class LinterPlugin : Plugin<Project> {
         const val CHECK_TASK_NAME = "architectureCheck"
         const val LINT_TASK_NAME = "architectureLint"
         private const val DETEKT_FORMAT_TASK_NAME = "detektFormat"
+        private const val DETEKT_TASK_NAME = "detekt"
         const val GRAPH_CHECK_TASK_NAME = "architectureGraphCheck"
         const val BASELINE_TASK_NAME = "architectureBaseline"
         const val BASELINE_FILE_NAME = "architecture-baseline.txt"
@@ -264,5 +304,6 @@ internal class LinterPlugin : Plugin<Project> {
         private const val CONFIG_SERVICE_NAME = "klibsDetektArchitectureConfig"
         private const val GRAPH_SERVICE_NAME = "klibsArchitectureGraph"
         private const val KONSIST_CONFIGURATION = "klibsArchitectureKonsist"
+        private val TEST_TASK_TOKEN = Regex("Tests?(?=[A-Z]|$)")
     }
 }

@@ -8,16 +8,23 @@ import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.artifacts.VersionCatalogsExtension
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.file.FileCollection
+import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Provider
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 import org.jetbrains.kotlin.gradle.dsl.KotlinBaseExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.dsl.KotlinSingleTargetExtension
+import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
 import org.jetbrains.kotlin.gradle.plugin.mpp.Framework
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
-import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
 import ru.astrainteractive.klibs.rules.structure.unit.structure.isPlatformUnitName
 import ru.astrainteractive.klibs.rules.structure.unit.structure.isTechnologyUnitName
@@ -79,25 +86,94 @@ internal fun Project.explicitApiMode(): String? {
 }
 
 /**
- * A published library is a unit applying `maven-publish` with strict explicit API mode; explicit API mode alone does
- * not make an application unit a library.
+ * Publishing identifies the library independently of its role. Strict explicit API is verified separately.
  */
-private fun Project.isPublishedLibrary(): Boolean {
-    val isStrict = hasKotlinPlugin() && explicitApiMode() == "strict"
-    return isStrict && pluginManager.hasPlugin(PUBLISH_PLUGIN_ID)
+internal fun Project.isPublishedLibrary(): Boolean {
+    return pluginManager.hasPlugin(PUBLISH_PLUGIN_ID)
 }
 
-internal fun Project.detectUnitKind(): UnitKind {
+private fun detectCoreKind(unitName: String, segments: List<String>, technologyWords: Set<String>): UnitKind {
+    return when {
+        isPlatformUnitName(unitName) -> UnitKind.CORE_PLATFORM
+        "ui" in segments.dropWhile { segment -> segment != CORE_SEGMENT } -> UnitKind.CORE_UI
+        isTechnologyUnitName(unitName) || unitName in technologyWords -> UnitKind.TECHNOLOGY
+        else -> UnitKind.CORE_API
+    }
+}
+
+internal fun Project.detectUnitKind(technologyWords: Set<String> = emptySet()): UnitKind {
+    if (isEntryPointByConvention()) return UnitKind.ENTRY_POINT
     val unitName = path.substringAfterLast(':')
+    val segments = path.split(':')
+    if (CORE_SEGMENT in segments) {
+        return detectCoreKind(
+            unitName,
+            segments,
+            technologyWords
+        )
+    }
     return when {
         unitName == UnitKind.API.cliName -> UnitKind.API
         unitName == UnitKind.CONTRACT.cliName -> UnitKind.CONTRACT
-        isTechnologyUnitName(unitName) -> UnitKind.TECHNOLOGY
-        isEntryPointByConvention() -> UnitKind.ENTRY_POINT
-        isPlatformUnit() -> UnitKind.TECHNOLOGY
-        isPublishedLibrary() -> UnitKind.LIBRARY
+        unitName == "dao" -> UnitKind.STORAGE_CONTRACT
+        unitName == UnitKind.IMPL.cliName -> UnitKind.IMPL
+        unitName == UnitKind.FAKE.cliName -> UnitKind.FAKE
+        isTechnologyUnitName(unitName) || unitName in technologyWords -> UnitKind.TECHNOLOGY
+        isPlatformUnit() -> UnitKind.PLATFORM
         else -> UnitKind.CONTEXT
     }
+}
+
+private fun Project.kotlinCompilations(): List<KotlinCompilation<*>> {
+    if (!hasKotlinPlugin()) return emptyList()
+    return when (val kotlin = extensions.findByName("kotlin")) {
+        is KotlinMultiplatformExtension -> kotlin.targets.flatMap { target -> target.compilations }
+        is KotlinSingleTargetExtension<*> -> kotlin.target.compilations.toList()
+        else -> emptyList()
+    }
+}
+
+@OptIn(ExperimentalKotlinGradlePluginApi::class)
+private fun Project.readCompilation(
+    compilation: KotlinCompilation<*>,
+    resolveCompose: Boolean
+): UnitContext.Compilation {
+    val visible = compilation.allAssociatedCompilations + compilation
+    val sourceSets = buildMap {
+        visible.flatMap { associated -> associated.allKotlinSourceSets }.forEach { sourceSet ->
+            val directories = sourceSet.kotlin.srcDirs
+                .filterNot { directory -> directory.toPath().startsWith(layout.buildDirectory.get().asFile.toPath()) }
+                .map(File::getAbsolutePath)
+                .toSet()
+            put(sourceSet.name, directories)
+        }
+    }
+    val configuration = configurations.getByName(compilation.compileDependencyConfigurationName)
+    val compose = if (resolveCompose) {
+        configuration.incoming.resolutionResult.allComponents.any { component ->
+            val id = component.id as? ModuleComponentIdentifier ?: return@any false
+            id.group.startsWith("androidx.compose.") || id.group.startsWith("org.jetbrains.compose.")
+        }
+    } else {
+        null
+    }
+    val dependencies = configuration.allDependencies.withType(ProjectDependency::class.java)
+        .map(ProjectDependency::getPath)
+        .filter { dependency -> dependency != path }
+        .toSet()
+    val target = compilation.target
+    val platform = if (target is KotlinNativeTarget) {
+        "native-${target.konanTarget.name}"
+    } else {
+        target.platformType.name
+    }
+    return UnitContext.Compilation(
+        "$platform:${target.name}:${compilation.name}",
+        sourceSets,
+        compilation.name.contains("test", ignoreCase = true),
+        compose,
+        dependencies
+    )
 }
 
 private fun isProductionConfiguration(name: String): Boolean {
@@ -171,6 +247,75 @@ private fun Project.externalProductionDependencies(): List<String> {
         .sorted()
 }
 
+private fun Project.sourceSetConfigurationOrigins(): Map<String, String> {
+    val kotlinSourceSets = when (val kotlin = extensions.findByName("kotlin")) {
+        is KotlinMultiplatformExtension -> kotlin.sourceSets.toList()
+        is KotlinSingleTargetExtension<*> -> kotlin.sourceSets.toList()
+        else -> emptyList()
+    }
+    val sourceSetConfigurations = buildMap {
+        kotlinSourceSets.forEach { sourceSet ->
+            listOf(
+                sourceSet.apiConfigurationName,
+                sourceSet.implementationConfigurationName,
+                sourceSet.compileOnlyConfigurationName,
+                sourceSet.runtimeOnlyConfigurationName
+            ).forEach { configuration -> put(configuration, sourceSet.name) }
+        }
+    }
+    return buildMap {
+        extensions.findByType(JavaPluginExtension::class.java)?.sourceSets?.forEach { sourceSet ->
+            listOf(
+                sourceSet.apiConfigurationName,
+                sourceSet.implementationConfigurationName,
+                sourceSet.compileOnlyConfigurationName,
+                sourceSet.runtimeOnlyConfigurationName
+            ).forEach { configuration -> put(configuration, sourceSet.name) }
+        }
+        putAll(sourceSetConfigurations)
+    }
+}
+
+/** Direct declaration origins, separate from the compilations that later consume each source set. */
+private fun Project.externalDependencyDeclarations(): List<UnitBuild.ExternalDependency> {
+    val compilations = kotlinCompilations()
+    val origins = sourceSetConfigurationOrigins()
+    return configurations.flatMap { configuration ->
+        val sourceSet = origins[configuration.name]
+        val consumers = compilations.filter { compilation ->
+            compilation.allKotlinSourceSets.any { candidate -> candidate.name == sourceSet }
+        }
+        val production = if (sourceSet != null && consumers.isNotEmpty()) {
+            consumers.any { compilation -> !compilation.name.contains("test", ignoreCase = true) }
+        } else {
+            isProductionConfiguration(configuration.name)
+        }
+        configuration.dependencies.withType(ExternalModuleDependency::class.java).map { dependency ->
+            UnitBuild.ExternalDependency(
+                coordinate = "${dependency.group}:${dependency.name}",
+                configuration = configuration.name,
+                sourceSet = sourceSet,
+                production = production,
+                test = consumers.any { compilation -> compilation.name.contains("test", ignoreCase = true) },
+                targetCompilations = consumers.map { compilation ->
+                    val target = compilation.target
+                    val platform = if (target is KotlinNativeTarget) {
+                        "native-${target.konanTarget.name}"
+                    } else {
+                        target.platformType.name
+                    }
+                    UnitBuild.CompilationUse(
+                        target = target.name,
+                        compilation = compilation.name,
+                        platform = platform,
+                        test = compilation.name.contains("test", ignoreCase = true)
+                    )
+                }.toSet()
+            )
+        }
+    }.sortedWith(compareBy(UnitBuild.ExternalDependency::configuration, UnitBuild.ExternalDependency::coordinate))
+}
+
 /**
  * Whether the project's version catalog offers mikro-core, whose `propagateCancellationException()` then replaces the
  * inline `CancellationException` check.
@@ -193,7 +338,28 @@ internal fun Project.findUnitTechnologyWords(extension: LinterExtension): Provid
     return extension.technologyWords.zip(libraryWords) { projectWords, words -> projectWords + words }
 }
 
-internal fun Project.readUnitBuild(unitKind: UnitKind): UnitBuild {
+internal fun Project.readUnitContext(
+    extension: LinterExtension,
+    rootProductKind: ProductKind?,
+    resolveCompose: Boolean = true
+): UnitContext {
+    val localProduct = extension.configuredProductKind
+    require(localProduct == null || rootProductKind == null || localProduct == rootProductKind) {
+        "Conflicting linter.productKind for $path: root declares $rootProductKind, unit declares $localProduct"
+    }
+    val technologies = findUnitTechnologyWords(extension).get()
+    val compilations = kotlinCompilations().map { compilation -> readCompilation(compilation, resolveCompose) }
+    val context = UnitContext(
+        extension.configuredUnitKind ?: detectUnitKind(technologies),
+        localProduct ?: rootProductKind,
+        isPublishedLibrary(),
+        technologies,
+        compilations
+    )
+    return extension.configuredUnitPolicy?.let { policy -> context.copy(policy = policy) } ?: context
+}
+
+internal fun Project.readUnitBuild(unitKind: UnitKind, productKind: ProductKind? = null): UnitBuild {
     val isKotlin = hasKotlinPlugin()
     return UnitBuild(
         unitKind = unitKind,
@@ -202,7 +368,9 @@ internal fun Project.readUnitBuild(unitKind: UnitKind): UnitBuild {
         isPublished = pluginManager.hasPlugin(PUBLISH_PLUGIN_ID),
         isKotlin = isKotlin,
         explicitApiMode = if (isKotlin) explicitApiMode() else null,
-        platformDependencies = externalProductionDependencies()
+        platformDependencies = externalProductionDependencies(),
+        productKind = productKind,
+        externalDependencies = externalDependencyDeclarations()
     )
 }
 

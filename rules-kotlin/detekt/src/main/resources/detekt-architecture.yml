@@ -118,64 +118,22 @@ style:
         reason: 'Read the resource with an asPainter() extension.'
       - value: 'androidx.compose.ui.res.stringResource'
         reason: 'Read the resource with an asComposableString() extension.'
-  # androidx.compose.* is left out: the model of a Compose UI unit may carry Compose types.
-  ForbiddenImport/model:
+  # Type resolution also catches fully qualified calls and imported aliases, without matching namesakes.
+  ForbiddenMethodCall/resource:
     active: true
-    includes: [ '**/model/**' ]
-    # A technology package keeps its own representation; any other model, under data included, is checked.
-    excludes:
-      - '**/exposed/**'
-      - '**/room/**'
-      - '**/ktor/**'
-      - '**/krate/**'
-      - '**/sqldelight/**'
-      - '**/datastore/**'
-      - '**/retrofit/**'
-      - '**/okhttp/**'
-      - '**/cache4k/**'
-      - '**/file/**'
-      - '**/memory/**'
-      - '**/table/**'
-      - '**/entity/**'
-    forbiddenImports:
-      - value: 'android.*'
-        reason: 'The model imports no platform type.'
-      - value: 'androidx.activity.*'
-        reason: 'The model imports no platform type.'
-      - value: 'androidx.appcompat.*'
-        reason: 'The model imports no platform type.'
-      - value: 'androidx.core.*'
-        reason: 'The model imports no platform type.'
-      - value: 'androidx.datastore.*'
-        reason: 'The model imports no platform type.'
-      - value: 'androidx.fragment.*'
-        reason: 'The model imports no platform type.'
-      - value: 'androidx.lifecycle.*'
-        reason: 'The model imports no platform type.'
-      - value: 'androidx.navigation.*'
-        reason: 'The model imports no platform type.'
-      - value: 'androidx.room.*'
-        reason: 'The model imports no platform type.'
-      - value: 'androidx.sqlite.*'
-        reason: 'The model imports no platform type.'
-      - value: 'androidx.work.*'
-        reason: 'The model imports no platform type.'
-      - value: 'io.ktor.*'
-        reason: 'The model imports no framework type.'
-      - value: 'io.papermc.*'
-        reason: 'The model imports no platform type.'
-      - value: 'net.fabricmc.*'
-        reason: 'The model imports no platform type.'
-      - value: 'net.minecraft.*'
-        reason: 'The model imports no platform type.'
-      - value: 'net.minecraftforge.*'
-        reason: 'The model imports no platform type.'
-      - value: 'net.neoforged.*'
-        reason: 'The model imports no platform type.'
-      - value: 'org.bukkit.*'
-        reason: 'The model imports no platform type.'
-      - value: 'org.jetbrains.exposed.*'
-        reason: 'The model imports no ORM type: keep it in data/exposed.'
+    includes: [ '**' ]
+    excludes: [ '**/util/**' ]
+    methods:
+      - value: 'org.jetbrains.compose.resources.painterResource'
+        reason: 'Read the resource with DrawableResource.asPainter().'
+      - value: 'org.jetbrains.compose.resources.stringResource'
+        reason: 'Read the resource with StringResource.asComposableString().'
+      - value: 'androidx.compose.ui.res.painterResource'
+        reason: 'Read the resource with an asPainter() extension.'
+      - value: 'androidx.compose.ui.res.stringResource'
+        reason: 'Read the resource with an asComposableString() extension.'
+  # Model/framework boundaries are checked by Konsist PlatformImport, which knows compilation dependencies,
+  # technology-unit roles and the framework-exception inheritance exception. A path-only ban overrides those facts.
   ForbiddenImport/time:
     active: true
     includes: [ '**' ]

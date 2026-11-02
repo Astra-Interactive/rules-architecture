@@ -10,9 +10,12 @@ import dev.detekt.rules.style.DataClassContainsFunctions
 import dev.detekt.rules.style.DataClassShouldBeImmutable
 import dev.detekt.rules.style.ForbiddenComment
 import dev.detekt.rules.style.ForbiddenImport
+import dev.detekt.rules.style.ForbiddenMethodCall
 import dev.detekt.rules.style.MagicNumber
 import dev.detekt.rules.style.WildcardImport
 import dev.detekt.test.lint
+import dev.detekt.test.lintWithContext
+import dev.detekt.test.utils.createEnvironment
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
@@ -89,62 +92,33 @@ internal class DetektArchitectureSettingsTest {
     }
 
     @Test
-    fun GIVEN_platform_and_orm_imports_WHEN_linted_with_model_settings_THEN_reports_each() {
-        val code = """
-            import android.os.Parcelable
-            import androidx.lifecycle.ViewModel
-            import androidx.room.Entity
-            import io.ktor.http.Url
-            import io.papermc.paper.event.player.AsyncChatEvent
-            import kotlinx.serialization.Serializable
-            import net.fabricmc.api.ModInitializer
-            import net.minecraft.world.entity.player.Player
-            import net.minecraftforge.common.MinecraftForge
-            import net.neoforged.bus.api.SubscribeEvent
-            import org.bukkit.Location
-            import org.jetbrains.exposed.v1.core.Table
+    fun GIVEN_qualified_or_aliased_resource_calls_WHEN_typed_lint_runs_THEN_requires_wrappers() {
+        val resources = """
+            package org.jetbrains.compose.resources
+
+            fun painterResource(id: Int): Int = id
+            fun stringResource(id: Int): String = id.toString()
         """.trimIndent()
-
-        val findings = ForbiddenImport(styleConfig.subConfig("ForbiddenImport/model")).lint(code)
-
-        assertEquals(11, findings.size)
-    }
-
-    @Test
-    fun GIVEN_compose_imports_WHEN_linted_with_model_settings_THEN_reports_nothing() {
         val code = """
-            import androidx.compose.runtime.Immutable
-            import androidx.compose.ui.graphics.painter.Painter
-            import org.jetbrains.compose.resources.StringResource
+            package x.offer.composable
+
+            import org.jetbrains.compose.resources.stringResource as text
+
+            fun painterResource(id: Int): Int = id
+
+            fun read() {
+                org.jetbrains.compose.resources.painterResource(1)
+                text(2)
+                painterResource(3)
+            }
         """.trimIndent()
-
-        val findings = ForbiddenImport(styleConfig.subConfig("ForbiddenImport/model")).lint(code)
-
-        assertEquals(0, findings.size)
-    }
-
-    @Test
-    fun GIVEN_model_settings_WHEN_read_THEN_excludes_only_technology_packages_not_any_data_path() {
-        val excludes = styleConfig.subConfig("ForbiddenImport/model").valueOrNull<List<String>>("excludes")
-
-        assertEquals(
-            listOf(
-                "**/exposed/**",
-                "**/room/**",
-                "**/ktor/**",
-                "**/krate/**",
-                "**/sqldelight/**",
-                "**/datastore/**",
-                "**/retrofit/**",
-                "**/okhttp/**",
-                "**/cache4k/**",
-                "**/file/**",
-                "**/memory/**",
-                "**/table/**",
-                "**/entity/**",
-            ),
-            excludes
+        val findings = ForbiddenMethodCall(styleConfig.subConfig("ForbiddenMethodCall/resource")).lintWithContext(
+            createEnvironment(),
+            code,
+            resources
         )
+
+        assertEquals(2, findings.size)
     }
 
     @Test

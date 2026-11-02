@@ -9,6 +9,8 @@ architecture:
   BareIdentifier:
     active: true
     technologyWords: [ ]
+    unitContext: ''
+    unitContextFile: ''
   BooleanOperatorWrapping:
     active: true
   BridgeCleanup:
@@ -19,13 +21,9 @@ architecture:
     active: true
   CalleeBeforeCaller:
     active: true
-  ChannelFlowShape:
-    active: true
   ClockSystemOutsideDi:
     active: true
   CompanionFactoryFunction:
-    active: true
-  CompletableDeferredUse:
     active: true
   ComposableFileType:
     active: true
@@ -37,23 +35,20 @@ architecture:
     active: true
   ConstantOutsideCompanion:
     active: true
-  ConstructorDefaultDependency:
-    active: true
   DataClassDefaultValue:
     active: true
   DeclarationOrder:
     active: true
   DiModuleLifecycle:
     active: true
+    lifecycleTypes:
+      - 'ru.astrainteractive.astralibs.lifecycle.Lifecycle'
+      - 'ru.astrainteractive.astralibs.lifecycle.api.Lifecycle'
   DurationOverloadCall:
-    active: true
-  EventCollection:
     active: true
   ExplicitInvoke:
     active: true
   ExpressionBodyOnOneLine:
-    active: true
-  FileLength:
     active: true
   FunctionVerb:
     active: true
@@ -75,7 +70,11 @@ architecture:
     active: true
   KindNameInPackage:
     active: true
+    serviceBaseTypes: [ ]
+    serviceAnnotations: [ ]
     technologyWords: [ ]
+    unitContext: ''
+    unitContextFile: ''
   LambdaSingleIfGuard:
     active: true
   LocalOrInnerClass:
@@ -109,6 +108,8 @@ architecture:
   RunBlockingOutsideBoundary:
     active: true
     technologyWords: [ ]
+    unitContext: ''
+    unitContextFile: ''
   RunCatchingCancellation:
     active: true
     inlineCancellationCheck: true
@@ -129,8 +130,6 @@ architecture:
   ThreadPrimitive:
     active: true
   ThrowInsideRunCatching:
-    active: true
-  TimeAsPrimitive:
     active: true
   TrivialLambdaReference:
     active: true

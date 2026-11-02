@@ -1,6 +1,9 @@
 package ru.astrainteractive.klibs.rules.konsist.cli.model
 
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
+import ru.astrainteractive.klibs.rules.core.unit.util.toUnitContext
+import ru.astrainteractive.klibs.rules.core.unit.util.toUnitKindOrNull
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Vocabulary
 import java.io.File
 
@@ -26,7 +29,8 @@ internal data class CliArguments(
     val reportFile: File,
     val vocabulary: Vocabulary,
     val dependencyDirectories: List<File>,
-    val androidNamespace: String?
+    val androidNamespace: String?,
+    val unitContext: UnitContext?
 ) {
     companion object {
         const val PROJECT_DIR = "--project-dir"
@@ -43,6 +47,7 @@ internal data class CliArguments(
         const val EXTENSION_KIND = "--extension-kind"
         const val DEPENDENCY = "--dependency"
         const val ANDROID_NAMESPACE = "--android-namespace"
+        const val UNIT_CONTEXT = "--unit-context"
 
         private val OPTIONS = setOf(
             PROJECT_DIR,
@@ -58,7 +63,8 @@ internal data class CliArguments(
             PLATFORM_CLASS,
             EXTENSION_KIND,
             DEPENDENCY,
-            ANDROID_NAMESPACE
+            ANDROID_NAMESPACE,
+            UNIT_CONTEXT
         )
 
         private fun Map<String, List<String>>.single(name: String): String? {
@@ -73,7 +79,7 @@ internal data class CliArguments(
 
         private fun parseUnitKind(name: String): UnitKind {
             val kinds = UnitKind.entries.joinToString(transform = UnitKind::cliName)
-            return requireNotNull(UnitKind.fromCliName(name)) { "Unknown unit kind '$name', expected one of $kinds" }
+            return requireNotNull(name.toUnitKindOrNull()) { "Unknown unit kind '$name', expected one of $kinds" }
         }
 
         private fun sourceSets(values: List<String>): Map<String, File> {
@@ -112,7 +118,8 @@ internal data class CliArguments(
                     extensionKinds = options[EXTENSION_KIND].orEmpty().toSet()
                 ),
                 dependencyDirectories = options[DEPENDENCY].orEmpty().map(::File),
-                androidNamespace = options.single(ANDROID_NAMESPACE)
+                androidNamespace = options.single(ANDROID_NAMESPACE),
+                unitContext = options.single(UNIT_CONTEXT)?.toUnitContext()
             )
         }
     }

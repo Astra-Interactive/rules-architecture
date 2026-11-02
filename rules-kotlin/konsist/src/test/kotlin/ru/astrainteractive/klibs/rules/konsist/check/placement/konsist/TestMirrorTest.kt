@@ -4,13 +4,81 @@ package ru.astrainteractive.klibs.rules.konsist.check.placement.konsist
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
+import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 import java.io.File
 import kotlin.test.assertEquals
 
 internal class TestMirrorTest {
+
+    private fun androidContext(directory: File, compiledTestSourceSet: String): UnitContext {
+        val mainDirectory = File(directory, "src/androidMain/kotlin")
+        val compiledTestDirectory = File(directory, "src/$compiledTestSourceSet/kotlin")
+        val mainSources = mapOf(
+            "commonMain" to setOf(File(directory, "src/commonMain/kotlin").absolutePath),
+            "androidMain" to setOf(mainDirectory.absolutePath)
+        )
+        return UnitContext(
+            UnitKind.CONTEXT,
+            null,
+            false,
+            emptySet(),
+            listOf(
+                UnitContext.Compilation(
+                    "androidJvm:android:main",
+                    mainSources,
+                    false,
+                    false,
+                    emptySet()
+                ),
+                UnitContext.Compilation(
+                    "androidJvm:android:hostTest",
+                    mainSources + mapOf(
+                        "commonTest" to setOf(File(directory, "src/commonTest/kotlin").absolutePath),
+                        compiledTestSourceSet to setOf(compiledTestDirectory.absolutePath)
+                    ),
+                    true,
+                    false,
+                    emptySet()
+                )
+            )
+        )
+    }
+
+    private fun androidSources(directory: File, testSourceSet: String, compiledTestSourceSet: String): UnitSources {
+        val mainDirectory = File(directory, "src/androidMain/kotlin")
+        val testDirectory = File(directory, "src/$testSourceSet/kotlin")
+        SourceTree(directory)
+            .main(
+                "androidMain",
+                "com.example.wear.di",
+                "WearStatusModule.kt",
+                "class WearStatusModule"
+            )
+            .test(
+                testSourceSet,
+                "com.example.wear.di",
+                "WearStatusModuleTest.kt",
+                "class WearStatusModuleTest"
+            )
+        return UnitSources.load(
+            kind = UnitKind.CONTEXT,
+            rootPackage = null,
+            unitPath = null,
+            mainDirectories = listOf(mainDirectory),
+            testDirectories = listOf(testDirectory),
+            mainSourceSets = mapOf("androidMain" to mainDirectory),
+            testSourceSets = mapOf(testSourceSet to testDirectory),
+            projectDirectory = directory,
+            vocabulary = SourceTree.NO_PROJECT_WORDS,
+            dependencyDirectories = emptyList(),
+            androidNamespace = null,
+            context = androidContext(directory, compiledTestSourceSet)
+        )
+    }
 
     @Test
     fun GIVEN_tests_named_after_owners_WHEN_checked_THEN_reports_those_in_another_package(@TempDir directory: File) {
@@ -115,5 +183,46 @@ internal class TestMirrorTest {
             )
 
         assertEquals(emptyList(), TestMirror().check(sources))
+    }
+
+    @Test
+    fun GIVEN_android_main_owner_and_android_host_test_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+        val sources = androidSources(
+            directory,
+            "androidHostTest",
+            "androidHostTest"
+        )
+
+        assertEquals(emptyList(), TestMirror().check(sources))
+    }
+
+    @Test
+    fun GIVEN_android_main_owner_and_legacy_android_unit_test_WHEN_checked_THEN_reports_nothing(
+        @TempDir directory: File
+    ) {
+        val sources = androidSources(
+            directory,
+            "androidUnitTest",
+            "androidUnitTest"
+        )
+
+        assertEquals(emptyList(), TestMirror().check(sources))
+    }
+
+    @Test
+    fun GIVEN_test_source_set_not_in_compilation_WHEN_checked_THEN_does_not_treat_it_as_host_test(
+        @TempDir directory: File
+    ) {
+        val sources = androidSources(
+            directory,
+            "androidInstrumentedTest",
+            "androidHostTest"
+        )
+
+        assertEquals(
+            "Move WearStatusModuleTest to androidHostTest, the test source set of WearStatusModule in " +
+                "com.example.wear.di.",
+            TestMirror().check(sources).single().message
+        )
     }
 }

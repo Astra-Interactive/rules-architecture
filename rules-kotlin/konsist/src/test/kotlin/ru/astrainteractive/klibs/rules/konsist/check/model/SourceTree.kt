@@ -1,7 +1,9 @@
 package ru.astrainteractive.klibs.rules.konsist.check.model
 
+import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Vocabulary
 import java.io.File
 
@@ -95,6 +97,40 @@ internal class SourceTree(
         )
     }
 
+    private fun sourceContext(
+        kind: UnitKind,
+        mainName: String,
+        testName: String,
+        library: Boolean,
+        product: ProductKind?,
+        compose: Boolean
+    ): UnitContext {
+        val main = mapOf(mainName to setOf(File(projectDirectory, "src/$mainName/kotlin").absolutePath))
+        val test = main + mapOf(testName to setOf(File(projectDirectory, "src/$testName/kotlin").absolutePath))
+        return UnitContext(
+            kind,
+            product,
+            library,
+            emptySet(),
+            listOf(
+                UnitContext.Compilation(
+                    "main",
+                    main,
+                    false,
+                    compose,
+                    emptySet()
+                ),
+                UnitContext.Compilation(
+                    "test",
+                    test,
+                    true,
+                    compose,
+                    emptySet()
+                )
+            )
+        )
+    }
+
     fun loadSourceSets(kind: UnitKind, mainSourceSet: String, testSourceSet: String): UnitSources {
         val vocabulary = NO_PROJECT_WORDS
         val main = File(projectDirectory, "src/$mainSourceSet/kotlin")
@@ -110,7 +146,33 @@ internal class SourceTree(
             projectDirectory = projectDirectory,
             vocabulary = vocabulary,
             dependencyDirectories = listOf(dependencyDirectory),
-            androidNamespace = androidNamespace
+            androidNamespace = androidNamespace,
+            context = sourceContext(
+                kind,
+                mainSourceSet,
+                testSourceSet,
+                false,
+                ProductKind.PLATFORM_PLUGIN,
+                false
+            )
+        )
+    }
+
+    fun loadMultipleSourceSets(kind: UnitKind, context: UnitContext, vararg sourceSetNames: String): UnitSources {
+        val sourceSets = sourceSetNames.associateWith { name -> File(projectDirectory, "src/$name/kotlin") }
+        return UnitSources.load(
+            kind = kind,
+            rootPackage = "x.core",
+            unitPath = ":core",
+            mainDirectories = sourceSets.values.toList(),
+            testDirectories = emptyList(),
+            mainSourceSets = sourceSets,
+            testSourceSets = emptyMap(),
+            projectDirectory = projectDirectory,
+            vocabulary = NO_PROJECT_WORDS,
+            dependencyDirectories = emptyList(),
+            androidNamespace = androidNamespace,
+            context = context
         )
     }
 
@@ -118,7 +180,18 @@ internal class SourceTree(
         kind: UnitKind,
         rootPackage: String? = null,
         unitPath: String? = null,
-        vocabulary: Vocabulary = NO_PROJECT_WORDS
+        vocabulary: Vocabulary = NO_PROJECT_WORDS,
+        publishedLibrary: Boolean = false,
+        productKind: ProductKind? = ProductKind.PLATFORM_PLUGIN,
+        compose: Boolean = false,
+        context: UnitContext? = sourceContext(
+            kind,
+            "main",
+            "test",
+            publishedLibrary,
+            productKind,
+            compose
+        )
     ): UnitSources {
         return UnitSources.load(
             kind = kind,
@@ -131,7 +204,9 @@ internal class SourceTree(
             projectDirectory = projectDirectory,
             vocabulary = vocabulary,
             dependencyDirectories = listOf(dependencyDirectory),
-            androidNamespace = androidNamespace
+            androidNamespace = androidNamespace,
+            context = context,
+            publishedLibrary = publishedLibrary
         )
     }
 

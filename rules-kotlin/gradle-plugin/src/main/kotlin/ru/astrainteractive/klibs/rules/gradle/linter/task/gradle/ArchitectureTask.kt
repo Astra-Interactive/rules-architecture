@@ -1,7 +1,6 @@
 package ru.astrainteractive.klibs.rules.gradle.linter.task.gradle
 
 import org.gradle.api.DefaultTask
-import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
@@ -17,11 +16,15 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.process.ExecOperations
 import org.gradle.work.DisableCachingByDefault
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
+import ru.astrainteractive.klibs.rules.core.unit.util.encode
+import ru.astrainteractive.klibs.rules.core.unit.util.toUnitContext
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
-import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import ru.astrainteractive.klibs.rules.structure.buildfile.structure.RootBuildSubprojects
 import ru.astrainteractive.klibs.rules.structure.graph.structure.ApiUnitDependency
 import ru.astrainteractive.klibs.rules.structure.graph.structure.EntryPointDependency
+import ru.astrainteractive.klibs.rules.structure.graph.structure.PluginImplUnit
 import ru.astrainteractive.klibs.rules.structure.graph.structure.TechnologyDependency
 import ru.astrainteractive.klibs.rules.structure.graph.structure.UnitDependency
 import ru.astrainteractive.klibs.rules.structure.nesting.structure.ContainerSources
@@ -65,7 +68,10 @@ internal abstract class ArchitectureTask : DefaultTask() {
     abstract val projectPath: Property<String>
 
     @get:Input
-    abstract val unitKind: Property<String>
+    abstract val unitContext: Property<String>
+
+    @get:Input
+    abstract val unitMetadata: ListProperty<String>
 
     @get:Input
     @get:Optional
@@ -73,6 +79,9 @@ internal abstract class ArchitectureTask : DefaultTask() {
 
     @get:Input
     abstract val rootOfBuild: Property<Boolean>
+
+    @get:Input
+    abstract val conventionPlugin: Property<Boolean>
 
     @get:Input
     @get:Optional
@@ -114,6 +123,25 @@ internal abstract class ArchitectureTask : DefaultTask() {
             .sortedBy(File::getPath)
     }
 
+    private fun sourceDirectories(context: UnitContext, isTest: Boolean): List<File> {
+        if (context.compilations.isEmpty()) return sourceDirectories(projectDirectory.get().asFile, isTest)
+        val main = context.compilations.filterNot(UnitContext.Compilation::test)
+            .flatMap { compilation -> compilation.sourceSets.values.flatten() }.toSet()
+        val selected = if (isTest) {
+            context.compilations.filter(UnitContext.Compilation::test)
+                .flatMap { compilation -> compilation.sourceSets.values.flatten() }.toSet() - main
+        } else {
+            main
+        }
+        return selected.map(::File).filter(File::isDirectory).sortedBy(File::getPath)
+    }
+
+    private fun sourceSetName(context: UnitContext, directory: File): String {
+        return context.compilations.asSequence()
+            .flatMap { compilation -> compilation.sourceSets.entries.asSequence() }
+            .firstOrNull { entry -> directory.absolutePath in entry.value }?.key ?: directory.parentFile.name
+    }
+
     private fun dependencyArguments(): List<String> {
         val root = rootDirectory.get().asFile
         return projectDependencies.get()
@@ -135,7 +163,7 @@ internal abstract class ArchitectureTask : DefaultTask() {
     }
 
     private fun konsistArguments(
-        kind: UnitKind,
+        context: UnitContext,
         mainDirectories: List<File>,
         reportFile: File
     ): List<String> {
@@ -143,7 +171,9 @@ internal abstract class ArchitectureTask : DefaultTask() {
             add("--project-dir")
             add(projectDirectory.get().asFile.absolutePath)
             add("--unit-kind")
-            add(kind.cliName)
+            add(context.kind.cliName)
+            add("--unit-context")
+            add(context.encode())
             add("--report")
             add(reportFile.absolutePath)
             add("--unit-path")
@@ -158,19 +188,19 @@ internal abstract class ArchitectureTask : DefaultTask() {
             }
             mainDirectories.forEach { directory ->
                 add("--main")
-                add(directory.parentFile.name + "=" + directory.absolutePath)
+                add(sourceSetName(context, directory) + "=" + directory.absolutePath)
             }
-            sourceDirectories(projectDirectory.get().asFile, isTest = true).forEach { directory ->
+            sourceDirectories(context, isTest = true).forEach { directory ->
                 add("--test")
-                add(directory.parentFile.name + "=" + directory.absolutePath)
+                add(sourceSetName(context, directory) + "=" + directory.absolutePath)
             }
             addAll(wordArguments())
             addAll(dependencyArguments())
         }
     }
 
-    private fun runKonsist(kind: UnitKind): List<ArchitectureFinding> {
-        val mainDirectories = sourceDirectories(projectDirectory.get().asFile, isTest = false)
+    private fun runKonsist(context: UnitContext): List<ArchitectureFinding> {
+        val mainDirectories = sourceDirectories(context, isTest = false)
         if (rootOfBuild.get() || mainDirectories.isEmpty()) return emptyList()
         val reportFile = File(temporaryDir, KONSIST_REPORT)
         // Konsist embeds the Kotlin compiler, so it runs in a JVM of its own
@@ -178,7 +208,7 @@ internal abstract class ArchitectureTask : DefaultTask() {
             spec.classpath = konsistClasspath
             spec.mainClass.set(KONSIST_MAIN_CLASS)
             val arguments = konsistArguments(
-                kind,
+                context,
                 mainDirectories,
                 reportFile
             )
@@ -189,14 +219,23 @@ internal abstract class ArchitectureTask : DefaultTask() {
             .map(ArchitectureFinding::parse)
     }
 
-    private fun runStructureChecks(kind: UnitKind): List<ArchitectureFinding> {
+    private fun runStructureChecks(context: UnitContext): List<ArchitectureFinding> {
+        val contexts = buildMap {
+            unitMetadata.get().forEach { metadata ->
+                val parts = metadata.split("\t")
+                put(parts[0], parts[1].toUnitContext())
+            }
+        }
         val unit = BuildUnit(
             path = projectPath.get(),
             directory = projectDirectory.get().asFile,
-            isEntryPoint = kind == UnitKind.ENTRY_POINT,
+            isEntryPoint = context.kind == UnitKind.ENTRY_POINT,
             isRoot = rootOfBuild.get(),
             projectDependencies = projectDependencies.get(),
-            isLibrary = kind == UnitKind.LIBRARY
+            isLibrary = context.publishedLibrary,
+            context = context,
+            dependencyContexts = contexts,
+            isConventionPlugin = conventionPlugin.get()
         )
         val checker = StructureChecker(
             listOf(
@@ -214,7 +253,7 @@ internal abstract class ArchitectureTask : DefaultTask() {
                 UnitReadme()
             )
         )
-        return checker.check(unit).map { violation ->
+        return checker.check(unit).plus(PluginImplUnit().check(listOf(unit))).map { violation ->
             ArchitectureFinding(
                 violation.rule,
                 violation.path,
@@ -225,12 +264,10 @@ internal abstract class ArchitectureTask : DefaultTask() {
     }
 
     protected fun findFindings(): List<ArchitectureFinding> {
-        val kind = UnitKind.fromCliName(unitKind.get()) ?: throw GradleException(
-            "linter.unitKind of ${projectPath.get()} is '${unitKind.get()}', expected one of " +
-                UnitKind.entries.joinToString(transform = UnitKind::cliName)
-        )
+        val context = unitContext.get().toUnitContext()
         val buildFindings = buildFindings.get().map(ArchitectureFinding::parse)
-        return runKonsist(kind) + runStructureChecks(kind) + buildFindings
+        return (runKonsist(context) + runStructureChecks(context) + buildFindings)
+            .filterNot { finding -> finding.rule in context.policy.checks.disabledRules }
     }
 
     private companion object {

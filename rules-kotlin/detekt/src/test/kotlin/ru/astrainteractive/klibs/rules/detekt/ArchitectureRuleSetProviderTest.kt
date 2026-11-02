@@ -4,6 +4,7 @@ package ru.astrainteractive.klibs.rules.detekt
 
 import dev.detekt.api.RuleName
 import org.junit.jupiter.api.Test
+import ru.astrainteractive.klibs.rules.core.unit.model.RuleId
 import java.io.BufferedReader
 import kotlin.test.assertEquals
 
@@ -38,5 +39,18 @@ internal class ArchitectureRuleSetProviderTest {
             .toSet()
 
         assertEquals(providedRules, readActiveRulesFromConfig())
+    }
+
+    @Test
+    fun GIVEN_rule_registry_WHEN_compared_with_provider_THEN_every_owned_rule_has_an_identifier() {
+        val providedRules = ArchitectureRuleSetProvider().instance().rules.keys
+            .map(RuleName::value)
+            .toSet()
+        val registeredRules = RuleId.entries
+            .filter { ruleId -> ruleId.engine == RuleId.Engine.DETEKT }
+            .map(RuleId::ruleName)
+            .toSet()
+
+        assertEquals(providedRules, registeredRules)
     }
 }

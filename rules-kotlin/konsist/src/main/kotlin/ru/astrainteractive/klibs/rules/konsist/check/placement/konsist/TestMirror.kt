@@ -1,13 +1,13 @@
 package ru.astrainteractive.klibs.rules.konsist.check.placement.konsist
 
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.baseName
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.packageName
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelNames
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
 /**
  * Reports a test file `<Owner>Test.kt` in another package or source set than its owner. A test whose owner is not
@@ -34,9 +34,25 @@ internal class TestMirror : ArchitectureCheck {
             .mapValues { entry -> entry.value.toSet() }
     }
 
-    private fun expectedTestSourceSet(mainSourceSet: String): String {
-        if (mainSourceSet == "main") return "test"
-        return mainSourceSet.removeSuffix("Main") + "Test"
+    private fun expectedTestSourceSets(sources: UnitSources, mainSourceSet: String): Set<String> {
+        if (mainSourceSet == "main") return setOf("test")
+        if (mainSourceSet == "commonMain") return setOf("commonTest")
+        val compilations = sources.context.compilations
+        val production = compilations.filter { compilation ->
+            !compilation.test && mainSourceSet in compilation.sourceSets
+        }
+        return production.flatMap { mainCompilation ->
+            val target = mainCompilation.name.substringBeforeLast(':', missingDelimiterValue = "")
+            if (target.isEmpty()) return@flatMap emptyList()
+            compilations.filter { testCompilation ->
+                if (!testCompilation.test) return@filter false
+                val testTarget = testCompilation.name.substringBeforeLast(':', missingDelimiterValue = "")
+                if (testTarget != target) return@filter false
+                mainSourceSet in testCompilation.sourceSets
+            }.flatMap { testCompilation ->
+                (testCompilation.sourceSets.keys - mainCompilation.sourceSets.keys - "commonTest").toList()
+            }
+        }.toSet()
     }
 
     private fun violation(sources: UnitSources, file: KoFileDeclaration, message: String): Violation {
@@ -67,7 +83,7 @@ internal class TestMirror : ArchitectureCheck {
                 val testSourceSet = sources.testSourceSetOf(file) ?: return@mapNotNull null
                 val matchingOwners = owners.filter { owner -> owner.packageName == file.packageName }
                 val expected = matchingOwners.mapNotNull(OwnerLocation::sourceSet)
-                    .map(::expectedTestSourceSet)
+                    .flatMap { mainSourceSet -> expectedTestSourceSets(sources, mainSourceSet) }
                     .toSet()
                 if (expected.isEmpty() || testSourceSet in expected) return@mapNotNull null
                 val message = "Move ${file.baseName} to ${expected.sorted().first()}, the test source set of " +

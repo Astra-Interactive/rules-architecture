@@ -6,10 +6,9 @@ import org.gradle.api.provider.ListProperty
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
-import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
-import ru.astrainteractive.klibs.rules.structure.graph.structure.EntryPointGraphDependency
-import ru.astrainteractive.klibs.rules.structure.graph.structure.PluginImplUnit
-import ru.astrainteractive.klibs.rules.structure.graph.structure.UnitDependencyCycle
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
+import ru.astrainteractive.klibs.rules.core.unit.util.toUnitContext
+import ru.astrainteractive.klibs.rules.gradle.linter.util.findGraphViolations
 import ru.astrainteractive.klibs.rules.structure.unit.model.BuildUnit
 import ru.astrainteractive.klibs.rules.structure.unit.model.StructureViolation
 import java.io.File
@@ -24,20 +23,28 @@ internal abstract class ArchitectureGraphTask : DefaultTask() {
 
     @TaskAction
     fun check() {
+        val contexts = buildMap {
+            unitMetadata.get().forEach { metadata ->
+                val parts = metadata.split("\t")
+                put(parts[0], parts[1].toUnitContext())
+            }
+        }
         val units = unitMetadata.get().map { metadata ->
             val parts = metadata.split("\t")
             val path = parts.first()
+            val context = parts[1].toUnitContext()
             BuildUnit(
                 path = path,
                 directory = File("/"),
-                isEntryPoint = parts[1] == UnitKind.ENTRY_POINT.cliName,
+                isEntryPoint = context.kind == UnitKind.ENTRY_POINT,
                 isRoot = path == ":",
-                projectDependencies = parts.drop(2).toSet()
+                projectDependencies = parts.drop(2).toSet(),
+                isLibrary = context.publishedLibrary,
+                context = context,
+                dependencyContexts = contexts
             )
         }
-        val violations = UnitDependencyCycle().check(units) +
-            EntryPointGraphDependency().check(units) +
-            PluginImplUnit().check(units)
+        val violations = units.findGraphViolations()
         if (violations.isEmpty()) return
         val message = violations.joinToString(separator = "\n", transform = StructureViolation::message)
         throw GradleException(message)

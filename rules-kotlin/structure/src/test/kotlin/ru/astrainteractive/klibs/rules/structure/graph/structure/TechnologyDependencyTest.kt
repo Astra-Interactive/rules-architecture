@@ -50,4 +50,17 @@ internal class TechnologyDependencyTest {
             technology.map(StructureViolation::subject)
         )
     }
+
+    @Test
+    fun GIVEN_forbidden_non_technology_edge_WHEN_checked_THEN_leaves_it_to_its_own_rule() {
+        val api = BuildUnit(
+            ":feature:api",
+            File("/project"),
+            false,
+            false,
+            setOf(":feature:impl")
+        )
+
+        assertEquals(emptyList(), TechnologyDependency().check(api))
+    }
 }

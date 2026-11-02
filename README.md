@@ -10,7 +10,7 @@ sources and tell you which file breaks which rule and how to fix it.
 
 ## ✨ Features
 
-- **Per-file rules for detekt**: 66 custom rules plus settings for detekt's own rules, with IDE support and
+- **Per-file rules for detekt**: 62 custom rules plus settings for detekt's own rules, with IDE support and
   `@Suppress`.
 - **Cross-file checks with Konsist**: role import direction, use case shape, contract and implementation
   levels, DI placement, test mirroring and more.
@@ -96,11 +96,26 @@ plugins {
   plugin, an `instances` path); root `check` depends on it. Units contribute their dependencies through an isolated-projects-compatible
   shared build service.
 
+Structure checks consume the explicit unit roles too, including dependencies on units with custom names. A
+production dependency on a shared-fake unit is rejected even from an entry point. `APP`/`PLATFORM_PLUGIN`
+determines whether `impl` and `impl-ui` are allowed; a platform-looking project name does not determine the
+product kind.
+
+Package cycles use each actual production or test compilation. Unit cycles use compatible production backends
+and variants, retaining the Native target identity. Several ambiguous targets with the same backend and variant
+are not merged; their selection remains a review/Gradle-resolution responsibility. Test dependencies never become
+production edges. A missing context fact, such as unresolved Compose capability in graph-only metadata, stays
+unknown rather than being encoded as a negative fact.
+
 The unit kind decides which layout rules apply. It is detected by convention and can be set:
 
 ```kotlin
+import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
+
 linter {
-    unitKind.set("library") // context, library, api, contract, entry-point or technology
+    unitKind(UnitKind.API)
+    productKind(ProductKind.APP) // Set at the root; inherited by product units
     rootPackage.set("ru.astrainteractive.aspekt.module.jail")
     // The project's own words, added to those of the package-layout rule
     entryPointWords.addAll("slot", "panel")
@@ -113,6 +128,62 @@ linter {
 }
 ```
 
+`unitKind(...)` and `productKind(...)` accept enums. Replace old `unitKind.set("api")` with
+`unitKind(UnitKind.API)`. The sealed `unit(UnitRole...)` configuration offers role-specific options; existing
+enum declarations remain valid with their default policy. Repeating the same normalized declaration is safe;
+conflicting declarations fail configuration. `ProductKind` distinguishes
+`APP` from `PLATFORM_PLUGIN`; an API unit exposing use-case interfaces requires it. Publication is separate
+from the role: applying `maven-publish` marks a published library, and strict explicit API is checked separately.
+Replace the old `library` role with the actual role of the unit.
+
+An app UI unit may use its declared sibling `IMPL` dependencies. The immediate parent of each Gradle path must
+match, so `:rating:ui` may depend on `:rating:impl` or `:rating:renderer` when either target has the `IMPL`
+role; `:ratings:impl` is another feature. `LOCAL` and `SIBLINGS` are the defaults. `HOST` additionally permits
+declared dependencies on other `IMPL_UI` units, while `NONE` removes sibling implementation access. Neither
+mode permits another feature's `IMPL` or a dependency cycle. An unsplit app core with shared contracts and
+small implementations uses `UnitRole.Core`; it has no outgoing project dependencies. `CORE_API` keeps the
+strict common-contract boundary of a split core API unit.
+
+```kotlin
+import ru.astrainteractive.klibs.rules.core.unit.model.Checks
+import ru.astrainteractive.klibs.rules.core.unit.model.RuleId
+import ru.astrainteractive.klibs.rules.core.unit.model.UiComposition
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitRole
+import ru.astrainteractive.klibs.rules.gradle.linter.util.toUnitReference
+
+linter {
+    unit(UnitRole.ImplUi(
+        composition = UiComposition.HOST,
+        checks = Checks(
+            disabled = mapOf(RuleId.UNIT_README to "README migration is tracked in issue 123"),
+            allowedDependencies = mapOf(projects.foo.toUnitReference() to "Reviewed integration boundary")
+        )
+    ))
+}
+```
+
+The rule id and target are typed; each exception needs a nonempty reason. An allowed dependency remains in
+cycle detection. Disable `UNIT_DEPENDENCY_CYCLE` at the root only if the root graph check itself is the intended
+exception. `architectureCheck` writes active findings to `build/reports/architecture/violations.txt` and
+accepted exceptions or skipped rules to `build/reports/architecture/policy.txt`. Local Kotlin `@Suppress`
+still works for declaration-level findings. Checks affect this linter's own structure, Konsist and Detekt
+rules, not unrelated Detekt or formatting rules.
+
+Detekt and Konsist receive the same encoded unit context. It includes the role, product kind, publication,
+technology vocabulary and actual Kotlin compilations with their visible source directories and project
+dependencies. Compose comes from each compilation's resolved dependency graph, including inherited common
+sources. Imports, a compiler plugin alone and dependencies present only in tests do not enable Compose in
+production sources.
+
+The build check also retains each direct external dependency's declaring Gradle configuration, source set,
+production/test use and consuming compilations. An Android dependency declared in `androidMain` is valid for
+that Android source set in an app `API`, `CORE_API` or `CORE` unit; the same declaration in `commonMain` stays
+common even if Android is its only current
+target. Custom source sets follow their actual compilation and `dependsOn` links. The mixed app `CORE` role may
+wire a common Ktor client in `di` and use Android types in Android-only `util`; shared `api`, `model` and
+`usecase` packages still guard their platform boundary. A plugin API remains platform-free. When the origin
+cannot be established, the build reports missing metadata instead of claiming a boundary violation.
+
 The technology words also come from the unit's build file: the last segment of each library's group and the first
 word of its artifact (`org.mongodb:mongodb-driver-kotlin-coroutine` gives `mongodb`), also cut at its first
 camel-case boundary (`com.github.MilkBowl:VaultAPI` gives `vaultapi` and `vault`), generic words such as `core`
@@ -120,15 +191,21 @@ and `runtime` aside. The Konsist checks and the detekt rules that judge technolo
 `KindNameInPackage`, `RunBlockingOutsideBoundary`) get the same words; `architectureDetektSettings` writes them into
 `build/detekt/architecture-settings.yml`, read before the project's own detekt config, together with whether
 `RunCatchingCancellation` accepts the inline `CancellationException` check: only when mikro-core is not in the
-project's version catalog. A convention plugin sets
+project's version catalog. Direct Detekt runs must set `active: false` for each disabled own rule in YAML as well
+as pass `unitContextFile` to rules that use unit metadata; the context file alone does not disable a Detekt rule.
+The Gradle plugin writes these settings automatically. A convention plugin sets
 `unitKind` for the units it builds, which maps each plugin to a row of the unit direction table.
 
 | Detected as       | When                                                                                     |
 |-------------------|------------------------------------------------------------------------------------------|
-| `api`, `contract` | the last segment of the project path                                                     |
-| `technology`      | a technology name as the last segment of the project path (`data/exposed`, `data/room`, `data/memory`), or a platform name outside `core` and the entry points (`gui/bukkit`) |
+| `api`, `contract`, `impl`, `fake` | the last segment of the project path                                  |
+| `storage-contract` | the `dao` unit                                                                         |
+| `technology`      | a known or dependency-derived technology name (`data/exposed`, `data/room`, `data/memory`) |
+| `platform`        | a platform name outside `core` and entry points (`gui/bukkit`)                           |
 | `entry-point`     | the `application` or `com.android.application` plugin, or a path under `:instances`      |
-| `library`         | Kotlin explicit API mode strict in a unit applying `maven-publish`                       |
+| `core-ui`         | `core/ui` and its descendants                                                            |
+| `core-platform`   | the platform unit of `core`                                                              |
+| `core-api`        | other platform-free `core` units                                                         |
 | `context`         | anything else                                                                            |
 
 The plugins use the rules of their own version, so a version of the plugin brings the same version of the
@@ -209,7 +286,8 @@ tasks.named("check") { dependsOn(konsistCheck) }
 | Option           | Value                                                                              |
 |------------------|------------------------------------------------------------------------------------|
 | `--project-dir`  | the unit's directory; report paths are relative to it                              |
-| `--unit-kind`    | `context`, `library`, `api`, `contract`, `entry-point` or `technology`, see below  |
+| `--unit-kind`    | the role's CLI name from the table above                                         |
+| `--unit-context` | encoded context generated by the Gradle plugin; required for compilation-aware rules |
 | `--unit-path`    | the unit's Gradle path; finds the root package (`:modules:event-bukkit` → `…event`) |
 | `--main`         | a main source directory, optionally `sourceSet=path`; repeat for every source set |
 | `--test`         | a test source directory, optionally `sourceSet=path`; repeatable                  |
@@ -220,8 +298,8 @@ Suppress a rule in Kotlin instead of adding its finding to a baseline. Use a dec
 class, interface, function or property, including all declarations nested in it:
 
 ```kotlin
-@Suppress("ContractName")
-interface UserDao
+@Suppress("ImplementationVisibility")
+class FileUserRepository
 ```
 
 Use a file annotation for every finding of that rule in the file, including import, package and file-shape rules:
@@ -239,12 +317,22 @@ Every unit has the shape `<unit root>[/<concept>]/<kind>/<File>`. The unit kind 
 
 | Kind          | The unit                                                                                  |
 |---------------|-------------------------------------------------------------------------------------------|
-| `context`     | is a sub-context unit (`command`, `event-bukkit`, `gui/bukkit`)                           |
-| `library`     | is a published library or `core`                                                          |
+| `context`     | is an unsplit sub-context unit (`command`, `event-bukkit`)                                |
+| `platform`    | is a feature's platform implementation unit (`gui/bukkit`)                                |
+| `core-api`, `core-platform`, `core-ui` | hold shared platform-free, platform or design-system code             |
+| `impl`        | is an app's implementation unit                                                         |
+| `fake`        | exports shared test fakes from a dedicated unit                                           |
+| `storage-contract` | holds the storage contracts (`data/dao`)                                             |
 | `api`         | holds platform-free code other units call (`gui/api`); no file imports a platform type   |
 | `contract`    | holds the wire types a server and its client share                                        |
 | `entry-point` | holds the platform main class, which may sit at the root, and `RootModule`                |
 | `technology`  | is wholly one technology's implementation (`data/exposed`); its concepts hold implementations directly |
+
+Choosing `flow`, `channelFlow` or `callbackFlow`, and choosing a sharing policy, still requires review of
+concurrency, cleanup and resource ownership. Operators and helpers can launch coroutines indirectly.
+The usefulness of a test likewise depends on the behaviour it exercises, including model extensions and
+computed properties; a data-class or enum filename does not prove the test is useless. These documentation
+requirements remain in force without the removed `ChannelFlowShape` and `TestOwnerBehaviour` checks.
 
 ### Structure checks
 
@@ -274,34 +362,29 @@ val violations: List<StructureViolation> = checker.check(
 | `ImplicitItParameter`          | the implicit lambda parameter `it`                                               |
 | `AnonymousTuple`               | `Pair` and `Triple` used as a type, constructed by name, or made with `to` outside `mapOf(…)` |
 | `DataClassDefaultValue`        | a default value in a data class that is not `@Serializable`                      |
-| `ConstructorDefaultDependency` | a constructor default that creates a dependency, such as `= Foo()`               |
 | `TestFunctionName`             | a `@Test` not named `GIVEN_<state>_WHEN_<action>_THEN_<outcome>`                 |
 | `CalleeBeforeCaller`           | a function that calls a function declared below it in the same class or file     |
 | `DeclarationOrder`             | properties, secondary constructors, functions, `init` blocks, companion: out of this order; a top-level `PREVIEW_*`/`Preview*` fixture may follow the composables; anything after the companion object, nested types included |
 | `NamespaceObject`              | an `object` that only groups functions, except a Compose `<Component>Defaults`   |
 | `LocalOrInnerClass`            | a class inside a function body and an `inner class`                              |
-| `TimeAsPrimitive`              | a time-named value (`createdAt`, `timeoutMs`, `CARD_IN_MS`) typed as a number or a string, or inferred from such a literal |
 | `KDocHtmlTag`                  | Javadoc HTML (`<p>`, `<code>`) in KDoc                                           |
 | `ImplementationName`           | the `Impl` and `Interface` suffixes and the `I` prefix on an interface           |
-| `KindNameInPackage`            | `Service` outside a `service` package, `Model`/`Entity` in a `model` with no technology word (`exposed`, `room`, ...) before it, `Helper`/`Util`/`Manager` names |
+| `KindNameInPackage`            | a resolved platform service outside a `service` package or entry-point unit (type resolution required); `Model`/`Entity` in a `model` with no technology word (`exposed`, `room`, ...) before it; `Helper`/`Util`/`Manager` names |
 | `ExpressionBodyOnOneLine`      | an expression-body function whose signature and body are not one line            |
 | `BooleanOperatorWrapping` | a line break on either side of `&&` or `\|\|` |
 | `ArgumentPerLine` | a call or constructor call with three or more arguments, a trailing lambda included, whose arguments in parentheses are not each on its own line |
 | `TryCatchCancellation` | a `catch` in suspend code that also catches `CancellationException` without rethrowing it first (detekt's `SuspendFunSwallowedCancellation` without its `runCatching` half, which rejects the documented `.propagateCancellationException()`) |
 | `HardcodedDispatcher` | a dispatcher read from `kotlinx.coroutines.Dispatchers` (`IO`, `Default`, `Unconfined`) outside `di`, a provider's `override` property and tests, matched through the Analysis API; a dispatcher from any injected interface passes; replaces detekt's `InjectDispatcher` |
 | `PropertyReadBeforeDeclaration` | a property read while the object is constructed (an initializer, a delegate, an `init` block) before its declaration; lambdas, functions and `const val` are not judged; replaces detekt's `PropertyUsedBeforeDeclaration` |
-| `GuardIfBraces` | an `if` without `else` whose body is one `return` in braces, when it fits one line of 120 columns |
-| `EventCollection` | one-off `events` collected in `LaunchedEffect` without `withContext(Dispatchers.Main.immediate)`, or elsewhere without `repeatOnLifecycle` |
-| `CompletableDeferredUse` | a `CompletableDeferred` created and awaited in one function by the same coroutine (a gate awaited in a `launch`/`async` is allowed), or held in a property as a `Unit`/`Boolean` readiness flag |
-| `BridgeCleanup` | an `awaitClose` or `invokeOnCancellation` cleanup that assigns state declared outside its bridge (the `callbackFlow`/`suspendCancellableCoroutine` block) or calls `launch` |
+| `GuardIfBraces` | an `if` without `else` whose body is one `return` in braces, when it fits the project's `style.MaxLineLength.maxLineLength` (120 by default) |
+| `BridgeCleanup` | a resolved bridge cleanup that writes proven external state, including aliases and indexed writes, or launches on its own cancelled bridge scope; registration-local objects and independent cleanup scopes are allowed, with unknown ownership left to review (type resolution required) |
 | `ExplicitInvoke` | a call `name(…)` of a parameter, property or local value instead of `name.invoke(…)` |
 | `FunctionVerb` | a function whose first word is `get` (but a view model's `getState`), `map`, `make`, `do`, `handle` or `process` |
 | `PropertyAsFunction` | a function with no parameters that only returns a property of its class or file |
 | `OneTypeFamilyPerFile` | a top-level function (a composable included) beside a top-level type, and a second class with behaviour in one file |
-| `FileLength` | a file that passes 400 lines |
 | `ConstantOutsideCompanion` | a `const val` or literal `val` in a class body outside its companion, a `private object` of constants beside a type |
-| `ComposableFileType` | a class, interface or object in a file with a `@Composable` function, except a `*Defaults` object |
-| `ComposableName` | a `@Composable` that emits UI and whose name does not end in `Composable`, except previews, the theme function and an override such as `Render()`; a `…ScreenComposable` in a file of another name; a theme function outside `<Theme>Composable.kt` |
+| `ComposableFileType` | a class, interface or object beside a top-level `@Composable`, except a public component Defaults object; component member Render is allowed |
+| `ComposableName` | a `@Composable` that emits UI and whose name does not end in `Composable`, except previews, the theme function, overrides and a component contract or implementation Render; a `…ScreenComposable` in a file of another name; a theme function outside `<Theme>Composable.kt` |
 | `ThemeObjectFunction` | a function inside an object of a `theme` package |
 | `ComposeConstantCase` | a `const val` not `UPPER_SNAKE` or a `val` not `PascalCase` in a composable or `theme` file |
 | `PreviewBlockLast` | a non-preview declaration after the first `@Preview`, a preview helper above the code of the file, a `@Preview` not named `…Preview` |
@@ -309,41 +392,69 @@ val violations: List<StructureViolation> = checker.check(
 | `ActualFileSuffix` | a file with an `actual` declaration whose name has no platform suffix (`Name.android.kt`) |
 | `MutableStateFlowEmit` | `emit`/`tryEmit` on a property declared or initialised as a `MutableStateFlow` |
 | `ImpureUpdateLambda` | an assignment to an outer name inside the lambda of `update`, `getAndUpdate` or `updateAndGet` |
-| `SingleJobLaunchMode` | a launch on a single-job scope without a `SingleJobMode`, an unguarded launch in an `on…` handler of a view model or component |
+| `SingleJobLaunchMode` | a launch on a directly declared single-job scope without an explicit mode; atomic claims and mutex guards of ordinary scopes are reviewed |
 | `StateFlowTimeout` | `StateFlow.first()` inside `withTimeout` or `withTimeoutOrNull` |
 | `ThrowInsideRunCatching` | a `throw` inside the lambda of `runCatching`, `mapCatching` or `recoverCatching` |
 | `RunCatchingCancellation` | a `runCatching` in a `suspend` function or coroutine lambda not followed by `.propagateCancellationException()` or the inline `onFailure` check for `CancellationException` |
-| `ResultConsumption` | a `Result` discarded as a statement without consuming its success or failure |
+| `ResultConsumption` | a `Result` discarded as a statement without consuming its success or failure; values used through branches and value-returning lambdas are preserved (type resolution required) |
 | `GetOrThrowInMain` | `getOrThrow()` outside the test sources |
 | `BareIdentifier` | a property named `id`/`…Id` typed `String`, `Int`, `Long` or `UUID` outside a `@Serializable` class or technology package, a `…Id` class that is not a value class |
 | `CompanionFactoryFunction` | a `create…` function in a companion object |
 | `ClockSystemOutsideDi` | `Clock.System` outside a `di` package, the test sources and previews (`@Preview…`) |
 | `RolelessClassName` | a `…Validator` or `…Factory` class (a Decompose `fun interface Factory` and a type named like the supertype it implements, `object Factory : PageContext.Factory`, are allowed), `…WarmUp`/`…Migration`/`…ViewModel` outside its `warmup`/`migration`/`viewmodel` package |
-| `DiModuleLifecycle` | a `…Module` that declares `enable`, `disable`, `reload`, `onEnable`, `onDisable` or `onReload`, or that starts a warm-up, migration, listener, task, service or `launch` without a `lifecycle` property |
+| `DiModuleLifecycle` | in modules using the configured lifecycle convention: custom lifecycle functions, directly/lazily constructed lifecycle resources or coroutine jobs without a `lifecycle`, or lifecycle management of injected modules; lifecycle implementations themselves are exempt (type resolution required) |
 | `RootModuleConstruction` | a `RootModule` constructor call that constructs anything but a DI module (a class of a `di` package, found through the call's import) or a `Lifecycle` |
 | `SystemTimeCall` | `System.currentTimeMillis()` and `System.nanoTime()` |
 | `RunBlockingInTest` | `runBlocking` in a test source set |
 | `RunTestResult` | a `@Test` that calls `runTest` without declaring `TestResult` and returning `runTest { … }` from a block body; `= runTest { }` is reported too |
 | `RunBlockingOutsideBoundary` | `runBlocking` in the main sources outside a top-level `main` function and outside a technology package |
 | `ThreadPrimitive` | `Thread` constructed or used through its static members in the main sources |
-| `CallbackFlowShape` | a `callbackFlow` whose block does not end with `awaitClose` (it throws at run time), `launch { send }` in a callback of it (not in the producer block itself), a rendezvous `buffer`, a bridge shared with `shareIn`/`stateIn` not `WhileSubscribed()` |
-| `ChannelFlowShape` | a `channelFlow` that registers a listener without ending in `awaitClose`, or launches no coroutine of its own (a `flow { }`, or a `callbackFlow` when it waits in `awaitClose`) |
-| `SharedFlowEvent` | a `SharedFlow` property of a view model, a `MutableSharedFlow` without `extraBufferCapacity` fed through `tryEmit` |
+| `CallbackFlowShape` | a `callbackFlow` whose block does not end with `awaitClose` (it throws at run time), `launch { send }` in a callback of it (not in the producer block itself), or a rendezvous `buffer` on a callbackFlow chain; sharing policy remains a manual review of the resource lifetime |
+| `SharedFlowEvent` | a `MutableSharedFlow` without explicit `extraBufferCapacity` fed through `tryEmit`; broadcast versus one-off UI semantics are reviewed |
 | `CallbackDeclaration` | an `on…` parameter or property of a function type outside a `@Composable` and a `Modifier` factory, an `…Listener` interface, an `…Callback` interface other than a Decompose `fun interface On…Callback`; a top-level `On…Callback` output not nested in its component |
 | `KDocFiller` | a KDoc filler phrase, a `@return` of "the result" or of the return type's own words, a `@param` whose words only repeat its name, a summary of more than four sentences |
 | `LambdaSingleIfGuard` | a lambda whose whole body is one `if` without `else`, unless the `if` only throws |
 | `OperatorBeforeTrailingCall` | arithmetic in parentheses before a call or property (`(a * b).sp`), a chain of `plus`/`minus`/`times`/`div`/`rem` calls |
-| `TrivialLambdaReference` | a lambda that only passes its parameters to one function, or a `{ obj.foo() }` callback, instead of a function reference; in coroutine code only when the callee resolves to a non-`suspend` function |
+| `TrivialLambdaReference` | a lambda forwarding its parameters to a resolved call, or a `{ obj.foo() }` callback, instead of a function reference; suspend callees require an expected suspend function type; unresolved calls/properties, omitted defaults, varargs and same-file overloads are skipped conservatively (type resolution required) |
 | `ComposableWhenBranch` | a `when` branch of a `@Composable` function that spans several lines, except a block of several statements |
 | `NonComposableFileInComposable` | a file in a `composable` package with no `@Composable` function, outside test sources |
 | `DurationOverloadCall` | `.inWholeMilliseconds`/`.inWholeSeconds`/`.inWholeNanoseconds` passed to `delay`, `withTimeout`, `debounce` and other calls with a `Duration` overload |
+
+`KindNameInPackage` recognizes platform services by resolved base types and annotations, including indirect
+inheritance and import aliases. The defaults cover Android `android.app.Service`, AstraLibs
+`ru.astrainteractive.astralibs.service.Service`, and IntelliJ's `com.intellij.openapi.components.Service`
+annotation. Names such as `ServiceCategoryItem` alone do not establish a service role. The registry is
+incomplete: no finding does not prove that an unknown type is a domain value. The diagnostic states this
+limitation and identifies the base type or annotation that triggered it. Extend the defaults in detekt YAML:
+
+```yaml
+architecture:
+  KindNameInPackage:
+    serviceBaseTypes: [ 'example.framework.BackgroundWorker' ]
+    serviceAnnotations: [ 'example.framework.ManagedService' ]
+```
+
+`DiModuleLifecycle` does not impose AstraLibs lifecycle management on every DI module. It activates when
+a module's file imports a resolved configured lifecycle type, or when the module constructs a child exposing
+that lifecycle. Having AstraLibs on the classpath alone is insufficient. Both
+`ru.astrainteractive.astralibs.lifecycle.Lifecycle` and
+`ru.astrainteractive.astralibs.lifecycle.api.Lifecycle` are recognized by default;
+`architecture.DiModuleLifecycle.lifecycleTypes` replaces this list with fully qualified types for another
+convention. Classes implementing those lifecycle types keep their lifecycle overrides.
+
+Whether a constructed object is a dependency, owned state or an operation's result is a review decision.
+The general requirement to construct dependencies in DI, including constructor defaults, is not checked
+automatically. The DI guidelines remain in `.claude/docs` for development and code review.
 
 ### detekt settings
 
 `detekt-architecture.yml` configures detekt's own rules: `ClassOrdering` off, replaced by `DeclarationOrder`,
 which puts `init` blocks after the functions they call; `ForbiddenComment` for region
-markers and separator comments; `ForbiddenImport` for `kotlinx.datetime.Instant`, `kotlinx.datetime.Clock` and `java.util.Date`, for `java.time` types and `java.util.Calendar` outside technology packages (`ForbiddenImport/time`), and for platform and ORM
-types in `model`, Compose excepted, outside technology packages (`exposed`, `room`, ...); `RedundantVisibilityModifier`; `WildcardImport` with no exceptions; ktlint `ImportOrdering`.
+markers and separator comments; `ForbiddenImport` for `kotlinx.datetime.Instant`, `kotlinx.datetime.Clock` and `java.util.Date`, for `java.time` types and `java.util.Calendar` outside technology packages (`ForbiddenImport/time`);
+`RedundantVisibilityModifier`; `WildcardImport` with no exceptions; ktlint `ImportOrdering`.
+Konsist's `PlatformImport` checks model/framework boundaries with the actual unit and compilation context,
+including Compose and a framework exception's base type in a mechanism unit's model. The former path-only
+`ForbiddenImport/model` is removed because it rejects those documented exceptions.
 `DataClassContainsFunctions`, with no conversion exception, and `DataClassShouldBeImmutable`: a data class
 holds fields only. `GlobalCoroutineUsage`: no global scope. `PackageNaming` with a lowercase-only pattern.
 `MagicNumber` accepts a number in a property declaration, where the Compose rule names a value.
@@ -352,7 +463,8 @@ the callback and thread tools of the no-callbacks rule: `suspendCoroutine`, `try
 `Handler`, `thread`; `Executor`/`Executors` outside `core` (`ForbiddenImport/executor`) and `CompletableFuture`
 outside technology packages (`ForbiddenImport/future`), and Compose's `painterResource` and `stringResource`
 outside `util`, where the `asPainter()` and `asComposableString()` extensions wrap them
-(`ForbiddenImport/resource`). `SuspendFunSwallowedCancellation` and
+(`ForbiddenImport/resource`); typed `ForbiddenMethodCall/resource` also catches fully qualified calls.
+`SuspendFunSwallowedCancellation` and
 `SuspendFunInFinallySection` are active.
 
 ### Konsist checks
@@ -364,6 +476,7 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `ThemeVisibility` | a `theme` object that is not `internal` in a feature unit, or hidden in the design-system unit `core/ui` |
 | `AnonymousProjectObject` | an anonymous `object :` implementing a type of the project instead of a library type |
 | `KindImportDirection`  | an import against the first table of `arch-context.md`: `model` and contracts depend on `model` only, implementations on contracts, `model`, `util` and their own technology packages, entry points on use cases, contracts, `model` and `util`, one entry point on another only between UI kinds, a router's implementation on the UI it opens, a screen only from what hosts or opens it, nothing on `di` |
+| `PackageDependencyCycle` | an import or qualified-reference cycle between packages visible in the same production or test compilation |
 | `PlatformImport`       | a platform or ORM import in `model`, `api` or `usecase`, or anywhere in an `api` unit; the `model` of a UI unit (a file outside `model` imports Compose) may import Compose |
 | `UseCaseShape`         | `*UseCase` outside `usecase`, other names in `usecase`, more than one entry, a use case taking another, a pass-through `invoke` that is one call on one of its properties |
 | `ContractPlacement`    | a plain interface outside `api` (a use case's in `usecase` and a DI module's in `di` aside), a state holder's interface (`…Component`, `…ViewModel`) outside `component`/`viewmodel`, `api` included, an implementation inside `api`, a `network`/`local`/`remote` package; a Compose scope (`: ColumnScope`) is not a contract |
@@ -378,15 +491,12 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `FakePlacement`        | a `Fake*` outside a `fake` package of the tests, or in the main sources outside a `<feature>/fake` unit, and a test fake of another unit's contract outside `testFixtures`, and a class other than a fake in a `<feature>/fake` unit |
 | `InMemoryPlacement`    | an `InMemory*` outside a `memory` package of the main sources                                              |
 | `SealedFamilyFile` | a class or object whose direct supertype is a sealed type declared in another file |
-| `StateTypePlacement`   | a `<Screen>State` declared in a UI kind (a state holder, a composable, a menu), nested in a type there or beside it, instead of its own file in `model` |
 | `NestedEnum` | a top-level enum used as the property type of exactly one class |
 | `UtilFileName` | a `util` file of one receiver's extensions not named `<Receiver>Ext.kt`, a file named `Utils.kt`, `Helpers.kt`, `Extensions.kt` and the like |
 | `UtilFunctionAsExtension` | a `util` function whose one parameter is a model of the unit or of a unit it depends on, instead of an extension |
 | `ImplementationVisibility` | a public class in a technology package or a technology unit's concept, outside a library, `core`, `stub` and `memory` |
 | `UseCaseAbstraction` | an interface or abstract class named `…UseCase` |
 | `AndroidNamespace` | an Android unit whose `namespace` differs from its root package |
-| `ApplicationKDoc` | KDoc outside a published library, other than a contract's failure case (`@return failure`, `@return null`, `@throws`) or a reason outside the code (a link, an issue key, a bug, workaround or quirk) |
-| `ContractName` | an `api` interface named `…Api`, `…Dao`, `…Storage` or `…Krate`, a `…Repository` extending a generic repository or `Crud` base |
 | `CoreShape` | a `…UseCase` class or a `…Repository` interface in a `core` unit |
 | `RootModulePlacement` | a `RootModule` outside the entry-point unit or its `di` package |
 | `EntryPointShape` | a file of an entry-point unit outside its root and its `di` package; a class the platform constructs (by its direct supertype) is sent to the root package, any other file out of the unit |
@@ -394,9 +504,6 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `ComposeKindWithoutCompose` | a `composable` or `theme` kind package in a unit that imports no Compose; the root package and concepts are not judged |
 | `PlatformPackage` | a package named after a platform (`android`, `ios`, `jvm`, …) in a unit with several main source sets |
 | `PluralPackageName` | a plural package name below the unit root, except an inherently plural concept (`news`, `settings`) |
-| `DuplicateRepresentation` | a technology data class with the same constructor parameter names as a `model` data class of the unit or of a unit it depends on |
-| `FieldDependencyConstruction` | a behaviour class of the unit, or a library class named for a dependency's role (`HttpClient`, `…Repository`, `…Gateway`, `…Database`, `…DataSource`), constructed outside `di`; a value holder (no supertype, no function body, no `init` block) is not a dependency |
-| `TestOwnerBehaviour` | a `<Owner>Test.kt` whose owner is a data class without a body or an enum without functions |
 
 ### Structure checks
 
@@ -419,7 +526,8 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `ApiConfiguration` | a directly declared `api` dependency that is not exported through a Multiplatform framework (Gradle plugin) |
 | `PublishedLibraryExplicitApi` | a Kotlin unit applying `maven-publish` without strict explicit API mode (Gradle plugin) |
 | `UnpublishedExplicitApi` | a Kotlin unit with explicit API mode that does not apply `maven-publish` (Gradle plugin) |
-| `ApiUnitPlatformDependency` | an external platform dependency (Paper, Bukkit, Fabric, Forge, Android, `androidx` but Compose, annotation and collection) in an `api` unit (Gradle plugin) |
+| `ApiUnitPlatformDependency` | a platform dependency in a plugin `API`/`CORE_API`, or an app `API`/`CORE_API`/`CORE` declaration outside a matching platform source set (Gradle plugin) |
+| `PlatformDependencyMetadata` | a platform dependency in a checked role whose product kind or declaring source set/production compilation cannot be established (Gradle plugin) |
 
 ## 🗂️ Repository
 

@@ -13,6 +13,18 @@ internal class ComposableNameTest {
     private val rule = ComposableName(Config.empty)
 
     @Test
+    fun GIVEN_component_contract_render_WHEN_linted_THEN_preserves_its_name() {
+        val code = """
+            interface CheckoutComponent {
+                @Composable fun Render()
+            }
+        """.trimIndent()
+
+        assertEquals(emptyList(), rule.lint(code).map(Finding::message))
+        assertEquals(1, rule.lint("@Composable fun Render() = Unit").size)
+    }
+
+    @Test
     fun GIVEN_ui_composables_without_the_suffix_WHEN_linted_THEN_reports_each() {
         val code = """
             @Composable

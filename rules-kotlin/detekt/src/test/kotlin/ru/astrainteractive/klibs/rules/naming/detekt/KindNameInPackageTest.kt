@@ -4,23 +4,32 @@ package ru.astrainteractive.klibs.rules.naming.detekt
 
 import dev.detekt.api.Config
 import dev.detekt.core.config.YamlConfig
-import dev.detekt.test.lint
+import dev.detekt.test.lintWithContext
+import dev.detekt.test.utils.createEnvironment
 import org.junit.jupiter.api.Test
+import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
+import ru.astrainteractive.klibs.rules.core.unit.util.encode
 import java.io.StringReader
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 internal class KindNameInPackageTest {
     private val rule = KindNameInPackage(Config.empty)
+    private val environment = createEnvironment()
 
     @Test
-    fun GIVEN_service_name_outside_service_package_WHEN_linted_THEN_reports_it() {
+    fun GIVEN_service_word_without_platform_role_WHEN_linted_THEN_reports_nothing() {
         val code = """
             package ru.astrainteractive.aspekt.module.jail
 
             class JailService
+            data class ServiceCategoryItem(val name: String)
+            object ServicesPreviewFixture
         """.trimIndent()
 
-        assertEquals(1, rule.lint(code).size)
+        assertEquals(0, rule.lintWithContext(environment, code).size)
     }
 
     @Test
@@ -31,28 +40,106 @@ internal class KindNameInPackageTest {
             class UnJailService
         """.trimIndent()
 
-        assertEquals(0, rule.lint(code).size)
+        assertEquals(0, rule.lintWithContext(environment, code).size)
     }
 
     @Test
-    fun GIVEN_platform_service_subclass_in_root_package_WHEN_linted_THEN_reports_only_the_own_service() {
+    fun GIVEN_resolved_platform_service_hierarchy_WHEN_linted_THEN_reports_role_even_without_service_in_name() {
         val code = """
-            package com.makeevrserg.empireprojekt.mobile.wear
+            package example.worker
 
-            import android.app.Service
-            import android.service.quicksettings.TileService
+            import android.app.Service as AndroidWorker
 
             interface StatusService
-
-            class StatusesTileService : TileService()
-
-            class DefaultStatusService : Service(), StatusService
+            open class BaseWorker : AndroidWorker()
+            class SyncWorker : BaseWorker(), StatusService
         """.trimIndent()
+        val platform = "package android.app\nopen class Service"
+
+        val messages = rule.lintWithContext(
+            environment,
+            code,
+            platform
+        ).map { finding -> finding.message }
+
+        assertEquals(2, messages.size)
+        assertTrue(messages.all { message -> message.contains("subtype of android.app.Service") })
+        assertTrue(messages.all { message -> message.contains("known types and annotations only") })
+    }
+
+    @Test
+    fun GIVEN_framework_annotation_and_custom_service_types_WHEN_configured_THEN_recognizes_them() {
+        val code = """
+            package example.worker
+
+            import com.intellij.openapi.components.Service as PlatformComponent
+            import custom.Managed
+
+            @PlatformComponent
+            class PreviewOwner
+            @Managed
+            class CustomWorker
+            class CustomTimer : custom.Timer()
+        """.trimIndent()
+        val platform = "package com.intellij.openapi.components\nannotation class Service"
+        val custom = "package custom\nannotation class Managed\nopen class Timer"
+        val settings = "serviceBaseTypes: [ custom.Timer ]\nserviceAnnotations: [ custom.Managed ]"
+        val configured = KindNameInPackage(YamlConfig.load(StringReader(settings)))
 
         assertEquals(
-            listOf("Move 'StatusService' to a 'service' package, or drop 'Service' from its name."),
-            rule.lint(code).map { finding -> finding.message }
+            1,
+            rule.lintWithContext(
+                environment,
+                code,
+                platform,
+                custom
+            ).size
         )
+        assertEquals(
+            3,
+            configured.lintWithContext(
+                environment,
+                code,
+                platform,
+                custom
+            ).size
+        )
+    }
+
+    @Test
+    fun GIVEN_recognized_service_in_service_package_WHEN_linted_THEN_reports_nothing() {
+        val code = "package example.service\nclass Worker : android.app.Service()"
+        val platform = "package android.app\nopen class Service"
+
+        assertEquals(
+            0,
+            rule.lintWithContext(
+                environment,
+                code,
+                platform
+            ).size
+        )
+    }
+
+    @Test
+    fun GIVEN_platform_service_in_entry_point_WHEN_linted_THEN_reports_nothing() {
+        val context = UnitContext(
+            UnitKind.ENTRY_POINT,
+            ProductKind.APP,
+            false,
+            emptySet(),
+            emptyList()
+        )
+        val config = YamlConfig.load(StringReader("unitContext: '${context.encode()}'"))
+        val code = "package example.worker\nclass Worker : android.app.Service()"
+        val platform = "package android.app\nopen class Service"
+        val findings = KindNameInPackage(config).lintWithContext(
+            environment,
+            code,
+            platform
+        )
+
+        assertEquals(0, findings.size)
     }
 
     @Test
@@ -65,7 +152,7 @@ internal class KindNameInPackageTest {
             data class JailEntity(val name: String)
         """.trimIndent()
 
-        assertEquals(2, rule.lint(code).size)
+        assertEquals(2, rule.lintWithContext(environment, code).size)
     }
 
     @Test
@@ -76,7 +163,7 @@ internal class KindNameInPackageTest {
             class JailEntity
         """.trimIndent()
 
-        assertEquals(0, rule.lint(code).size)
+        assertEquals(0, rule.lintWithContext(environment, code).size)
     }
 
     @Test
@@ -87,7 +174,7 @@ internal class KindNameInPackageTest {
             class DictionaryEntity
         """.trimIndent()
 
-        assertEquals(0, rule.lint(code).size)
+        assertEquals(0, rule.lintWithContext(environment, code).size)
     }
 
     @Test
@@ -98,7 +185,7 @@ internal class KindNameInPackageTest {
             data class RatingModel(val value: Int)
         """.trimIndent()
 
-        assertEquals(1, rule.lint(code).size)
+        assertEquals(1, rule.lintWithContext(environment, code).size)
     }
 
     @Test
@@ -109,7 +196,7 @@ internal class KindNameInPackageTest {
             class JailModel
         """.trimIndent()
 
-        assertEquals(1, rule.lint(code).size)
+        assertEquals(1, rule.lintWithContext(environment, code).size)
     }
 
     @Test
@@ -122,7 +209,7 @@ internal class KindNameInPackageTest {
             val anonymous = object {}
         """.trimIndent()
 
-        assertEquals(0, rule.lint(code).size)
+        assertEquals(0, rule.lintWithContext(environment, code).size)
     }
 
     @Test
@@ -139,7 +226,7 @@ internal class KindNameInPackageTest {
             class Utility
         """.trimIndent()
 
-        assertEquals(3, rule.lint(code).size)
+        assertEquals(3, rule.lintWithContext(environment, code).size)
     }
 
     @Test
@@ -151,7 +238,7 @@ internal class KindNameInPackageTest {
         """.trimIndent()
         val projectRule = KindNameInPackage(YamlConfig.load(StringReader("technologyWords: [ mongo ]")))
 
-        assertEquals(1, KindNameInPackage(Config.empty).lint(code).size)
-        assertEquals(0, projectRule.lint(code).size)
+        assertEquals(1, KindNameInPackage(Config.empty).lintWithContext(environment, code).size)
+        assertEquals(0, projectRule.lintWithContext(environment, code).size)
     }
 }

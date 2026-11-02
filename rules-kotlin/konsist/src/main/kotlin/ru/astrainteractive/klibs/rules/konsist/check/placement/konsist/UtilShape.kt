@@ -1,13 +1,15 @@
 package ru.astrainteractive.klibs.rules.konsist.check.placement.konsist
 
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.packageName
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.simpleName
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelClasses
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelTypeNames
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 
 /**
  * Checks `util` both ways: a `util` package holds functions, never a class, an interface or an object; and an
@@ -48,11 +50,34 @@ internal class UtilShape : ArchitectureCheck {
             .any { function -> function.hasAnnotationWithName(COMPOSABLE) }
     }
 
-    private fun extensionsOutsideUtil(sources: UnitSources, file: KoFileDeclaration): List<Violation> {
+    private fun isProjectReceiver(file: KoFileDeclaration, receiver: String, projectTypes: Set<String>): Boolean {
+        if (receiver in projectTypes) return true
+        val explicitImport = file.imports.singleOrNull { declaration ->
+            val alias = declaration.alias
+            val visibleName = if (alias == null) declaration.name.substringAfterLast('.') else alias.name
+            !declaration.isWildcard && visibleName == receiver
+        }
+        if (explicitImport != null) return explicitImport.name in projectTypes
+        if ("${file.packageName}.$receiver" in projectTypes) return true
+        return file.imports.filter { declaration -> declaration.isWildcard }
+            .any { declaration -> "${declaration.name}.$receiver" in projectTypes }
+    }
+
+    private fun extensionsOutsideUtil(
+        sources: UnitSources,
+        file: KoFileDeclaration,
+        projectTypes: Set<String>
+    ): List<Violation> {
         val allowsPrivateExtensions = isComposableFile(file)
         return file.functions(includeNested = false, includeLocal = false).mapNotNull { function ->
             val receiverType = function.receiverType ?: return@mapNotNull null
-            if (allowsPrivateExtensions && function.hasPrivateModifier) return@mapNotNull null
+            val declaredReceiver = receiverType.text.substringBefore('<').removeSuffix("?")
+            val projectReceiver = isProjectReceiver(
+                file,
+                declaredReceiver,
+                projectTypes
+            )
+            if (allowsPrivateExtensions && function.hasPrivateModifier && !projectReceiver) return@mapNotNull null
             val receiver = receiverType.simpleName
             val subject = findSubject(receiverType.text, receiver)
             val message = "Move the extension $receiver.${function.name} to util/${subject}Ext.kt of the level " +
@@ -69,6 +94,9 @@ internal class UtilShape : ArchitectureCheck {
     }
 
     override fun check(sources: UnitSources): List<Violation> {
+        val projectTypes = sources.mainFiles.plus(sources.dependencyFiles).flatMap { file ->
+            file.topLevelTypeNames().map { name -> "${file.packageName}.$name".trimStart('.') }
+        }.toSet()
         return sources.mainFiles.flatMap { file ->
             val placement = sources.placementOf(file) ?: return@flatMap emptyList()
             when (placement.kind) {
@@ -76,7 +104,11 @@ internal class UtilShape : ArchitectureCheck {
                 else -> if (placement.kindWord in sources.layout.vocabulary.extensionKinds) {
                     emptyList()
                 } else {
-                    extensionsOutsideUtil(sources, file)
+                    extensionsOutsideUtil(
+                        sources,
+                        file,
+                        projectTypes
+                    )
                 }
             }
         }

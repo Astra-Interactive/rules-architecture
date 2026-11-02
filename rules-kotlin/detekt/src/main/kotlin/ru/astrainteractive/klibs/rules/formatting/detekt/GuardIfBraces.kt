@@ -10,9 +10,14 @@ import org.jetbrains.kotlin.psi.KtReturnExpression
 
 /**
  * Reports an `if` without `else` whose whole body is one `return` in braces, when `if (condition) return …` fits
- * on one line within 120 columns: a guard is written on one line without braces.
+ * on one line within the project's `style.MaxLineLength.maxLineLength`: a guard is one line without braces.
  */
 internal class GuardIfBraces(config: Config) : Rule(config, DESCRIPTION) {
+    private val maxLineLength: Int by lazy {
+        val root = generateSequence(config) { current -> current.parent?.takeUnless { parent -> parent === current } }
+            .last()
+        root.subConfig("style").subConfig("MaxLineLength").valueOrDefault("maxLineLength", DEFAULT_MAX_LINE_LENGTH)
+    }
 
     private fun columnOf(expression: KtIfExpression): Int {
         val fileText = expression.containingFile.text
@@ -28,13 +33,13 @@ internal class GuardIfBraces(config: Config) : Rule(config, DESCRIPTION) {
         val statement = body.statements.singleOrNull() as? KtReturnExpression ?: return
         val condition = expression.condition?.text ?: return
         val oneLine = "if ($condition) ${statement.text}"
-        if ('\n' in oneLine || columnOf(expression) + oneLine.length > MAX_LINE_LENGTH) return
+        if ('\n' in oneLine || columnOf(expression) + oneLine.length > maxLineLength) return
         val message = "Write the guard on one line without braces: '$oneLine'."
         report(Finding(Entity.from(expression), message))
     }
 
     private companion object {
-        const val MAX_LINE_LENGTH = 120
+        const val DEFAULT_MAX_LINE_LENGTH = 120
         const val DESCRIPTION = "An if whose whole body is one return is one line without braces when it fits."
     }
 }

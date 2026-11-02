@@ -13,6 +13,20 @@ internal class ComposableFileTypeTest {
     private val rule = ComposableFileType(Config.empty)
 
     @Test
+    fun GIVEN_component_with_member_render_WHEN_linted_THEN_accepts_the_component_file() {
+        val code = """
+            interface CheckoutComponent {
+                @Composable fun Render()
+            }
+            class DefaultCheckoutComponent : CheckoutComponent {
+                @Composable override fun Render() = Unit
+            }
+        """.trimIndent()
+
+        assertEquals(0, rule.lint(code).size)
+    }
+
+    @Test
     fun GIVEN_types_beside_composables_WHEN_linted_THEN_reports_each_but_defaults() {
         val code = """
             data class SoftEdge(val edge: Float)

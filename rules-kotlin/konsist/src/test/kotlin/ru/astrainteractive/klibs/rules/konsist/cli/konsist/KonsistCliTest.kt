@@ -11,6 +11,84 @@ import kotlin.test.assertEquals
 internal class KonsistCliTest {
     private fun tsvLine(vararg fields: String): String = fields.joinToString(separator = TAB.toString())
 
+    private fun modelBehaviourTree(directory: File): SourceTree {
+        return SourceTree(directory)
+            .main(
+                "com.example.pagination.model",
+                "Page.kt",
+                "data class Page(val items: Int, val pageSize: Int)"
+            )
+            .main(
+                "com.example.pagination.util",
+                "PageExt.kt",
+                """
+                    import com.example.pagination.model.Page
+
+                    val Page.pageCount: Int get() = items / pageSize
+                """.trimIndent()
+            )
+            .test(
+                "com.example.pagination.model",
+                "PageTest.kt",
+                """
+                    import com.example.pagination.util.pageCount
+                    import kotlin.test.Test
+
+                    class PageTest {
+                        @Test
+                        fun checksCalculation() { check(Page(20, 5).pageCount == 4) }
+                    }
+                """.trimIndent()
+            )
+            .main(
+                "com.example.pagination.model",
+                "Selection.kt",
+                "data class Selection(val index: Int) { val isSelected: Boolean get() = index >= 0 }"
+            )
+            .test(
+                "com.example.pagination.model",
+                "SelectionTest.kt",
+                """
+                    import kotlin.test.Test
+
+                    class SelectionTest {
+                        @Test
+                        fun checksSelection() { check(Selection(1).isSelected) }
+                    }
+                """.trimIndent()
+            )
+    }
+
+    @Test
+    fun GIVEN_model_tests_with_computed_and_extension_behaviour_WHEN_run_THEN_never_suggests_deleting_tests(
+        @TempDir directory: File
+    ) {
+        val tree = modelBehaviourTree(directory)
+        val reportFile = File(directory, "report.tsv")
+
+        main(
+            arrayOf(
+                "--project-dir",
+                directory.absolutePath,
+                "--unit-kind",
+                "context",
+                "--root-package",
+                "com.example.pagination",
+                "--main",
+                tree.mainDirectory.absolutePath,
+                "--test",
+                tree.testDirectory.absolutePath,
+                "--report",
+                reportFile.absolutePath
+            )
+        )
+
+        assertEquals(
+            emptyList(),
+            reportFile.readLines().filter { line -> line.startsWith("TestOwnerBehaviour\t") }
+        )
+    }
+
     @Test
     fun GIVEN_unit_with_violations_WHEN_run_THEN_writes_them_to_the_report(@TempDir directory: File) {
         val tree = SourceTree(directory)
@@ -78,7 +156,7 @@ internal class KonsistCliTest {
                 "--project-dir",
                 directory.absolutePath,
                 "--unit-kind",
-                "library",
+                "context",
                 "--root-package",
                 "com.example",
                 "--report",

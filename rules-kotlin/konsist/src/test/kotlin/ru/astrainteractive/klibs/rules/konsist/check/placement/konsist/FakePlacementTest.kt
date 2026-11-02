@@ -4,9 +4,9 @@ package ru.astrainteractive.klibs.rules.konsist.check.placement.konsist
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
 import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -31,7 +31,7 @@ internal class FakePlacementTest {
                 "FakeClock.kt",
                 "object FakeClock\n\nclass Faker"
             )
-            .load(UnitKind.LIBRARY)
+            .load(UnitKind.CONTEXT, publishedLibrary = true)
 
         val subjects = FakePlacement().check(sources).map(Violation::subject)
 
@@ -66,7 +66,7 @@ internal class FakePlacementTest {
             listOf("FakeClock", "FakeJailRepository"),
             violations.map(Violation::subject).sorted()
         )
-        assertTrue(violations.all { violation -> violation.message.contains("or in testFixtures") })
+        assertTrue(violations.all { violation -> violation.message.contains("testFixtures") })
     }
 
     @Test
@@ -75,28 +75,44 @@ internal class FakePlacementTest {
     ) {
         val sources = SourceTree(directory)
             .main(
-                "com.example.monetization.fake.offer",
+                "commonMain",
+                "com.example.monetization.fake.offer.fake",
                 "FakeOfferRepository.kt",
                 "class FakeOfferRepository"
             )
             .main(
-                "com.example.monetization.fake.plan",
+                "commonMain",
+                "com.example.monetization.fake.plan.fake",
                 "FakePlanRepository.kt",
                 "class FakePlanRepository"
             )
-            .load(UnitKind.CONTEXT, unitPath = ":monetization:fake")
+            .loadSourceSets(
+                UnitKind.FAKE,
+                mainSourceSet = "commonMain",
+                testSourceSet = "commonTest"
+            )
 
         assertEquals(emptyList(), FakePlacement().check(sources))
+        assertEquals(emptyList(), KindShape().check(sources))
     }
 
     @Test
     fun GIVEN_product_code_in_a_fake_unit_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
         val sources = SourceTree(directory)
-            .main("com.example.monetization.fake.offer/FakeOfferRepository.kt", "class FakeOfferRepository")
-            .main("com.example.monetization.fake.offer/OfferPricing.kt", "class OfferPricing")
-            .load(UnitKind.CONTEXT, unitPath = ":monetization:fake")
+            .main("com.example.monetization.fake.offer.fake/FakeOfferRepository.kt", "class FakeOfferRepository")
+            .main("com.example.monetization.fake.offer.fake/OfferPricing.kt", "class OfferPricing")
+            .load(UnitKind.FAKE, unitPath = ":monetization:fake")
 
         assertEquals(listOf("OfferPricing"), FakePlacement().check(sources).map(Violation::subject))
+    }
+
+    @Test
+    fun GIVEN_fake_role_with_a_misplaced_fake_WHEN_checked_THEN_requires_the_fake_kind(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main("x.offer.fake.offer.model/FakeOffer.kt", "class FakeOffer")
+            .load(UnitKind.FAKE, rootPackage = "x.offer.fake")
+
+        assertEquals(listOf("FakeOffer"), FakePlacement().check(sources).map(Violation::subject))
     }
 
     @Test

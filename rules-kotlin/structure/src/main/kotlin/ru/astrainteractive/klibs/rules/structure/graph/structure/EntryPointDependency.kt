@@ -1,5 +1,6 @@
 package ru.astrainteractive.klibs.rules.structure.graph.structure
 
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.structure.unit.api.StructureCheck
 import ru.astrainteractive.klibs.rules.structure.unit.model.BuildUnit
 import ru.astrainteractive.klibs.rules.structure.unit.model.StructureViolation
@@ -14,7 +15,7 @@ public class EntryPointDependency : StructureCheck {
     override fun check(unit: BuildUnit): List<StructureViolation> {
         return unit.projectDependencies
             .sorted()
-            .filter { dependency -> ENTRY_POINT_SEGMENT in dependency.split(':') }
+            .filter { dependency -> UnitDependencyDirection.targetKind(unit, dependency) == UnitKind.ENTRY_POINT }
             .map { dependency ->
                 val message = "Drop the dependency on the entry point $dependency: nothing depends on the entry " +
                     "point; depend on the api unit that holds what you need."
@@ -30,6 +31,5 @@ public class EntryPointDependency : StructureCheck {
     private companion object {
         const val RULE = "EntryPointDependency"
         const val BUILD_FILE = "build.gradle.kts"
-        const val ENTRY_POINT_SEGMENT = "instances"
     }
 }

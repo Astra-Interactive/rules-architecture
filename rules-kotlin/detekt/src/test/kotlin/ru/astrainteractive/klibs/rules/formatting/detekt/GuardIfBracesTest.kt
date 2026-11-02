@@ -4,6 +4,7 @@ package ru.astrainteractive.klibs.rules.formatting.detekt
 
 import dev.detekt.api.Config
 import dev.detekt.api.Finding
+import dev.detekt.core.config.YamlConfig
 import dev.detekt.test.lint
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -61,5 +62,40 @@ internal class GuardIfBracesTest {
         """.trimIndent()
 
         assertEquals(0, rule.lint(code).size)
+    }
+
+    @Test
+    fun GIVEN_project_line_limit_WHEN_guard_checked_THEN_uses_that_limit_instead_of_120() {
+        val code = """
+            fun price(order: Order?): Int {
+                if (order == null) {
+                    return 0
+                }
+                return order.total
+            }
+        """.trimIndent()
+        val short = YamlConfig.load(
+            """
+            style:
+              MaxLineLength:
+                maxLineLength: 20
+            architecture:
+              GuardIfBraces:
+                active: true
+            """.trimIndent().reader()
+        )
+        val long = YamlConfig.load(
+            """
+            style:
+              MaxLineLength:
+                maxLineLength: 80
+            architecture:
+              GuardIfBraces:
+                active: true
+            """.trimIndent().reader()
+        )
+
+        assertEquals(0, GuardIfBraces(short.subConfig("architecture").subConfig("GuardIfBraces")).lint(code).size)
+        assertEquals(1, GuardIfBraces(long.subConfig("architecture").subConfig("GuardIfBraces")).lint(code).size)
     }
 }

@@ -12,7 +12,7 @@ internal class SharedFlowEventTest {
     private val rule = SharedFlowEvent(Config.empty)
 
     @Test
-    fun GIVEN_view_model_shared_flows_and_unbuffered_try_emit_WHEN_linted_THEN_reports_each() {
+    fun GIVEN_broadcasts_and_unbuffered_try_emit_WHEN_linted_THEN_reports_only_the_buffer() {
         val code = """
             class CheckoutViewModel {
                 private val eventFlow = MutableSharedFlow<CheckoutEvent>()
@@ -30,10 +30,6 @@ internal class SharedFlowEventTest {
 
         assertEquals(
             listOf(
-                "Send the one-off events of 'CheckoutViewModel' through Channel(Channel.BUFFERED).receiveAsFlow(): " +
-                    "a SharedFlow drops an event while the UI does not collect.",
-                "Send the one-off events of 'CheckoutViewModel' through Channel(Channel.BUFFERED).receiveAsFlow(): " +
-                    "a SharedFlow drops an event while the UI does not collect.",
                 "Give 'events' an extraBufferCapacity: tryEmit on a MutableSharedFlow without a buffer drops every " +
                     "value.",
             ),

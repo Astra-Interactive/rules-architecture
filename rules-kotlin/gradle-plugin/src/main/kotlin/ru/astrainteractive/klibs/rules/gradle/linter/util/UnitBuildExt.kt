@@ -1,8 +1,9 @@
 package ru.astrainteractive.klibs.rules.gradle.linter.util
 
+import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
-import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 
 private const val BUILD_FILE = "build.gradle.kts"
 private const val STRICT = "strict"
@@ -70,8 +71,70 @@ private fun isPlatformGroup(dependency: String): Boolean {
     return isPlatform && !isPlatformFree
 }
 
+private fun UnitBuild.ExternalDependency.isAndroidOrigin(): Boolean {
+    if (sourceSet == null || sourceSet == "commonMain") return false
+    return compilationPlatforms.isNotEmpty() && compilationPlatforms.all { platform ->
+        platform == "androidJvm"
+    }
+}
+
+private fun UnitBuild.ExternalDependency.isAndroidDependency(): Boolean {
+    val group = coordinate.substringBefore(':')
+    return group.startsWith("androidx.") || group.startsWith("com.android")
+}
+
+private fun UnitBuild.ExternalDependency.isOriginUnknown(): Boolean {
+    if (sourceSet == null) return true
+    return sourceSet != "commonMain" && compilationPlatforms.isEmpty()
+}
+
+private fun UnitBuild.findTypedPlatformDependencyFinding(
+    dependency: UnitBuild.ExternalDependency
+): ArchitectureFinding? {
+    val checkedRoles = setOf(
+        UnitKind.API,
+        UnitKind.CORE_API,
+        UnitKind.CORE
+    )
+    if (unitKind !in checkedRoles) return null
+    val subject = "${dependency.configuration}: ${dependency.coordinate}"
+    if (productKind == ProductKind.APP && dependency.isAndroidDependency() && dependency.isAndroidOrigin()) return null
+    val missingProduct = productKind == null
+    val missingOrigin = productKind == ProductKind.APP && dependency.isOriginUnknown()
+    if (missingProduct || missingOrigin) {
+        return ArchitectureFinding(
+            rule = "PlatformDependencyMetadata",
+            path = BUILD_FILE,
+            subject = subject,
+            message = "Cannot verify the platform origin of ${dependency.coordinate}: configuration " +
+                "${dependency.configuration} needs a known product kind, declaring source set and production " +
+                "compilation target. Supply the missing build metadata."
+        )
+    }
+    val message = if (productKind == ProductKind.PLATFORM_PLUGIN) {
+        "Move the platform dependency ${dependency.coordinate} out of this api unit: the api unit holds " +
+            "platform-free code, and its platform unit depends on it."
+    } else {
+        "Move ${dependency.coordinate} to its matching platform source set: declaration in " +
+            "${dependency.sourceSet} is not permitted for $unitKind. Keep common contracts and models platform-free."
+    }
+    return ArchitectureFinding(
+        rule = "ApiUnitPlatformDependency",
+        path = BUILD_FILE,
+        subject = subject,
+        message = message
+    )
+}
+
 private fun UnitBuild.findPlatformDependencyFindings(): List<ArchitectureFinding> {
-    if (unitKind != UnitKind.API) return emptyList()
+    if (isPublished) return emptyList()
+    if (externalDependencies.isNotEmpty()) {
+        return externalDependencies
+            .filter(UnitBuild.ExternalDependency::production)
+            .filter { dependency -> isPlatformGroup(dependency.coordinate) }
+            .mapNotNull(::findTypedPlatformDependencyFinding)
+    }
+    if (unitKind != UnitKind.API && unitKind != UnitKind.CORE_API) return emptyList()
     return platformDependencies.filter(::isPlatformGroup).map { dependency ->
         ArchitectureFinding(
             rule = "ApiUnitPlatformDependency",

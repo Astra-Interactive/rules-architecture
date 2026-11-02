@@ -1,4 +1,4 @@
-@file:Suppress("FunctionNaming", "FileLength")
+@file:Suppress("FunctionNaming")
 
 package ru.astrainteractive.klibs.rules.gradle.linter.plugin.gradle
 
@@ -9,6 +9,8 @@ import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.gradle.fixture.IsolatedProjectsBuild
 import java.io.File
 
+// Keep the existing TestKit scenarios together; new policy scenarios have their own test class.
+@Suppress("LargeClass")
 class LinterPluginTest {
     private fun jailBuild(rootDirectory: File): IsolatedProjectsBuild {
         return IsolatedProjectsBuild(rootDirectory)
@@ -73,7 +75,7 @@ class LinterPluginTest {
     }
 
     @Test
-    fun GIVEN_technology_unit_copying_a_dependency_model_WHEN_architecture_checked_THEN_reports_the_copy(
+    fun GIVEN_storage_representation_matching_a_model_WHEN_architecture_checked_THEN_leaves_the_choice_to_review(
         @TempDir rootDirectory: File
     ) {
         val exposedScript = """
@@ -105,9 +107,7 @@ class LinterPluginTest {
                 """.trimIndent()
             )
 
-        val result = build.runAndFail(":modules:exposed:architectureCheck")
-
-        assertTrue(result.output.contains("RatingRow copies the fields of Rating"), result.output)
+        build.run(":modules:exposed:architectureCheck")
     }
 
     @Test
@@ -366,7 +366,6 @@ class LinterPluginTest {
     ) {
         val moduleScript = """
             import dev.detekt.gradle.Detekt
-            import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
 
             plugins {
                 id("org.jetbrains.kotlin.jvm")
@@ -380,15 +379,15 @@ class LinterPluginTest {
 
             val detektTask = tasks.named<Detekt>("detekt").get()
             val detektArguments = detektTask.freeCompilerArgs
+            val detektTestArguments = tasks.named<Detekt>("detektTest").get().freeCompilerArgs
             val detektConfig = detektTask.config
-            val linterUnitKind = extensions.getByType<LinterExtension>().unitKind
             val detektPluginNames = configurations.getByName("detektPlugins").dependencies
                 .map { dependency -> "${'$'}{dependency.group}:${'$'}{dependency.name}" }
             val linterReport = layout.buildDirectory.file("linter-report.txt")
             tasks.register("reportLinter") {
                 val arguments = detektArguments
+                val testArguments = detektTestArguments
                 val configFiles = detektConfig
-                val unitKind = linterUnitKind
                 val pluginNames = detektPluginNames
                 val reportFile = linterReport
                 outputs.file(reportFile)
@@ -396,8 +395,8 @@ class LinterPluginTest {
                     val lines = listOf(
                         "args=" + arguments.get(),
                         "config=" + configFiles.files.map { file -> file.parentFile.parentFile.name + "/" + file.name },
-                        "kind=" + unitKind.get(),
                         "plugins=" + pluginNames,
+                        "testArgs=" + testArguments.get(),
                     )
                     reportFile.get().asFile.writeText(lines.joinToString(separator = "\n"))
                 }
@@ -417,17 +416,157 @@ class LinterPluginTest {
                 "config/detekt.yml]",
             report[1]
         )
-        assertEquals("kind=library", report[2])
-        assertTrue(report[3].contains("ru.astrainteractive.klibs.rules:detekt"), "rules missing: ${report[3]}")
+        assertTrue(report[2].contains("ru.astrainteractive.klibs.rules:detekt"), "rules missing: ${report[2]}")
+        assertTrue("-Xexplicit-api" !in report[3], "explicit API leaked into test compilation: ${report[3]}")
     }
 
     @Test
-    fun GIVEN_unknown_unit_kind_WHEN_architecture_checked_THEN_fails_listing_the_kinds(@TempDir rootDirectory: File) {
+    fun GIVEN_explicit_api_jvm_library_WHEN_source_set_detekt_runs_THEN_public_visibility_is_required(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            plugins {
+                id("org.jetbrains.kotlin.jvm")
+                id("ru.astrainteractive.klibs.rules.gradle.linter")
+            }
+
+            kotlin { explicitApi() }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "modules:library", buildScript = moduleScript)
+            .withSourceFile(
+                "modules/library/src/main/kotlin/com/example/library/api/PublicApi.kt",
+                """
+                package com.example.library.api
+
+                public interface PublicApi
+
+                """.trimIndent()
+            )
+
+        build.run(":modules:library:detektMain", ":modules:library:detektMainSourceSet")
+    }
+
+    @Test
+    fun GIVEN_explicit_api_kmp_library_WHEN_common_source_set_detekt_runs_THEN_public_visibility_is_required(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            plugins {
+                id("org.jetbrains.kotlin.multiplatform")
+                id("ru.astrainteractive.klibs.rules.gradle.linter")
+            }
+
+            kotlin {
+                jvm()
+                explicitApi()
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "modules:library", buildScript = moduleScript)
+            .withSourceFile(
+                "modules/library/src/commonMain/kotlin/com/example/library/api/PublicApi.kt",
+                """
+                package com.example.library.api
+
+                public interface PublicApi
+
+                """.trimIndent()
+            )
+
+        build.run(":modules:library:detektCommonMainSourceSet")
+    }
+
+    @Test
+    fun GIVEN_latest_main_source_set_with_explicit_api_WHEN_detekt_runs_THEN_public_visibility_is_required(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            plugins {
+                id("org.jetbrains.kotlin.multiplatform")
+                id("ru.astrainteractive.klibs.rules.gradle.linter")
+            }
+
+            kotlin {
+                jvm()
+                explicitApi()
+                sourceSets {
+                    val latestMain by creating { dependsOn(commonMain.get()) }
+                    jvmMain.get().dependsOn(latestMain)
+                    val latestTest by creating { dependsOn(commonTest.get()) }
+                    jvmTest.get().dependsOn(latestTest)
+                }
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "modules:library", buildScript = moduleScript)
+            .withSourceFile(
+                "modules/library/src/latestMain/kotlin/com/example/library/api/LatestApi.kt",
+                """
+                package com.example.library.api
+
+                public interface LatestApi
+
+                """.trimIndent()
+            )
+            .withSourceFile(
+                "modules/library/src/latestTest/kotlin/com/example/library/api/LatestTestApi.kt",
+                """
+                package com.example.library.api
+
+                public interface LatestTestApi
+
+                """.trimIndent()
+            )
+
+        build.run(":modules:library:detektLatestMainSourceSet")
+        val testResult = build.runAndFail(":modules:library:detektLatestTestSourceSet")
+
+        assertTrue(testResult.output.contains("RedundantVisibilityModifier"), testResult.output)
+    }
+
+    @Test
+    fun GIVEN_no_explicit_api_WHEN_main_source_set_detekt_runs_THEN_redundant_public_is_reported(
+        @TempDir rootDirectory: File
+    ) {
+        val moduleScript = """
+            plugins {
+                id("org.jetbrains.kotlin.jvm")
+                id("ru.astrainteractive.klibs.rules.gradle.linter")
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "modules:library", buildScript = moduleScript)
+            .withSourceFile(
+                "modules/library/src/main/kotlin/com/example/library/api/PublicApi.kt",
+                """
+                package com.example.library.api
+
+                public interface PublicApi
+
+                """.trimIndent()
+            )
+
+        val result = build.runAndFail(":modules:library:detektMain")
+
+        assertTrue(result.output.contains("RedundantVisibilityModifier"), result.output)
+    }
+
+    @Test
+    fun GIVEN_string_unit_kind_WHEN_configured_THEN_requires_the_enum(@TempDir rootDirectory: File) {
         val moduleScript = """
             $JAVA_MODULE_SCRIPT
 
             linter {
-                unitKind.set("service")
+                unitKind("service")
             }
         """.trimIndent()
         val build = IsolatedProjectsBuild(rootDirectory)
@@ -439,8 +578,7 @@ class LinterPluginTest {
 
         assertTrue(
             result.output.contains(
-                "linter.unitKind of :modules:jail is 'service', expected one of context, library, api, contract, " +
-                    "entry-point"
+                "UnitKind"
             ),
             "the unknown kind was not reported:\n${result.output}"
         )
@@ -510,6 +648,41 @@ class LinterPluginTest {
     }
 
     @Test
+    fun GIVEN_kotlin_convention_plugin_WHEN_root_checked_THEN_allows_sources(@TempDir rootDirectory: File) {
+        val script = """
+            plugins {
+                `kotlin-dsl`
+                id("ru.astrainteractive.klibs.rules.gradle.linter")
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript(script)
+            .withSourceFile("src/main/kotlin/example.java-library.gradle.kts", "plugins { `java-library` }")
+
+        build.run(":architectureCheck")
+    }
+
+    @Test
+    fun GIVEN_convention_plugin_applied_after_linter_WHEN_root_checked_THEN_allows_sources_and_reuses_cache(
+        @TempDir rootDirectory: File
+    ) {
+        val script = JAVA_MODULE_SCRIPT + """
+
+            apply(plugin = "groovy-gradle-plugin")
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript(script)
+            .withSourceFile("src/main/groovy/example.java-library.gradle", "plugins { id 'java-library' }")
+
+        build.run(":architectureCheck")
+        val second = build.run(":architectureCheck")
+
+        assertTrue(second.output.contains("Reusing configuration cache"), second.output)
+    }
+
+    @Test
     fun GIVEN_kotlin_unit_with_explicit_api_warning_WHEN_configured_THEN_detekt_gets_the_warning_mode(
         @TempDir rootDirectory: File
     ) {
@@ -526,12 +699,18 @@ class LinterPluginTest {
             }
 
             val detektArguments = tasks.named<Detekt>("detekt").get().freeCompilerArgs
+            val detektMainArguments = tasks.named<Detekt>("detektMain").get().freeCompilerArgs
             val argumentsReport = layout.buildDirectory.file("detekt-arguments.txt")
             tasks.register("reportDetektArguments") {
                 val arguments = detektArguments
+                val mainArguments = detektMainArguments
                 val reportFile = argumentsReport
                 outputs.file(reportFile)
-                doLast { reportFile.get().asFile.writeText(arguments.get().joinToString()) }
+                doLast {
+                    reportFile.get().asFile.writeText(
+                        listOf(arguments.get(), mainArguments.get()).joinToString(separator = "\n")
+                    )
+                }
             }
         """.trimIndent()
         val build = IsolatedProjectsBuild(rootDirectory)
@@ -540,7 +719,10 @@ class LinterPluginTest {
 
         build.run(":modules:library:reportDetektArguments")
 
-        assertEquals("-Xexplicit-api=warning", build.file("modules/library/build/detekt-arguments.txt").readText())
+        assertEquals(
+            "[-Xexplicit-api=warning]\n[-Xexplicit-api=warning]",
+            build.file("modules/library/build/detekt-arguments.txt").readText()
+        )
     }
 
     @Test

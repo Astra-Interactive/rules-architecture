@@ -2,9 +2,10 @@
 
 package ru.astrainteractive.klibs.rules.gradle.linter.util
 
+import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
-import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitKind
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -18,6 +19,172 @@ class UnitBuildExtTest {
         explicitApiMode = null,
         platformDependencies = listOf("androidx.compose.runtime:runtime", "org.jetbrains.kotlinx:kotlinx-coroutines")
     )
+
+    @Test
+    fun GIVEN_core_android_dependency_declared_in_android_source_set_WHEN_checked_THEN_allowed() {
+        val build = cleanBuild.copy(
+            unitKind = UnitKind.CORE,
+            productKind = ProductKind.APP,
+            externalDependencies = listOf(
+                UnitBuild.ExternalDependency(
+                    coordinate = "androidx.core:core-splashscreen",
+                    configuration = "androidMainImplementation",
+                    sourceSet = "androidMain",
+                    production = true,
+                    compilationPlatforms = setOf("androidJvm")
+                )
+            )
+        )
+
+        assertEquals(emptyList(), build.findBuildFindings())
+    }
+
+    @Test
+    fun GIVEN_core_common_and_unknown_android_dependencies_WHEN_checked_THEN_reports_both_origins() {
+        val build = cleanBuild.copy(
+            unitKind = UnitKind.CORE,
+            productKind = ProductKind.APP,
+            externalDependencies = listOf(
+                UnitBuild.ExternalDependency(
+                    "androidx.core:core-splashscreen",
+                    "commonMainImplementation",
+                    "commonMain",
+                    true,
+                    setOf("androidJvm")
+                ),
+                UnitBuild.ExternalDependency(
+                    "androidx.core:core-ktx",
+                    "customImplementation",
+                    null,
+                    true,
+                    emptySet()
+                ),
+                UnitBuild.ExternalDependency(
+                    "androidx.core:core-ktx",
+                    "androidTestImplementation",
+                    "androidTest",
+                    false,
+                    setOf("androidJvm")
+                )
+            )
+        )
+
+        assertEquals(
+            listOf(
+                "commonMainImplementation: androidx.core:core-splashscreen",
+                "customImplementation: androidx.core:core-ktx"
+            ),
+            build.findBuildFindings().map(ArchitectureFinding::subject)
+        )
+        assertEquals(
+            listOf("ApiUnitPlatformDependency", "PlatformDependencyMetadata"),
+            build.findBuildFindings().map(ArchitectureFinding::rule)
+        )
+    }
+
+    @Test
+    fun GIVEN_app_api_android_dependency_WHEN_checked_THEN_platform_origin_is_allowed() {
+        val build = cleanBuild.copy(
+            productKind = ProductKind.APP,
+            externalDependencies = listOf(
+                UnitBuild.ExternalDependency(
+                    "androidx.core:core-splashscreen",
+                    "androidMainImplementation",
+                    "androidMain",
+                    true,
+                    setOf("androidJvm")
+                )
+            )
+        )
+
+        assertEquals(emptyList(), build.findBuildFindings())
+        assertEquals(emptyList(), build.copy(unitKind = UnitKind.CORE_API).findBuildFindings())
+    }
+
+    @Test
+    fun GIVEN_android_entry_point_platform_dependencies_WHEN_checked_THEN_no_api_boundary_is_applied() {
+        val build = cleanBuild.copy(
+            unitKind = UnitKind.ENTRY_POINT,
+            productKind = ProductKind.APP,
+            externalDependencies = listOf(
+                UnitBuild.ExternalDependency(
+                    "androidx.core:core-splashscreen",
+                    "implementation",
+                    "main",
+                    true,
+                    setOf("androidJvm")
+                ),
+                UnitBuild.ExternalDependency(
+                    "androidx.core:core-ktx",
+                    "debugImplementation",
+                    null,
+                    true,
+                    emptySet()
+                )
+            )
+        )
+
+        assertEquals(emptyList(), build.findBuildFindings())
+    }
+
+    @Test
+    fun GIVEN_common_app_api_and_platform_plugin_api_WHEN_checked_THEN_keeps_contract_boundary() {
+        val coordinate = "androidx.core:core-splashscreen"
+        val android = UnitBuild.ExternalDependency(
+            coordinate,
+            "androidMainImplementation",
+            "androidMain",
+            true,
+            setOf("androidJvm")
+        )
+        val common = UnitBuild.ExternalDependency(
+            coordinate,
+            "commonMainImplementation",
+            "commonMain",
+            true,
+            setOf("androidJvm")
+        )
+        val app = cleanBuild.copy(productKind = ProductKind.APP, externalDependencies = listOf(common))
+        val plugin = cleanBuild.copy(
+            productKind = ProductKind.PLATFORM_PLUGIN,
+            externalDependencies = listOf(android)
+        )
+
+        assertEquals(
+            listOf("commonMainImplementation: $coordinate", "androidMainImplementation: $coordinate"),
+            (app.findBuildFindings() + plugin.findBuildFindings()).map(ArchitectureFinding::subject)
+        )
+    }
+
+    @Test
+    fun GIVEN_custom_source_set_shared_with_ios_WHEN_checked_THEN_only_android_branch_is_allowed() {
+        val coordinate = "androidx.core:core-ktx"
+        val build = cleanBuild.copy(
+            unitKind = UnitKind.CORE,
+            productKind = ProductKind.APP,
+            externalDependencies = listOf(
+                UnitBuild.ExternalDependency(
+                    coordinate,
+                    "mobileMainImplementation",
+                    "mobileMain",
+                    true,
+                    setOf("androidJvm", "native-ios_arm64")
+                ),
+                UnitBuild.ExternalDependency(
+                    coordinate,
+                    "androidSharedMainImplementation",
+                    "androidSharedMain",
+                    true,
+                    setOf("androidJvm")
+                )
+            )
+        )
+
+        assertEquals(
+            listOf("mobileMainImplementation: $coordinate"),
+            build.findBuildFindings().map(ArchitectureFinding::subject)
+        )
+    }
 
     @Test
     fun GIVEN_api_configuration_without_framework_export_WHEN_checked_THEN_reports_each_dependency() {

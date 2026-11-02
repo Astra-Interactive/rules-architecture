@@ -1,5 +1,6 @@
 package ru.astrainteractive.klibs.rules.structure.graph.structure
 
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.structure.unit.api.StructureCheck
 import ru.astrainteractive.klibs.rules.structure.unit.model.BuildUnit
 import ru.astrainteractive.klibs.rules.structure.unit.model.StructureViolation
@@ -11,11 +12,13 @@ import ru.astrainteractive.klibs.rules.structure.unit.model.StructureViolation
 public class ApiUnitDependency : StructureCheck {
 
     override fun check(unit: BuildUnit): List<StructureViolation> {
-        if (unit.name != API) return emptyList()
+        if (UnitDependencyDirection.kindOf(unit) != UnitKind.API) return emptyList()
         val forbidden = UnitDependencyDirection.findForbidden(unit)
         return unit.projectDependencies
             .sorted()
-            .filter { dependency -> dependency in forbidden && dependency.substringAfterLast(':') != IMPL }
+            .filter { dependency ->
+                dependency in forbidden && UnitDependencyDirection.targetKind(unit, dependency) != UnitKind.IMPL
+            }
             .map { dependency ->
                 val message = "An api unit depends only on other api units, core and the storage contracts unit: " +
                     "drop $dependency or depend on its api unit."
@@ -31,7 +34,5 @@ public class ApiUnitDependency : StructureCheck {
     private companion object {
         const val RULE = "ApiUnitDependency"
         const val BUILD_FILE = "build.gradle.kts"
-        const val API = "api"
-        const val IMPL = "impl"
     }
 }

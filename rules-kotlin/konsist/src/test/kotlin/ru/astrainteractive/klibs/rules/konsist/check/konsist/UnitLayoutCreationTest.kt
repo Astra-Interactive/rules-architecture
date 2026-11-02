@@ -3,9 +3,12 @@
 package ru.astrainteractive.klibs.rules.konsist.check.konsist
 
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
-import ru.astrainteractive.klibs.rules.konsist.layout.model.UnitKind
+import java.io.File
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 internal class UnitLayoutCreationTest {
 
@@ -69,5 +72,17 @@ internal class UnitLayoutCreationTest {
         )
 
         assertEquals("x", layout.rootPackage)
+    }
+
+    @Test
+    fun GIVEN_conflicting_cli_and_context_roles_WHEN_loaded_THEN_rejects_ambiguous_rules(@TempDir directory: File) {
+        val tree = SourceTree(directory)
+        val context = tree.load(UnitKind.API).context
+
+        val error = assertFailsWith<IllegalArgumentException> {
+            tree.load(UnitKind.CONTEXT, context = context)
+        }
+
+        assertEquals("The --unit-kind and --unit-context roles disagree", error.message)
     }
 }

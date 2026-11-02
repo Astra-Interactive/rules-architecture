@@ -38,4 +38,18 @@ internal class ContainerSourcesTest {
 
         assertEquals(emptyList(), ContainerSources(root).check(unit(unitDirectory, ":modules:gui:api")))
     }
+
+    @Test
+    fun GIVEN_root_unit_with_sources_WHEN_checked_THEN_root_is_not_treated_as_a_container(@TempDir root: File) {
+        File(root, "src/main/kotlin").mkdirs()
+        val rootUnit = BuildUnit(
+            ":",
+            root,
+            false,
+            true,
+            emptySet()
+        )
+
+        assertEquals(emptyList(), ContainerSources(root).check(rootUnit))
+    }
 }
