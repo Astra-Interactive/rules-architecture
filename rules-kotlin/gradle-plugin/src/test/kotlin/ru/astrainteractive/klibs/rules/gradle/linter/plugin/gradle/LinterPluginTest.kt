@@ -9,6 +9,8 @@ import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.gradle.fixture.IsolatedProjectsBuild
 import java.io.File
 
+// Keep the existing TestKit scenarios together; new policy scenarios have their own test class.
+@Suppress("LargeClass")
 class LinterPluginTest {
     private fun jailBuild(rootDirectory: File): IsolatedProjectsBuild {
         return IsolatedProjectsBuild(rootDirectory)
@@ -436,7 +438,12 @@ class LinterPluginTest {
             .withModule(name = "modules:library", buildScript = moduleScript)
             .withSourceFile(
                 "modules/library/src/main/kotlin/com/example/library/api/PublicApi.kt",
-                "package com.example.library.api\n\npublic interface PublicApi\n"
+                """
+                package com.example.library.api
+
+                public interface PublicApi
+
+                """.trimIndent()
             )
 
         build.run(":modules:library:detektMain", ":modules:library:detektMainSourceSet")
@@ -463,7 +470,12 @@ class LinterPluginTest {
             .withModule(name = "modules:library", buildScript = moduleScript)
             .withSourceFile(
                 "modules/library/src/commonMain/kotlin/com/example/library/api/PublicApi.kt",
-                "package com.example.library.api\n\npublic interface PublicApi\n"
+                """
+                package com.example.library.api
+
+                public interface PublicApi
+
+                """.trimIndent()
             )
 
         build.run(":modules:library:detektCommonMainSourceSet")
@@ -496,11 +508,21 @@ class LinterPluginTest {
             .withModule(name = "modules:library", buildScript = moduleScript)
             .withSourceFile(
                 "modules/library/src/latestMain/kotlin/com/example/library/api/LatestApi.kt",
-                "package com.example.library.api\n\npublic interface LatestApi\n"
+                """
+                package com.example.library.api
+
+                public interface LatestApi
+
+                """.trimIndent()
             )
             .withSourceFile(
                 "modules/library/src/latestTest/kotlin/com/example/library/api/LatestTestApi.kt",
-                "package com.example.library.api\n\npublic interface LatestTestApi\n"
+                """
+                package com.example.library.api
+
+                public interface LatestTestApi
+
+                """.trimIndent()
             )
 
         build.run(":modules:library:detektLatestMainSourceSet")
@@ -525,7 +547,12 @@ class LinterPluginTest {
             .withModule(name = "modules:library", buildScript = moduleScript)
             .withSourceFile(
                 "modules/library/src/main/kotlin/com/example/library/api/PublicApi.kt",
-                "package com.example.library.api\n\npublic interface PublicApi\n"
+                """
+                package com.example.library.api
+
+                public interface PublicApi
+
+                """.trimIndent()
             )
 
         val result = build.runAndFail(":modules:library:detektMain")
