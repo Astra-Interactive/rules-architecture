@@ -103,7 +103,12 @@ internal class LinterPlugin : Plugin<Project> {
             task.inputs.file(settingsTask.flatMap(DetektSettingsTask::unitContextFile))
                 .withPropertyName("architectureUnitContext")
                 .withPathSensitivity(PathSensitivity.NONE)
-            if (task.name == DETEKT_TASK_NAME) task.freeCompilerArgs.addAll(explicitApiArguments)
+            // Detekt creates separate tasks for compilations and KMP source sets. Public is required
+            // in their production sources when Kotlin explicit API mode is enabled. Match the Test
+            // token, not its letters inside a production name such as LatestMain.
+            if (!TEST_TASK_TOKEN.containsMatchIn(task.name)) {
+                task.freeCompilerArgs.addAll(explicitApiArguments)
+            }
         }
     }
 
@@ -296,5 +301,6 @@ internal class LinterPlugin : Plugin<Project> {
         private const val CONFIG_SERVICE_NAME = "klibsDetektArchitectureConfig"
         private const val GRAPH_SERVICE_NAME = "klibsArchitectureGraph"
         private const val KONSIST_CONFIGURATION = "klibsArchitectureKonsist"
+        private val TEST_TASK_TOKEN = Regex("Tests?(?=[A-Z]|$)")
     }
 }
