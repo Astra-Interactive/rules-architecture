@@ -32,8 +32,9 @@ internal class UnitLayout(
             segments.indexOfLast { segment -> Kind.fromSegment(segment, vocabulary) != null }
         }
         if (kindIndex < 0) {
-            val technologyUnit = unitKind == UnitKind.TECHNOLOGY || unitKind == UnitKind.PLATFORM
-            val kind = Kind.IMPLEMENTATION.takeIf { technologyUnit && segments.isNotEmpty() }
+            val platformUnit = unitKind == UnitKind.PLATFORM || unitKind == UnitKind.CORE_PLATFORM
+            val allowsConceptImplementations = unitKind == UnitKind.TECHNOLOGY || platformUnit
+            val kind = Kind.IMPLEMENTATION.takeIf { allowsConceptImplementations && segments.isNotEmpty() }
             return Placement(
                 concepts = segments,
                 kind = kind,

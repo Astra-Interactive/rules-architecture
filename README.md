@@ -328,6 +328,11 @@ Every unit has the shape `<unit root>[/<concept>]/<kind>/<File>`. The unit kind 
 | `entry-point` | holds the platform main class, which may sit at the root, and `RootModule`                |
 | `technology`  | is wholly one technology's implementation (`data/exposed`); its concepts hold implementations directly |
 
+The `platform` and `core-platform` roles also allow implementations directly in concept packages. This
+does not allow files at the unit root or override explicit `api`, `model`, `util` and `di` kinds. In
+particular, `core-platform` keeps its own dependency restrictions; it does not inherit the feature
+dependencies of `platform`. A format that registers concrete serializers is assembled in `di`.
+
 Choosing `flow`, `channelFlow` or `callbackFlow`, and choosing a sharing policy, still requires review of
 concurrency, cleanup and resource ownership. Operators and helpers can launch coroutines indirectly.
 The usefulness of a test likewise depends on the behaviour it exercises, including model extensions and

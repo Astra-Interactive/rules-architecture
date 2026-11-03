@@ -13,6 +13,30 @@ import java.io.File
 import kotlin.test.assertEquals
 
 internal class PlatformImportTest {
+    @Test
+    fun GIVEN_platform_core_WHEN_importing_bukkit_THEN_only_adapters_and_di_accept_it(@TempDir directory: File) {
+        val tree = SourceTree(directory)
+            .main("x.core.item/BukkitItem.kt", "import org.bukkit.Material\nclass BukkitItem")
+        val rejectedKinds = listOf(
+            "api",
+            "model",
+            "usecase"
+        )
+        (rejectedKinds + "di").forEach { kind ->
+            tree.main("x.core.item.$kind/Consumer.kt", "import org.bukkit.Material\nclass Consumer")
+        }
+        val sources = tree.load(
+            UnitKind.CORE_PLATFORM,
+            rootPackage = "x.core",
+            unitPath = ":modules:core:bukkit"
+        )
+
+        assertEquals(
+            rejectedKinds.map { kind -> "src/main/kotlin/x/core/item/$kind/Consumer.kt" }.sorted(),
+            PlatformImport().check(sources).map(Violation::path).sorted()
+        )
+    }
+
     private fun coreTree(directory: File): SourceTree {
         return SourceTree(directory)
             .main(

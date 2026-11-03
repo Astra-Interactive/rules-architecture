@@ -13,6 +13,24 @@ import kotlin.test.assertEquals
 internal class ContractPlacementTest {
 
     @Test
+    fun GIVEN_platform_core_contract_and_sealed_adapters_WHEN_checked_THEN_only_contract_needs_api(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main("x.core.item/ItemProvider.kt", "interface ItemProvider")
+            .main("x.core.item/SpigotShopItemStack.kt", "sealed interface SpigotShopItemStack")
+            .main("x.core.item/SpigotTitleItemStack.kt", "sealed interface SpigotTitleItemStack")
+            .main("x.core.item.api/ShopItemStack.kt", "interface ShopItemStack")
+            .load(
+                UnitKind.CORE_PLATFORM,
+                rootPackage = "x.core",
+                unitPath = ":modules:core:bukkit"
+            )
+
+        assertEquals(listOf("ItemProvider"), ContractPlacement().check(sources).map(Violation::subject))
+    }
+
+    @Test
     fun GIVEN_contracts_and_implementations_out_of_place_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
         val sources = SourceTree(directory)
             .main(

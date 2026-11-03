@@ -13,6 +13,32 @@ import kotlin.test.assertEquals
 internal class KindShapeTest {
 
     @Test
+    fun GIVEN_platform_core_adapters_WHEN_checked_THEN_accepts_concepts_but_rejects_loose_root_files(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.core.economy/BukkitCurrencyEconomyProviderResolver.kt",
+                "internal class BukkitCurrencyEconomyProviderResolver"
+            )
+            .main("x.core.item/ItemStackSerializer.kt", "object ItemStackSerializer")
+            .main("x.core.item/MaterialSerializer.kt", "object MaterialSerializer")
+            .main("x.core.item/SpigotShopItemStack.kt", "sealed interface SpigotShopItemStack")
+            .main("x.core.item/SpigotTitleItemStack.kt", "sealed interface SpigotTitleItemStack")
+            .main("x.core.item.api/ShopItemStack.kt", "interface ShopItemStack")
+            .main("x.core.item.model/ItemKey.kt", "data class ItemKey(val value: String)")
+            .main("x.core.format.di/ShopFormatModule.kt", "class ShopFormatModule")
+            .main("x.core/LooseAdapter.kt", "internal class LooseAdapter")
+            .load(
+                UnitKind.CORE_PLATFORM,
+                rootPackage = "x.core",
+                unitPath = ":modules:core:bukkit"
+            )
+
+        assertEquals(listOf("LooseAdapter"), KindShape().check(sources).map(Violation::subject))
+    }
+
+    @Test
     fun GIVEN_loose_files_and_nested_kind_packages_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
         val sources = SourceTree(directory)
             .main(

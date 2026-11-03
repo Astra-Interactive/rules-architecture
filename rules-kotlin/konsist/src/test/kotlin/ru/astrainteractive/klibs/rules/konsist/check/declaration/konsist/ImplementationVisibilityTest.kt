@@ -13,6 +13,26 @@ import kotlin.test.assertEquals
 internal class ImplementationVisibilityTest {
 
     @Test
+    fun GIVEN_public_platform_core_adapter_WHEN_checked_THEN_preserves_existing_core_path_exception(
+        @TempDir directory: File
+    ) {
+        val tree = SourceTree(directory).main("x.core.item/ItemStackSerializer.kt", "class ItemStackSerializer")
+        val core = tree.load(
+            UnitKind.CORE_PLATFORM,
+            rootPackage = "x.core",
+            unitPath = ":modules:core:bukkit"
+        )
+        val other = tree.load(
+            UnitKind.CORE_PLATFORM,
+            rootPackage = "x.core",
+            unitPath = ":modules:foundation:bukkit"
+        )
+
+        assertEquals(emptyList(), ImplementationVisibility().check(core))
+        assertEquals(listOf("ItemStackSerializer"), ImplementationVisibility().check(other).map(Violation::subject))
+    }
+
+    @Test
     fun GIVEN_public_implementations_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
         val sources = SourceTree(directory)
             .main("x.jail.api.jail.file/FileJailRepository.kt", "class FileJailRepository")
