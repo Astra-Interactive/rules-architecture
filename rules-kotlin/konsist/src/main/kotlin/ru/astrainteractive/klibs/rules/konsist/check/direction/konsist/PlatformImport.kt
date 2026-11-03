@@ -12,12 +12,12 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 /**
  * Reports a platform, framework or ORM import in `model`, `api` and `usecase`, and anywhere in an `api` unit,
  * which holds platform-free code only. Mixed app core admits common Ktor client wiring in `di` and Android types in
- * Android-only `util` source sets. A technology unit is not checked: it is that technology's
- * implementation, its own `model` included. In a Compose UI unit, `model` and the UI kinds may import Compose: an
- * `api` unit whose state holder declares `Render()` is such a unit.
+ * Android-only `util` source sets. Platform and technology units keep their explicit model, contract and use-case
+ * boundaries; their implementation packages may import their platform. In a Compose UI unit, `model` and the UI kinds
+ * may import Compose: an `api` unit whose state holder declares `Render()` is such a unit.
  */
 internal class PlatformImport : ArchitectureCheck {
-    override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet() - UnitKind.TECHNOLOGY - UnitKind.PLATFORM
+    override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
 
     private fun isChecked(sources: UnitSources, file: KoFileDeclaration): Boolean {
         if (sources.kind == UnitKind.API || sources.kind == UnitKind.CORE_API || sources.kind == UnitKind.CORE) {
@@ -96,8 +96,9 @@ internal class PlatformImport : ArchitectureCheck {
                         )
                     }
                     .map { importedName ->
-                        val message = "$importedName is a platform type: keep it in a platform unit or a " +
-                            "technology package and map it to the model at their edge."
+                        val message = "$importedName is a platform type: keep it in a platform implementation or a " +
+                            "technology package and map it to the model at their edge. " +
+                            "Explicit api, model and usecase packages remain platform-free in every unit role."
                         sources.createViolation(
                             RULE,
                             file,

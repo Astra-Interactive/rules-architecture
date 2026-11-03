@@ -13,6 +13,30 @@ import kotlin.test.assertEquals
 internal class KindShapeTest {
 
     @Test
+    fun GIVEN_unsplit_generator_WHEN_files_lie_in_concepts_THEN_requires_kinds(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main("x.generator.price/CoreCellValue.kt", "sealed interface CoreCellValue")
+            .main("x.generator.price/XlsxPriceSource.kt", "class XlsxPriceSource")
+            .main("x.generator.recipe/BukkitRecipeProvider.kt", "class BukkitRecipeProvider")
+            .main("x.generator.recipe.model/Recipe.kt", "data class Recipe(val material: String)")
+            .main("x.generator.recipe.bukkit/BukkitRecipes.kt", "class BukkitRecipes")
+            .load(
+                UnitKind.CONTEXT,
+                rootPackage = "x.generator",
+                vocabulary = SourceTree.NO_PROJECT_WORDS.copy(technologyWords = setOf("bukkit"))
+            )
+
+        assertEquals(
+            listOf(
+                "BukkitRecipeProvider",
+                "CoreCellValue",
+                "XlsxPriceSource"
+            ),
+            KindShape().check(sources).map(Violation::subject).sorted()
+        )
+    }
+
+    @Test
     fun GIVEN_platform_core_adapters_WHEN_checked_THEN_accepts_concepts_but_rejects_loose_root_files(
         @TempDir directory: File
     ) {
