@@ -144,7 +144,8 @@ class ApiOwnershipReportTest {
                 "RootModule",
                 ":app",
                 setOf("Factory"),
-                wiring = true
+                wiring = true,
+                kind = UnitKind.ENTRY_POINT
             )
         )
 
@@ -201,5 +202,32 @@ class ApiOwnershipReportTest {
             val status = if (role == UnitKind.ENTRY_POINT || role == UnitKind.API) "RETAIN" else "CANDIDATE"
             assertContains(report, "$status Operation")
         }
+    }
+
+    @Test
+    fun GIVEN_feature_di_consumes_api_event_WHEN_reviewed_THEN_event_and_signature_are_uncertain() {
+        val declarations = listOf(
+            declaration(
+                "DiscordMemberLeave",
+                ":messenger:api",
+                setOf("DiscordUserId")
+            ),
+            declaration("DiscordUserId", ":messenger:api"),
+            declaration(
+                "LinkModule",
+                ":link",
+                setOf("DiscordMemberLeave"),
+                wiring = true,
+                kind = UnitKind.CONTEXT
+            )
+        )
+
+        val report = ApiOwnershipReport().render(declarations, emptyList())
+
+        assertContains(report, "UNCERTAIN DiscordMemberLeave")
+        assertContains(report, "UNCERTAIN DiscordUserId")
+        assertContains(report, "DI :link LinkModule.kt:1")
+        assertFalse(report.contains("CANDIDATE DiscordMemberLeave"))
+        assertFalse(report.contains("CANDIDATE DiscordUserId"))
     }
 }

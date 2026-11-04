@@ -137,7 +137,7 @@ class KonsistOwnershipReportTest {
 
         val report = KonsistOwnershipReport().render(listOf(api, impl))
 
-        assertContains(report, "UNKNOWN x.Local")
+        assertContains(report, "UNCERTAIN x.Local")
         assertContains(report, "DI :voice:jda")
         assertFalse(report.contains("CANDIDATE x.Local"))
         assertFalse(report.contains("REFERENCE :voice:jda"))

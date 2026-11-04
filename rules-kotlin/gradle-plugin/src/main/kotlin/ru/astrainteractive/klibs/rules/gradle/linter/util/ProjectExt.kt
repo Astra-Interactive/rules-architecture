@@ -2,6 +2,7 @@
 
 package ru.astrainteractive.klibs.rules.gradle.linter.util
 
+import com.android.build.api.variant.ApplicationAndroidComponentsExtension
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.Dependency
@@ -24,6 +25,7 @@ import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
+import ru.astrainteractive.klibs.rules.gradle.linter.model.AndroidVariantSources
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
 import ru.astrainteractive.klibs.rules.structure.unit.structure.isPlatformUnitName
@@ -49,6 +51,8 @@ private const val KOTLIN_GROUP = "org.jetbrains.kotlin"
 private const val STDLIB_PREFIX = "kotlin-stdlib"
 
 private const val ANDROID_EXTENSION = "android"
+
+private const val ANDROID_APPLICATION_PLUGIN_ID = "com.android.application"
 
 private const val NAMESPACE_GETTER = "getNamespace"
 
@@ -133,6 +137,18 @@ private fun Project.kotlinCompilations(): List<KotlinCompilation<*>> {
     }
 }
 
+internal fun Project.registerAndroidVariantSources(): MutableList<AndroidVariantSources> {
+    val variants = mutableListOf<AndroidVariantSources>()
+    pluginManager.withPlugin(ANDROID_APPLICATION_PLUGIN_ID) {
+        extensions.getByType(ApplicationAndroidComponentsExtension::class.java).onVariants { variant ->
+            variant.sources.kotlin?.all?.let { directories ->
+                variants.add(AndroidVariantSources(variant.name, directories))
+            }
+        }
+    }
+    return variants
+}
+
 @OptIn(ExperimentalKotlinGradlePluginApi::class)
 private fun Project.readCompilation(
     compilation: KotlinCompilation<*>,
@@ -189,6 +205,24 @@ internal fun Project.productionProjectDependencies(): Set<String> {
         .map(ProjectDependency::getPath)
         .filter { dependencyPath -> dependencyPath != path }
         .toSet()
+}
+
+private fun Project.androidCompilations(variants: List<AndroidVariantSources>): List<UnitContext.Compilation> {
+    val buildDirectory = layout.buildDirectory.get().asFile.toPath()
+    return variants.map { variant ->
+        val directories = variant.kotlinDirectories.get()
+            .map { directory -> directory.asFile }
+            .filterNot { directory -> directory.toPath().startsWith(buildDirectory) }
+            .map(File::getAbsolutePath)
+            .toSet()
+        UnitContext.Compilation(
+            "android:android:${variant.name}",
+            mapOf(variant.name to directories),
+            false,
+            null,
+            productionProjectDependencies()
+        )
+    }
 }
 
 private fun isApiConfiguration(name: String): Boolean {
@@ -341,7 +375,8 @@ internal fun Project.findUnitTechnologyWords(extension: LinterExtension): Provid
 internal fun Project.readUnitContext(
     extension: LinterExtension,
     rootProductKind: ProductKind?,
-    resolveCompose: Boolean = true
+    resolveCompose: Boolean = true,
+    androidVariants: List<AndroidVariantSources> = emptyList()
 ): UnitContext {
     val localProduct = extension.configuredProductKind
     require(localProduct == null || rootProductKind == null || localProduct == rootProductKind) {
@@ -349,6 +384,7 @@ internal fun Project.readUnitContext(
     }
     val technologies = findUnitTechnologyWords(extension).get()
     val compilations = kotlinCompilations().map { compilation -> readCompilation(compilation, resolveCompose) }
+        .ifEmpty { androidCompilations(androidVariants) }
     val context = UnitContext(
         extension.configuredUnitKind ?: detectUnitKind(technologies),
         localProduct ?: rootProductKind,

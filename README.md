@@ -99,15 +99,20 @@ plugins {
 - On the root project, `architectureApiOwnershipReport` writes
   `build/reports/architecture/api-ownership.txt`. Candidates do not fail the build and are never automatically
   moved or added to a baseline. Run it alone for an ownership review without other checks.
+  Configuration-on-demand is rejected because it can omit sibling projects; run the report or full lint
+  with `--no-configure-on-demand`. Parallel execution and the configuration cache remain available.
   Apply the linter to the root and all participating units. It uses their production Kotlin compilation roots
-  and declared roles, including custom module directories and KMP source sets. Tests and test fixtures are excluded.
+  and declared roles, including custom module directories, KMP source sets and Android application variant
+  Kotlin roots. Tests and test fixtures are excluded.
   It identifies API declarations whose observed consumers reduce to one sibling implementation unit
   (`IMPL`, `IMPL_UI`, `PLATFORM`, `TECHNOLOGY` or `CONTEXT`). Shared API references retain their dependency
   closure, including signature models, aliases and nested generic types. DI references appear separately.
   Published APIs are retained because their external consumers are unknown.
   `CANDIDATE` requires review of responsibility and signatures; `RETAIN` means this heuristic found no sole
-  sibling owner; `UNKNOWN` means no non-DI consumer was found; `UNCERTAIN` marks ambiguous references or duplicate
-  owners; `EXTERNAL` marks a published API. None proves correct placement or unused code.
+  sibling owner; `UNKNOWN` means no non-DI consumer was found; `UNCERTAIN` marks ambiguous references, duplicate
+  owners or feature DI references that may hide runtime consumption; `EXTERNAL` marks a published API.
+  Entry-point DI construction alone does not establish a production consumer.
+  None proves correct placement or unused code.
   Analysis is lexical, not compiler resolution: overloads and shadowing can over-retain declarations.
   All configured production source sets contribute conservatively, without inferring variant selection.
   Generated code, Java, included builds, reflection and unregistered consumers are outside its coverage.

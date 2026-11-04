@@ -15,16 +15,20 @@ internal class ApiOwnershipReport {
     private fun findDependents(
         name: String,
         declarations: List<OwnershipDeclaration>,
-        visited: MutableSet<String>
+        visited: MutableSet<String>,
+        includeWiring: Boolean = false
     ): List<OwnershipDeclaration> {
         if (!visited.add(name)) return emptyList()
-        return declarations.filter { declaration -> name in declaration.references && !declaration.wiring }
+        return declarations.filter { declaration ->
+            name in declaration.references && (includeWiring || !declaration.wiring)
+        }
             .flatMap { declaration ->
                 val indirect = if (declaration.unit.context.kind == UnitKind.API) {
                     findDependents(
                         declaration.name,
                         declarations,
-                        visited
+                        visited,
+                        includeWiring
                     )
                 } else {
                     emptyList()
@@ -44,6 +48,15 @@ internal class ApiOwnershipReport {
             declarations,
             mutableSetOf()
         )
+        val uncertainWiring = findDependents(
+            name,
+            declarations,
+            mutableSetOf(),
+            includeWiring = true
+        )
+            .any { declaration ->
+                declaration.wiring && declaration.unit.context.kind != UnitKind.ENTRY_POINT
+            }
         val consumers = dependents.map { declaration -> declaration.unit.path }.toSet() - owners
         val consumer = consumers.singleOrNull()
         val owner = owners.singleOrNull()
@@ -56,7 +69,7 @@ internal class ApiOwnershipReport {
         val published = variants.any { declaration -> declaration.unit.context.publishedLibrary }
         val status = when {
             published -> OwnershipAssessment.Status.EXTERNAL
-            owner == null || ambiguous -> OwnershipAssessment.Status.UNCERTAIN
+            owner == null || ambiguous || uncertainWiring -> OwnershipAssessment.Status.UNCERTAIN
             consumers.isEmpty() -> OwnershipAssessment.Status.UNKNOWN
             sibling && implementation -> OwnershipAssessment.Status.CANDIDATE
             else -> OwnershipAssessment.Status.RETAIN
@@ -83,7 +96,7 @@ internal class ApiOwnershipReport {
             OwnershipAssessment.Status.EXTERNAL ->
                 "published API: external consumers are not visible in this build."
             OwnershipAssessment.Status.UNCERTAIN ->
-                "ambiguous references or duplicate declaration owners; resolve them before deciding placement."
+                "ambiguous references, feature DI usage or duplicate declaration owners; inspect before deciding placement."
             OwnershipAssessment.Status.UNKNOWN ->
                 "no non-DI production consumer found; this does not prove unused code."
             OwnershipAssessment.Status.RETAIN ->
@@ -102,7 +115,7 @@ internal class ApiOwnershipReport {
             appendLine("Candidates require a responsibility and signature review; no automatic moves.")
             appendLine("Source references are conservative lexical evidence, not compiler-resolved calls.")
             appendLine("Only supplied production sources participate; tests and testFixtures do not justify API.")
-            appendLine("DI references are shown separately and do not establish shared behaviour.")
+            appendLine("DI references do not establish shared behaviour; feature DI may also hide runtime consumption.")
             appendLine(
                 "No candidates does not prove compliance; external, generated or unregistered consumers may exist."
             )

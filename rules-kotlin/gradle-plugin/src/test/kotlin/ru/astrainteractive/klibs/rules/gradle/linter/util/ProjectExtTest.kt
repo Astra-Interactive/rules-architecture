@@ -6,6 +6,7 @@ import org.gradle.testfixtures.ProjectBuilder
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
@@ -16,6 +17,62 @@ import ru.astrainteractive.klibs.rules.gradle.fixture.IsolatedProjectsBuild
 import java.io.File
 
 internal class ProjectExtTest {
+    private fun readContext(build: IsolatedProjectsBuild, module: String): UnitContext {
+        val path = module.replace(':', '/')
+        val encoded = build.file("$path/build/detekt/unit-context.txt").readText()
+        return encoded.toUnitContext()
+    }
+
+    @Test
+    fun GIVEN_android_builtin_kotlin_WHEN_context_read_THEN_includes_configured_production_variant_sources(
+        @TempDir rootDirectory: File
+    ) {
+        val sdkDirectory = sequenceOf(
+            System.getenv("ANDROID_HOME"),
+            System.getenv("ANDROID_SDK_ROOT"),
+            File(System.getProperty("user.home"), "Library/Android/sdk").absolutePath
+        ).filterNotNull().map(::File).firstOrNull(File::isDirectory)
+        assumeTrue(sdkDirectory != null, "Android SDK is required for AGP integration test")
+        val script = """
+            plugins {
+                id("com.android.application")
+                id("ru.astrainteractive.klibs.rules.gradle.linter")
+            }
+
+            android {
+                namespace = "fixture.app"
+                compileSdk = 36
+                sourceSets.named("main") {
+                    kotlin.directories.add("custom/main/kotlin")
+                }
+            }
+            androidComponents.onVariants { variant ->
+                if (variant.name == "debug") {
+                    variant.sources.kotlin!!.addStaticSourceDirectory("custom/debug/kotlin")
+                }
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .withRootBuildScript("")
+            .withModule("instances:androidApp", script)
+            .withSourceFile("local.properties", "sdk.dir=${sdkDirectory!!.absolutePath}")
+            .withSourceFile("instances/androidApp/src/main/kotlin/Default.kt", "class Default")
+            .withSourceFile("instances/androidApp/custom/main/kotlin/Custom.kt", "class Custom")
+            .withSourceFile("instances/androidApp/custom/debug/kotlin/Debug.kt", "class Debug")
+            .withSourceFile("instances/androidApp/src/test/kotlin/Excluded.kt", "class Excluded")
+
+        build.run(":instances:androidApp:architectureDetektSettings")
+
+        val roots = readContext(build, "instances:androidApp").compilations
+            .filterNot(UnitContext.Compilation::test)
+            .flatMap { compilation -> compilation.sourceSets.values.flatten() }
+            .toSet()
+        assertTrue(roots.any { directory -> directory.endsWith("/src/main/kotlin") })
+        assertTrue(roots.any { directory -> directory.endsWith("/custom/main/kotlin") })
+        assertTrue(roots.any { directory -> directory.endsWith("/custom/debug/kotlin") })
+        assertTrue(roots.none { directory -> directory.endsWith("/src/test/kotlin") })
+    }
+
     @Test
     fun GIVEN_custom_depends_on_and_test_source_sets_WHEN_read_THEN_preserves_declaration_and_consumers(
         @TempDir rootDirectory: File
@@ -58,12 +115,6 @@ internal class ProjectExtTest {
                 dependsOn("architectureDetektSettings")
             }
         """.trimIndent()
-    }
-
-    private fun readContext(build: IsolatedProjectsBuild, module: String): UnitContext {
-        val path = module.replace(':', '/')
-        val encoded = build.file("$path/build/detekt/unit-context.txt").readText()
-        return encoded.toUnitContext()
     }
 
     @Test
