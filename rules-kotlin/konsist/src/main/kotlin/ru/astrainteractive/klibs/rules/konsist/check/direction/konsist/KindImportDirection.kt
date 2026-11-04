@@ -5,7 +5,9 @@ import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.frameworkRegistrationTypes
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.isRequiredOverrideReference
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.packageName
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.sourceReferences
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Placement
@@ -17,7 +19,7 @@ import ru.astrainteractive.klibs.rules.konsist.layout.util.describe
  * and a use case still cannot call another use case through its interface.
  * A screen is used only by what hosts or opens it: another screen, a component's `Render()`, a router, and `di`.
  *
- * Imports that leave the unit, and packages of no known kind, are not judged.
+ * Imports outside the unit are checked only for framework registration interfaces, which stay outside the domain.
  */
 internal class KindImportDirection : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
@@ -120,11 +122,12 @@ internal class KindImportDirection : ArchitectureCheck {
     private fun checkFile(
         sources: UnitSources,
         file: KoFileDeclaration,
-        projectInterfaces: Set<String>
+        projectInterfaces: Set<String>,
+        references: Set<String>
     ): List<Violation> {
         val from = sources.placementOf(file) ?: return emptyList()
         val fromKind = from.kind ?: return emptyList()
-        return file.sourceReferences().mapNotNull { importedName ->
+        return references.mapNotNull { importedName ->
             if (fromKind == Kind.FAKE && file.isRequiredOverrideReference(importedName, projectInterfaces)) {
                 return@mapNotNull null
             }
@@ -159,20 +162,61 @@ internal class KindImportDirection : ArchitectureCheck {
     }
 
     override fun check(sources: UnitSources): List<Violation> {
+        val registrationInterfaces = (sources.mainFiles + sources.dependencyFiles)
+            .filter { file ->
+                val word = file.packageName.substringAfterLast('.')
+                Kind.fromSegment(word, sources.layout.vocabulary) == Kind.ENTRY_POINT
+            }
+            .flatMap { file -> file.interfaces(includeNested = false) }
+            .filter { declaration -> declaration.frameworkRegistrationTypes().isNotEmpty() }
+            .mapNotNull { declaration -> declaration.fullyQualifiedName }
+            .toSet()
         val projectInterfaces = sources.mainFiles.flatMap { file ->
             file.interfaces(includeNested = true).mapNotNull { declaration -> declaration.fullyQualifiedName }
         }.toSet()
         val testFakes = sources.testFiles.filter { file -> sources.placementOf(file)?.kind == Kind.FAKE }
         return sources.mainFiles.plus(testFakes).flatMap { file ->
-            checkFile(
+            val kind = sources.placementOf(file)?.kind
+            val references = file.sourceReferences()
+            val registrations = references.intersect(registrationInterfaces)
+            val violations = if (kind in DOMAIN_KINDS) {
+                registrations.map { reference ->
+                    sources.createViolation(
+                        RULE,
+                        file,
+                        reference,
+                        "A domain model, contract or use case must not depend on framework registration $reference."
+                    )
+                }
+            } else {
+                emptyList()
+            }
+            val registrationHandled = kind in DOMAIN_KINDS || kind in REGISTRATION_CONSUMERS
+            val checkedReferences = if (registrationHandled) references - registrations else references
+            violations + checkFile(
                 sources,
                 file,
-                projectInterfaces
+                projectInterfaces,
+                checkedReferences
             )
         }
     }
 
     private companion object {
+        @JvmField
+        val DOMAIN_KINDS = setOf(
+            Kind.MODEL,
+            Kind.CONTRACT,
+            Kind.USECASE
+        )
+
+        @JvmField
+        val REGISTRATION_CONSUMERS = setOf(
+            Kind.ENTRY_POINT,
+            Kind.IMPLEMENTATION,
+            Kind.DI
+        )
+
         const val RULE = "KindImportDirection"
         const val SCREEN_SUB_KIND = "screen"
 

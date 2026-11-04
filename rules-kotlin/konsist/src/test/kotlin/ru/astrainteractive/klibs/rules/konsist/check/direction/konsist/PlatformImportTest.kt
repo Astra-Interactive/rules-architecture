@@ -432,4 +432,108 @@ internal class PlatformImportTest {
         val core = tree.load(UnitKind.CORE_API, rootPackage = "x.offer")
         assertEquals(3, PlatformImport().check(core).size)
     }
+
+    @Test
+    fun GIVEN_core_registration_interfaces_WHEN_checked_THEN_allows_only_signature_framework_types(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.core.route/Routes.kt",
+                """
+                import io.ktor.server.routing.Routing
+                fun interface Routes { fun register(routing: Routing) }
+            """
+            )
+            .main(
+                "x.core.command/Commands.kt",
+                """
+                import org.bukkit.command.CommandMap as Context
+                interface Commands { fun attach(context: Context): Unit }
+            """
+            )
+            .main(
+                "x.core.route/Qualified.kt",
+                """
+                fun interface Qualified { fun install(routing: io.ktor.server.routing.Routing) }
+            """
+            )
+            .load(UnitKind.CORE, rootPackage = "x.core")
+
+        assertEquals(emptyList(), PlatformImport().check(sources))
+    }
+
+    @Test
+    fun GIVEN_framework_imports_outside_registration_signature_WHEN_checked_THEN_keeps_restrictions(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.core.route/Routes.kt",
+                """
+                import io.ktor.server.routing.Routing
+                import io.ktor.client.HttpClient
+                fun interface Routes { fun register(routing: Routing) }
+            """
+            )
+            .main(
+                "x.core.model/Model.kt",
+                """
+                import io.ktor.server.routing.Routing
+                interface Model { val routing: Routing }
+            """
+            )
+            .main(
+                "x.core.api/Api.kt",
+                """
+                import io.ktor.server.routing.Routing
+                interface Api { fun register(routing: Routing) }
+            """
+            )
+            .main(
+                "x.core.usecase/UseCase.kt",
+                """
+                import io.ktor.server.routing.Routing
+                class UseCase(val routing: Routing)
+            """
+            )
+            .load(UnitKind.CORE, rootPackage = "x.core")
+
+        assertEquals(4, PlatformImport().check(sources).size)
+    }
+
+    @Test
+    fun GIVEN_registration_interface_in_platform_free_api_unit_WHEN_checked_THEN_reports_platform(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.core.route/Routes.kt",
+                """
+                import io.ktor.server.routing.Routing
+                interface Routes { fun register(routing: Routing) }
+            """
+            )
+            .load(UnitKind.CORE_API, rootPackage = "x.core")
+
+        assertEquals(1, PlatformImport().check(sources).size)
+    }
+
+    @Test
+    fun GIVEN_implementation_sharing_registration_file_WHEN_checked_THEN_does_not_exempt_whole_file(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.core.route/Routes.kt",
+                """
+                import io.ktor.server.routing.Routing
+                interface Routes { fun register(routing: Routing) }
+                class Other(val routing: Routing)
+            """
+            )
+            .load(UnitKind.CORE, rootPackage = "x.core")
+
+        assertEquals(1, PlatformImport().check(sources).size)
+    }
 }

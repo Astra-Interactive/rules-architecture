@@ -7,6 +7,8 @@ import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.isDataShape
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.isFrameworkRegistration
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.packageName
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelClasses
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
@@ -59,6 +61,8 @@ internal class ContractPlacement : ArchitectureCheck {
             .filterNot { declaration -> declaration.hasModifier(KoModifier.SEALED) }
             .filterNot { kind == null }
             .filterNot { declaration -> isComposeScope(file, declaration) }
+            .filterNot { declaration -> declaration.isDataShape(kind, sources.mainFiles + sources.dependencyFiles) }
+            .filterNot { declaration -> declaration.isFrameworkRegistration(sources.kind, kind) }
             .mapNotNull { declaration ->
                 val message = findMessage(
                     declaration,

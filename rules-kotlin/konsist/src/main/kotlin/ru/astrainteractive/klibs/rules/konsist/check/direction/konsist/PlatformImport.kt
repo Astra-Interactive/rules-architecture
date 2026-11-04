@@ -5,6 +5,9 @@ import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.FRAMEWORK_PREFIXES
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.frameworkRegistrationTypes
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.isFrameworkRegistration
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.sourceReferences
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelClasses
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
@@ -48,6 +51,19 @@ internal class PlatformImport : ArchitectureCheck {
         return platforms.isNotEmpty() && platforms.all { platform -> platform == "androidJvm" }
     }
 
+    private fun isRegistrationSignature(sources: UnitSources, file: KoFileDeclaration, reference: String): Boolean {
+        if (file.topLevelClasses().isNotEmpty() || file.objects(includeNested = false).isNotEmpty()) return false
+        if (file.functions(includeNested = false).isNotEmpty() || file.properties(includeNested = false).isNotEmpty()) {
+            return false
+        }
+        val declarations = file.interfaces(includeNested = false)
+        val kind = sources.placementOf(file)?.kind
+        return declarations.isNotEmpty() && declarations.all { declaration ->
+            if (!declaration.isFrameworkRegistration(sources.kind, kind)) return@all false
+            reference in declaration.frameworkRegistrationTypes()
+        }
+    }
+
     private fun isAllowedCompose(sources: UnitSources, file: KoFileDeclaration, importedName: String): Boolean {
         val isUiKind = sources.placementOf(file)?.kind in COMPOSE_KINDS
         return sources.isComposeFile(file) == true && isUiKind && UnitSources.isComposeImport(importedName)
@@ -73,7 +89,14 @@ internal class PlatformImport : ArchitectureCheck {
             .filter { file -> isChecked(sources, file) }
             .flatMap { file ->
                 file.sourceReferences()
-                    .filter { importedName -> PLATFORM_PREFIXES.any(importedName::startsWith) }
+                    .filter { importedName -> FRAMEWORK_PREFIXES.any(importedName::startsWith) }
+                    .filterNot { reference ->
+                        isRegistrationSignature(
+                            sources,
+                            file,
+                            reference
+                        )
+                    }
                     .filterNot { importedName ->
                         isAllowedCompose(
                             sources,
@@ -132,24 +155,6 @@ internal class PlatformImport : ArchitectureCheck {
             Kind.MODEL,
             Kind.CONTRACT,
             Kind.USECASE
-        )
-
-        @JvmField
-        val PLATFORM_PREFIXES = listOf(
-            "android.",
-            "androidx.",
-            "com.velocitypowered.",
-            "io.ktor.",
-            "io.papermc.",
-            "net.fabricmc.",
-            "net.md_5.",
-            "net.minecraft.",
-            "net.minecraftforge.",
-            "net.neoforged.",
-            "org.bukkit.",
-            "org.jetbrains.exposed.",
-            "org.jetbrains.compose.",
-            "org.spigotmc.",
         )
     }
 }

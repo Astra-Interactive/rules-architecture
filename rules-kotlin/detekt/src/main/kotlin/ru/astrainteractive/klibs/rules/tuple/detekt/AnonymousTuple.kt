@@ -3,19 +3,28 @@ package ru.astrainteractive.klibs.rules.tuple.detekt
 import dev.detekt.api.Config
 import dev.detekt.api.Entity
 import dev.detekt.api.Finding
+import dev.detekt.api.RequiresAnalysisApi
 import dev.detekt.api.Rule
+import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
+import org.jetbrains.kotlin.analysis.api.resolution.symbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaClassLikeSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaConstructorSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaTypeAliasSymbol
+import org.jetbrains.kotlin.analysis.api.types.KaErrorType
+import org.jetbrains.kotlin.analysis.api.types.symbol
+import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.psi.KtBinaryExpression
 import org.jetbrains.kotlin.psi.KtCallExpression
-import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtUserType
 import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 
 /**
- * Reports `Pair` and `Triple` written as a type, constructed by name, or inferred from `a to b`; `a to b` is allowed
- * only as an entry of `mapOf(…)` and the other map builders.
+ * Resolves Kotlin's `Pair` and `Triple` types and constructors, including aliases, and pairs inferred from `a to b`.
+ * Direct entries of standard map builders are allowed; unrelated DSL operators and names are not tuples.
  */
-internal class AnonymousTuple(config: Config) : Rule(config, DESCRIPTION) {
+internal class AnonymousTuple(config: Config) : Rule(config, DESCRIPTION), RequiresAnalysisApi {
 
     private fun reportTuple(entity: Entity, name: String) {
         report(Finding(entity, "Replace $name with a data class whose properties are named."))
@@ -24,21 +33,34 @@ internal class AnonymousTuple(config: Config) : Rule(config, DESCRIPTION) {
     private fun isBuilderEntry(expression: KtBinaryExpression): Boolean {
         val argument = expression.parent as? KtValueArgument ?: return false
         val call = argument.getStrictParentOfType<KtCallExpression>() ?: return false
-        return call.calleeExpression?.text in MAP_BUILDERS
+        return analyze(call) {
+            call.resolveToCall()?.singleFunctionCallOrNull()?.symbol?.callableId?.asSingleFqName()?.asString() in
+                MAP_BUILDERS
+        }
     }
 
     override fun visitUserType(type: KtUserType) {
         super.visitUserType(type)
-        val name = type.referencedName ?: return
-        if (name !in TUPLE_NAMES) return
+        val name = analyze(type) {
+            val symbol = type.referenceExpression?.mainReference?.resolveToSymbol()
+            val classId = if (symbol is KaTypeAliasSymbol) {
+                symbol.expandedType.symbol?.classId
+            } else {
+                (symbol as? KaClassLikeSymbol)?.classId
+            }
+            classId?.asFqNameString()
+        }?.takeIf(TUPLE_NAMES::contains)?.substringAfterLast('.') ?: return
         reportTuple(Entity.from(type), name)
     }
 
     override fun visitCallExpression(expression: KtCallExpression) {
         super.visitCallExpression(expression)
-        val callee = expression.calleeExpression as? KtNameReferenceExpression ?: return
-        val name = callee.getReferencedName()
-        if (name !in TUPLE_NAMES) return
+        val name = analyze(expression) {
+            val call = expression.resolveToCall()?.singleFunctionCallOrNull()
+            if (call?.symbol !is KaConstructorSymbol) return@analyze null
+            expression.expressionType?.symbol?.classId?.asFqNameString()
+        }
+            ?.takeIf(TUPLE_NAMES::contains)?.substringAfterLast('.') ?: return
         reportTuple(Entity.from(expression), name)
     }
 
@@ -46,6 +68,13 @@ internal class AnonymousTuple(config: Config) : Rule(config, DESCRIPTION) {
         super.visitBinaryExpression(expression)
         if (expression.operationReference.getReferencedName() != TO) return
         if (isBuilderEntry(expression)) return
+        val type = analyze(expression) {
+            val left = expression.left?.expressionType ?: return@analyze null
+            val right = expression.right?.expressionType ?: return@analyze null
+            if (left is KaErrorType || right is KaErrorType) return@analyze null
+            expression.expressionType?.symbol?.classId?.asFqNameString()
+        }
+        if (type != "kotlin.Pair") return
         reportTuple(Entity.from(expression), PAIR)
     }
 
@@ -54,15 +83,15 @@ internal class AnonymousTuple(config: Config) : Rule(config, DESCRIPTION) {
         const val PAIR = "Pair"
 
         @JvmField
-        val TUPLE_NAMES = setOf(PAIR, "Triple")
+        val TUPLE_NAMES = setOf("kotlin.Pair", "kotlin.Triple")
 
         @JvmField
         val MAP_BUILDERS = setOf(
-            "mapOf",
-            "mutableMapOf",
-            "hashMapOf",
-            "linkedMapOf",
-            "sortedMapOf"
+            "kotlin.collections.mapOf",
+            "kotlin.collections.mutableMapOf",
+            "kotlin.collections.hashMapOf",
+            "kotlin.collections.linkedMapOf",
+            "kotlin.collections.sortedMapOf"
         )
         const val DESCRIPTION = "Typed data is a data class with named properties, never Pair or Triple."
     }

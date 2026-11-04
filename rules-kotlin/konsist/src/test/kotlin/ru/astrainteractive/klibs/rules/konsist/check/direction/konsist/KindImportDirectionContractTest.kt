@@ -188,4 +188,74 @@ internal class KindImportDirectionContractTest {
             KindImportDirection().check(sources).map(Violation::subject)
         )
     }
+
+    @Test
+    fun GIVEN_registration_from_core_WHEN_used_in_domain_or_entry_mechanism_THEN_only_domain_is_rejected(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .dependency(
+                "x.core.route/Routes.kt",
+                """
+                import io.ktor.server.routing.Routing
+                interface Routes { fun register(routing: Routing) }
+            """
+            )
+            .main("x.feature.model/Model.kt", "import x.core.route.Routes\nclass Model(val routes: Routes)")
+            .main("x.feature.api/Api.kt", "import x.core.route.Routes\ninterface Api { val routes: Routes }")
+            .main("x.feature.usecase/UseCase.kt", "import x.core.route.Routes\nclass UseCase(val routes: Routes)")
+            .main("x.feature.route/RoutesImpl.kt", "import x.core.route.Routes\nclass RoutesImpl(val routes: Routes)")
+            .load(UnitKind.CONTEXT, rootPackage = "x.feature")
+
+        assertEquals(3, KindImportDirection().check(sources).size)
+    }
+
+    @Test
+    fun GIVEN_local_registration_WHEN_referenced_THEN_exempts_only_interface_in_technical_consumers(
+        @TempDir directory: File
+    ) {
+        val tree = SourceTree(directory)
+            .main(
+                "x.feature.route/Routes.kt",
+                """
+                import io.ktor.server.routing.Routing
+                interface Routes { fun register(routing: Routing) }
+                class ConcreteRoutes
+                """
+            )
+        listOf(
+            "model",
+            "api",
+            "usecase",
+            "command",
+            "ktor",
+            "di",
+            "util",
+            "theme"
+        ).forEach { kind ->
+            tree.main(
+                "x.feature.$kind/Consumer.kt",
+                "import x.feature.route.Routes\nclass Consumer(val routes: Routes)"
+            )
+        }
+        tree.main(
+            "x.feature.command/ConcreteConsumer.kt",
+            "import x.feature.route.ConcreteRoutes\nclass ConcreteConsumer(val routes: ConcreteRoutes)"
+        )
+        val sources = tree.load(UnitKind.CONTEXT, rootPackage = "x.feature")
+
+        assertEquals(
+            listOf(
+                "api/Consumer.kt",
+                "command/ConcreteConsumer.kt",
+                "model/Consumer.kt",
+                "theme/Consumer.kt",
+                "usecase/Consumer.kt",
+                "util/Consumer.kt"
+            ),
+            KindImportDirection().check(sources).map { violation ->
+                violation.path.substringAfter("x/feature/")
+            }.sorted()
+        )
+    }
 }
