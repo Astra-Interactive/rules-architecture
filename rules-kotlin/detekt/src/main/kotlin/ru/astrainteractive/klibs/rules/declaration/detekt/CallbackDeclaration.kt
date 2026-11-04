@@ -37,8 +37,8 @@ internal class CallbackDeclaration(config: Config) : Rule(config, DESCRIPTION) {
     }
 
     private fun reportValue(declaration: KtCallableDeclaration) {
-        val message = "Replace the callback '${declaration.name}' with a suspend function for a result or a Flow for " +
-            "events; only a @Composable takes on… lambdas."
+        val message = "Review the callback '${declaration.name}': use a suspend function for a result or a Flow " +
+            "for events. Caller-owned lifecycle hooks and scoped platform bridges may be valid exceptions."
         report(Finding(Entity.atName(declaration), message))
     }
 
