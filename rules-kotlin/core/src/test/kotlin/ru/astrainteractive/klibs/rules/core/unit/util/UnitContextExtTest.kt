@@ -76,6 +76,59 @@ internal class UnitContextExtTest {
     }
 
     @Test
+    fun GIVEN_v3_context_WHEN_decoded_THEN_compiled_sources_default_to_visible_sources() {
+        val bytes = ByteArrayOutputStream()
+        DataOutputStream(bytes).use { output ->
+            output.writeInt(3)
+            output.writeUTF(UnitKind.API.cliName)
+            output.writeUTF(ProductKind.APP.name)
+            output.writeBoolean(false)
+            output.writeInt(0)
+            output.writeInt(1)
+            output.writeUTF("jvm:test")
+            output.writeBoolean(true)
+            output.writeUTF("false")
+            output.writeInt(0)
+            output.writeInt(1)
+            output.writeUTF("main")
+            output.writeInt(1)
+            output.writeUTF("/project/src/main/kotlin")
+            output.writeUTF(UiComposition.LOCAL.name)
+            output.writeUTF(ImplementationAccess.NONE.name)
+            output.writeInt(0)
+            output.writeInt(0)
+        }
+
+        val compilation = Base64.getEncoder().encodeToString(bytes.toByteArray()).toUnitContext().compilations.single()
+
+        assertEquals(compilation.sourceSets, compilation.compiledSourceSets)
+    }
+
+    @Test
+    fun GIVEN_distinct_compiled_sources_WHEN_encoded_THEN_round_trips_both_source_views() {
+        val visible = mapOf("main" to setOf("/project/src/main/kotlin"), "test" to setOf("/project/src/test/kotlin"))
+        val compiled = mapOf("test" to setOf("/project/src/test/kotlin"))
+        val context = UnitContext(
+            UnitKind.API,
+            ProductKind.APP,
+            false,
+            emptySet(),
+            listOf(
+                UnitContext.Compilation(
+                    "jvm:test",
+                    visible,
+                    true,
+                    false,
+                    emptySet(),
+                    compiled
+                )
+            )
+        )
+
+        assertEquals(context, context.encode().toUnitContext())
+    }
+
+    @Test
     fun GIVEN_shared_sources_WHEN_selecting_context_THEN_uses_only_compilations_containing_the_file() {
         val root = File("project").absoluteFile
         val common = File(root, "src/commonMain/kotlin")
@@ -111,6 +164,38 @@ internal class UnitContextExtTest {
         assertFalse(context.isCompose(File(common, "State.kt")) == true)
         assertFalse(context.isCompose(File(jvm, "State.kt")) == true)
         assertNull(context.isCompose(File(root, "src/androidMain/kotlinExtra/Other.kt")))
+    }
+
+    @Test
+    fun GIVEN_test_compilation_sees_main_sources_WHEN_selecting_compose_THEN_only_main_compilation_owns_them() {
+        val main = File("project/src/main/kotlin").absoluteFile
+        val test = File("project/src/test/kotlin").absoluteFile
+        val context = UnitContext(
+            UnitKind.PLATFORM,
+            ProductKind.APP,
+            false,
+            emptySet(),
+            listOf(
+                UnitContext.Compilation(
+                    "jvm:main",
+                    mapOf("main" to setOf(main.path)),
+                    false,
+                    true,
+                    emptySet()
+                ),
+                UnitContext.Compilation(
+                    "jvm:test",
+                    mapOf("main" to setOf(main.path), "test" to setOf(test.path)),
+                    true,
+                    false,
+                    emptySet(),
+                    mapOf("test" to setOf(test.path))
+                )
+            )
+        )
+
+        assertTrue(context.isCompose(File(main, "PreviewPage.kt")) == true)
+        assertFalse(context.isCompose(File(test, "PreviewPageTest.kt")) == true)
     }
 
     @Test

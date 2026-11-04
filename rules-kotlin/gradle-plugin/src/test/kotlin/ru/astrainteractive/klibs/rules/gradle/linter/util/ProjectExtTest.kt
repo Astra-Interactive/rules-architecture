@@ -14,6 +14,7 @@ import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.core.unit.util.toUnitContext
 import ru.astrainteractive.klibs.rules.gradle.fixture.IsolatedProjectsBuild
+import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
 import java.io.File
 
 internal class ProjectExtTest {
@@ -21,6 +22,61 @@ internal class ProjectExtTest {
         val path = module.replace(':', '/')
         val encoded = build.file("$path/build/detekt/unit-context.txt").readText()
         return encoded.toUnitContext()
+    }
+
+    @Test
+    fun GIVEN_jvm_test_associates_main_WHEN_context_read_THEN_compiled_sources_exclude_main(
+        @TempDir rootDirectory: File
+    ) {
+        val project = ProjectBuilder.builder().withProjectDir(rootDirectory).build()
+        project.pluginManager.apply("org.jetbrains.kotlin.jvm")
+        val extension = project.objects.newInstance(LinterExtension::class.java)
+        extension.technologyWords.set(emptySet())
+
+        val context = project.readUnitContext(
+            extension,
+            ProductKind.APP,
+            resolveCompose = false
+        )
+        val main = context.compilations.single { compilation -> compilation.name.endsWith(":main") }
+        val test = context.compilations.single { compilation -> compilation.name.endsWith(":test") }
+
+        assertTrue("main" in main.sourceSets)
+        assertTrue("main" in test.sourceSets)
+        assertTrue("main" in main.compiledSourceSets)
+        assertTrue("main" !in test.compiledSourceSets)
+        assertTrue("test" in test.compiledSourceSets)
+    }
+
+    @Test
+    fun GIVEN_kmp_test_association_and_explicit_shared_source_WHEN_context_read_THEN_only_owned_sources_compile(
+        @TempDir rootDirectory: File
+    ) {
+        val project = ProjectBuilder.builder().withProjectDir(rootDirectory).build()
+        project.pluginManager.apply("org.jetbrains.kotlin.multiplatform")
+        val kotlin = project.extensions.getByType(KotlinMultiplatformExtension::class.java)
+        kotlin.jvm("desktop")
+        val mainOnly = kotlin.sourceSets.create("mainOnly")
+        val sharedWithTest = kotlin.sourceSets.create("sharedWithTest")
+        kotlin.sourceSets.getByName("desktopMain").dependsOn(mainOnly)
+        kotlin.sourceSets.getByName("desktopMain").dependsOn(sharedWithTest)
+        kotlin.sourceSets.getByName("desktopTest").dependsOn(sharedWithTest)
+        val extension = project.objects.newInstance(LinterExtension::class.java)
+        extension.technologyWords.set(emptySet())
+
+        val context = project.readUnitContext(
+            extension,
+            ProductKind.APP,
+            resolveCompose = false
+        )
+        val main = context.compilations.single { compilation -> compilation.name.endsWith(":desktop:main") }
+        val test = context.compilations.single { compilation -> compilation.name.endsWith(":desktop:test") }
+
+        assertTrue("mainOnly" in main.compiledSourceSets)
+        assertTrue("sharedWithTest" in main.compiledSourceSets)
+        assertTrue("mainOnly" in test.sourceSets)
+        assertTrue("mainOnly" !in test.compiledSourceSets)
+        assertTrue("sharedWithTest" in test.compiledSourceSets)
     }
 
     @Test
