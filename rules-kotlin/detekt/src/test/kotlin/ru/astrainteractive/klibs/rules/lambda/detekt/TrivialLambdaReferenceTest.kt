@@ -19,6 +19,146 @@ internal class TrivialLambdaReferenceTest {
     private val rule = TrivialLambdaReference(Config.empty)
     private val environment = createEnvironment()
 
+    @Test
+    fun GIVEN_unresolved_bound_receiver_WHEN_linted_THEN_does_not_claim_it_is_stable() {
+        val code = "fun callback(): (Int) -> Unit = { value -> missing.accept(value) }"
+
+        assertEquals(0, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
+    fun GIVEN_implicit_invoke_on_function_variables_WHEN_linted_THEN_does_not_suggest_invalid_variable_references() {
+        val code = """
+            fun subscribe(callback: (Int) -> Unit): (Int) -> Unit = { value -> callback(value) }
+            var current: (Int) -> Unit = {}
+            fun changing(): (Int) -> Unit = { value -> current(value) }
+            class Action { operator fun invoke(value: Int) = Unit }
+            fun action(callback: Action): (Int) -> Unit = { value -> callback(value) }
+        """.trimIndent()
+
+        assertEquals(0, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
+    fun GIVEN_mutable_local_receiver_WHEN_linted_THEN_keeps_reading_the_latest_receiver() {
+        val code = """
+            class Sink { fun accept(value: Int) = Unit }
+            fun subscribe(initial: Sink, replacement: Sink): (Int) -> Unit {
+                var sink = initial
+                val callback = { value: Int -> sink.accept(value) }
+                sink = replacement
+                return callback
+            }
+        """.trimIndent()
+
+        assertEquals(0, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
+    fun GIVEN_delegated_local_callback_WHEN_linted_THEN_preserves_delegate_reads() {
+        val code = """
+            import kotlin.reflect.KProperty
+            class State(var value: (Int) -> Unit)
+            operator fun State.getValue(owner: Any?, property: KProperty<*>): (Int) -> Unit = value
+            fun subscribe(state: State): (Int) -> Unit {
+                val currentOnLoad by state
+                return { value: Int -> currentOnLoad.invoke(value) }
+            }
+        """.trimIndent()
+
+        assertEquals(0, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
+    fun GIVEN_mutable_computed_and_delegated_properties_WHEN_linted_THEN_does_not_capture_them_early() {
+        val code = """
+            class Sink { fun accept(value: Int) = Unit }
+            var changing = Sink()
+            val computed get() = changing
+            val delegated by lazy { Sink() }
+            fun callbacks(): List<(Int) -> Unit> = listOf(
+                { value: Int -> changing.accept(value) },
+                { value: Int -> computed.accept(value) },
+                { value: Int -> delegated.accept(value) }
+            )
+        """.trimIndent()
+
+        assertEquals(0, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
+    fun GIVEN_open_and_abstract_receiver_properties_WHEN_linted_THEN_preserves_dynamic_getters() {
+        val code = """
+            class Sink { fun accept(value: Int) = Unit }
+            abstract class Owner {
+                abstract val abstractSink: Sink
+                open val openSink: Sink = Sink()
+                fun callback(): (Int) -> Unit = { value -> abstractSink.accept(value) }
+                fun another(): (Int) -> Unit = { value -> openSink.accept(value) }
+            }
+        """.trimIndent()
+
+        assertEquals(0, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
+    fun GIVEN_extension_receiver_property_WHEN_linted_THEN_preserves_its_getter() {
+        val code = """
+            class Sink { fun accept(value: Int) = Unit }
+            val String.sink: Sink get() = Sink()
+            fun String.callback(): (Int) -> Unit = { value -> sink.accept(value) }
+        """.trimIndent()
+
+        assertEquals(0, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
+    fun GIVEN_stable_receivers_WHEN_linted_THEN_still_suggests_bound_references() {
+        val code = """
+            class Sink { fun accept(value: Int) = Unit }
+            object Output { fun write(value: Int) = Unit }
+            class Factory { companion object { fun create(value: Int) = Unit } }
+            class Owner(private val member: Sink) {
+                private val stored = Sink()
+                fun callbacks(parameter: Sink): List<(Int) -> Unit> {
+                    val local = parameter
+                    return listOf(
+                        { value: Int -> parameter.accept(value) },
+                        { value: Int -> local.accept(value) },
+                        { value: Int -> member.accept(value) },
+                        { value: Int -> stored.accept(value) },
+                        { value: Int -> Output.write(value) },
+                        { value: Int -> Factory.create(value) }
+                    )
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(6, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
+    fun GIVEN_unstable_receiver_in_named_handler_WHEN_linted_THEN_keeps_the_zero_argument_lambda() {
+        val code = """
+            class Sink { fun close() = Unit }
+            fun Button(onClick: () -> Unit) = Unit
+            var sink = Sink()
+            fun show() { Button(onClick = { sink.close() }) }
+        """.trimIndent()
+
+        assertEquals(0, rule.lintWithContext(environment, code).size)
+    }
+
+    @Test
+    fun GIVEN_unbound_mutable_property_WHEN_linted_THEN_still_reports_the_property_reference() {
+        val code = """
+            class Holder(var value: Int)
+            fun values(holders: List<Holder>) = holders.map { holder -> holder.value }
+        """.trimIndent()
+
+        assertEquals(1, rule.lintWithContext(environment, code).size)
+    }
+
     private data class CompilationResult(val exitCode: ExitCode, val messages: String)
 
     private fun compile(source: String, directory: File): CompilationResult {
