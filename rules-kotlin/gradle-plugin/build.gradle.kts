@@ -24,7 +24,8 @@ kover {
                     "*.task.*",
                     "*.extension.*",
                     "*.service.*",
-                    "*.util.*"
+                    "*.util.*",
+                    "*.model.AndroidVariantSources"
                 )
             }
         }
@@ -45,6 +46,7 @@ dependencies {
     detektPlugins(projects.detekt)
 
     compileOnly(libs.kotlin.gradle)
+    compileOnly(libs.android.gradle.api)
 
     implementation(libs.detekt.gradle)
     implementation(projects.core)
@@ -54,6 +56,7 @@ dependencies {
 
     testImplementation(gradleTestKit())
     testImplementation(libs.kotlin.gradle)
+    testImplementation(libs.android.gradle)
     testImplementation(libs.tests.kotlin.test)
     testImplementation(platform(libs.tests.junit.bom))
     testImplementation(libs.tests.junit.jupiter)
@@ -61,6 +64,7 @@ dependencies {
 
     // Kotlin Gradle plugin is compileOnly, so the tests add it back
     add(testPluginDependencies.name, libs.kotlin.gradle)
+    add(testPluginDependencies.name, libs.android.gradle)
 }
 
 // The linter resolves the rules at its own version

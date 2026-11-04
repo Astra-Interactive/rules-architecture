@@ -28,6 +28,7 @@ dependencies {
 
     implementation(projects.core)
     implementation(libs.konsist)
+    implementation(libs.kotlin.compiler)
 
     testImplementation(libs.tests.kotlin.test)
     testImplementation(platform(libs.tests.junit.bom))

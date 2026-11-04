@@ -17,15 +17,19 @@ import org.gradle.api.attributes.java.TargetJvmEnvironment
 import org.gradle.api.file.FileCollection
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskProvider
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
 import ru.astrainteractive.klibs.rules.core.unit.util.encode
+import ru.astrainteractive.klibs.rules.core.unit.util.toUnitContext
 import ru.astrainteractive.klibs.rules.gradle.detekt.extension.model.DetektRulesExtension
 import ru.astrainteractive.klibs.rules.gradle.detekt.plugin.gradle.DetektPlugin
 import ru.astrainteractive.klibs.rules.gradle.detekt.service.DetektConfigService
 import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
+import ru.astrainteractive.klibs.rules.gradle.linter.model.AndroidVariantSources
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
 import ru.astrainteractive.klibs.rules.gradle.linter.service.ArchitectureGraphService
+import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ApiOwnershipReportTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureBaselineTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureCheckTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureGraphTask
@@ -40,10 +44,13 @@ import ru.astrainteractive.klibs.rules.gradle.linter.util.hasMikroCoreInCatalog
 import ru.astrainteractive.klibs.rules.gradle.linter.util.productionProjectDependencies
 import ru.astrainteractive.klibs.rules.gradle.linter.util.readUnitBuild
 import ru.astrainteractive.klibs.rules.gradle.linter.util.readUnitContext
+import ru.astrainteractive.klibs.rules.gradle.linter.util.registerAndroidVariantSources
 import ru.astrainteractive.klibs.rules.gradle.linter.util.toLine
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
+import java.io.File
 import java.util.Properties
 
+@Suppress("TooManyFunctions") // The composition root owns each task and lifecycle registration.
 internal class LinterPlugin : Plugin<Project> {
     private fun readResource(name: String): String {
         val stream = javaClass.classLoader.getResourceAsStream(name)
@@ -185,31 +192,51 @@ internal class LinterPlugin : Plugin<Project> {
         projectDependencies.set(project.provider { project.productionProjectDependencies() })
     }
 
-    private fun Project.configureGraphContribution(extension: LinterExtension): Provider<UnitContext> {
+    private fun Project.configureGraphContribution(
+        extension: LinterExtension,
+        androidVariants: List<AndroidVariantSources>
+    ): Provider<UnitContext> {
         val rootProduct = graphParameters().productKind
-        val context = provider { readUnitContext(extension, rootProduct.orNull) }
+        val context = provider {
+            readUnitContext(
+                extension,
+                rootProduct.orNull,
+                androidVariants = androidVariants
+            )
+        }
         afterEvaluate { project ->
             val parameters = project.graphParameters()
             if (project.path == project.isolated.rootProject.path) {
                 extension.configuredProductKind?.let(parameters.productKind::set)
             }
+        }
+        gradle.projectsEvaluated {
+            val parameters = graphParameters()
             // Root graph inputs must not resolve another project's compilation classpath.
-            val snapshot = project.readUnitContext(
+            val snapshot = readUnitContext(
                 extension,
                 parameters.productKind.orNull,
-                resolveCompose = false
+                resolveCompose = false,
+                androidVariants = androidVariants
             )
-            val metadata = listOf(project.path, snapshot.encode())
-                .plus(project.productionProjectDependencies())
+            val metadata = listOf(path, snapshot.encode())
+                .plus(productionProjectDependencies())
                 .joinToString("\t")
             synchronized(parameters) {
                 parameters.unitMetadata.add(metadata)
+                parameters.ownershipMetadata.add(
+                    listOf(
+                        path,
+                        projectDir.absolutePath,
+                        snapshot.encode()
+                    ).joinToString("\t")
+                )
             }
         }
         return context
     }
 
-    private fun Project.configureGraphCheck() {
+    private fun Project.configureGraphReports(classpath: NamedDomainObjectProvider<ResolvableConfiguration>) {
         tasks.register(
             GRAPH_CHECK_TASK_NAME,
             ArchitectureGraphTask::class.java
@@ -222,13 +249,43 @@ internal class LinterPlugin : Plugin<Project> {
                 task.dependsOn(GRAPH_CHECK_TASK_NAME)
             }
         }
+        tasks.register(
+            OWNERSHIP_REPORT_TASK_NAME,
+            ApiOwnershipReportTask::class.java
+        ) { task ->
+            task.group = LifecycleBasePlugin.VERIFICATION_GROUP
+            task.description = "Reports API declarations with a sole sibling implementation consumer for manual review"
+            task.configurationOnDemand.set(gradle.startParameter.isConfigureOnDemand)
+            if (gradle.startParameter.isConfigureOnDemand) {
+                task.notCompatibleWithConfigurationCache("API ownership reports require all projects configured")
+            }
+            val metadata = graphParameters().ownershipMetadata.map { entries -> entries.sorted() }
+            task.unitMetadata.set(metadata)
+            task.konsistClasspath.from(classpath)
+            task.sources.from(
+                metadata.map { entries ->
+                    entries.flatMap { entry ->
+                        entry.split('\t')[2].toUnitContext().compilations.filterNot(UnitContext.Compilation::test)
+                            .flatMap { compilation -> compilation.sourceSets.values.flatten() }
+                    }.distinct().map(::File).filter(File::isDirectory)
+                }
+            )
+            task.reportFile.set(layout.buildDirectory.file("reports/architecture/api-ownership.txt"))
+        }
+    }
+
+    private fun Project.attachCheckTask(checkTask: TaskProvider<ArchitectureCheckTask>) {
+        plugins.withType(LifecycleBasePlugin::class.java) {
+            tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) { task -> task.dependsOn(checkTask) }
+        }
     }
 
     override fun apply(target: Project) {
         target.pluginManager.apply(DetektPlugin::class.java)
+        val androidVariants = target.registerAndroidVariantSources()
         val rulesVersion = readRulesVersion()
         val extension = target.extensions.create(EXTENSION_NAME, LinterExtension::class.java)
-        val context = target.configureGraphContribution(extension)
+        val context = target.configureGraphContribution(extension, androidVariants)
         target.configureDetekt(rulesVersion, context)
         val classpath = target.konsistClasspath(rulesVersion)
 
@@ -264,16 +321,15 @@ internal class LinterPlugin : Plugin<Project> {
             val unit = project.readUnitContext(
                 extension,
                 project.graphParameters().productKind.orNull,
-                resolveCompose = false
+                resolveCompose = false,
+                androidVariants = androidVariants
             )
             val findings = project.readUnitBuild(unit.kind, unit.productKind)
                 .findBuildFindings().map(ArchitectureFinding::toLine)
             checkTask.configure { task -> task.buildFindings.set(findings) }
             baselineTask.configure { task -> task.buildFindings.set(findings) }
         }
-        target.plugins.withType(LifecycleBasePlugin::class.java) {
-            target.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) { task -> task.dependsOn(checkTask) }
-        }
+        target.attachCheckTask(checkTask)
         val lintTask = target.tasks.register(LINT_TASK_NAME) { task ->
             task.group = LifecycleBasePlugin.VERIFICATION_GROUP
             task.description = "Runs every check of the linter, detekt with type resolution included, but no tests"
@@ -281,8 +337,8 @@ internal class LinterPlugin : Plugin<Project> {
             task.dependsOn(target.tasks.withType(Detekt::class.java).named { name -> name != DETEKT_FORMAT_TASK_NAME })
         }
         if (target.path == target.isolated.rootProject.path) {
-            target.configureGraphCheck()
-            lintTask.configure { task -> task.dependsOn(GRAPH_CHECK_TASK_NAME) }
+            target.configureGraphReports(classpath)
+            lintTask.configure { task -> task.dependsOn(GRAPH_CHECK_TASK_NAME, OWNERSHIP_REPORT_TASK_NAME) }
         }
     }
 
@@ -292,6 +348,7 @@ internal class LinterPlugin : Plugin<Project> {
         private const val DETEKT_FORMAT_TASK_NAME = "detektFormat"
         private const val DETEKT_TASK_NAME = "detekt"
         const val GRAPH_CHECK_TASK_NAME = "architectureGraphCheck"
+        const val OWNERSHIP_REPORT_TASK_NAME = "architectureApiOwnershipReport"
         const val BASELINE_TASK_NAME = "architectureBaseline"
         const val BASELINE_FILE_NAME = "architecture-baseline.txt"
         const val DETEKT_SETTINGS_TASK_NAME = "architectureDetektSettings"

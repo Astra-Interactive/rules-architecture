@@ -58,6 +58,7 @@ internal class IsolatedProjectsBuild(private val rootDirectory: File) {
                         mavenLocal {
                             content { includeGroup("ru.astrainteractive.klibs.rules") }
                         }
+                        google()
                         mavenCentral()
                     }
                 }

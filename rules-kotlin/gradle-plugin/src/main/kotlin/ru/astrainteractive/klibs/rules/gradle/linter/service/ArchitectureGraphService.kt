@@ -9,6 +9,7 @@ import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
 internal abstract class ArchitectureGraphService : BuildService<ArchitectureGraphService.Parameters> {
     interface Parameters : BuildServiceParameters {
         val unitMetadata: ListProperty<String>
+        val ownershipMetadata: ListProperty<String>
         val productKind: Property<ProductKind>
     }
 }

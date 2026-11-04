@@ -89,12 +89,36 @@ plugins {
   accepts what the file lists for findings that cannot carry a Kotlin suppression.
 - Registers `architectureLint`, which runs the whole linter and no tests: `architectureCheck` and every detekt task
   of the unit, the type-resolution ones (`detektMain`, `detektTest`, `detektMainAndroid`, …) included, but not
-  `detektFormat`; on the root project also `architectureGraphCheck`. `check` runs only `detekt` without type
+  `detektFormat`; on the root project also `architectureGraphCheck` and `architectureApiOwnershipReport`.
+  `check` runs only `detekt` without type
   resolution, so run `./gradlew architectureLint` to see every finding.
 - On the root project, registers `architectureGraphCheck`, which checks the complete unit graph for dependency
   cycles and for dependencies on an entry point, a unit detected or set as `entry-point` (an `application`
   plugin, an `instances` path); root `check` depends on it. Units contribute their dependencies through an isolated-projects-compatible
   shared build service.
+- On the root project, `architectureApiOwnershipReport` writes
+  `build/reports/architecture/api-ownership.txt`. Candidates do not fail the build and are never automatically
+  moved or added to a baseline. Run it alone for an ownership review without other checks.
+  Configuration-on-demand is rejected because it can omit sibling projects; run the report or full lint
+  with `--no-configure-on-demand`. Parallel execution and the configuration cache remain available.
+  Apply the linter to the root and all participating units. It uses their production Kotlin compilation roots
+  and declared roles, including custom module directories, KMP source sets and Android application variant
+  Kotlin roots. Tests and test fixtures are excluded.
+  It identifies API declarations whose observed consumers reduce to one sibling implementation unit
+  (`IMPL`, `IMPL_UI`, `PLATFORM`, `TECHNOLOGY` or `CONTEXT`). Shared API references retain their dependency
+  closure, including signature models, aliases and nested generic types. DI references appear separately.
+  Published APIs are retained because their external consumers are unknown.
+  `CANDIDATE` requires review of responsibility and signatures; `RETAIN` means this heuristic found no sole
+  sibling owner; `UNKNOWN` means no non-DI consumer was found; `UNCERTAIN` marks ambiguous references, duplicate
+  owners or feature DI references that may hide runtime consumption; `EXTERNAL` marks a published API.
+  Entry-point DI construction alone does not establish a production consumer.
+  None proves correct placement or unused code.
+  Analysis is lexical, not compiler resolution: overloads and shadowing can over-retain declarations.
+  All configured production source sets contribute conservatively, without inferring variant selection.
+  Generated code, Java, included builds, reflection and unregistered consumers are outside its coverage.
+  The report lists participating units, source roots and missing metadata. An empty candidate list is not
+  a complete architecture pass. Before promoting code to API, record its production consumers and dependencies
+  required by shared behaviour as specified in the package-layout skill.
 
 Structure checks consume the explicit unit roles too, including dependencies on units with custom names. A
 production dependency on a shared-fake unit is rejected even from an entry point. `APP`/`PLATFORM_PLUGIN`
