@@ -136,4 +136,221 @@ internal class ContractPlacementTest {
             messages.sorted()
         )
     }
+
+    @Test
+    fun GIVEN_read_only_model_interfaces_WHEN_checked_THEN_keeps_data_in_model(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.page.model/Page.kt",
+                """
+                interface Page<T> {
+                    val data: List<T>
+                    val total: Long
+                    companion object { const val SIZE = 10 }
+                }
+            """
+            )
+            .main("x.page.model/Named.kt", "interface Named { val name: String }")
+            .main("x.page.model/Labelled.kt", "interface Labelled : Named { val label: String }")
+            .load(UnitKind.CONTEXT, rootPackage = "x")
+
+        assertEquals(emptyList(), ContractPlacement().check(sources))
+    }
+
+    @Test
+    fun GIVEN_behaviour_or_mutability_in_model_interfaces_WHEN_checked_THEN_reports_them(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main("x.page.model/Mutable.kt", "interface Mutable { var name: String }")
+            .main("x.page.model/Computed.kt", "interface Computed { val size: Int get() = 1 }")
+            .main("x.page.model/Operation.kt", "interface Operation { val name: String; fun load(): String }")
+            .main("x.page.model/Child.kt", "interface Child : Operation { val id: Int }")
+            .main("x.page.model/Unknown.kt", "interface Unknown : Missing { val id: Int }")
+            .main("x.page.model/Empty.kt", "interface Empty")
+            .load(UnitKind.CONTEXT, rootPackage = "x")
+
+        assertEquals(
+            listOf(
+                "Child",
+                "Computed",
+                "Empty",
+                "Mutable",
+                "Operation",
+                "Unknown"
+            ),
+            ContractPlacement().check(sources).map(Violation::subject).sorted()
+        )
+    }
+
+    @Test
+    fun GIVEN_framework_registration_in_core_WHEN_checked_THEN_keeps_interface_with_mechanism(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.core.route/Routes.kt",
+                """
+                import io.ktor.server.routing.Routing
+                fun interface Routes { fun install(routing: Routing) }
+            """
+            )
+            .main(
+                "x.core.command/Commands.kt",
+                """
+                import org.bukkit.command.CommandMap as CommandsContext
+                interface Commands { fun attach(context: CommandsContext): Unit }
+            """
+            )
+            .load(UnitKind.CORE, rootPackage = "x.core")
+
+        assertEquals(emptyList(), ContractPlacement().check(sources))
+    }
+
+    @Test
+    fun GIVEN_domain_operations_disguised_as_mechanisms_WHEN_checked_THEN_requires_contract_placement(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.core.route/Queries.kt",
+                """
+                import io.ktor.server.routing.Routing
+                interface Queries { fun load(routing: Routing): String }
+            """
+            )
+            .main(
+                "x.core.route/Writes.kt",
+                """
+                import io.ktor.server.routing.Routing
+                interface Writes { suspend fun save(routing: Routing) }
+            """
+            )
+            .main(
+                "x.core.route/State.kt",
+                """
+                import io.ktor.server.routing.Routing
+                interface State { val routing: Routing; fun install(routing: Routing) }
+            """
+            )
+            .main(
+                "x.core.route/Mixed.kt",
+                """
+                import io.ktor.server.routing.Routing
+                interface Mixed { fun install(routing: Routing, user: User) }
+            """
+            )
+            .load(UnitKind.CORE, rootPackage = "x.core")
+
+        assertEquals(
+            listOf(
+                "Mixed",
+                "Queries",
+                "State",
+                "Writes"
+            ),
+            ContractPlacement().check(sources).map(Violation::subject).sorted()
+        )
+    }
+
+    @Test
+    fun GIVEN_registration_with_unsupported_members_WHEN_checked_THEN_requires_contract_placement(
+        @TempDir directory: File
+    ) {
+        val tree = SourceTree(directory)
+        val declarations = listOf(
+            "interface Inherited : Parent { fun register(routing: Routing) }",
+            "interface DefaultBody { fun register(routing: Routing) {} }",
+            "interface NoContext { fun register() }",
+            "interface GenericContext { fun register(contexts: List<Routing>) }",
+            "interface UnknownContext { fun register(context: Missing) }"
+        )
+        declarations.forEachIndexed { index, declaration ->
+            tree.main(
+                "x.core.route/Boundary$index.kt",
+                "import io.ktor.server.routing.Routing\n$declaration"
+            )
+        }
+        val sources = tree.load(UnitKind.CORE, rootPackage = "x.core")
+
+        assertEquals(
+            listOf(
+                "DefaultBody",
+                "GenericContext",
+                "Inherited",
+                "NoContext",
+                "UnknownContext"
+            ),
+            ContractPlacement().check(sources).map(Violation::subject).sorted()
+        )
+    }
+
+    @Test
+    fun GIVEN_model_with_stateful_companion_or_non_model_parent_WHEN_checked_THEN_rejects_it(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.page.model/Stateful.kt",
+                "interface Stateful { val id: Int; companion object { var count = 0 } }"
+            )
+            .main(
+                "x.page.model/Singleton.kt",
+                "interface Singleton { val id: Int; object Cache { var count = 0 } }"
+            )
+            .main(
+                "x.page.model/Initialized.kt",
+                "interface Initialized { val id: Int = 1 }"
+            )
+            .main(
+                "x.page.model/Child.kt",
+                "import x.other.api.Parent\ninterface Child : Parent { val id: Int }"
+            )
+            .dependency("x.other.api/Parent.kt", "interface Parent { val name: String }")
+            .load(UnitKind.CONTEXT, rootPackage = "x")
+
+        assertEquals(
+            listOf(
+                "Child",
+                "Initialized",
+                "Singleton",
+                "Stateful"
+            ),
+            ContractPlacement().check(sources).map(Violation::subject).sorted()
+        )
+    }
+
+    @Test
+    fun GIVEN_model_inheritance_and_companions_with_behaviour_WHEN_checked_THEN_does_not_hide_operations(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main("x.page.model/Cyclic.kt", "interface Cyclic : Cyclic { val id: Int }")
+            .main(
+                "x.page.model/Factory.kt",
+                """
+                interface Factory {
+                    val name: String
+                    companion object { fun create() = "value" }
+                }
+            """
+            )
+            .main("x.page.model/Callback.kt", "interface Callback { val action: () -> Unit }")
+            .main(
+                "x.page.model/Child.kt",
+                """
+                import x.other.model.Parent as Base
+                interface Child : Base { val id: Int }
+            """
+            )
+            .dependency("x.other.model/Parent.kt", "interface Parent { val name: String }")
+            .load(UnitKind.CONTEXT, rootPackage = "x")
+
+        assertEquals(
+            listOf(
+                "Callback",
+                "Cyclic",
+                "Factory"
+            ),
+            ContractPlacement().check(sources).map(Violation::subject).sorted()
+        )
+    }
 }

@@ -31,6 +31,13 @@ internal val KoImportDeclaration.importedName: String
 internal val KoFileDeclaration.baseName: String
     get() = File(path).nameWithoutExtension
 
+internal fun KoFileDeclaration.resolveTypeName(name: String): String {
+    val imported = imports.firstOrNull { declaration ->
+        (declaration.alias?.name ?: declaration.name.substringAfterLast('.')) == name
+    }
+    return imported?.name ?: if ('.' in name) name else "$packageName.$name"
+}
+
 internal fun KoFileDeclaration.sourceReferences(): Set<String> {
     val wildcardPackages = imports.filter(KoImportDeclaration::isWildcard).map(KoImportDeclaration::name)
     val qualified = qualifiedReferences.filterNot { reference ->
