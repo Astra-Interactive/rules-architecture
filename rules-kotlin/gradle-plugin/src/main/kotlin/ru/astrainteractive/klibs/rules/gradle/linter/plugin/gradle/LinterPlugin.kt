@@ -20,12 +20,14 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
 import ru.astrainteractive.klibs.rules.core.unit.util.encode
+import ru.astrainteractive.klibs.rules.core.unit.util.toUnitContext
 import ru.astrainteractive.klibs.rules.gradle.detekt.extension.model.DetektRulesExtension
 import ru.astrainteractive.klibs.rules.gradle.detekt.plugin.gradle.DetektPlugin
 import ru.astrainteractive.klibs.rules.gradle.detekt.service.DetektConfigService
 import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
 import ru.astrainteractive.klibs.rules.gradle.linter.service.ArchitectureGraphService
+import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ApiOwnershipReportTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureBaselineTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureCheckTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureGraphTask
@@ -42,6 +44,7 @@ import ru.astrainteractive.klibs.rules.gradle.linter.util.readUnitBuild
 import ru.astrainteractive.klibs.rules.gradle.linter.util.readUnitContext
 import ru.astrainteractive.klibs.rules.gradle.linter.util.toLine
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
+import java.io.File
 import java.util.Properties
 
 internal class LinterPlugin : Plugin<Project> {
@@ -204,12 +207,19 @@ internal class LinterPlugin : Plugin<Project> {
                 .joinToString("\t")
             synchronized(parameters) {
                 parameters.unitMetadata.add(metadata)
+                parameters.ownershipMetadata.add(
+                    listOf(
+                        project.path,
+                        project.projectDir.absolutePath,
+                        snapshot.encode()
+                    ).joinToString("\t")
+                )
             }
         }
         return context
     }
 
-    private fun Project.configureGraphCheck() {
+    private fun Project.configureGraphReports(classpath: NamedDomainObjectProvider<ResolvableConfiguration>) {
         tasks.register(
             GRAPH_CHECK_TASK_NAME,
             ArchitectureGraphTask::class.java
@@ -221,6 +231,25 @@ internal class LinterPlugin : Plugin<Project> {
             tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) { task ->
                 task.dependsOn(GRAPH_CHECK_TASK_NAME)
             }
+        }
+        tasks.register(
+            OWNERSHIP_REPORT_TASK_NAME,
+            ApiOwnershipReportTask::class.java
+        ) { task ->
+            task.group = LifecycleBasePlugin.VERIFICATION_GROUP
+            task.description = "Reports API declarations with a sole sibling implementation consumer for manual review"
+            val metadata = graphParameters().ownershipMetadata.map { entries -> entries.sorted() }
+            task.unitMetadata.set(metadata)
+            task.konsistClasspath.from(classpath)
+            task.sources.from(
+                metadata.map { entries ->
+                    entries.flatMap { entry ->
+                        entry.split('\t')[2].toUnitContext().compilations.filterNot(UnitContext.Compilation::test)
+                            .flatMap { compilation -> compilation.sourceSets.values.flatten() }
+                    }.distinct().map(::File).filter(File::isDirectory)
+                }
+            )
+            task.reportFile.set(layout.buildDirectory.file("reports/architecture/api-ownership.txt"))
         }
     }
 
@@ -281,8 +310,8 @@ internal class LinterPlugin : Plugin<Project> {
             task.dependsOn(target.tasks.withType(Detekt::class.java).named { name -> name != DETEKT_FORMAT_TASK_NAME })
         }
         if (target.path == target.isolated.rootProject.path) {
-            target.configureGraphCheck()
-            lintTask.configure { task -> task.dependsOn(GRAPH_CHECK_TASK_NAME) }
+            target.configureGraphReports(classpath)
+            lintTask.configure { task -> task.dependsOn(GRAPH_CHECK_TASK_NAME, OWNERSHIP_REPORT_TASK_NAME) }
         }
     }
 
@@ -292,6 +321,7 @@ internal class LinterPlugin : Plugin<Project> {
         private const val DETEKT_FORMAT_TASK_NAME = "detektFormat"
         private const val DETEKT_TASK_NAME = "detekt"
         const val GRAPH_CHECK_TASK_NAME = "architectureGraphCheck"
+        const val OWNERSHIP_REPORT_TASK_NAME = "architectureApiOwnershipReport"
         const val BASELINE_TASK_NAME = "architectureBaseline"
         const val BASELINE_FILE_NAME = "architecture-baseline.txt"
         const val DETEKT_SETTINGS_TASK_NAME = "architectureDetektSettings"

@@ -1,3 +1,3 @@
 # konsist
 
-Konsist checks that report the architecture-rule violations spanning the files of one build unit.
+Konsist checks architecture rules within build units and reports advisory API ownership across participating units.

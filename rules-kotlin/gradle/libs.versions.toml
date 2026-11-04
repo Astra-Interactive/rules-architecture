@@ -17,6 +17,7 @@ detekt-rules-style = { module = "dev.detekt:detekt-rules-style", version.ref = "
 detekt-test = { module = "dev.detekt:detekt-test", version.ref = "detekt" }
 konsist = { module = "com.lemonappdev:konsist", version.ref = "konsist" }
 kotlin-gradle = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin-version" }
+kotlin-compiler = { module = "org.jetbrains.kotlin:kotlin-compiler-embeddable", version.ref = "kotlin-version" }
 tests-junit-bom = { module = "org.junit:junit-bom", version.ref = "tests-junit-bom" }
 tests-junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 tests-junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
