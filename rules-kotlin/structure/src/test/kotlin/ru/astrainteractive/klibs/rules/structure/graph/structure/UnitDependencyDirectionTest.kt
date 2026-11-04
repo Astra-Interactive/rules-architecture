@@ -483,7 +483,7 @@ internal class UnitDependencyDirectionTest {
     }
 
     @Test
-    fun GIVEN_platform_and_technology_service_roles_WHEN_classified_THEN_technology_rejects_api_and_platform_core() {
+    fun GIVEN_platform_and_technology_service_roles_WHEN_classified_THEN_technology_accepts_own_api_only() {
         val corePlatform = explicitUnit(
             ":modules:core:bukkit",
             UnitKind.CORE_PLATFORM,
@@ -509,7 +509,7 @@ internal class UnitDependencyDirectionTest {
         assertEquals(emptyList(), UnitDependencyDirection.findForbidden(corePlatform))
         assertEquals(emptyList(), UnitDependencyDirection.findForbidden(platform))
         assertEquals(
-            listOf(":modules:core:forge", ":modules:service:api"),
+            listOf(":modules:core:forge"),
             UnitDependencyDirection.findForbidden(technology)
         )
     }

@@ -157,10 +157,20 @@ internal object UnitDependencyDirection {
                         dependency,
                         target
                     )
-                    target !in allowed && !uiPolicyAllows && !explicitlyAllowed
+                    val technologyApi = source == Kind.TECHNOLOGY && target == Kind.API
+                    val ownApiAllows = technologyApi && isSameImmediateParent(unit.path, dependency)
+                    target !in allowed && !uiPolicyAllows && !ownApiAllows && !explicitlyAllowed
                 }
             }
             .sorted()
+    }
+
+    private fun implementationDependencyMessage(source: Kind, dependency: String): String {
+        return if (source == Kind.API) {
+            "An api unit never depends on an impl unit: depend on the api unit next to $dependency."
+        } else {
+            "Only the entry point depends on $dependency: depend on the api unit next to it."
+        }
     }
 
     fun message(unit: BuildUnit, dependency: String): String {
@@ -179,15 +189,15 @@ internal object UnitDependencyDirection {
             target == Kind.ENTRY_POINT -> "Drop $dependency: nothing depends on an entry-point unit."
             source == Kind.CONTRACT -> "A contract unit depends on nothing of the project: drop $dependency."
             source in coreKinds && !isCoreDependency -> "core depends on no feature unit: drop $dependency."
+            source == Kind.TECHNOLOGY ->
+                "Drop $dependency: a technology unit may depend only on its own api unit with the same immediate " +
+                    "parent, platform-free core, storage contracts or a context's contract unit."
             target == Kind.IMPL && source == Kind.IMPL_UI ->
                 "${unit.path} may depend on an impl unit only when sibling implementation access is enabled " +
                     "and both Gradle paths have the same immediate parent: drop $dependency or declare an exact exception."
             target == Kind.IMPL_UI && source == Kind.IMPL_UI ->
                 "${unit.path} may depend on another UI implementation only in HOST composition mode: drop $dependency."
-            target == Kind.IMPL && source == Kind.API ->
-                "An api unit never depends on an impl unit: depend on the api unit next to $dependency."
-            target == Kind.IMPL ->
-                "Only the entry point depends on $dependency: depend on the api unit next to it."
+            target == Kind.IMPL -> implementationDependencyMessage(source, dependency)
             target == Kind.PLATFORM ->
                 "Only the entry point depends on the platform unit $dependency: depend on the api unit next to it."
             else ->
