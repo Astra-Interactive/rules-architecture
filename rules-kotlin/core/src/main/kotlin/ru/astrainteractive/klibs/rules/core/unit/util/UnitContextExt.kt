@@ -6,7 +6,7 @@ import java.io.DataOutputStream
 import java.io.File
 import java.util.Base64
 
-internal const val UNIT_CONTEXT_TRANSPORT_VERSION = 3
+internal const val UNIT_CONTEXT_TRANSPORT_VERSION = 4
 
 private fun writeStrings(output: DataOutputStream, values: Collection<String>) {
     output.writeInt(values.size)
@@ -43,6 +43,11 @@ public fun UnitContext.encode(): String {
                 output.writeUTF(name)
                 writeStrings(output, directories)
             }
+            output.writeInt(compilation.compiledSourceSets.size)
+            compilation.compiledSourceSets.toSortedMap().forEach { (name, directories) ->
+                output.writeUTF(name)
+                writeStrings(output, directories)
+            }
         }
         output.writeUTF(policy.composition.name)
         output.writeUTF(policy.implementationAccess.name)
@@ -52,10 +57,11 @@ public fun UnitContext.encode(): String {
     return Base64.getEncoder().encodeToString(bytes.toByteArray())
 }
 
+/** Compilations that compile [file], excluding source roots visible only through association. */
 public fun UnitContext.compilationsFor(file: File): List<UnitContext.Compilation> {
     val path = file.toPath().toAbsolutePath().normalize()
     return compilations.filter { compilation ->
-        compilation.sourceSets.values.flatten().any { directory ->
+        compilation.compiledSourceSets.values.flatten().any { directory ->
             path.startsWith(File(directory).toPath().toAbsolutePath().normalize())
         }
     }

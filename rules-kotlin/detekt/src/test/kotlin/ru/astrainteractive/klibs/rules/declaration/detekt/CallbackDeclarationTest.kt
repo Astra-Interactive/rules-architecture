@@ -48,6 +48,19 @@ internal class CallbackDeclarationTest {
     }
 
     @Test
+    fun GIVEN_lifecycle_hook_WHEN_linted_THEN_finding_requests_ownership_review() {
+        val code = "class Lifecycle(private val onEnable: () -> Unit)"
+
+        assertEquals(
+            listOf(
+                "Review the callback 'onEnable': use a suspend function for a result or a Flow for events. " +
+                    "Caller-owned lifecycle hooks and scoped platform bridges may be valid exceptions."
+            ),
+            rule.lint(code).map(Finding::message)
+        )
+    }
+
+    @Test
     fun GIVEN_composable_handlers_outputs_and_values_WHEN_linted_THEN_reports_nothing(@TempDir directory: File) {
         val code = """
             @Composable

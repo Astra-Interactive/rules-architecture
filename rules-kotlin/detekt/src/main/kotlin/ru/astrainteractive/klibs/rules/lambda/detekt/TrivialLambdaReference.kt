@@ -8,8 +8,14 @@ import dev.detekt.api.Rule
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaKotlinPropertySymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaLocalVariableSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolModality
 import org.jetbrains.kotlin.analysis.api.symbols.KaSyntheticJavaPropertySymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaVariableSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.psi.KtCallExpression
@@ -37,16 +43,10 @@ import ru.astrainteractive.klibs.rules.detekt.util.isSuspend
  * read as a property (`record.level`), whose reference does not compile, and for a property read in a `suspend`
  * lambda (`flow.map { message -> message.value }`), since a property reference is no `suspend` function. A
  * companion function of `Result` is suggested as an imported `::success`, since `Result::success` does not compile.
+ * Bound references require a stable receiver: capturing a mutable or computed receiver would change when it is read.
  */
 internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION), RequiresAnalysisApi {
     private var functionCounts: Map<String, Int> = emptyMap()
-
-    private fun resolvedSuspend(call: KtCallExpression): Boolean {
-        return analyze(call) {
-            val symbol = call.resolveToCall()?.singleFunctionCallOrNull()?.symbol ?: return@analyze false
-            symbol is KaNamedFunctionSymbol && symbol.isSuspend
-        }
-    }
 
     private fun isCallback(lambda: KtLambdaExpression): Boolean {
         val parent = lambda.parent
@@ -63,6 +63,21 @@ internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION
             (argument.getArgumentExpression() as? KtNameReferenceExpression)?.getReferencedName()
         }
         return passed == names
+    }
+
+    private fun isStableReceiver(receiver: KtNameReferenceExpression): Boolean {
+        return analyze(receiver) {
+            when (val symbol = receiver.mainReference.resolveToSymbol()) {
+                is KaNamedClassSymbol, is KaValueParameterSymbol -> true
+                is KaLocalVariableSymbol -> symbol.isVal && (symbol.psi as? KtProperty)?.hasDelegate() == false
+                is KaKotlinPropertySymbol -> {
+                    if (!symbol.isVal || symbol.modality != KaSymbolModality.FINAL) return@analyze false
+                    if (symbol.isExtension || symbol.getter?.isNotDefault != false) return@analyze false
+                    symbol.psi is KtParameter || (symbol.psi as? KtProperty)?.hasDelegate() == false
+                }
+                else -> false
+            }
+        }
     }
 
     private fun findQualifiedReference(body: KtDotQualifiedExpression, names: List<String>): Reference? {
@@ -84,6 +99,7 @@ internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION
         }
         if (receiverName in names || selector !is KtCallExpression) return null
         if (!passesParameters(selector, names)) return null
+        if (!isStableReceiver(receiver)) return null
         if (receiverName == RESULT) return Reference("::$callee (import kotlin.Result.Companion.$callee)", selector)
         return Reference("$receiverName::$callee", selector)
     }
@@ -91,7 +107,8 @@ internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION
     private fun findReference(body: KtExpression, names: List<String>): Reference? {
         if (body is KtDotQualifiedExpression) return findQualifiedReference(body, names)
         if (body !is KtCallExpression || names.isEmpty() || !passesParameters(body, names)) return null
-        if (body.calleeExpression !is KtNameReferenceExpression) return null
+        val callee = body.calleeExpression as? KtNameReferenceExpression ?: return null
+        if (analyze(callee) { callee.mainReference.resolveToSymbol() is KaVariableSymbol }) return null
         return Reference("::${body.calleeExpression?.text}", body)
     }
 
@@ -119,7 +136,11 @@ internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION
 
     private fun mayBeSuspend(lambda: KtLambdaExpression, call: KtCallExpression?): Boolean {
         if (call == null) return false
-        if (!resolvedSuspend(call)) return false
+        val isSuspend = analyze(call) {
+            val symbol = call.resolveToCall()?.singleFunctionCallOrNull()?.symbol
+            symbol is KaNamedFunctionSymbol && symbol.isSuspend
+        }
+        if (!isSuspend) return false
         return analyze(lambda) { (lambda.expectedType as? KaFunctionType)?.isSuspend != true }
     }
 

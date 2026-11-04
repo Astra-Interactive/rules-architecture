@@ -164,6 +164,8 @@ private fun Project.readCompilation(
             put(sourceSet.name, directories)
         }
     }
+    val compiledNames = compilation.allKotlinSourceSets.map { sourceSet -> sourceSet.name }.toSet()
+    val compiledSourceSets = sourceSets.filterKeys(compiledNames::contains)
     val configuration = configurations.getByName(compilation.compileDependencyConfigurationName)
     val compose = if (resolveCompose) {
         configuration.incoming.resolutionResult.allComponents.any { component ->
@@ -188,7 +190,8 @@ private fun Project.readCompilation(
         sourceSets,
         compilation.name.contains("test", ignoreCase = true),
         compose,
-        dependencies
+        dependencies,
+        compiledSourceSets
     )
 }
 

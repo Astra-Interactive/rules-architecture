@@ -13,6 +13,7 @@ import java.io.IOException
 import java.util.Base64
 
 private const val LEGACY_UNIT_CONTEXT_TRANSPORT_VERSION = 2
+private const val PREVIOUS_UNIT_CONTEXT_TRANSPORT_VERSION = 3
 
 public fun String.toUnitKindOrNull(): UnitKind? = UnitKind.entries.find { kind -> kind.cliName == this }
 
@@ -50,7 +51,15 @@ private fun readPolicy(input: DataInputStream): UnitPolicy {
     )
 }
 
-private fun readCompilations(input: DataInputStream): List<UnitContext.Compilation> {
+private fun readSourceSets(input: DataInputStream): Map<String, Set<String>> {
+    return buildMap {
+        repeat(input.readInt()) {
+            put(input.readUTF(), readStrings(input))
+        }
+    }
+}
+
+private fun readCompilations(input: DataInputStream, version: Int): List<UnitContext.Compilation> {
     return List(input.readInt()) {
         val name = input.readUTF()
         val test = input.readBoolean()
@@ -61,17 +70,15 @@ private fun readCompilations(input: DataInputStream): List<UnitContext.Compilati
             else -> error("Unknown Compose capability '$capability'")
         }
         val dependencies = readStrings(input)
-        val sourceSets = buildMap {
-            repeat(input.readInt()) {
-                put(input.readUTF(), readStrings(input))
-            }
-        }
+        val sourceSets = readSourceSets(input)
+        val compiledSourceSets = if (version >= UNIT_CONTEXT_TRANSPORT_VERSION) readSourceSets(input) else sourceSets
         UnitContext.Compilation(
             name,
             sourceSets,
             test,
             compose,
-            dependencies
+            dependencies,
+            compiledSourceSets
         )
     }
 }
@@ -82,8 +89,9 @@ public fun String.toUnitContext(): UnitContext {
         DataInputStream(ByteArrayInputStream(bytes)).use { input ->
             val version = input.readInt()
             val isLegacy = version == LEGACY_UNIT_CONTEXT_TRANSPORT_VERSION
+            val isPrevious = version == PREVIOUS_UNIT_CONTEXT_TRANSPORT_VERSION
             val isCurrent = version == UNIT_CONTEXT_TRANSPORT_VERSION
-            require(isLegacy || isCurrent) { "Unsupported unit context transport version $version" }
+            require(isLegacy || isPrevious || isCurrent) { "Unsupported unit context transport version $version" }
             val kindName = input.readUTF()
             val kind = requireNotNull(kindName.toUnitKindOrNull()) { "Unknown unit kind '$kindName'" }
             val productName = input.readUTF()
@@ -94,8 +102,8 @@ public fun String.toUnitContext(): UnitContext {
             }
             val library = input.readBoolean()
             val technologies = readStrings(input)
-            val compilations = readCompilations(input)
-            val context = if (isCurrent) {
+            val compilations = readCompilations(input, version)
+            val context = if (!isLegacy) {
                 UnitContext(
                     kind,
                     product,
