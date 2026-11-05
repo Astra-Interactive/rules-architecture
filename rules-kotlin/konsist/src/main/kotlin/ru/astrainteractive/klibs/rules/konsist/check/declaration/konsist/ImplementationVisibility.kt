@@ -11,15 +11,16 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 /**
  * Reports a public top-level class in a technology package (`exposed`, `file`, …) or directly in a concept of a
  * technology unit: the unit's DI module constructs it, so it is `internal`. Classes other units use stay public: a
- * stub, an in-memory implementation in `memory` that any unit's tests and demos use, and a generic class in `core`
- * (`core/cache/cache4k/RefreshingCache`). A published library is not judged.
+ * stub, an in-memory implementation in `memory` that any unit's tests and demos use, and a generic class in a core
+ * unit, declared as a core role in the build or sitting on a `core` path (`core/cache/cache4k/RefreshingCache`). A
+ * published library is not judged.
  */
 internal class ImplementationVisibility : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
 
     override fun check(sources: UnitSources): List<Violation> {
         if (sources.context.publishedLibrary) return emptyList()
-        val isCore = sources.unitPath.orEmpty().split(':').contains(CORE)
+        val isCore = sources.kind in CORE_KINDS || sources.unitPath.orEmpty().split(':').contains(CORE)
         if (isCore) return emptyList()
         return sources.mainFiles
             .filter { file ->
@@ -45,6 +46,14 @@ internal class ImplementationVisibility : ArchitectureCheck {
     private companion object {
         const val RULE = "ImplementationVisibility"
         const val CORE = "core"
+
+        /** The core roles declared in the build; `CORE_PLATFORM` is judged by its path, as before. */
+        @JvmField
+        val CORE_KINDS = setOf(
+            UnitKind.CORE,
+            UnitKind.CORE_API,
+            UnitKind.CORE_UI
+        )
 
         @JvmField
         val SHARED_KIND_WORDS = setOf("stub", "memory")

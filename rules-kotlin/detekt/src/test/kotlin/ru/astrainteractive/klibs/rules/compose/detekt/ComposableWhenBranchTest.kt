@@ -77,4 +77,63 @@ internal class ComposableWhenBranchTest {
 
         assertEquals(0, rule.lint(code).size)
     }
+
+    @Test
+    fun GIVEN_a_block_of_one_call_with_three_arguments_WHEN_linted_THEN_reports_nothing() {
+        val code = """
+            @Composable
+            fun TunerStateComposable(state: TunerState, onStop: () -> Unit) {
+                when (state) {
+                    is TunerState.Listening -> {
+                        ListeningLayoutComposable(
+                            frequency = state.frequency,
+                            detectedNote = state.detectedNote,
+                            onStopListening = onStop
+                        )
+                    }
+                    is TunerState.Granted -> {
+                        screen.GrantedLayoutComposable(
+                            onStart = onStop,
+                            modifier = Modifier
+                        ) {
+                            HintComposable()
+                        }
+                    }
+                    TunerState.NoPermission -> NoPermissionLayoutComposable()
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(0, rule.lint(code).size)
+    }
+
+    @Test
+    fun GIVEN_a_wrapped_call_outside_braces_or_a_block_of_a_short_call_WHEN_linted_THEN_reports_each() {
+        val code = """
+            @Composable
+            fun TunerStateComposable(state: TunerState, onStop: () -> Unit) {
+                when (state) {
+                    is TunerState.Listening -> ListeningLayoutComposable(
+                        frequency = state.frequency,
+                        detectedNote = state.detectedNote,
+                        onStopListening = onStop
+                    )
+                    is TunerState.Granted -> {
+                        GrantedLayoutComposable(
+                            onStart = onStop
+                        )
+                    }
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "Put this call in braces: a branch whose call takes three or more arguments is a block `-> { }` " +
+                    "holding that call alone.",
+                "Make this branch one call of its own @Composable, so the when reads as a dispatch table.",
+            ),
+            rule.lint(code).map(Finding::message)
+        )
+    }
 }

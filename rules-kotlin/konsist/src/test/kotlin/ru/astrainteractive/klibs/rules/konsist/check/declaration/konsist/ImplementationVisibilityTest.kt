@@ -62,6 +62,19 @@ internal class ImplementationVisibilityTest {
     }
 
     @Test
+    fun GIVEN_core_api_unit_on_a_path_without_core_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main("x.krate.localstorage/LocalStorageEnumKrate.kt", "class LocalStorageEnumKrate")
+            .load(
+                UnitKind.CORE_API,
+                rootPackage = "x.krate",
+                unitPath = ":components:lib-js:krate"
+            )
+
+        assertEquals(emptyList(), ImplementationVisibility().check(sources))
+    }
+
+    @Test
     fun GIVEN_technology_unit_concept_WHEN_checked_THEN_reports_public_class(@TempDir directory: File) {
         val sources = SourceTree(directory)
             .main("x.data.exposed.rating/ExposedRatingRepository.kt", "class ExposedRatingRepository")

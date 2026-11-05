@@ -445,7 +445,7 @@ val violations: List<StructureViolation> = checker.check(
 | `LambdaSingleIfGuard` | a lambda whose whole body is one `if` without `else`, unless the `if` only throws |
 | `OperatorBeforeTrailingCall` | arithmetic in parentheses before a call or property (`(a * b).sp`), a chain of `plus`/`minus`/`times`/`div`/`rem` calls |
 | `TrivialLambdaReference` | a lambda forwarding its parameters to a resolved call, or a `{ obj.foo() }` callback, instead of a function reference; suspend callees require an expected suspend function type; unresolved calls/properties, omitted defaults, varargs and same-file overloads are skipped conservatively (type resolution required) |
-| `ComposableWhenBranch` | a `when` branch of a `@Composable` function that spans several lines, except a block of several statements |
+| `ComposableWhenBranch` | a `when` branch of a `@Composable` function that spans several lines, except a block of several statements or a block holding one call of three or more arguments; such a call outside braces |
 | `NonComposableFileInComposable` | a file in a `composable` package with no `@Composable` function, outside test sources |
 | `DurationOverloadCall` | `.inWholeMilliseconds`/`.inWholeSeconds`/`.inWholeNanoseconds` passed to `delay`, `withTimeout`, `debounce` and other calls with a `Duration` overload |
 
