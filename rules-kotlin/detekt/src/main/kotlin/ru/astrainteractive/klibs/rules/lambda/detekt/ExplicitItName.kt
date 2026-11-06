@@ -4,6 +4,7 @@ import dev.detekt.api.Config
 import dev.detekt.api.Entity
 import dev.detekt.api.Finding
 import dev.detekt.api.Rule
+import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtDestructuringDeclarationEntry
 import org.jetbrains.kotlin.psi.KtForExpression
 import org.jetbrains.kotlin.psi.KtNamedDeclaration
@@ -15,7 +16,8 @@ import org.jetbrains.kotlin.psi.KtProperty
  * type or a `catch`, a property, a destructured entry, a `for` loop variable, and any other named declaration.
  *
  * Works on syntax only. A use of a declared `it` is not reported, its declaration is; the implicit `it` is reported
- * by [ImplicitItParameter].
+ * by [ImplicitItParameter]. An `override` and a parameter of an `override` function pass: they keep the name their
+ * supertype declares, and that declaration is the one reported.
  */
 internal class ExplicitItName(config: Config) : Rule(config, DESCRIPTION) {
 
@@ -29,9 +31,16 @@ internal class ExplicitItName(config: Config) : Rule(config, DESCRIPTION) {
         }
     }
 
+    private fun isOverride(declaration: KtNamedDeclaration): Boolean {
+        if (declaration.hasModifier(KtTokens.OVERRIDE_KEYWORD)) return true
+        val owner = (declaration as? KtParameter)?.ownerFunction ?: return false
+        return owner.hasModifier(KtTokens.OVERRIDE_KEYWORD)
+    }
+
     override fun visitNamedDeclaration(declaration: KtNamedDeclaration) {
         super.visitNamedDeclaration(declaration)
         if (declaration.name != FORBIDDEN_NAME) return
+        if (isOverride(declaration)) return
         report(Finding(Entity.atName(declaration), "Name the ${selectKind(declaration)} instead of `it`."))
     }
 

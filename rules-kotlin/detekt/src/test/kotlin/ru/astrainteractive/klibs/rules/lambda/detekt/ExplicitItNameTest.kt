@@ -219,14 +219,54 @@ internal class ExplicitItNameTest {
     }
 
     @Test
-    fun GIVEN_override_parameter_it_WHEN_linted_THEN_reports_the_parameter() {
+    fun GIVEN_override_parameter_it_WHEN_linted_THEN_reports_nothing() {
         val code = """
             class Printer : Sink {
                 override fun accept(it: String) = Unit
             }
         """.trimIndent()
 
-        assertEquals(listOf("it at 2:25 Name the parameter instead of `it`."), lintFindings(code))
+        assertEquals(emptyList(), lintFindings(code))
+    }
+
+    @Test
+    fun GIVEN_supertype_and_override_parameter_it_WHEN_linted_THEN_reports_the_supertype_and_the_lambda_in_the_body() {
+        val code = """
+            interface Sink {
+                fun accept(it: String)
+            }
+
+            class Printer : Sink {
+                override fun accept(it: String) {
+                    listOf(it).forEach { it -> check(it.isNotEmpty()) }
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "it at 2:16 Name the parameter instead of `it`.",
+                "it at 7:30 Name the parameter instead of `it`."
+            ),
+            lintFindings(code)
+        )
+    }
+
+    @Test
+    fun GIVEN_override_properties_named_it_WHEN_linted_THEN_reports_only_the_supertype_property() {
+        val code = """
+            interface Named {
+                val it: String
+            }
+
+            class Word(override val it: String) : Named
+
+            class Label : Named {
+                override val it: String = "label"
+            }
+        """.trimIndent()
+
+        assertEquals(listOf("it at 2:9 Name the property instead of `it`."), lintFindings(code))
     }
 
     @Test
