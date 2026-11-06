@@ -353,4 +353,176 @@ internal class ContractPlacementTest {
             ContractPlacement().check(sources).map(Violation::subject).sorted()
         )
     }
+
+    @Test
+    fun GIVEN_room_daos_and_their_base_in_a_room_unit_WHEN_checked_THEN_keeps_them_with_the_technology(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.data.room.database/BaseDao.kt",
+                """
+                import androidx.room.Delete
+                import androidx.room.Insert
+                import androidx.room.OnConflictStrategy
+                import androidx.room.Upsert
+
+                internal interface BaseDao<T> {
+                    @Insert(onConflict = OnConflictStrategy.IGNORE)
+                    suspend fun insert(obj: T): Long
+
+                    @Upsert
+                    suspend fun upsert(obj: List<T>): List<Long>
+
+                    @Delete
+                    suspend fun delete(vararg obj: T)
+                }
+            """
+            )
+            .main(
+                "x.data.room.database/DictionaryDao.kt",
+                """
+                import androidx.room.Dao
+                import androidx.room.Query
+                import androidx.room.Transaction
+                import x.data.room.entity.RoomDictionary
+
+                @Dao
+                internal interface DictionaryDao : BaseDao<RoomDictionary> {
+                    @Query("SELECT * FROM dictionary")
+                    suspend fun select(): List<RoomDictionary>
+
+                    @Transaction
+                    suspend fun insertOrGet(dictionary: RoomDictionary): Long {
+                        return insert(dictionary)
+                    }
+                }
+            """
+            )
+            .main("x.data.room.entity/RoomDictionary.kt", "internal class RoomDictionary(val id: Long)")
+            .load(UnitKind.TECHNOLOGY, rootPackage = "x.data.room")
+
+        assertEquals(emptyList(), ContractPlacement().check(sources))
+    }
+
+    @Test
+    fun GIVEN_interfaces_without_the_technology_annotations_in_a_room_unit_WHEN_checked_THEN_reports_them(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main("x.data.room.database/RatingSource.kt", "interface RatingSource { suspend fun load(): Int }")
+            .main("x.data.room.database/Marker.kt", "interface Marker")
+            .main(
+                "x.data.room.database/KeptSource.kt",
+                """
+                import androidx.annotation.Keep
+
+                @Keep
+                interface KeptSource { fun load(): Int }
+            """
+            )
+            .main(
+                "x.data.room.database/GeneratedSource.kt",
+                """
+                import x.data.room.marker.Generated
+
+                @Generated
+                interface GeneratedSource { fun load(): Int }
+            """
+            )
+            .main("x.data.room.database/LocalSource.kt", "@Dao\ninterface LocalSource { fun load(): Int }")
+            .main(
+                "x.data.room.database/PartialDao.kt",
+                """
+                import androidx.room.Insert
+
+                interface PartialDao {
+                    @Insert
+                    suspend fun insert(value: Int)
+
+                    suspend fun clear()
+                }
+            """
+            )
+            .main(
+                "x.data.room.model/WordDao.kt",
+                """
+                import androidx.room.Dao
+
+                @Dao
+                interface WordDao { fun load(): Int }
+            """
+            )
+            .main("x.data.room.marker/Generated.kt", "annotation class Generated")
+            .load(UnitKind.TECHNOLOGY, rootPackage = "x.data.room")
+
+        assertEquals(
+            listOf(
+                "GeneratedSource",
+                "KeptSource",
+                "LocalSource",
+                "Marker",
+                "PartialDao",
+                "RatingSource",
+                "WordDao"
+            ),
+            ContractPlacement().check(sources).map(Violation::subject).sorted()
+        )
+    }
+
+    @Test
+    fun GIVEN_room_daos_in_storage_kinds_and_technology_packages_WHEN_checked_THEN_reports_nothing(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.data.room.table/QualifiedDao.kt",
+                "@androidx.room.Dao\ninterface QualifiedDao { fun load(): Int }"
+            )
+            .main(
+                "x.data.room.rating/AliasedDao.kt",
+                """
+                import androidx.room.Dao as RoomDao
+
+                @RoomDao
+                interface AliasedDao { fun load(): Int }
+            """
+            )
+            .load(UnitKind.TECHNOLOGY, rootPackage = "x.data.room")
+        val contextSources = SourceTree(File(directory, "context"))
+            .main(
+                "x.jail.room/JailDao.kt",
+                """
+                import androidx.room.Dao
+
+                @Dao
+                interface JailDao { fun load(): Int }
+            """
+            )
+            .load(UnitKind.CONTEXT, rootPackage = "x")
+        val buildFileWordSources = SourceTree(File(directory, "room3"))
+            .main(
+                "x.data.store.database/WordDao.kt",
+                """
+                import androidx.room3.Dao
+
+                @Dao
+                interface WordDao { fun load(): Int }
+            """
+            )
+            .load(
+                UnitKind.TECHNOLOGY,
+                rootPackage = "x.data.store",
+                vocabulary = SourceTree.NO_PROJECT_WORDS.copy(technologyWords = setOf("room3"))
+            )
+
+        assertEquals(
+            emptyList(),
+            listOf(
+                sources,
+                contextSources,
+                buildFileWordSources
+            ).flatMap(ContractPlacement()::check)
+        )
+    }
 }

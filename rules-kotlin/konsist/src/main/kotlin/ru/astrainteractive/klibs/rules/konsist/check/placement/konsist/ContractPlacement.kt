@@ -9,6 +9,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.isDataShape
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.isFrameworkRegistration
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.isTechnologyBinding
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.packageName
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelClasses
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
@@ -19,7 +20,8 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
  * `local` or `remote`, which are not technology names. A sealed interface is a model family, a use case's interface
  * sits in `usecase`, a DI module's in `di`, and a state holder's (`…Component`, `…ViewModel`) in `component` or
  * `viewmodel`, never in `api`. A Compose scope (`interface FilterCardScope : ColumnScope`) is the receiver of a
- * composable's content, not a contract.
+ * composable's content, not a contract, and neither is an interface its technology implements (a Room `@Dao`) in that
+ * technology's implementation.
  */
 internal class ContractPlacement : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
@@ -63,6 +65,9 @@ internal class ContractPlacement : ArchitectureCheck {
             .filterNot { declaration -> isComposeScope(file, declaration) }
             .filterNot { declaration -> declaration.isDataShape(kind, sources.mainFiles + sources.dependencyFiles) }
             .filterNot { declaration -> declaration.isFrameworkRegistration(sources.kind, kind) }
+            .filterNot { declaration ->
+                kind == Kind.IMPLEMENTATION && declaration.isTechnologyBinding(sources.layout.vocabulary)
+            }
             .mapNotNull { declaration ->
                 val message = findMessage(
                     declaration,
