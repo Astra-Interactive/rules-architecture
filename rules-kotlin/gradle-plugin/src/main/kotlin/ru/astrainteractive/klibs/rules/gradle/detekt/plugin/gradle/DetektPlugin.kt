@@ -16,8 +16,8 @@ import java.io.File
 
 internal class DetektPlugin : Plugin<Project> {
     private fun readBundledConfig(): String {
-        val stream = javaClass.classLoader.getResourceAsStream(DETEKT_CONFIG_FILE_NAME)
-            ?: throw GradleException("$DETEKT_CONFIG_FILE_NAME is missing from the gradle plugin jar")
+        val stream = javaClass.classLoader.getResourceAsStream(BUNDLED_CONFIG_RESOURCE)
+            ?: throw GradleException("$BUNDLED_CONFIG_RESOURCE is missing from the gradle plugin jar")
         return stream.use { input -> input.readBytes().decodeToString() }
     }
 
@@ -94,6 +94,9 @@ internal class DetektPlugin : Plugin<Project> {
 
     private companion object {
         const val DETEKT_CONFIG_FILE_NAME = "detekt.yml"
+
+        // Another plugin loaded by the same build may ship a root-level detekt.yml that would shadow this one
+        const val BUNDLED_CONFIG_RESOURCE = "ru/astrainteractive/klibs/rules/$DETEKT_CONFIG_FILE_NAME"
         const val CONFIG_SERVICE_NAME = "klibsDetektConfig"
         const val EXTENSION_NAME = "detektRules"
         const val KTLINT_WRAPPER_VERSION = "2.0.0-alpha.2"

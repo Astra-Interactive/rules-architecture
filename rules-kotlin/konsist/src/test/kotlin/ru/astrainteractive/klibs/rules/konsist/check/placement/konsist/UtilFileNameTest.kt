@@ -57,4 +57,33 @@ internal class UtilFileNameTest {
 
         assertEquals(emptyList(), UtilFileName().check(sources))
     }
+
+    @Test
+    fun GIVEN_extensions_of_a_nested_type_WHEN_checked_THEN_accepts_its_outer_full_or_inner_name(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main("com.example.tag.util/TagDTOExt.kt", "fun TagDTO.Real.toTagContent(): String = \"\"")
+            .main("com.example.word.util/WordDTORealExt.kt", "fun WordDTO.Real?.toWordContent(): String = \"\"")
+            .main("com.example.lesson.util/RealExt.kt", "fun TagDTO.Real.toLessonTag(): String = \"\"")
+            .load(UnitKind.CONTEXT, rootPackage = "com.example")
+
+        assertEquals(emptyList(), UtilFileName().check(sources))
+    }
+
+    @Test
+    fun GIVEN_extensions_of_a_nested_type_in_a_file_named_otherwise_WHEN_checked_THEN_suggests_the_outer_type(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main("com.example.tag.util/Tags.kt", "fun com.example.tag.model.TagDTO.Real.toTagContent(): String = \"\"")
+            .load(UnitKind.CONTEXT, rootPackage = "com.example")
+
+        assertEquals(
+            listOf(
+                "Rename Tags.kt to TagDTOExt.kt: a util file of TagDTO.Real extensions is named after its receiver."
+            ),
+            UtilFileName().check(sources).map(Violation::message)
+        )
+    }
 }

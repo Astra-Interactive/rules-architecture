@@ -29,6 +29,7 @@ import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
+import ru.astrainteractive.klibs.rules.detekt.util.findFittingReference
 import ru.astrainteractive.klibs.rules.detekt.util.isSuspend
 
 /**
@@ -37,7 +38,9 @@ import ru.astrainteractive.klibs.rules.detekt.util.isSuspend
  * callback `{ obj.foo() }` passed as a named argument or stored in a property: a function reference says the same.
  *
  * It stays silent where a reference may not compile or may mean another function: for a resolved `suspend`
- * callee unless the receiving function type is also `suspend`, for a callee declared in the file more than once,
+ * callee unless the receiving function type is also `suspend`, for a reference that does not fit the function type
+ * the lambda is passed as (a dropped `it`, a receiver the callee does not extend, a call that does not resolve), for a
+ * callee declared in the file more than once,
  * and for type, named, spread or trailing-lambda
  * arguments, for an extension declared as a member of a class, which no reference can name, and for a Java getter
  * read as a property (`record.level`), whose reference does not compile, and for a property read in a `suspend`
@@ -162,8 +165,8 @@ internal class TrivialLambdaReference(config: Config) : Rule(config, DESCRIPTION
         if (mayBeSuspend(lambdaExpression, reference.call)) return
         if (isMemberExtension(reference.call)) return
         if (reference.call == null && lambdaExpression.isSuspend()) return
-        val message = "Replace the lambda with the function reference ${reference.text}: the lambda only passes " +
-            "its parameters on."
+        val text = lambdaExpression.findFittingReference(reference.text, reference.call) ?: return
+        val message = "Replace the lambda with the function reference $text: the lambda only passes its parameters on."
         report(Finding(Entity.from(lambdaExpression), message))
     }
 

@@ -53,4 +53,73 @@ internal class SealedFamilyFileTest {
 
         assertEquals(emptyList(), SealedFamilyFile().check(sources))
     }
+
+    @Test
+    fun GIVEN_same_named_nested_sealed_families_of_different_outer_types_WHEN_checked_THEN_reports_nothing(
+        @TempDir directory: File
+    ) {
+        val family = """
+            sealed interface Model {
+                data object Loading : Model
+                data object Error : Model
+                class Loaded(val progress: Float) : Model
+            }
+        """.trimIndent()
+        val sources = SourceTree(directory)
+            .main("x.lesson.card.component/CardComponent.kt", "interface CardComponent {\n$family\n}")
+            .main("x.lesson.comparison.component/ComparisonComponent.kt", "interface ComparisonComponent {\n$family\n}")
+            .main(
+                "x.tag.component/CreateTagComponent.kt",
+                "interface CreateTagComponent { sealed interface Label { data object TagCreated : Label } }"
+            )
+            .main(
+                "x.tag.component/ToggleTagComponent.kt",
+                "interface ToggleTagComponent { sealed interface Label { data object OnChanged : Label } }"
+            )
+            .load(UnitKind.CONTEXT)
+
+        assertEquals(emptyList(), SealedFamilyFile().check(sources))
+    }
+
+    @Test
+    fun GIVEN_variants_naming_a_sealed_type_through_its_outer_type_or_an_import_WHEN_checked_THEN_reports_each(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main("x.order.model/Order.kt", "interface Order { sealed interface State }")
+            .main("x.order.model/Paid.kt", "class Paid : Order.State")
+            .main("x.order.model/OrderError.kt", "sealed class OrderError(message: String) : Exception(message)")
+            .main("x.order.model/Holder.kt", "class Holder { class Lost : OrderError(\"lost\") }")
+            .main(
+                "x.order.error.model/Timeout.kt",
+                """
+                import x.order.model.OrderError as Failure
+
+                class Timeout : Failure("timeout")
+            """
+            )
+            .load(UnitKind.CONTEXT)
+
+        assertEquals(
+            listOf(
+                "Move Lost into OrderError.kt",
+                "Move Paid into Order.kt",
+                "Move Timeout into OrderError.kt",
+            ),
+            SealedFamilyFile().check(sources).map { violation -> violation.message.substringBefore(':') }.sorted()
+        )
+    }
+
+    @Test
+    fun GIVEN_nearer_or_imported_type_shadowing_a_sealed_name_WHEN_checked_THEN_reports_nothing(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main("x.screen.model/Model.kt", "sealed interface Model")
+            .main("x.screen.model/Screen.kt", "class Screen { interface Model\n class Loaded : Model }")
+            .main("x.screen.model/Remote.kt", "import y.remote.Model\n\nclass Remote : Model")
+            .load(UnitKind.CONTEXT)
+
+        assertEquals(emptyList(), SealedFamilyFile().check(sources))
+    }
 }

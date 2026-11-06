@@ -2,8 +2,11 @@ package ru.astrainteractive.klibs.rules.konsist.check.model.util
 
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import com.lemonappdev.konsist.api.declaration.KoInterfaceDeclaration
+import com.lemonappdev.konsist.api.provider.KoAnnotationProvider
+import ru.astrainteractive.klibs.rules.core.technology.util.isTechnologyName
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
+import ru.astrainteractive.klibs.rules.konsist.layout.model.Vocabulary
 
 internal val FRAMEWORK_PREFIXES: List<String> = listOf(
     "android.",
@@ -88,4 +91,28 @@ internal fun KoInterfaceDeclaration.isFrameworkRegistration(unitKind: UnitKind, 
     if (unitKind in platformFree) return false
     if (kind != Kind.ENTRY_POINT) return false
     return frameworkRegistrationTypes().isNotEmpty()
+}
+
+private fun KoAnnotationProvider.hasTechnologyAnnotation(file: KoFileDeclaration, vocabulary: Vocabulary): Boolean {
+    return annotations.any { annotation ->
+        val reference = file.resolveTypeName(annotation.text.removePrefix("@").substringBefore('(').trim())
+        val isFramework = FRAMEWORK_PREFIXES.any(reference::startsWith)
+        val technologySegments = reference.split('.').dropLast(1).filter { segment ->
+            isTechnologyName(segment) || segment in vocabulary.technologyWords
+        }
+        isFramework && technologySegments.isNotEmpty()
+    }
+}
+
+/**
+ * Recognises an interface that its technology implements with generated code: it, or every function it declares,
+ * carries an annotation of a known framework named after a technology of the unit (Room's `@Dao`, or `@Insert` and
+ * `@Delete` on a base of DAOs). Such an interface is the technology's own type, not a domain contract.
+ */
+internal fun KoInterfaceDeclaration.isTechnologyBinding(vocabulary: Vocabulary): Boolean {
+    if (hasTechnologyAnnotation(containingFile, vocabulary)) return true
+    val functions = functions(includeNested = false)
+    return functions.isNotEmpty() && functions.all { function ->
+        function.hasTechnologyAnnotation(containingFile, vocabulary)
+    }
 }

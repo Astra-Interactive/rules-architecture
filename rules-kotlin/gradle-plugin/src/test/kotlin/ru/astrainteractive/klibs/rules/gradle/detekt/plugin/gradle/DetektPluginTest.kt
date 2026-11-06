@@ -118,6 +118,26 @@ class DetektPluginTest {
         assertTrue(configFile.isFile, "$configFile was not written again on a configuration cache hit")
     }
 
+    @Test
+    fun GIVEN_another_plugin_with_a_root_detekt_yml_WHEN_detekt_configured_THEN_writes_the_bundled_config(
+        @TempDir rootDirectory: File,
+        @TempDir anotherPlugin: File
+    ) {
+        File(anotherPlugin, "detekt.yml").writeText(ANOTHER_PLUGIN_CONFIG)
+        val build = buildWithTwoModules(rootDirectory).withClasspathAheadOfPlugin(anotherPlugin)
+        build.run(":moduleA:reportDetektConfig")
+
+        val config = build.file("build/detekt/detekt.yml").readText()
+        assertTrue(
+            !config.contains(ANOTHER_PLUGIN_MARKER),
+            "the detekt.yml of another plugin was written instead of the bundled one:\n$config"
+        )
+        assertTrue(
+            config.contains("ignoreAnnotated: [ '*Preview*' ]"),
+            "the bundled detekt configuration was not written:\n$config"
+        )
+    }
+
     private fun jvmTargetBuild(rootDirectory: File, moduleScript: String): IsolatedProjectsBuild {
         return IsolatedProjectsBuild(rootDirectory)
             .withRootBuildScript("")
@@ -329,6 +349,13 @@ class DetektPluginTest {
         """.trimIndent()
 
         val PROJECT_CONFIG = """
+            style:
+              MagicNumber:
+                active: false
+        """.trimIndent()
+        const val ANOTHER_PLUGIN_MARKER = "# the detekt.yml of another plugin"
+        val ANOTHER_PLUGIN_CONFIG = """
+            $ANOTHER_PLUGIN_MARKER
             style:
               MagicNumber:
                 active: false
