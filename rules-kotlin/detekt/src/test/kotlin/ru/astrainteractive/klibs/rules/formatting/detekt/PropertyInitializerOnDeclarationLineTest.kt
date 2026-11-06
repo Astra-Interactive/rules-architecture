@@ -3,6 +3,7 @@
 package ru.astrainteractive.klibs.rules.formatting.detekt
 
 import dev.detekt.api.Config
+import dev.detekt.api.Finding
 import dev.detekt.test.lint
 import org.jetbrains.kotlin.psi.KtProperty
 import org.junit.jupiter.api.Test
@@ -153,6 +154,52 @@ internal class PropertyInitializerOnDeclarationLineTest {
 
             val String.initial: Char
                 get() = first()
+        """.trimIndent()
+
+        assertEquals(0, rule.lint(code).size)
+    }
+
+    @Test
+    fun GIVEN_destructuring_declarations_wrapped_after_equals_WHEN_linted_THEN_reports_each() {
+        val code = """
+            fun describe(order: Order): String {
+                val (id, total) =
+                    order
+                val (name, _) = // the customer
+                    order.customer
+                return id + total + name
+            }
+        """.trimIndent()
+
+        val messages = rule.lint(code).map(Finding::message)
+
+        assertEquals(
+            listOf("(id, total)", "(name, _)"),
+            messages.map { message -> message.substringAfter("'").substringBefore("'") }
+        )
+        assertEquals(
+            "The initializer of '(id, total)' starts on the line after its '=': join the declaration into one line " +
+                "when it fits MaxLineLength; otherwise start the initializer on the '=' line and wrap inside it: " +
+                "arguments one per line, a chain one call per line with the receiver on the '=' line, a long " +
+                "receiver named as its own val.",
+            messages.first()
+        )
+    }
+
+    @Test
+    fun GIVEN_destructuring_starting_on_the_equals_line_or_without_initializer_WHEN_linted_THEN_reports_nothing() {
+        val code = """
+            fun describe(orders: Map<String, Order>): String {
+                val (id, total) = orders.values.first()
+                val (name, city) = orders.values
+                    .last()
+                    .customer
+                for ((key, order) in orders) {
+                    consume(key, order)
+                }
+                orders.forEach { (key, order) -> consume(key, order) }
+                return id + total + name + city
+            }
         """.trimIndent()
 
         assertEquals(0, rule.lint(code).size)

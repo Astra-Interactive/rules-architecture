@@ -400,7 +400,7 @@ val violations: List<StructureViolation> = checker.check(
 | `ImplementationName`           | the `Impl` and `Interface` suffixes and the `I` prefix on an interface           |
 | `KindNameInPackage`            | a resolved platform service outside a `service` package or entry-point unit (type resolution required); `Model`/`Entity` in a `model` with no technology word (`exposed`, `room`, ...) before it; `Helper`/`Util`/`Manager` names |
 | `ExpressionBodyOnOneLine`      | an expression-body function whose signature and body are not one line            |
-| `PropertyInitializerOnDeclarationLine` | a property initializer that starts on a line after its `=`, a comment ending the `=` line included; an initializer that starts on the `=` line and then wraps passes |
+| `PropertyInitializerOnDeclarationLine` | the initializer of a property or a destructuring declaration (`val (id, total) =`) that starts on a line after its `=`, a comment ending the `=` line included; an initializer that starts on the `=` line and then wraps passes; parameter default values are not judged |
 | `BooleanOperatorWrapping` | a line break on either side of `&&` or `\|\|` |
 | `ArgumentPerLine` | a call or constructor call with three or more arguments, a trailing lambda included, whose arguments in parentheses are not each on its own line |
 | `TryCatchCancellation` | a `catch` in suspend code that also catches `CancellationException` without rethrowing it first (detekt's `SuspendFunSwallowedCancellation` without its `runCatching` half, which rejects the documented `.propagateCancellationException()`) |
