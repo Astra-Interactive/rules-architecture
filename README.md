@@ -519,7 +519,7 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `TestMirror`           | a test in another package or source set than its owner                                                    |
 | `FakePlacement`        | a `Fake*` outside a `fake` package of the tests, or in the main sources outside a `<feature>/fake` unit, and a test fake of another unit's contract outside `testFixtures`, and a class other than a fake in a `<feature>/fake` unit |
 | `InMemoryPlacement`    | an `InMemory*` outside a `memory` package of the main sources                                              |
-| `SealedFamilyFile` | a class or object whose direct supertype is a sealed type declared in another file |
+| `SealedFamilyFile` | a class or object whose direct supertype is a sealed type declared in another file; supertypes resolve by qualified name, so same-named sealed types nested in different outer types are separate families |
 | `NestedEnum` | a top-level enum used as the property type of exactly one class |
 | `UtilFileName` | a `util` file of one receiver's extensions not named `<Receiver>Ext.kt`, a file named `Utils.kt`, `Helpers.kt`, `Extensions.kt` and the like |
 | `UtilFunctionAsExtension` | a `util` function whose one parameter is a model of the unit or of a unit it depends on, instead of an extension |
