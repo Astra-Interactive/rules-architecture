@@ -33,6 +33,8 @@ architecture:
     active: true
   ComposeConstantCase:
     active: true
+  ConsoleOutput:
+    active: true
   ConstantOutsideCompanion:
     active: true
   DataClassDefaultValue:
@@ -47,6 +49,8 @@ architecture:
   DurationOverloadCall:
     active: true
   ExplicitInvoke:
+    active: true
+  ExplicitItName:
     active: true
   ExpressionBodyOnOneLine:
     active: true
@@ -92,6 +96,8 @@ architecture:
   PreviewBlockLast:
     active: true
   PropertyAsFunction:
+    active: true
+  PropertyInitializerOnDeclarationLine:
     active: true
   PropertyReadBeforeDeclaration:
     active: true

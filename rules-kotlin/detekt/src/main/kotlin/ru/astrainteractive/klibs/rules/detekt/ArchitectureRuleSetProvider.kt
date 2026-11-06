@@ -13,6 +13,7 @@ import ru.astrainteractive.klibs.rules.compose.detekt.NonComposableFileInComposa
 import ru.astrainteractive.klibs.rules.compose.detekt.PreviewBlockLast
 import ru.astrainteractive.klibs.rules.compose.detekt.RememberInName
 import ru.astrainteractive.klibs.rules.compose.detekt.ThemeObjectFunction
+import ru.astrainteractive.klibs.rules.console.detekt.ConsoleOutput
 import ru.astrainteractive.klibs.rules.coroutine.detekt.BridgeCleanup
 import ru.astrainteractive.klibs.rules.coroutine.detekt.CallbackFlowShape
 import ru.astrainteractive.klibs.rules.coroutine.detekt.HardcodedDispatcher
@@ -37,10 +38,12 @@ import ru.astrainteractive.klibs.rules.formatting.detekt.ExplicitInvoke
 import ru.astrainteractive.klibs.rules.formatting.detekt.ExpressionBodyOnOneLine
 import ru.astrainteractive.klibs.rules.formatting.detekt.GuardIfBraces
 import ru.astrainteractive.klibs.rules.formatting.detekt.OperatorBeforeTrailingCall
+import ru.astrainteractive.klibs.rules.formatting.detekt.PropertyInitializerOnDeclarationLine
 import ru.astrainteractive.klibs.rules.injection.detekt.DiModuleLifecycle
 import ru.astrainteractive.klibs.rules.injection.detekt.RootModuleConstruction
 import ru.astrainteractive.klibs.rules.kdoc.detekt.KDocFiller
 import ru.astrainteractive.klibs.rules.kdoc.detekt.KDocHtmlTag
+import ru.astrainteractive.klibs.rules.lambda.detekt.ExplicitItName
 import ru.astrainteractive.klibs.rules.lambda.detekt.ImplicitItParameter
 import ru.astrainteractive.klibs.rules.lambda.detekt.LambdaSingleIfGuard
 import ru.astrainteractive.klibs.rules.lambda.detekt.TrivialLambdaReference
@@ -98,12 +101,14 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::ComposableName,
             ::ComposableWhenBranch,
             ::ComposeConstantCase,
+            ::ConsoleOutput,
             ::ConstantOutsideCompanion,
             ::DataClassDefaultValue,
             ::DeclarationOrder,
             ::DiModuleLifecycle,
             ::DurationOverloadCall,
             ::ExplicitInvoke,
+            ::ExplicitItName,
             ::ExpressionBodyOnOneLine,
             ::FunctionVerb,
             ::GetOrThrowInMain,
@@ -124,6 +129,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::OperatorBeforeTrailingCall,
             ::PreviewBlockLast,
             ::PropertyAsFunction,
+            ::PropertyInitializerOnDeclarationLine,
             ::PropertyReadBeforeDeclaration,
             ::RememberInName,
             ::ResultConsumption,
