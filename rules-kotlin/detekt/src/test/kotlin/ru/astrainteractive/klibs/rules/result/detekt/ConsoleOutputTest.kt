@@ -18,6 +18,34 @@ internal class ConsoleOutputTest {
     }
 
     @Test
+    fun GIVEN_println_and_print_stack_trace_on_failure_WHEN_linted_THEN_reports_both() {
+        val code = """
+            fun load(result: Result<Order>) {
+                result.onFailure { error ->
+                    println("Could not load order")
+                    error.printStackTrace()
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(
+            listOf("""println("Could not load order")""", "error.printStackTrace()"),
+            lintTexts(code)
+        )
+    }
+
+    @Test
+    fun GIVEN_failure_passed_to_the_logger_WHEN_linted_THEN_reports_nothing() {
+        val code = """
+            fun load(result: Result<Order>, logger: Logger) {
+                result.onFailure { error -> logger.warn("Could not load order", error) }
+            }
+        """.trimIndent()
+
+        assertEquals(0, rule.lint(code).size)
+    }
+
+    @Test
     fun GIVEN_print_and_println_calls_WHEN_linted_THEN_reports_each() {
         val code = """
             fun report(order: Order) {
