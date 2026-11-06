@@ -70,6 +70,7 @@ public enum class RuleId(public val ruleName: String, public val engine: Engine)
     COMPOSABLE_NAME("ComposableName", Engine.DETEKT),
     COMPOSABLE_WHEN_BRANCH("ComposableWhenBranch", Engine.DETEKT),
     COMPOSE_CONSTANT_CASE("ComposeConstantCase", Engine.DETEKT),
+    CONSOLE_OUTPUT("ConsoleOutput", Engine.DETEKT),
     CONSTANT_OUTSIDE_COMPANION("ConstantOutsideCompanion", Engine.DETEKT),
     DATA_CLASS_DEFAULT_VALUE("DataClassDefaultValue", Engine.DETEKT),
     DECLARATION_ORDER("DeclarationOrder", Engine.DETEKT),

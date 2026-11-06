@@ -33,6 +33,8 @@ architecture:
     active: true
   ComposeConstantCase:
     active: true
+  ConsoleOutput:
+    active: true
   ConstantOutsideCompanion:
     active: true
   DataClassDefaultValue:

@@ -55,6 +55,7 @@ import ru.astrainteractive.klibs.rules.ordering.detekt.CalleeBeforeCaller
 import ru.astrainteractive.klibs.rules.ordering.detekt.ConstantOutsideCompanion
 import ru.astrainteractive.klibs.rules.ordering.detekt.DeclarationOrder
 import ru.astrainteractive.klibs.rules.ordering.detekt.PropertyReadBeforeDeclaration
+import ru.astrainteractive.klibs.rules.result.detekt.ConsoleOutput
 import ru.astrainteractive.klibs.rules.result.detekt.GetOrThrowInMain
 import ru.astrainteractive.klibs.rules.result.detekt.ResultConsumption
 import ru.astrainteractive.klibs.rules.result.detekt.RunCatchingCancellation
@@ -99,6 +100,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::ComposableName,
             ::ComposableWhenBranch,
             ::ComposeConstantCase,
+            ::ConsoleOutput,
             ::ConstantOutsideCompanion,
             ::DataClassDefaultValue,
             ::DeclarationOrder,

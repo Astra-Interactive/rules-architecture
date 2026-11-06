@@ -428,6 +428,7 @@ val violations: List<StructureViolation> = checker.check(
 | `RunCatchingCancellation` | a `runCatching` in a `suspend` function or coroutine lambda not followed by `.propagateCancellationException()` or the inline `onFailure` check for `CancellationException` |
 | `ResultConsumption` | a `Result` discarded as a statement without consuming its success or failure; values used through branches and value-returning lambdas are preserved (type resolution required) |
 | `GetOrThrowInMain` | `getOrThrow()` outside the test sources |
+| `ConsoleOutput` | console output in the main and test sources: `print`/`println` without a receiver or through `kotlin.io`, `print`/`println`/`printf` on `System.out` or `System.err`, `printStackTrace()` without arguments on any receiver (detekt's `PrintStackTrace` sees only the `catch` parameter), and references to them (`::println`); read from the source, so a project function named `println` counts; `printStackTrace(writer)` passes; a command-line entry point whose product is the console output suppresses it with the reason |
 | `BareIdentifier` | a property named `id`/`…Id` typed `String`, `Int`, `Long` or `UUID` outside a `@Serializable` class or technology package, a `…Id` class that is not a value class |
 | `CompanionFactoryFunction` | a `create…` function in a companion object |
 | `ClockSystemOutsideDi` | `Clock.System` outside a `di` package, the test sources and previews (`@Preview…`) |
