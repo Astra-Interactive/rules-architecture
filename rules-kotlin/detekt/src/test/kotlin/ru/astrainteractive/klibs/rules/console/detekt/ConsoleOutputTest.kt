@@ -1,6 +1,6 @@
 @file:Suppress("FunctionNaming")
 
-package ru.astrainteractive.klibs.rules.result.detekt
+package ru.astrainteractive.klibs.rules.console.detekt
 
 import dev.detekt.api.Config
 import dev.detekt.test.lint

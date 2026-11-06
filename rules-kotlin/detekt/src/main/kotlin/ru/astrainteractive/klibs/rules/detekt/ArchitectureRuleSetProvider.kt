@@ -13,6 +13,7 @@ import ru.astrainteractive.klibs.rules.compose.detekt.NonComposableFileInComposa
 import ru.astrainteractive.klibs.rules.compose.detekt.PreviewBlockLast
 import ru.astrainteractive.klibs.rules.compose.detekt.RememberInName
 import ru.astrainteractive.klibs.rules.compose.detekt.ThemeObjectFunction
+import ru.astrainteractive.klibs.rules.console.detekt.ConsoleOutput
 import ru.astrainteractive.klibs.rules.coroutine.detekt.BridgeCleanup
 import ru.astrainteractive.klibs.rules.coroutine.detekt.CallbackFlowShape
 import ru.astrainteractive.klibs.rules.coroutine.detekt.HardcodedDispatcher
@@ -55,7 +56,6 @@ import ru.astrainteractive.klibs.rules.ordering.detekt.CalleeBeforeCaller
 import ru.astrainteractive.klibs.rules.ordering.detekt.ConstantOutsideCompanion
 import ru.astrainteractive.klibs.rules.ordering.detekt.DeclarationOrder
 import ru.astrainteractive.klibs.rules.ordering.detekt.PropertyReadBeforeDeclaration
-import ru.astrainteractive.klibs.rules.result.detekt.ConsoleOutput
 import ru.astrainteractive.klibs.rules.result.detekt.GetOrThrowInMain
 import ru.astrainteractive.klibs.rules.result.detekt.ResultConsumption
 import ru.astrainteractive.klibs.rules.result.detekt.RunCatchingCancellation
