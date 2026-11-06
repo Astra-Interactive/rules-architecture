@@ -216,8 +216,9 @@ exceptions:
     active: false
   ObjectExtendsThrowable:
     active: false
+  # Sees printStackTrace only on the catch parameter; architecture's ConsoleOutput replaces it.
   PrintStackTrace:
-    active: true
+    active: false
   RethrowCaughtException:
     active: true
   ReturnFromFinally:

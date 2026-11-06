@@ -143,6 +143,52 @@ internal class ConsoleOutputTest {
     }
 
     @Test
+    fun GIVEN_thread_dump_stack_WHEN_linted_THEN_reports_each() {
+        val code = """
+            fun trace() {
+                Thread.dumpStack()
+                java.lang.Thread.dumpStack()
+                val dump = Thread::dumpStack
+            }
+        """.trimIndent()
+
+        val findings = rule.lint(code)
+
+        assertEquals(
+            listOf(
+                "Thread.dumpStack()",
+                "java.lang.Thread.dumpStack()",
+                "Thread::dumpStack",
+            ),
+            findings.map { finding -> finding.entity.ktElement.text }
+        )
+        assertEquals(
+            "Write the message through the logger instead of dumpStack: the console is not a log. Only a " +
+                "command-line entry point whose product is the console output suppresses ConsoleOutput, with " +
+                "the reason next to it.",
+            findings.first().message
+        )
+    }
+
+    @Test
+    fun GIVEN_dump_stack_of_the_project_WHEN_linted_THEN_reports_nothing() {
+        val code = """
+            class Diagnostics(private val logger: Logger, private val profiler: Profiler) {
+                fun dumpStack() {
+                    logger.warn("Stack", Throwable())
+                }
+
+                fun report() {
+                    dumpStack()
+                    profiler.dumpStack()
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(0, rule.lint(code).size)
+    }
+
+    @Test
     fun GIVEN_logger_calls_and_writes_to_other_targets_WHEN_linted_THEN_reports_nothing() {
         val code = """
             fun load(loader: Loader, logger: Logger, writer: PrintWriter, lines: List<String>) {

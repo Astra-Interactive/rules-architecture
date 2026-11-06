@@ -13,15 +13,15 @@ import org.jetbrains.kotlin.psi.psiUtil.getQualifiedExpressionForSelector
 
 /**
  * Reports output written to the console, in the main and the test sources alike: a call of `print` or `println`
- * without a receiver or through `kotlin.io`, `printStackTrace()` without arguments on any receiver, a function
- * reference to any of them (`::println`), and every use of `System.out` or `System.err`: a call on it whatever the
- * method (`flush()` included), a reference through it (`System.err::println`), the stream passed or stored
- * (`PrintWriter(System.out)`).
+ * without a receiver or through `kotlin.io`, `printStackTrace()` without arguments on any receiver,
+ * `Thread.dumpStack()`, a function reference to any of them (`::println`), and every use of `System.out` or
+ * `System.err`: a call on it whatever the method (`flush()` included), a reference through it
+ * (`System.err::println`), the stream passed or stored (`PrintWriter(System.out)`).
  *
  * The rule reads the source only: an unqualified `print`/`println` is reported whatever it resolves to, a function
- * of the project with that name included. `printStackTrace(writer)` writes to the given writer and passes. Detekt's
- * `exceptions.PrintStackTrace` sees `printStackTrace` only on the parameter of the enclosing `catch`; this rule
- * reports every call site.
+ * of the project with that name included. `printStackTrace(writer)` writes to the given writer and passes. It
+ * replaces detekt's `exceptions.PrintStackTrace`, which sees `printStackTrace` only on the parameter of the
+ * enclosing `catch`; this rule reports every call site.
  */
 internal class ConsoleOutput(config: Config) : Rule(config, DESCRIPTION) {
 
@@ -33,6 +33,7 @@ internal class ConsoleOutput(config: Config) : Rule(config, DESCRIPTION) {
     private fun isConsoleOutput(name: String?, receiver: KtExpression?): Boolean {
         return when (name) {
             PRINT_STACK_TRACE -> true
+            DUMP_STACK -> receiver?.text in THREAD_RECEIVERS
             in PRINT_FUNCTIONS -> receiver == null || receiver.text == KOTLIN_IO
             else -> false
         }
@@ -76,7 +77,11 @@ internal class ConsoleOutput(config: Config) : Rule(config, DESCRIPTION) {
 
     private companion object {
         const val PRINT_STACK_TRACE = "printStackTrace"
+        const val DUMP_STACK = "dumpStack"
         const val KOTLIN_IO = "kotlin.io"
+
+        @JvmField
+        val THREAD_RECEIVERS = setOf("Thread", "java.lang.Thread")
 
         @JvmField
         val PRINT_FUNCTIONS = setOf("print", "println")
