@@ -37,6 +37,7 @@ import ru.astrainteractive.klibs.rules.formatting.detekt.ExplicitInvoke
 import ru.astrainteractive.klibs.rules.formatting.detekt.ExpressionBodyOnOneLine
 import ru.astrainteractive.klibs.rules.formatting.detekt.GuardIfBraces
 import ru.astrainteractive.klibs.rules.formatting.detekt.OperatorBeforeTrailingCall
+import ru.astrainteractive.klibs.rules.formatting.detekt.PropertyInitializerOnDeclarationLine
 import ru.astrainteractive.klibs.rules.injection.detekt.DiModuleLifecycle
 import ru.astrainteractive.klibs.rules.injection.detekt.RootModuleConstruction
 import ru.astrainteractive.klibs.rules.kdoc.detekt.KDocFiller
@@ -124,6 +125,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::OperatorBeforeTrailingCall,
             ::PreviewBlockLast,
             ::PropertyAsFunction,
+            ::PropertyInitializerOnDeclarationLine,
             ::PropertyReadBeforeDeclaration,
             ::RememberInName,
             ::ResultConsumption,

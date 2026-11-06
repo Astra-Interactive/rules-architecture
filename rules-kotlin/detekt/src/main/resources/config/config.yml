@@ -93,6 +93,8 @@ architecture:
     active: true
   PropertyAsFunction:
     active: true
+  PropertyInitializerOnDeclarationLine:
+    active: true
   PropertyReadBeforeDeclaration:
     active: true
   RememberInName:

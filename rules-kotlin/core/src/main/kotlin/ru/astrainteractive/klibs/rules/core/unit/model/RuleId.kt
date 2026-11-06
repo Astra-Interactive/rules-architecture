@@ -96,6 +96,7 @@ public enum class RuleId(public val ruleName: String, public val engine: Engine)
     OPERATOR_BEFORE_TRAILING_CALL("OperatorBeforeTrailingCall", Engine.DETEKT),
     PREVIEW_BLOCK_LAST("PreviewBlockLast", Engine.DETEKT),
     PROPERTY_AS_FUNCTION("PropertyAsFunction", Engine.DETEKT),
+    PROPERTY_INITIALIZER_ON_DECLARATION_LINE("PropertyInitializerOnDeclarationLine", Engine.DETEKT),
     PROPERTY_READ_BEFORE_DECLARATION("PropertyReadBeforeDeclaration", Engine.DETEKT),
     REMEMBER_IN_NAME("RememberInName", Engine.DETEKT),
     RESULT_CONSUMPTION("ResultConsumption", Engine.DETEKT),
