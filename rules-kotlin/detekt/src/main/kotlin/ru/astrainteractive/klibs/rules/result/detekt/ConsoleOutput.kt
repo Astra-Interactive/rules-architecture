@@ -6,13 +6,17 @@ import dev.detekt.api.Finding
 import dev.detekt.api.Rule
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtCallableReferenceExpression
+import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtExpression
+import org.jetbrains.kotlin.psi.psiUtil.getQualifiedExpressionForReceiver
 import org.jetbrains.kotlin.psi.psiUtil.getQualifiedExpressionForSelector
 
 /**
  * Reports output written to the console, in the main and the test sources alike: a call of `print` or `println`
- * without a receiver or through `kotlin.io`, `print`, `println` and `printf` on `System.out` or `System.err`, and
- * `printStackTrace()` without arguments on any receiver; a function reference to any of them (`::println`) too.
+ * without a receiver or through `kotlin.io`, `printStackTrace()` without arguments on any receiver, a function
+ * reference to any of them (`::println`), and every use of `System.out` or `System.err`: a call on it whatever the
+ * method (`flush()` included), a reference through it (`System.err::println`), the stream passed or stored
+ * (`PrintWriter(System.out)`).
  *
  * The rule reads the source only: an unqualified `print`/`println` is reported whatever it resolves to, a function
  * of the project with that name included. `printStackTrace(writer)` writes to the given writer and passes. Detekt's
@@ -21,15 +25,15 @@ import org.jetbrains.kotlin.psi.psiUtil.getQualifiedExpressionForSelector
  */
 internal class ConsoleOutput(config: Config) : Rule(config, DESCRIPTION) {
 
-    private fun isSystemStream(receiver: KtExpression?): Boolean {
-        return receiver?.text?.filterNot(Char::isWhitespace) in SYSTEM_STREAMS
+    private fun isSystemStream(expression: KtDotQualifiedExpression): Boolean {
+        if (expression.selectorExpression?.text !in STREAMS) return false
+        return expression.receiverExpression.text.filterNot(Char::isWhitespace) in SYSTEM_RECEIVERS
     }
 
     private fun isConsoleOutput(name: String?, receiver: KtExpression?): Boolean {
         return when (name) {
             PRINT_STACK_TRACE -> true
-            PRINTF -> isSystemStream(receiver)
-            in PRINT_FUNCTIONS -> receiver == null || receiver.text == KOTLIN_IO || isSystemStream(receiver)
+            in PRINT_FUNCTIONS -> receiver == null || receiver.text == KOTLIN_IO
             else -> false
         }
     }
@@ -43,6 +47,15 @@ internal class ConsoleOutput(config: Config) : Rule(config, DESCRIPTION) {
                 "entry point whose product is the console output suppresses ConsoleOutput, with the reason next to it."
         }
         report(Finding(Entity.from(element), message))
+    }
+
+    override fun visitDotQualifiedExpression(expression: KtDotQualifiedExpression) {
+        super.visitDotQualifiedExpression(expression)
+        if (!isSystemStream(expression)) return
+        val use = expression.parent as? KtCallableReferenceExpression
+            ?: expression.getQualifiedExpressionForReceiver()
+            ?: expression
+        reportConsoleOutput(expression.text.filterNot(Char::isWhitespace), use)
     }
 
     override fun visitCallExpression(expression: KtCallExpression) {
@@ -63,19 +76,16 @@ internal class ConsoleOutput(config: Config) : Rule(config, DESCRIPTION) {
 
     private companion object {
         const val PRINT_STACK_TRACE = "printStackTrace"
-        const val PRINTF = "printf"
         const val KOTLIN_IO = "kotlin.io"
 
         @JvmField
         val PRINT_FUNCTIONS = setOf("print", "println")
 
         @JvmField
-        val SYSTEM_STREAMS = setOf(
-            "System.out",
-            "System.err",
-            "java.lang.System.out",
-            "java.lang.System.err"
-        )
+        val STREAMS = setOf("out", "err")
+
+        @JvmField
+        val SYSTEM_RECEIVERS = setOf("System", "java.lang.System")
         const val DESCRIPTION = "Every message goes through the logger, never to the console."
     }
 }

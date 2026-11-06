@@ -48,16 +48,24 @@ internal class ConsoleOutputTest {
     }
 
     @Test
-    fun GIVEN_writes_to_system_out_and_err_WHEN_linted_THEN_reports_each_print() {
+    fun GIVEN_uses_of_system_out_and_err_WHEN_linted_THEN_reports_each() {
         val code = """
-            fun report(order: Order) {
+            fun report(order: Order, bytes: ByteArray) {
                 System.out.println(order)
                 System.err.print("failed")
                 System.out.printf("%s", order.id)
                 java.lang.System.err.println(order)
+                System.out.format("%s", order.id)
+                System.err.write(bytes)
+                System.out.append("done")
                 System.err.flush()
+                val writer = PrintWriter(System.out)
+                val stream = PrintStream(System.err)
+                val console = System.out
             }
         """.trimIndent()
+
+        val findings = rule.lint(code)
 
         assertEquals(
             listOf(
@@ -65,8 +73,21 @@ internal class ConsoleOutputTest {
                 """System.err.print("failed")""",
                 """System.out.printf("%s", order.id)""",
                 "java.lang.System.err.println(order)",
+                """System.out.format("%s", order.id)""",
+                "System.err.write(bytes)",
+                """System.out.append("done")""",
+                "System.err.flush()",
+                "System.out",
+                "System.err",
+                "System.out",
             ),
-            lintTexts(code)
+            findings.map { finding -> finding.entity.ktElement.text }
+        )
+        assertEquals(
+            "Write the message through the logger instead of System.out: the console is not a log. Only a " +
+                "command-line entry point whose product is the console output suppresses ConsoleOutput, with " +
+                "the reason next to it.",
+            findings.first().message
         )
     }
 
@@ -136,7 +157,7 @@ internal class ConsoleOutputTest {
                 writer.print(lines.size)
                 lines.forEach(writer::println)
                 printf("%d", lines.size)
-                System.out.flush()
+                terminal.out.println("ready")
             }
 
             fun Report.print(writer: PrintWriter) {
