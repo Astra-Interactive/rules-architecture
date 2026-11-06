@@ -77,6 +77,7 @@ public enum class RuleId(public val ruleName: String, public val engine: Engine)
     DI_MODULE_LIFECYCLE("DiModuleLifecycle", Engine.DETEKT),
     DURATION_OVERLOAD_CALL("DurationOverloadCall", Engine.DETEKT),
     EXPLICIT_INVOKE("ExplicitInvoke", Engine.DETEKT),
+    EXPLICIT_IT_NAME("ExplicitItName", Engine.DETEKT),
     EXPRESSION_BODY_ON_ONE_LINE("ExpressionBodyOnOneLine", Engine.DETEKT),
     FUNCTION_VERB("FunctionVerb", Engine.DETEKT),
     GET_OR_THROW_IN_MAIN("GetOrThrowInMain", Engine.DETEKT),

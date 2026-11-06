@@ -50,6 +50,8 @@ architecture:
     active: true
   ExplicitInvoke:
     active: true
+  ExplicitItName:
+    active: true
   ExpressionBodyOnOneLine:
     active: true
   FunctionVerb:

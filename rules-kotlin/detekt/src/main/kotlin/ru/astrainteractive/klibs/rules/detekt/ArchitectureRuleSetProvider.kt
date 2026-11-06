@@ -43,6 +43,7 @@ import ru.astrainteractive.klibs.rules.injection.detekt.DiModuleLifecycle
 import ru.astrainteractive.klibs.rules.injection.detekt.RootModuleConstruction
 import ru.astrainteractive.klibs.rules.kdoc.detekt.KDocFiller
 import ru.astrainteractive.klibs.rules.kdoc.detekt.KDocHtmlTag
+import ru.astrainteractive.klibs.rules.lambda.detekt.ExplicitItName
 import ru.astrainteractive.klibs.rules.lambda.detekt.ImplicitItParameter
 import ru.astrainteractive.klibs.rules.lambda.detekt.LambdaSingleIfGuard
 import ru.astrainteractive.klibs.rules.lambda.detekt.TrivialLambdaReference
@@ -107,6 +108,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::DiModuleLifecycle,
             ::DurationOverloadCall,
             ::ExplicitInvoke,
+            ::ExplicitItName,
             ::ExpressionBodyOnOneLine,
             ::FunctionVerb,
             ::GetOrThrowInMain,
