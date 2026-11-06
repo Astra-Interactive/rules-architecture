@@ -13,12 +13,6 @@ Konsist checks and Gradle structure checks behind one Gradle plugin.
 [versions]
 klibs-rules = "<latest-version>"
 
-[plugins]
-# Everything: detekt with the rules below, the Konsist and structure checks, the architecture tasks
-klibs-rules-linter = { id = "ru.astrainteractive.klibs.rules.gradle.linter", version.ref = "klibs-rules" }
-# Only detekt with the bundled detekt.yml, the ktlint wrapper and the Compose rules
-klibs-rules-detekt = { id = "ru.astrainteractive.klibs.rules.gradle.detekt", version.ref = "klibs-rules" }
-
 [libraries]
 # Needed only to wire the checks by hand, without the plugins (see "Without the Gradle plugin")
 # detekt plugin with the rules
@@ -27,6 +21,12 @@ klibs-rules-detekt = { module = "ru.astrainteractive.klibs.rules:detekt", versio
 klibs-rules-konsist = { module = "ru.astrainteractive.klibs.rules:konsist", version.ref = "klibs-rules" }
 # Structure checks, called from build logic
 klibs-rules-structure = { module = "ru.astrainteractive.klibs.rules:structure", version.ref = "klibs-rules" }
+
+[plugins]
+# Everything: detekt with the rules below, the Konsist and structure checks, the architecture tasks
+klibs-rules-linter = { id = "ru.astrainteractive.klibs.rules.gradle.linter", version.ref = "klibs-rules" }
+# Only detekt with the bundled detekt.yml, the ktlint wrapper and the Compose rules
+klibs-rules-detekt = { id = "ru.astrainteractive.klibs.rules.gradle.detekt", version.ref = "klibs-rules" }
 ```
 
 The plugins are on Maven Central: add `mavenCentral()` to the `pluginManagement` repositories.
@@ -98,7 +98,7 @@ linter {
 |-------------------|-------------------------------------------------------|-------------------------------------------------------|
 | `Api`             | platform-free code other units call                   | path ends with `api`                                  |
 | `Impl`            | an app's implementation of a feature                  | path ends with `impl`                                 |
-| `ImplUi`          | an app's UI of a feature                              | set it                                                |
+| `ImplUi`          | an app's UI of a feature                              | -                                                     |
 | `Context`         | an unsplit sub-context (`command`, `event-bukkit`)    | anything else                                         |
 | `Platform`        | a feature's platform implementation (`gui/bukkit`)    | a platform name outside `core` and entry points       |
 | `Technology`      | one technology's implementation (`data/exposed`)      | a known or dependency-derived technology name         |
@@ -106,7 +106,7 @@ linter {
 | `Contract`        | wire types a server and its client share              | path ends with `contract`                             |
 | `StorageContract` | storage contracts (`data/dao`)                        | path ends with `dao`                                  |
 | `Fake`            | shared test fakes                                     | path ends with `fake`                                 |
-| `Core`            | an unsplit app core; no project dependencies          | set it                                                |
+| `Core`            | an unsplit app core; no project dependencies          | -                                                     |
 | `CoreApi`         | shared platform-free code                             | other platform-free `core` units                      |
 | `CorePlatform`    | shared platform code                                  | the platform unit of `core`                           |
 | `CoreUi`          | the design system                                     | `core/ui` and below                                   |
