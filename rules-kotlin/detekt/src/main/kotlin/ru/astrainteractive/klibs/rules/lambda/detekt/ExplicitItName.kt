@@ -6,18 +6,20 @@ import dev.detekt.api.Finding
 import dev.detekt.api.Rule
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtDestructuringDeclarationEntry
+import org.jetbrains.kotlin.psi.KtExpressionWithLabel
 import org.jetbrains.kotlin.psi.KtForExpression
+import org.jetbrains.kotlin.psi.KtLabeledExpression
 import org.jetbrains.kotlin.psi.KtNamedDeclaration
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.psiUtil.parents
 
 /**
- * Reports every declaration named `it`, on its name: a parameter of a function, a constructor, a lambda, a function
- * type or a `catch`, a property, a destructured entry, a `for` loop variable, and any other named declaration.
+ * Reports a declaration named `it` on its name, a label `it@` included, and a jump to `@it` that no enclosing `it@`
+ * declares (the label of a call, a function or a class named `it`).
  *
- * Works on syntax only. A use of a declared `it` is not reported, its declaration is; the implicit `it` is reported
- * by [ImplicitItParameter]. An `override` and a parameter of an `override` function pass: they keep the name their
- * supertype declares, and that declaration is the one reported.
+ * An `override` and a parameter of an `override` function pass: the supertype's declaration is the one reported. The
+ * implicit `it` is reported by [ImplicitItParameter].
  */
 internal class ExplicitItName(config: Config) : Rule(config, DESCRIPTION) {
 
@@ -37,16 +39,32 @@ internal class ExplicitItName(config: Config) : Rule(config, DESCRIPTION) {
         return owner.hasModifier(KtTokens.OVERRIDE_KEYWORD)
     }
 
+    private fun hasEnclosingLabel(jump: KtExpressionWithLabel): Boolean {
+        return jump.parents.any { parent -> parent is KtLabeledExpression && parent.getLabelName() == FORBIDDEN_NAME }
+    }
+
+    private fun reportName(entity: Entity, kind: String) {
+        report(Finding(entity, "Name the $kind instead of `it`."))
+    }
+
     override fun visitNamedDeclaration(declaration: KtNamedDeclaration) {
         super.visitNamedDeclaration(declaration)
         if (declaration.name != FORBIDDEN_NAME) return
         if (isOverride(declaration)) return
-        report(Finding(Entity.atName(declaration), "Name the ${selectKind(declaration)} instead of `it`."))
+        reportName(Entity.atName(declaration), selectKind(declaration))
+    }
+
+    override fun visitExpressionWithLabel(expression: KtExpressionWithLabel) {
+        super.visitExpressionWithLabel(expression)
+        val label = expression.getTargetLabel() ?: return
+        if (label.getReferencedName() != FORBIDDEN_NAME) return
+        if (expression !is KtLabeledExpression && hasEnclosingLabel(expression)) return
+        reportName(Entity.from(label.getReferencedNameElement()), "label")
     }
 
     private companion object {
         const val FORBIDDEN_NAME = "it"
-        const val DESCRIPTION = "Nothing is named `it`: parameters, properties, destructured entries and loop " +
-            "variables carry explicit, meaningful names."
+        const val DESCRIPTION = "Nothing is named `it`: parameters, properties, destructured entries, loop variables " +
+            "and labels carry explicit, meaningful names."
     }
 }

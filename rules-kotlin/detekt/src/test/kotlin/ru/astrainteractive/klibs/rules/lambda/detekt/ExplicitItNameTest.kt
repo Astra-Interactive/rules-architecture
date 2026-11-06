@@ -15,11 +15,13 @@ internal class ExplicitItNameTest {
     private val rule = ExplicitItName(Config.empty)
 
     private fun lintFindings(code: String): List<String> {
-        return rule.lint(code).map { finding ->
-            val location = finding.entity.location
-            val reported = code.substring(location.text.start, location.text.end)
-            "$reported at ${location.source.line}:${location.source.column} ${finding.message}"
-        }
+        return rule.lint(code)
+            .sortedBy { finding -> finding.entity.location.source }
+            .map { finding ->
+                val location = finding.entity.location
+                val reported = code.substring(location.text.start, location.text.end)
+                "$reported at ${location.source.line}:${location.source.column} ${finding.message}"
+            }
     }
 
     @Test
@@ -267,6 +269,84 @@ internal class ExplicitItNameTest {
         """.trimIndent()
 
         assertEquals(listOf("it at 2:9 Name the property instead of `it`."), lintFindings(code))
+    }
+
+    @Test
+    fun GIVEN_lambda_label_it_with_return_to_it_WHEN_linted_THEN_reports_the_label_once() {
+        val code = """
+            fun first(values: List<Int>) = values.forEach it@{ value -> if (value > 0) return@it }
+        """.trimIndent()
+
+        assertEquals(listOf("it at 1:47 Name the label instead of `it`."), lintFindings(code))
+    }
+
+    @Test
+    fun GIVEN_for_loop_label_it_with_break_to_it_WHEN_linted_THEN_reports_the_label_once() {
+        val code = """
+            fun find(rows: List<List<Int>>): Int {
+                it@ for (row in rows) {
+                    for (cell in row) if (cell < 0) break@it
+                }
+                return 0
+            }
+        """.trimIndent()
+
+        assertEquals(listOf("it at 2:5 Name the label instead of `it`."), lintFindings(code))
+    }
+
+    @Test
+    fun GIVEN_while_loop_label_it_with_continue_to_it_WHEN_linted_THEN_reports_the_label_once() {
+        val code = """
+            fun drain(queue: ArrayDeque<Int>) {
+                it@ while (queue.isNotEmpty()) {
+                    if (queue.removeFirst() < 0) continue@it
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(listOf("it at 2:5 Name the label instead of `it`."), lintFindings(code))
+    }
+
+    @Test
+    fun GIVEN_return_to_implicit_label_of_call_named_it_WHEN_linted_THEN_reports_the_jump_label() {
+        val code = """
+            fun check(values: List<Int>) {
+                it {
+                    if (values.isEmpty()) return@it
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(listOf("it at 3:38 Name the label instead of `it`."), lintFindings(code))
+    }
+
+    @Test
+    fun GIVEN_this_qualified_by_class_named_it_WHEN_linted_THEN_reports_the_class_and_the_label() {
+        val code = """
+            class it {
+                fun self() = this@it
+            }
+        """.trimIndent()
+
+        assertEquals(
+            listOf(
+                "it at 1:7 Name the declaration instead of `it`.",
+                "it at 2:23 Name the label instead of `it`."
+            ),
+            lintFindings(code)
+        )
+    }
+
+    @Test
+    fun GIVEN_labels_named_otherwise_WHEN_linted_THEN_reports_nothing() {
+        val code = """
+            fun first(values: List<Int>) {
+                values.forEach { value -> if (value > 0) return@forEach }
+                rows@ for (value in values) if (value < 0) break@rows
+            }
+        """.trimIndent()
+
+        assertEquals(emptyList(), lintFindings(code))
     }
 
     @Test
