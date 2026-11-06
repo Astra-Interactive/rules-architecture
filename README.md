@@ -521,7 +521,7 @@ outside `util`, where the `asPainter()` and `asComposableString()` extensions wr
 | `InMemoryPlacement`    | an `InMemory*` outside a `memory` package of the main sources                                              |
 | `SealedFamilyFile` | a class or object whose direct supertype is a sealed type declared in another file; supertypes resolve by qualified name, so same-named sealed types nested in different outer types are separate families |
 | `NestedEnum` | a top-level enum used as the property type of exactly one class |
-| `UtilFileName` | a `util` file of one receiver's extensions not named `<Receiver>Ext.kt`, a file named `Utils.kt`, `Helpers.kt`, `Extensions.kt` and the like |
+| `UtilFileName` | a `util` file of one receiver's extensions not named `<Receiver>Ext.kt` (a nested receiver: its outermost type, its full name or its own, `TagDTOExt.kt`, `TagDTORealExt.kt`, `RealExt.kt`), a file named `Utils.kt`, `Helpers.kt`, `Extensions.kt` and the like |
 | `UtilFunctionAsExtension` | a `util` function whose one parameter is a model of the unit or of a unit it depends on, instead of an extension |
 | `ImplementationVisibility` | a public class in a technology package or a technology unit's concept, outside a library, `core`, `stub` and `memory` |
 | `UseCaseAbstraction` | an interface or abstract class named `…UseCase` |
