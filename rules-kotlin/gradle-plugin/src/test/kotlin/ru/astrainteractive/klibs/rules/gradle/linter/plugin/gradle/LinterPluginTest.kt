@@ -824,6 +824,48 @@ class LinterPluginTest {
         assertTrue(result.output.contains("Declare org.slf4j:slf4j-api"), result.output)
     }
 
+    @Test
+    fun GIVEN_another_plugin_with_a_root_rules_version_WHEN_configured_THEN_detekt_keeps_the_linter_rules_version(
+        @TempDir rootDirectory: File,
+        @TempDir anotherPlugin: File
+    ) {
+        File(anotherPlugin, "klibs-rules.properties").writeText("version=$ANOTHER_PLUGIN_RULES_VERSION")
+        val moduleScript = """
+            plugins {
+                `java-library`
+                id("ru.astrainteractive.klibs.rules.gradle.linter")
+            }
+
+            val rulesVersions = configurations.getByName("detektPlugins").dependencies
+                .filter { dependency -> dependency.group == "ru.astrainteractive.klibs.rules" }
+                .map { dependency -> dependency.version }
+            val rulesReport = layout.buildDirectory.file("rules-version.txt")
+            tasks.register("reportRulesVersion") {
+                val versions = rulesVersions
+                val reportFile = rulesReport
+                outputs.file(reportFile)
+                doLast { reportFile.get().asFile.writeText(versions.joinToString(separator = "\n")) }
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .withRootBuildScript("")
+            .withModule(name = "library", buildScript = moduleScript)
+            .withClasspathAheadOfPlugin(anotherPlugin)
+
+        build.run(":library:reportRulesVersion")
+
+        val versions = build.file("library/build/rules-version.txt").readLines()
+        assertEquals(
+            1,
+            versions.size,
+            "expected one rules dependency in detektPlugins: $versions"
+        )
+        assertTrue(
+            ANOTHER_PLUGIN_RULES_VERSION !in versions,
+            "the rules version of another plugin was used instead of the linter's own: $versions"
+        )
+    }
+
     private companion object {
         val JAVA_MODULE_SCRIPT = """
             plugins {
@@ -838,5 +880,7 @@ class LinterPluginTest {
                 active: true
                 layout: '*,java.**,javax.**,kotlin.**'
         """.trimIndent()
+
+        const val ANOTHER_PLUGIN_RULES_VERSION = "0.0.0-another-plugin"
     }
 }

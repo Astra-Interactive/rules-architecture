@@ -356,7 +356,9 @@ internal class LinterPlugin : Plugin<Project> {
 
         private const val EXTENSION_NAME = "linter"
         private const val RULES_GROUP = "ru.astrainteractive.klibs.rules"
-        private const val RULES_VERSION_FILE = "klibs-rules.properties"
+
+        // Namespaced like the bundled detekt.yml, so another plugin of the build cannot shadow it
+        private const val RULES_VERSION_FILE = "ru/astrainteractive/klibs/rules/klibs-rules.properties"
         private const val ARCHITECTURE_CONFIG_FILE_NAME = "detekt-architecture.yml"
         private const val CONFIG_SERVICE_NAME = "klibsDetektArchitectureConfig"
         private const val GRAPH_SERVICE_NAME = "klibsArchitectureGraph"

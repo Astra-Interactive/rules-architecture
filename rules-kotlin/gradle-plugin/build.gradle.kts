@@ -68,13 +68,16 @@ dependencies {
 }
 
 // The linter resolves the rules at its own version
+val rulesVersionResources = layout.buildDirectory.dir("generated/resources/klibs-rules")
 val generateRulesVersion = tasks.register<WriteProperties>("generateRulesVersion") {
-    destinationFile = layout.buildDirectory.file("generated/klibs-rules/klibs-rules.properties")
+    destinationFile = rulesVersionResources.map { directory ->
+        directory.file("ru/astrainteractive/klibs/rules/klibs-rules.properties")
+    }
     property("version", project.version.toString())
 }
 
 sourceSets.main {
-    resources.srcDir(generateRulesVersion.map { task -> task.destinationFile.get().asFile.parentFile })
+    resources.srcDir(files(rulesVersionResources).builtBy(generateRulesVersion))
 }
 
 gradlePlugin {

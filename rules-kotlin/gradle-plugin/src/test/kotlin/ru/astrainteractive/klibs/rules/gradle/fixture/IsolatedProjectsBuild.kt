@@ -6,6 +6,7 @@ import java.io.File
 
 internal class IsolatedProjectsBuild(private val rootDirectory: File) {
     private val moduleNames = mutableListOf<String>()
+    private val classpathAheadOfPlugin = mutableListOf<File>()
     private var offline = true
     private var typeSafeAccessors = false
 
@@ -46,6 +47,15 @@ internal class IsolatedProjectsBuild(private val rootDirectory: File) {
         return this
     }
 
+    /**
+     * TestKit loads the whole plugin classpath into one class loader, so [entry] stands for another plugin
+     * that a consumer's build loads together with this one.
+     */
+    fun withClasspathAheadOfPlugin(entry: File): IsolatedProjectsBuild {
+        classpathAheadOfPlugin.add(entry)
+        return this
+    }
+
     private fun writeSettings() {
         val includes = moduleNames.joinToString(separator = "\n") { name -> """include(":$name")""" }
         writeFile(
@@ -70,9 +80,10 @@ internal class IsolatedProjectsBuild(private val rootDirectory: File) {
     }
 
     private fun runner(arguments: Array<out String>): GradleRunner {
-        return GradleRunner.create()
+        val runner = GradleRunner.create()
             .withProjectDir(rootDirectory)
             .withPluginClasspath()
+        return runner.withPluginClasspath(classpathAheadOfPlugin + runner.pluginClasspath)
             .forwardOutput()
             .withArguments(arguments.toList() + listOfNotNull("--offline".takeIf { offline }, "--stacktrace"))
     }
