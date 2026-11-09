@@ -1,0 +1,1 @@
+modules/sample/Cargo.toml:7: `composition` is taken only by a crate whose role is impl-ui

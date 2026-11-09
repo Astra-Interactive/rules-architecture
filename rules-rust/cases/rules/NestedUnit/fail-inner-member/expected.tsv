@@ -1,0 +1,2 @@
+ContainerSources	modules/outer	modules/outer	a container holds crate directories only: move Cargo.toml and sources into a member
+NestedUnit	modules/outer/inner/Cargo.toml	inner	modules/outer/inner is inside modules/outer: a crate directory holds no other crate

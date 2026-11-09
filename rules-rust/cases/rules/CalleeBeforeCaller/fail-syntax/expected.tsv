@@ -1,0 +1,1 @@
+CalleeBeforeCaller	modules/sample/src/sample/util/run.rs:1	case_sample::sample::util::run	Declare a callee above its caller in the same scope (code-ordering.rs.md)

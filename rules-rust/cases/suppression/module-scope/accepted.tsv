@@ -1,0 +1,3 @@
+ForbiddenPackageName	modules/sample/src/lib.rs:1	case_sample::domain	reported to klibs-rules as #1: a fixture of the suppression semantics
+ForbiddenPackageName	modules/sample/src/lib.rs:8	case_sample::shared	reported to klibs-rules as #2: an inner form after //!
+Unanalysable	modules/sample/src/lib.rs:12	case_sample::missing	reported to klibs-rules as #1: a fixture of the suppression semantics

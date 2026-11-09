@@ -1,0 +1,8 @@
+ForbiddenPackageName	modules/sample/src/lib.rs:1	case_sample::domain	`domain` is never a package name (arch-package.md, Concepts and kinds 10)
+ForbiddenPackageName	modules/sample/src/lib.rs:2	case_sample::domain::impl	`r#impl` is a keyword: a module is named in the project's words
+ForbiddenPackageName	modules/sample/src/lib.rs:3	case_sample::domain::test	`test` is the name of the test block alone
+ForbiddenPackageName	modules/sample/src/lib.rs:5	case_sample::bin	`bin` directly under `src/` is a binary to Cargo
+ForbiddenPackageName	modules/sample/src/lib.rs:6	case_sample::std	`std` hides the standard crate from the `use` lines of its parent (E0432)
+ForbiddenPackageName	modules/sample/src/lib.rs:7	case_sample::prelude	`prelude` is never a package name (arch-package.md, Concepts and kinds 10)
+ForbiddenPackageName	modules/sample/src/lib.rs:9	case_sample::invoice::helpers	`helpers` is never a package name (arch-package.md, Concepts and kinds 10)
+UtilFileName	modules/sample/src/lib.rs:9	case_sample::invoice::helpers	`helpers.rs` does not name what its functions do (arch-package.rs.md, What goes in one file)

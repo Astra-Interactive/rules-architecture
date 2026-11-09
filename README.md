@@ -482,6 +482,7 @@ val violations: List<StructureViolation> = checker.check(
 | `rules-kotlin/konsist`       | the Konsist checks and their CLI                                |
 | `rules-kotlin/structure`     | the structure checks                                            |
 | `rules-kotlin/self-check`    | the build that runs the real linter on this repository          |
+| `rules-rust`                 | the Rust linter: the `klibs-rules` crate in `modules/rules`, its self-check and gate in the crate's tests, `xtask` |
 
 ```shell
 cd rules-kotlin

@@ -1,0 +1,2 @@
+Provides the macro fixture.
+

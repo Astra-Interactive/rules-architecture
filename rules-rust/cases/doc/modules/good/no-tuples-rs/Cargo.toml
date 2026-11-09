@@ -1,0 +1,7 @@
+[package]
+name = "good-no-tuples-rs"
+edition.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true

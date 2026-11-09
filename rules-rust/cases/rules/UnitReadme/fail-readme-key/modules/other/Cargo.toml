@@ -1,0 +1,8 @@
+[package]
+name = "case-other"
+edition = "2024"
+readme = false
+
+
+[lints]
+workspace = true

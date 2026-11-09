@@ -1,0 +1,10 @@
+[package]
+name = "host"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[lints]
+workspace = true
+

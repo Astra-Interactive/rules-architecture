@@ -1,0 +1,8 @@
+[package]
+name = "case-standard"
+edition = "2024"
+readme = "README.md"
+
+
+[lints]
+workspace = true

@@ -1,0 +1,1 @@
+modules/sample/Cargo.toml:7: `composition` is "remote": expected one of local, host

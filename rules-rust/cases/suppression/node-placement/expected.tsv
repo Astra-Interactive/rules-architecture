@@ -1,0 +1,10 @@
+RootFileShape	modules/sample/src/lib.rs:6	case_sample	a module block in the root file holds only use and mod items
+RootFileShape	modules/sample/src/lib.rs:10	case_sample	a module block in the root file holds only use and mod items
+RootFileShape	modules/sample/src/lib.rs:14	case_sample	a module block in the root file holds only use and mod items
+RootFileShape	modules/sample/src/lib.rs:16	case_sample	a module block in the root file holds only use and mod items
+RootFileShape	modules/sample/src/lib.rs:20	case_sample	a module block in the root file holds only use and mod items
+RootFileShape	modules/sample/src/lib.rs:36	case_sample	a module block in the root file holds only use and mod items
+RootFileShape	modules/sample/src/lib.rs:37	case_sample	a module block in the root file holds only use and mod items
+UnfulfilledExpectation	modules/sample/src/lib.rs:37	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
+RootFileShape	modules/sample/src/lib.rs:44	case_sample	a module block in the root file holds only use and mod items
+RootFileShape	modules/sample/src/lib.rs:45	case_sample	a module block in the root file holds only use and mod items

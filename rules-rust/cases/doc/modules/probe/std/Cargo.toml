@@ -1,0 +1,10 @@
+[package]
+name = "probe"
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+tokio.workspace = true
+
+[lints]
+workspace = true

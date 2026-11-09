@@ -1,0 +1,13 @@
+[package]
+name = "shop-server"
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+shop-core = { path = "../../modules/good/di-manual-rs/core" }
+di-billing-api = { path = "../../modules/good/di-manual-rs/billing" }
+tokio.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

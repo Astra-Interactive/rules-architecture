@@ -1,0 +1,1 @@
+PlatformPackage	modules/sample/src/lib.rs:1	case_sample::arm	platform code uses a target cfg at the same module path, never a platform module (arch-package.rs.md, Modules and directories)

@@ -1,0 +1,2 @@
+UnitReadme	modules/invoice	shop-invoice	Add a README.md of one sentence that states the responsibility of modules/invoice.
+AnonymousTuple	modules/invoice/src/invoice/model/line.rs:1	shop_invoice::invoice::model::line::Line	a tuple struct of 2 fields: name its fields (no-tuples.rs.md)

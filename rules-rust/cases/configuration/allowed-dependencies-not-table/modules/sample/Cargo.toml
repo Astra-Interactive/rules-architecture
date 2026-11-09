@@ -1,0 +1,9 @@
+[package]
+name = "case-sample"
+edition = "2024"
+
+[package.metadata.klibs-rules.checks]
+allowed-dependencies = "shop-x"
+
+[lints]
+workspace = true

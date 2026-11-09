@@ -1,0 +1,1 @@
+ExpectScope	modules/sample/src/sample/util/run.rs:1	case_sample::sample::util::run	Expect only a prescribed lint on the smallest item, never an inner attribute or module (notes.rs.md)

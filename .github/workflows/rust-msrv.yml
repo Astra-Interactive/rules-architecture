@@ -1,0 +1,25 @@
+name: Rust toolchain floor
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  fresh-resolution:
+    name: Resolve and build the sample consumer on 1.93.0
+    runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: 1.93.0
+    defaults:
+      run:
+        working-directory: rules-rust/cases/consumer/fixed
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the floor toolchain
+        run: rustup toolchain install 1.93.0 --profile minimal
+      - name: Resolve without a lockfile
+        run: |
+          rm -f Cargo.lock
+          cargo generate-lockfile
+      - name: Build
+        run: cargo build --workspace --all-targets

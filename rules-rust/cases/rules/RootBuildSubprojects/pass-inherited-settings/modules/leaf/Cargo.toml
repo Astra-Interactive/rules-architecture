@@ -1,0 +1,8 @@
+[package]
+name = "leaf"
+edition = { workspace = true }
+
+
+[lints]
+workspace = true
+

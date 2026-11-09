@@ -1,0 +1,7 @@
+[package]
+name = "bad-no-print-rs"
+edition.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true

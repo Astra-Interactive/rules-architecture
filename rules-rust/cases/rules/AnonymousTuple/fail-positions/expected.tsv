@@ -1,0 +1,18 @@
+RootFileShape	modules/sample/src/lib.rs:2	case_sample	a module block in the root file holds only use and mod items
+AnonymousTuple	modules/sample/src/lib.rs:3	case_sample::sample	a tuple of 2 elements as a type: use a struct with named fields (no-tuples.rs.md)
+AnonymousTuple	modules/sample/src/lib.rs:5	case_sample::sample::Point	a tuple struct of 2 fields: name its fields (no-tuples.rs.md)
+RootFileShape	modules/sample/src/lib.rs:5	case_sample	a module block in the root file holds only use and mod items
+RootFileShape	modules/sample/src/lib.rs:6	case_sample	a module block in the root file holds only use and mod items
+AnonymousTuple	modules/sample/src/lib.rs:7	case_sample::sample::Segment	a tuple variant of 2 fields: name its fields (no-tuples.rs.md)
+AnonymousTuple	modules/sample/src/lib.rs:9	case_sample::sample	a tuple of 2 elements as a type: use a struct with named fields (no-tuples.rs.md)
+RootFileShape	modules/sample/src/lib.rs:9	case_sample	a module block in the root file holds only use and mod items
+AnonymousTuple	modules/sample/src/lib.rs:10	case_sample::sample	a tuple of 2 elements as a type: use a struct with named fields (no-tuples.rs.md)
+RootFileShape	modules/sample/src/lib.rs:10	case_sample	a module block in the root file holds only use and mod items
+RootFileShape	modules/sample/src/lib.rs:11	case_sample	a module block in the root file holds only use and mod items
+AnonymousTuple	modules/sample/src/lib.rs:12	case_sample::sample	a tuple of 2 elements as a type: use a struct with named fields (no-tuples.rs.md)
+AnonymousTuple	modules/sample/src/lib.rs:14	case_sample::sample	a tuple of 2 elements as a type: use a struct with named fields (no-tuples.rs.md)
+RootFileShape	modules/sample/src/lib.rs:14	case_sample	a module block in the root file holds only use and mod items
+AnonymousTuple	modules/sample/src/lib.rs:15	case_sample::sample	a tuple of 2 elements as a type: use a struct with named fields (no-tuples.rs.md)
+AnonymousTuple	modules/sample/src/lib.rs:16	case_sample::sample	a tuple of 2 elements as a type: use a struct with named fields (no-tuples.rs.md)
+AnonymousTuple	modules/sample/src/lib.rs:19	case_sample::sample	a tuple of 2 elements as a type: use a struct with named fields (no-tuples.rs.md)
+RootFileShape	modules/sample/src/lib.rs:19	case_sample	a module block in the root file holds only use and mod items

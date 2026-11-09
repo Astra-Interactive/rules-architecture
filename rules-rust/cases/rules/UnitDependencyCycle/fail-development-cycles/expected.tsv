@@ -1,0 +1,2 @@
+UnitDependencyCycle	Cargo.toml	alpha, beta, gamma	a development dependency closes a cycle between these crates: each compilation's graph must remain acyclic
+UnitDependencyCycle	Cargo.toml	delta, epsilon	a development dependency closes a cycle between these crates: each compilation's graph must remain acyclic

@@ -1,0 +1,7 @@
+UnitPath	feature	outside	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
+UnitPath	modules/a/b/c/d	deep	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
+UnitPath	modules/entry	wrong-entry	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
+UnitPath	modules/runner	runner	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
+UnitPath	modules/shared	shared	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
+UnitPath	tools	tools	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
+UnitPath	xtask	xtask	add xtask to workspace.members: tooling is a workspace member

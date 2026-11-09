@@ -1,0 +1,1 @@
+Cargo.toml:8: unknown key `allowed-dependencies` in checks; allowed: disabled

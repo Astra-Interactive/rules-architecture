@@ -1,0 +1,2 @@
+Provides the gamma fixture.
+

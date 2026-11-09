@@ -1,0 +1,4 @@
+EntryPointDependency	modules/consumer/Cargo.toml:6	consumer -> runner	nothing depends on an entry-point crate or a crate without a Rust library target
+EntryPointDependency	modules/consumer/Cargo.toml:7	consumer -> host	nothing depends on an entry-point crate or a crate without a Rust library target
+EntryPointDependency	modules/consumer/Cargo.toml:9	consumer -> static-host	nothing depends on an entry-point crate or a crate without a Rust library target
+EntryPointDependency	modules/consumer/Cargo.toml:11	consumer -> entry-lib	nothing depends on an entry-point crate or a crate without a Rust library target

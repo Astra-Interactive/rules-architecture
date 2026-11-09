@@ -1,0 +1,8 @@
+[package]
+name = "host"
+edition = "2024"
+
+
+[lints]
+workspace = true
+

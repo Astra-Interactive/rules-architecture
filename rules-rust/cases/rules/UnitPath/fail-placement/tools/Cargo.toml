@@ -1,0 +1,10 @@
+[package]
+name = "tools"
+edition = "2024"
+
+[package.metadata.klibs-rules]
+role = "tooling"
+
+[lints]
+workspace = true
+

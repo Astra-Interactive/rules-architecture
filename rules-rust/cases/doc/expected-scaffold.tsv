@@ -1,0 +1,89 @@
+RootFileShape	modules/acme-sdk/src/lib.rs:1	acme_sdk	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/acme-sdk/src/lib.rs:2	acme_sdk	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/acme-sdk/src/lib.rs:3	acme_sdk	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/acme-sdk/src/lib.rs:5	acme_sdk	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/acme-sdk/src/lib.rs:9	acme_sdk	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/acme-sdk/src/lib.rs:13	acme_sdk	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/acme-sdk/src/lib.rs:17	acme_sdk	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/acme-sdk/src/lib.rs:19	acme_sdk	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/acme-sdk/src/lib.rs:21	acme_sdk	the root file holds only the module tree and the items the platform calls
+StructDefaultValue	modules/acme-sdk/src/lib.rs:21	acme_sdk	Pass struct and enum values explicitly instead of providing Default (struct-default-values.rs.md)
+RootFileShape	modules/acme-sdk/src/lib.rs:27	acme_sdk	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/acme-sdk/src/lib.rs:47	acme_sdk	the root file holds only the module tree and the items the platform calls
+StructDefaultValue	modules/acme-sdk/src/lib.rs:47	acme_sdk	Pass struct and enum values explicitly instead of providing Default (struct-default-values.rs.md)
+RootFileShape	modules/acme-sdk/src/lib.rs:53	acme_sdk	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/async-rs/src/example_10.rs:15	bad_async_rs::example_10::publish	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+OneTypeFamilyPerFile	modules/bad/async-rs/src/example_13.rs:11	bad_async_rs::example_13::start_reminder	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+OneTypeFamilyPerFile	modules/bad/async-rs/src/lib.rs:1	bad_async_rs::example_10	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/async-rs/src/lib.rs:1	bad_async_rs	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/async-rs/src/lib.rs:2	bad_async_rs::example_12	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/async-rs/src/lib.rs:2	bad_async_rs	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/async-rs/src/lib.rs:3	bad_async_rs::example_13	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/async-rs/src/lib.rs:3	bad_async_rs	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/async-rs/src/lib.rs:4	bad_async_rs::example_15	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/async-rs/src/lib.rs:4	bad_async_rs	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/bad/async-rs/src/lib.rs:5	bad_async_rs	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/clean-code-rs/src/example_18.rs:25	bad_clean_code_rs::example_18::start_checkout	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+OneTypeFamilyPerFile	modules/bad/clean-code-rs/src/lib.rs:1	bad_clean_code_rs::example_16	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/clean-code-rs/src/lib.rs:1	bad_clean_code_rs	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/bad/clean-code-rs/src/lib.rs:2	bad_clean_code_rs	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/clean-code-rs/src/lib.rs:3	bad_clean_code_rs::example_18	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/clean-code-rs/src/lib.rs:3	bad_clean_code_rs	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/closure-naming-rs/src/example_19.rs:8	bad_closure_naming_rs::example_19::build_overdue_report	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+OneTypeFamilyPerFile	modules/bad/closure-naming-rs/src/lib.rs:1	bad_closure_naming_rs::example_19	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/closure-naming-rs/src/lib.rs:1	bad_closure_naming_rs	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/code-ordering-rs/src/lib.rs:1	bad_code_ordering_rs::example_22	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/code-ordering-rs/src/lib.rs:1	bad_code_ordering_rs	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/di-manual-constructors-rs/src/lib.rs:1	bad_di_manual_constructors_rs::example_27	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/di-manual-constructors-rs/src/lib.rs:1	bad_di_manual_constructors_rs	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/function-reference-rs/src/example_36.rs:29	bad_function_reference_rs::example_36::parse_order	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+DeclarationOrder	modules/bad/function-reference-rs/src/example_36.rs:36	bad_function_reference_rs::example_36	Declare constants, complete type families and functions in dependency order (code-ordering.rs.md)
+OneTypeFamilyPerFile	modules/bad/function-reference-rs/src/example_36.rs:44	bad_function_reference_rs::example_36::build_summary	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+OneTypeFamilyPerFile	modules/bad/function-reference-rs/src/lib.rs:1	bad_function_reference_rs::example_36	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/function-reference-rs/src/lib.rs:1	bad_function_reference_rs	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/no-callbacks-rs/src/lib.rs:1	bad_no_callbacks_rs::example_38	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/no-callbacks-rs/src/lib.rs:1	bad_no_callbacks_rs	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/no-callbacks-rs/src/lib.rs:2	bad_no_callbacks_rs::example_40	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/no-callbacks-rs/src/lib.rs:2	bad_no_callbacks_rs	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/no-callbacks-rs/src/lib.rs:3	bad_no_callbacks_rs::example_41	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/no-callbacks-rs/src/lib.rs:3	bad_no_callbacks_rs	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/no-print-rs/src/example_44.rs:14	bad_no_print_rs::example_44::load_order	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+OneTypeFamilyPerFile	modules/bad/no-print-rs/src/example_44.rs:21	bad_no_print_rs::example_44::run_order_report	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+OneTypeFamilyPerFile	modules/bad/no-print-rs/src/lib.rs:1	bad_no_print_rs::example_44	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/no-print-rs/src/lib.rs:1	bad_no_print_rs	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/no-tuples-rs/src/example_46.rs:8	bad_no_tuples_rs::example_46::measure_label	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+OneTypeFamilyPerFile	modules/bad/no-tuples-rs/src/lib.rs:1	bad_no_tuples_rs::example_46	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/no-tuples-rs/src/lib.rs:1	bad_no_tuples_rs	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/bad/region/src/lib.rs:1	bad_region	the root file holds only the module tree and the items the platform calls
+ModuleVisibility	modules/bad/rustdoc-rs/src/lib.rs:1	bad_rustdoc_rs::auth_module	module visibility must be Private (arch-package.rs.md, Modules and directories)
+RootFileShape	modules/bad/rustdoc-rs/src/lib.rs:1	bad_rustdoc_rs	the root file holds only the module tree and the items the platform calls
+ModuleVisibility	modules/bad/rustdoc-rs/src/lib.rs:2	bad_rustdoc_rs::example_48	module visibility must be Private (arch-package.rs.md, Modules and directories)
+OneTypeFamilyPerFile	modules/bad/rustdoc-rs/src/lib.rs:2	bad_rustdoc_rs::example_48	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/rustdoc-rs/src/lib.rs:2	bad_rustdoc_rs	the root file holds only the module tree and the items the platform calls
+ModuleVisibility	modules/bad/rustdoc-rs/src/lib.rs:3	bad_rustdoc_rs::example_50	module visibility must be Private (arch-package.rs.md, Modules and directories)
+RootFileShape	modules/bad/rustdoc-rs/src/lib.rs:3	bad_rustdoc_rs	the root file holds only the module tree and the items the platform calls
+ModuleVisibility	modules/bad/rustdoc-rs/src/lib.rs:4	bad_rustdoc_rs::money	module visibility must be Private (arch-package.rs.md, Modules and directories)
+RootFileShape	modules/bad/rustdoc-rs/src/lib.rs:4	bad_rustdoc_rs	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/bad/struct-default-values-rs/src/lib.rs:1	bad_struct_default_values_rs	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/struct-default-values-rs/src/prediction_input.rs:8	bad_struct_default_values_rs::prediction_input::build_window	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+RootFileShape	modules/bad/testing-no-useless-rs/src/lib.rs:1	bad_testing_no_useless_rs	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/testing-no-useless-rs/src/my_struct.rs:6	bad_testing_no_useless_rs::my_struct::given_struct_when_built_then_value_is_stored	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+TestMirror	modules/bad/testing-no-useless-rs/src/my_struct.rs:6	bad_testing_no_useless_rs::my_struct	tests live in the root test block; path attributes belong only to the root test and fixture blocks
+RootFileShape	modules/bad/testing-rs/src/lib.rs:1	bad_testing_rs	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/time-api-rs/src/lib.rs:1	bad_time_api_rs::example_64	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/time-api-rs/src/lib.rs:1	bad_time_api_rs	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/probe/std/src/lib.rs:1	probe	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/probe/std/src/lib.rs:2	probe	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/probe/std/src/lib.rs:3	probe	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/probe/std/src/probe_named.rs:1	probe::probe_named	only the crate root declares modules
+ExpectScope	modules/probe/std/src/probes.rs:29	probe::probes	Expect only a prescribed lint on the smallest item, never an inner attribute or module (notes.rs.md)
+UnfulfilledExpectation	modules/probe/std/src/probes.rs:102	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
+UnfulfilledExpectation	modules/probe/std/src/probes.rs:117	Unanalysable	no `Unanalysable` finding is anchored in the scope of this exception
+ModuleVisibility	modules/probe/std/src/probes.rs:207	probe::probes::tests	module visibility must be Crate (arch-package.rs.md, Modules and directories)
+RootFileShape	modules/probe/std/src/probes.rs:207	probe::probes	only the crate root declares modules
+TestMirror	modules/probe/std/src/probes.rs:207	probe::probes	tests live in the root test block; path attributes belong only to the root test and fixture blocks
+TestMirror	modules/probe/std/src/probes.rs:209	probe::probes	tests live in the root test block; path attributes belong only to the root test and fixture blocks
+TestFunctionName	modules/probe/std/src/probes.rs:210	probe::probes::tests::probe_silent_allow_unwrap_in_tests	Use given_<state>_when_<action>_then_<outcome> for a test (testing.rs.md)
+TestMirror	modules/probe/std/src/probes.rs:215	probe::probes	tests live in the root test block; path attributes belong only to the root test and fixture blocks
+TestFunctionName	modules/probe/std/src/probes.rs:216	probe::probes::tests::probe_silent_allow_expect_in_tests	Use given_<state>_when_<action>_then_<outcome> for a test (testing.rs.md)
+RootFileShape	modules/probe/time/src/lib.rs:1	probe_time	the root file holds only the module tree and the items the platform calls

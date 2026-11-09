@@ -1,0 +1,23 @@
+[package]
+name = "sample"
+edition = "2024"
+rust-version = "1.93"
+license = "MIT"
+authors = ["Other"]
+repository = "https://example.com/other"
+
+[profile.dev]
+opt-level = 1
+[patch]
+[dependencies]
+leaf = { path = "../leaf" }
+[dev-dependencies]
+leaf = { path = "../leaf" }
+[build-dependencies]
+leaf = { path = "../leaf" }
+[target.'cfg(windows)'.dependencies]
+leaf = { path = "../leaf" }
+
+[lints]
+workspace = true
+

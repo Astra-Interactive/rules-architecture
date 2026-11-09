@@ -1,0 +1,10 @@
+[package]
+name = "wrong-entry"
+edition = "2024"
+
+[package.metadata.klibs-rules]
+role = "entry-point"
+
+[lints]
+workspace = true
+

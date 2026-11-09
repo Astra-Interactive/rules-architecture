@@ -1,0 +1,8 @@
+[package]
+name = "case-inherited"
+edition = "2024"
+readme.workspace = true
+
+
+[lints]
+workspace = true

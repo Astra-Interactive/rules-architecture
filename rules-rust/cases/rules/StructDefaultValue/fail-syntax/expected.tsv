@@ -1,0 +1,1 @@
+StructDefaultValue	modules/sample/src/sample/model/subject.rs:1	case_sample::sample::model::subject	Pass struct and enum values explicitly instead of providing Default (struct-default-values.rs.md)

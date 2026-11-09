@@ -1,0 +1,4 @@
+CrateTargets	instances/custom/run.rs	custom-bin custom-bin	a binary target starts at src/main.rs
+CrateTargets	modules/mixed/source/library.rs	mixed mixed	a library target starts at src/lib.rs
+CrateTargets	modules/mixed/src/bin/extra.rs	mixed mixed-extra	a binary target starts at src/main.rs; a crate is a library or a binary, never both; several binaries are separate entry-point crates; src/bin/ is not used
+CrateTargets	modules/mixed/src/main.rs	mixed mixed-main	a crate is a library or a binary, never both; several binaries are separate entry-point crates

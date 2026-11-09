@@ -1,0 +1,110 @@
+name: Rust release
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'rules-rust/**'
+      - '.github/workflows/rust-*.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    name: Tag, publish and release klibs-rules
+    runs-on: ubuntu-latest
+    env:
+      MANIFEST: rules-rust/modules/rules/Cargo.toml
+      USER_AGENT: klibs-rules release (github.com/Astra-Interactive/rules-architecture)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Find the version and the commit that set it
+        id: version
+        run: |
+          read_version() { sed -n 's/^version = "\(.*\)"$/\1/p' | head -n 1; }
+          version=$(read_version < "$MANIFEST")
+          bump=""
+          for commit in $(git log --reverse --format=%H -- "$MANIFEST"); do
+            current=$(git show "$commit:$MANIFEST" 2>/dev/null | read_version)
+            parent=$(git show "$commit^:$MANIFEST" 2>/dev/null | read_version)
+            if [ "$current" = "$version" ] && [ "$parent" != "$version" ]; then
+              bump=$commit
+              break
+            fi
+          done
+          test -n "$bump"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "bump=$bump" >> "$GITHUB_OUTPUT"
+          echo "tag=rules-rust-$version" >> "$GITHUB_OUTPUT"
+      - name: Read what is already done
+        id: state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          BUMP: ${{ steps.version.outputs.bump }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git fetch --tags --force origin
+          tagged=$(git rev-list -n 1 "$TAG" 2>/dev/null || true)
+          if [ -n "$tagged" ] && [ "$tagged" != "$BUMP" ]; then
+            echo "::error::$TAG points to $tagged, the version was set by $BUMP"
+            exit 1
+          fi
+          echo "tag=$([ -n "$tagged" ] && echo present || echo missing)" >> "$GITHUB_OUTPUT"
+          code=$(curl -s -o /dev/null -w '%{http_code}' -A "$USER_AGENT" "https://crates.io/api/v1/crates/klibs-rules/$VERSION")
+          echo "published=$([ "$code" = 200 ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+          echo "release=$(gh release view "$TAG" >/dev/null 2>&1 && echo present || echo missing)" >> "$GITHUB_OUTPUT"
+      - name: Check out the documents
+        if: steps.state.outputs.tag == 'missing'
+        uses: actions/checkout@v4
+        with:
+          repository: Astra-Interactive/conf.ide
+          path: conf.ide
+      - name: Drift gate on the bump commit
+        if: steps.state.outputs.tag == 'missing'
+        env:
+          BUMP: ${{ steps.version.outputs.bump }}
+        run: |
+          git worktree add "$RUNNER_TEMP/bump" "$BUMP"
+          cd "$RUNNER_TEMP/bump/rules-rust"
+          cargo xtask gate-sync --docs "$GITHUB_WORKSPACE/conf.ide/.claude/docs" --check
+      - name: Tag the bump commit
+        if: steps.state.outputs.tag == 'missing'
+        env:
+          BUMP: ${{ steps.version.outputs.bump }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git tag "$TAG" "$BUMP"
+          if ! git push origin "$TAG"; then
+            git fetch --tags --force origin
+            test "$(git rev-list -n 1 "$TAG")" = "$BUMP"
+          fi
+      - name: Authenticate with crates.io (Trusted Publishing)
+        if: steps.state.outputs.published == 'no'
+        id: auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish from the tag
+        if: steps.state.outputs.published == 'no'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git checkout "$TAG"
+          if ! (cd rules-rust && cargo publish -p klibs-rules); then
+            code=$(curl -s -o /dev/null -w '%{http_code}' -A "$USER_AGENT" "https://crates.io/api/v1/crates/klibs-rules/$VERSION")
+            test "$code" = 200
+          fi
+      - name: Create the GitHub release
+        if: steps.state.outputs.release == 'missing'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "$TAG" --verify-tag --title "$TAG" --notes "klibs-rules $VERSION" || gh release view "$TAG"

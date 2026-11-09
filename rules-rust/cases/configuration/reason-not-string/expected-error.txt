@@ -1,0 +1,1 @@
+modules/sample/Cargo.toml:6: the reason for "shop-x" must be a string

@@ -1,0 +1,4 @@
+UtilFileName	modules/sample/src/lib.rs:3	case_sample::invoice::util::utils	`utils.rs` does not name what its functions do (arch-package.rs.md, What goes in one file)
+ForbiddenPackageName	modules/sample/src/lib.rs:4	case_sample::invoice::util::helpers	`helpers` is never a package name (arch-package.md, Concepts and kinds 10)
+UtilFileName	modules/sample/src/lib.rs:4	case_sample::invoice::util::helpers	`helpers.rs` does not name what its functions do (arch-package.rs.md, What goes in one file)
+UtilFileName	modules/sample/src/lib.rs:5	case_sample::invoice::util::extensions	`extensions.rs` does not name what its functions do (arch-package.rs.md, What goes in one file)

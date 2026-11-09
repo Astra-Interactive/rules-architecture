@@ -1,0 +1,3 @@
+ProjectDirMatchesPath	Cargo.toml:3	modules/[g]amma	list each member path explicitly: workspace members use no glob
+ProjectDirMatchesPath	Cargo.toml:3	modules/alph*	list each member path explicitly: workspace members use no glob
+ProjectDirMatchesPath	Cargo.toml:3	modules/bet?	list each member path explicitly: workspace members use no glob

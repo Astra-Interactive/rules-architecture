@@ -1,0 +1,10 @@
+[package]
+name = "macro"
+edition = "2024"
+
+[lib]
+proc-macro = true
+
+[lints]
+workspace = true
+

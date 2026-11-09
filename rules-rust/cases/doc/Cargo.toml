@@ -1,0 +1,85 @@
+[workspace]
+resolver = "3"
+members = [
+  "instances/di-manual-rs",
+  "modules/acme-sdk",
+  "modules/bad/async-rs",
+  "modules/bad/clean-code-rs",
+  "modules/bad/closure-naming-rs",
+  "modules/bad/code-ordering-rs",
+  "modules/bad/di-manual-constructors-rs",
+  "modules/bad/function-reference-rs",
+  "modules/bad/no-callbacks-rs",
+  "modules/bad/no-print-rs",
+  "modules/bad/no-tuples-rs",
+  "modules/bad/region",
+  "modules/bad/rustdoc-rs",
+  "modules/bad/struct-default-values-rs",
+  "modules/bad/testing-no-useless-rs",
+  "modules/bad/testing-rs",
+  "modules/bad/time-api-rs",
+  "modules/good/arch-domain-rs",
+  "modules/good/arch-package-rs-clipboard",
+  "modules/good/arch-package-rs-fixture/api",
+  "modules/good/arch-package-rs-fixture/consumer",
+  "modules/good/arch-package-rs-tree",
+  "modules/good/async-rs",
+  "modules/good/clean-code-rs",
+  "modules/good/closure-naming-rs",
+  "modules/good/code-ordering-rs",
+  "modules/good/di-manual-constructors-rs",
+  "modules/good/di-manual-rs/billing",
+  "modules/good/di-manual-rs/core",
+  "modules/good/error-handling-rs",
+  "modules/good/function-reference-rs",
+  "modules/good/imports-rs",
+  "modules/good/no-callbacks-rs-1",
+  "modules/good/no-callbacks-rs-2",
+  "modules/good/no-print-rs",
+  "modules/good/no-tuples-rs",
+  "modules/good/rustdoc-rs",
+  "modules/good/struct-default-values-rs",
+  "modules/good/testing-rs-1",
+  "modules/good/testing-rs-2",
+  "modules/good/time-api-rs",
+  "modules/probe/std",
+  "modules/probe/time",
+]
+
+[workspace.metadata.klibs-rules]
+product-kind = "app"
+
+[workspace.package]
+edition = "2024"
+publish = false
+
+[workspace.dependencies]
+chrono = { version = "=0.4.45", default-features = false, features = ["clock", "std"] }
+jiff = { version = "=0.2.39", default-features = false, features = ["std"] }
+time = { version = "=0.3.55", features = ["std", "local-offset"] }
+async-trait = "=0.1.92"
+futures = "=0.3.34"
+parking_lot = "=0.12.5"
+serde = { version = "=1.0.228", features = ["derive"] }
+thiserror = "=2.0.21"
+tokio = { version = "=1.54.1", features = ["fs", "macros", "rt", "rt-multi-thread", "signal", "sync", "time"] }
+tracing = "=0.1.44"
+
+[workspace.lints.rust]
+unreachable_pub = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(klibs_rules)"] }
+
+[workspace.lints.clippy]
+mod_module_files = "warn"
+self_named_module_files = "warn"
+let_underscore_must_use = "warn"
+unwrap_used = "warn"
+expect_used = "warn"
+print_stdout = "warn"
+print_stderr = "warn"
+dbg_macro = "warn"
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+too_many_lines = "warn"
+undocumented_unsafe_blocks = "warn"
+redundant_closure_for_method_calls = "warn"

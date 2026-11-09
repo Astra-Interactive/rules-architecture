@@ -1,0 +1,1 @@
+FunctionVerb	modules/sample/src/sample/util/get_subject.rs:1	case_sample::sample::util::get_subject::get_subject	Use a specific verb instead of get, map, make, do, handle or process (clean-code.rs.md)

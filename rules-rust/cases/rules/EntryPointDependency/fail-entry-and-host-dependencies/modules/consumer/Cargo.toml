@@ -1,0 +1,15 @@
+[package]
+name = "consumer"
+edition = "2024"
+
+[dependencies]
+runner = { path = "../../instances/runner" }
+host = { path = "../../instances/host" }
+[build-dependencies]
+static-host = { path = "../../instances/static" }
+[dev-dependencies]
+entry-lib = { path = "../../instances/entry" }
+
+[lints]
+workspace = true
+

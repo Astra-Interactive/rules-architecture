@@ -1,0 +1,1 @@
+ImplementationName	modules/sample/src/sample/model/subject_impl.rs:1	case_sample::sample::model::subject_impl::SubjectImpl	Name a type by its contract or implementation variant, without Impl, Interface or an I-prefix (arch-package.md)

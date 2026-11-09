@@ -1,0 +1,1 @@
+FakePlacement	modules/sample/Cargo.toml	case-fake	shared fakes belong to the owning crate's fixture tree behind its fake feature, never a separate crate (arch-package.rs.md, Tests)

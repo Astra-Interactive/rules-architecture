@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - master
+    paths-ignore:
+      - 'rules-rust/**'
+      - '.github/workflows/rust-*.yml'
   workflow_dispatch:
 jobs:
   gradle_validation:

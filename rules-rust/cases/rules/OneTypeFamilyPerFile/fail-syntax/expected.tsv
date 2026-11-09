@@ -1,0 +1,1 @@
+OneTypeFamilyPerFile	modules/sample/src/sample/model/subject.rs:2	case_sample::sample::model::subject::Other	Keep only the primary type and plain data types declared after their users in its file (arch-package.rs.md)

@@ -1,0 +1,2 @@
+Provides the consumer fixture.
+

@@ -1,0 +1,1 @@
+CrateTargets	modules/sample/src/main.rs	case-sample case-sample	a crate is a library or a binary, never both

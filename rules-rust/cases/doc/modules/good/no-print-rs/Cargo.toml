@@ -1,0 +1,11 @@
+[package]
+name = "good-no-print-rs"
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,1 @@
+Cargo.toml:6: `product-kind` must be a string

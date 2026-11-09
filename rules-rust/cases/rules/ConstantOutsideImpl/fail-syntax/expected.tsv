@@ -1,0 +1,1 @@
+ConstantOutsideImpl	modules/sample/src/sample/model/subject.rs:1	case_sample::sample::model::subject	Keep a type's constants at the end of its inherent impl (code-ordering.rs.md)

@@ -1,0 +1,8 @@
+[package]
+name = "inner"
+edition = "2024"
+
+
+[lints]
+workspace = true
+

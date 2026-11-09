@@ -1,0 +1,2 @@
+DeclarationOrder	modules/sample/src/sample/model/subject.rs:4	case_sample::sample::model::subject	Declare constants, complete type families and functions in dependency order (code-ordering.rs.md)
+DeclarationOrder	modules/sample/src/sample/model/subject.rs:5	case_sample::sample::model::subject	Declare constants, complete type families and functions in dependency order (code-ordering.rs.md)
