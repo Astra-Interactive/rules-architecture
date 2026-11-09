@@ -10,6 +10,98 @@ use crate::workspace::util::resolve_cargo_path;
 use std::collections::BTreeMap;
 use std::fs;
 
+fn build_quotation_dependency_index(package: &str, dependency: &str, source: &str) -> CrateIndex {
+    let directory = tempfile::tempdir().expect("temporary workspace");
+    fs::create_dir_all(directory.path().join("provider/src")).expect("provider directory");
+    fs::write(directory.path().join("provider/src/lib.rs"), "").expect("provider source");
+    fs::write(
+        directory.path().join("provider/Cargo.toml"),
+        format!("[package]\nname = '{package}'\nversion = '0.1.0'\n"),
+    )
+    .expect("provider manifest");
+    fs::write(
+        directory.path().join("Cargo.toml"),
+        format!("[package]\nname = 'sample'\nversion = '0.1.0'\n[workspace]\n[dependencies]\n{dependency} = {{ package = '{package}', path = 'provider' }}\n"),
+    ).expect("consumer manifest");
+    fs::create_dir(directory.path().join("src")).expect("consumer directory");
+    fs::write(directory.path().join("src/lib.rs"), source).expect("consumer source");
+    let workspace = CargoWorkspaceReader::new(resolve_cargo_path())
+        .read_workspace(directory.path())
+        .expect("valid dependency workspace");
+    let sources = ModuleTreeWalker::new(
+        directory.path().to_owned(),
+        "sample".to_owned(),
+        "sample".to_owned(),
+    )
+    .walk_crate("src/lib.rs", SourceTree::Src);
+    CrateIndexBuilder::build_all(&[sources], &workspace).remove(0)
+}
+
+#[test]
+fn given_cargo_quotation_packages_when_indexed_then_only_span_and_interpolation_are_dependencies() {
+    for package in ["syn", "quote"] {
+        let plain = if package == "syn" {
+            "parse_quote"
+        } else {
+            "quote"
+        };
+        let spanned = format!("{plain}_spanned");
+        for dependency in [package, "tokens"] {
+            let source = format!(
+                "use {dependency}::{plain} as render;\nmod leaf {{ pub fn quoted() {{}} pub fn span() -> u8 {{ 0 }} pub const INTERPOLATED: u8 = 0; }}\nuse crate::leaf::INTERPOLATED;\nfn run() {{\n{dependency}::{plain}!(tokio::runtime::Runtime);\nrender!(crate::leaf::quoted());\n{dependency}::{spanned}!(crate::leaf::span() => crate::leaf::quoted());\nrender!(#INTERPOLATED #( #INTERPOLATED )*);\nrender!(#missing);\n}}"
+            );
+            let index = build_quotation_dependency_index(package, dependency, &source);
+            let subjects: Vec<_> = index
+                .unanalysable
+                .iter()
+                .map(|site| site.subject.as_str())
+                .collect();
+            assert_eq!(subjects, ["missing"], "{package} as {dependency}");
+            assert!(
+                !index
+                    .edges
+                    .iter()
+                    .any(|edge| edge.path.last().is_some_and(|name| name == "quoted"))
+            );
+            assert!(index.edges.iter().any(|edge| edge.span.start.line == 7
+                && edge.path.last().is_some_and(|name| name == "span")));
+            assert_eq!(
+                2,
+                index
+                    .edges
+                    .iter()
+                    .filter(|edge| edge.span.start.line == 8
+                        && edge.path.last().is_some_and(|name| name == "INTERPOLATED"))
+                    .count()
+            );
+        }
+    }
+}
+
+#[test]
+fn given_custom_packages_with_quotation_macro_names_when_indexed_then_keeps_argument_dependencies()
+{
+    for (dependency, name) in [
+        ("syn", "parse_quote"),
+        ("syn", "parse_quote_spanned"),
+        ("quote", "quote"),
+        ("quote", "quote_spanned"),
+    ] {
+        let source = format!(
+            "use {dependency}::{name} as render; mod leaf {{ pub fn quoted() {{}} }} fn run() {{ {dependency}::{name}!(tokio::runtime::Runtime); render!(crate::leaf::quoted()); }}"
+        );
+        let index = build_quotation_dependency_index("custom", dependency, &source);
+        assert_eq!(1, index.unanalysable.len(), "{dependency}::{name}");
+        assert!(index.unanalysable[0].subject.contains("tokio"));
+        assert!(
+            index
+                .edges
+                .iter()
+                .any(|edge| edge.path.last().is_some_and(|name| name == "quoted"))
+        );
+    }
+}
+
 #[test]
 fn given_cargo_renamed_loggers_when_indexed_then_package_identity_controls_field_grammar() {
     for package in ["tracing", "log", "custom"] {

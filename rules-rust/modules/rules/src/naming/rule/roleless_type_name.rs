@@ -72,22 +72,73 @@ impl RolelessTypeName {
             if paths.iter().any(|path| path.item.is_some_and(|identity| index.items[identity].name == item.name)))
     }
 
-    fn invalid_factory(index: &CrateIndex, item: &IndexedItem) -> bool {
+    fn returns_product(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        typed: &syn::Type,
+        product: usize,
+        depth: usize,
+        cfg: &crate::source::model::CfgPredicate,
+    ) -> bool {
+        if depth > 8 {
+            return false;
+        }
+        let types = context.resolve_type_syntax_under(ordinal, module, typed, cfg);
+        !types.is_empty() && types.iter().all(|resolved| {
+            let targets = context.resolve_outer_workspace_type(resolved.index, resolved.module, &resolved.typed);
+            if !targets.is_empty() {
+                return targets.iter().filter(|target| resolved.cfg.and(&target.path.cfg).is_satisfiable()).all(|target| target.index == ordinal && target.path.item == Some(product));
+            }
+            let syn::Type::Path(path) = &resolved.typed else { return false; };
+            let shared = context.resolve_outer_external_type_paths(resolved.index, resolved.module, &resolved.typed).iter().any(|path| {
+                let identity = path.segments.iter().skip(1).map(String::as_str).collect::<Vec<_>>().join("::");
+                matches!((path.package.as_str(), identity.as_str()),
+                    ("std", "sync::Arc" | "boxed::Box") | ("alloc", "sync::Arc" | "boxed::Box"))
+            });
+            if !shared { return false; }
+            let Some(segment) = path.path.segments.last() else { return false; };
+            let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments else { return false; };
+            arguments.args.iter().any(|argument| matches!(argument, syn::GenericArgument::Type(typed) if Self::returns_product(context, resolved.index, resolved.module, typed, product, depth + 1, &resolved.cfg)))
+        })
+    }
+
+    fn invalid_factory(context: &RuleContext, ordinal: usize, item: &IndexedItem) -> bool {
+        let index = &context.indexes[ordinal];
         let Some(product) = item.name.strip_suffix("Factory") else {
             return false;
         };
         let valid_form = matches!(&item.syntax, syn::Item::Trait(value) if Self::is_runtime_factory(index, item.module, value));
-        let has_product = index.items.iter().any(|candidate| {
-            candidate.file == item.file
-                && candidate.name == product
-                && item.cfg.and(&candidate.cfg).is_satisfiable()
-                && matches!(
-                    candidate.syntax,
-                    syn::Item::Struct(_)
-                        | syn::Item::Enum(_)
-                        | syn::Item::Union(_)
-                        | syn::Item::Trait(_)
-                )
+        let products = index
+            .items
+            .iter()
+            .enumerate()
+            .filter(|(_, candidate)| {
+                candidate.file == item.file
+                    && candidate.module == item.module
+                    && candidate.name == product
+                    && item.cfg.and(&candidate.cfg).is_satisfiable()
+                    && matches!(
+                        candidate.syntax,
+                        syn::Item::Struct(_)
+                            | syn::Item::Enum(_)
+                            | syn::Item::Union(_)
+                            | syn::Item::Trait(_)
+                    )
+            })
+            .collect::<Vec<_>>();
+        let covered = crate::source::model::CfgPredicate::Any(
+            products
+                .iter()
+                .map(|(_, candidate)| candidate.cfg.clone())
+                .collect(),
+        );
+        let has_product = item.cfg.implies(&covered) && products.iter().all(|(identity, candidate)| {
+                matches!(&item.syntax, syn::Item::Trait(value) if value.items.iter().any(|member| {
+                    matches!(member, syn::TraitItem::Fn(method) if method.sig.ident == "invoke"
+                        && matches!(&method.sig.output, syn::ReturnType::Type(_, typed)
+                            if Self::returns_product(context, ordinal, item.module, typed, *identity, 0, &item.cfg.and(&candidate.cfg))))
+                }))
         });
         !valid_form || !has_product
     }
@@ -145,7 +196,7 @@ impl Rule for RolelessTypeName {
                     item.name.ends_with("WarmUp") && !has_kind(index, item.module, "warmup");
                 let misplaced_migration =
                     item.name.ends_with("Migration") && !has_kind(index, item.module, "migration");
-                let invalid_factory = Self::invalid_factory(index, item);
+                let invalid_factory = Self::invalid_factory(context, ordinal, item);
                 if item.name.ends_with("Validator")
                     || misplaced_warmup
                     || misplaced_migration

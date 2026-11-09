@@ -3,6 +3,16 @@ use crate::ordering::rule::CalleeBeforeCaller;
 use crate::test::check::usecase::read_case_context;
 
 #[test]
+fn given_type_declarations_when_checked_then_free_functions_are_exempt_but_methods_are_ordered() {
+    crate::test::syntax::util::assert_syntax_findings(
+        &CalleeBeforeCaller,
+        "CalleeBeforeCaller",
+        "struct Subject; fn first() { second(); } fn second() {} impl Subject { fn first(&self) { self.second(); } fn second(&self) {} }",
+        1,
+    );
+}
+
+#[test]
 fn given_alternative_branches_when_checked_then_each_branch_sees_its_own_incoming_aliases() {
     for source in [
         "fn other() {} fn first(flag: bool) { let mut run = compute; if flag { run = other; } else { run(); } } fn compute() {}",

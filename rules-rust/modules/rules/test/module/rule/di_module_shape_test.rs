@@ -1,4 +1,34 @@
 #[test]
+fn given_traitless_behavior_storage_when_checked_then_shared_instance_is_required() {
+    for field in [
+        "crate::SmtpMailSender",
+        "std::sync::Arc<crate::SmtpMailSender>",
+    ] {
+        crate::test::module::util::assert_di_lines(
+            &crate::module::rule::DiModuleShape,
+            &format!(
+                "struct SmtpMailSender; impl SmtpMailSender {{ fn send(&self) {{ let _result = std::net::TcpStream::connect(\"localhost:25\"); }} }} mod di {{ struct MailModule {{ sender: {field} }} }}"
+            ),
+            if field.starts_with("std") { &[] } else { &[1] },
+        );
+    }
+}
+
+#[test]
+fn given_di_trait_with_multiple_implementations_when_checked_then_trait_shape_is_legal() {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::DiModuleShape,
+        "mod di { trait MailModule {} struct SmtpModule; struct MemoryModule; impl MailModule for SmtpModule {} impl MailModule for MemoryModule {} }",
+        &[],
+    );
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::DiModuleShape,
+        "mod di { enum MailModule { Smtp, Memory } }",
+        &[1],
+    );
+}
+
+#[test]
 fn given_deferred_and_direct_service_fields_when_checked_then_only_arc_once_lock_or_owned_module_pass()
  {
     crate::test::module::util::assert_di_lines(

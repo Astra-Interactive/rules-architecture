@@ -16,11 +16,126 @@ struct LogVisitor<'source> {
     errors: Vec<String>,
     logged: Vec<(String, proc_macro2::Span)>,
     spans: Vec<proc_macro2::Span>,
-    results: Vec<String>,
+    results: Vec<(String, bool)>,
     propagating: bool,
 }
 
 impl LogVisitor<'_> {
+    fn result_type(&self, ordinal: usize, module: usize, typed: &syn::Type) -> bool {
+        self.context
+            .resolve_outer_external_type_paths(ordinal, module, typed)
+            .iter()
+            .any(|path| {
+                matches!(
+                    path.format_path().as_str(),
+                    "std::result::Result" | "core::result::Result"
+                )
+            })
+    }
+
+    fn mask_result_pattern(&mut self, pattern: &syn::Pat) {
+        match pattern {
+            syn::Pat::Ident(name) => self.results.push((name.ident.to_string(), false)),
+            syn::Pat::Type(pattern) => {
+                self.mask_result_pattern(&pattern.pat);
+                let result = self.result_type(self.ordinal, self.module, &pattern.ty);
+                if let Some((_, binding)) = self.results.last_mut() {
+                    *binding = result;
+                }
+            }
+            syn::Pat::Paren(pattern) => self.mask_result_pattern(&pattern.pat),
+            syn::Pat::Reference(pattern) => self.mask_result_pattern(&pattern.pat),
+            syn::Pat::Tuple(pattern) => {
+                for pattern in &pattern.elems {
+                    self.mask_result_pattern(pattern);
+                }
+            }
+            syn::Pat::TupleStruct(pattern) => {
+                for pattern in &pattern.elems {
+                    self.mask_result_pattern(pattern);
+                }
+            }
+            syn::Pat::Struct(pattern) => {
+                for field in &pattern.fields {
+                    self.mask_result_pattern(&field.pat);
+                }
+            }
+            syn::Pat::Slice(pattern) => {
+                for pattern in &pattern.elems {
+                    self.mask_result_pattern(pattern);
+                }
+            }
+            syn::Pat::Or(pattern) => {
+                for pattern in &pattern.cases {
+                    self.mask_result_pattern(pattern);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn result_expression(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Paren(paren) => self.result_expression(&paren.expr),
+            syn::Expr::Group(group) => self.result_expression(&group.expr),
+            syn::Expr::Await(awaited) => self.result_expression(&awaited.base),
+            syn::Expr::Reference(reference) => self.result_expression(&reference.expr),
+            syn::Expr::Path(path) => self
+                .results
+                .iter()
+                .rev()
+                .find(|(name, _)| path.path.is_ident(name))
+                .is_some_and(|(_, result)| *result),
+            syn::Expr::MethodCall(call) => {
+                [
+                    "map",
+                    "map_err",
+                    "inspect",
+                    "inspect_err",
+                    "and_then",
+                    "or_else",
+                    "as_ref",
+                    "as_mut",
+                ]
+                .iter()
+                .any(|name| call.method == *name)
+                    && self.result_expression(&call.receiver)
+            }
+            syn::Expr::Call(call) => {
+                let syn::Expr::Path(path) = &*call.func else {
+                    return false;
+                };
+                if self
+                    .results
+                    .iter()
+                    .rev()
+                    .any(|(name, _)| path.path.is_ident(name))
+                {
+                    return false;
+                }
+                if ["Ok", "Err"].iter().any(|variant| {
+                    crate::runtime::util::is_result_variant(
+                        self.context,
+                        self.ordinal,
+                        self.module,
+                        &path.path,
+                        variant,
+                    )
+                }) {
+                    return true;
+                }
+                self.context.resolve_workspace_path(self.ordinal, self.module, &path.path).iter().any(|target| {
+                    let Some(identity) = target.path.item else { return false; };
+                    let item = &self.context.indexes[target.index].items[identity];
+                    target.path.cfg.and(&item.cfg).is_satisfiable() && matches!(&item.syntax, syn::Item::Fn(function) if matches!(&function.sig.output, syn::ReturnType::Type(_, typed) if self.result_type(target.index, item.module, typed)))
+                }) || self.context.resolve_external_call_paths(self.ordinal, self.module, &path.path).iter().any(|path| {
+                    matches!(path.format_path().as_str(), "std::fs::read" | "std::fs::read_to_string" | "std::fs::write" | "tokio::fs::read" | "tokio::fs::read_to_string" | "tokio::fs::write")
+                })
+            }
+            _ => false,
+        }
+    }
+
     fn bind_results(&mut self, signature: &syn::Signature) {
         self.results.clear();
         for argument in &signature.inputs {
@@ -37,7 +152,11 @@ impl LogVisitor<'_> {
                         )
                     })
             {
-                self.results.push(name.ident.to_string());
+                self.results.push((name.ident.to_string(), true));
+            } else if let syn::FnArg::Typed(parameter) = argument
+                && let syn::Pat::Ident(name) = &*parameter.pat
+            {
+                self.results.push((name.ident.to_string(), false));
             }
         }
     }
@@ -101,6 +220,14 @@ impl LogVisitor<'_> {
             return false;
         }
         let error_cast = syn::parse2::<syn::Expr>(value).is_ok_and(|expression| {
+            let mut expression = &expression;
+            loop {
+                expression = match expression {
+                    syn::Expr::Paren(paren) => &paren.expr,
+                    syn::Expr::Group(group) => &group.expr,
+                    _ => break,
+                };
+            }
             let syn::Expr::Cast(cast) = expression else {
                 return false;
             };
@@ -167,11 +294,20 @@ impl LogVisitor<'_> {
 impl<'ast> Visit<'ast> for LogVisitor<'_> {
     fn visit_local(&mut self, local: &'ast syn::Local) {
         syn::visit::visit_local(self, local);
+        let result = match &local.pat {
+            syn::Pat::Type(typed) => self.result_type(self.ordinal, self.module, &typed.ty),
+            _ => local
+                .init
+                .as_ref()
+                .is_some_and(|init| self.result_expression(&init.expr)),
+        };
         let pattern = match &local.pat {
             syn::Pat::Type(typed) => &*typed.pat,
             pattern => pattern,
         };
+        self.mask_result_pattern(&local.pat);
         if let syn::Pat::Ident(name) = pattern {
+            self.results.push((name.ident.to_string(), result));
             self.errors.retain(|error| name.ident != error);
             self.logged.retain(|(error, _)| name.ident != error);
         }
@@ -203,20 +339,42 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
     }
 
     fn visit_arm(&mut self, arm: &'ast syn::Arm) {
+        let results = self.results.len();
+        self.mask_result_pattern(&arm.pat);
         let length = self.errors.len();
         let logged = self.logged.clone();
         self.bind_error(&arm.pat);
         syn::visit::visit_arm(self, arm);
         self.errors.truncate(length);
         self.logged = logged;
+        self.results.truncate(results);
+    }
+
+    fn visit_expr_closure(&mut self, expression: &'ast syn::ExprClosure) {
+        let results = self.results.len();
+        for parameter in &expression.inputs {
+            self.mask_result_pattern(parameter);
+        }
+        syn::visit::visit_expr_closure(self, expression);
+        self.results.truncate(results);
+    }
+
+    fn visit_expr_for_loop(&mut self, expression: &'ast syn::ExprForLoop) {
+        self.visit_expr(&expression.expr);
+        let results = self.results.len();
+        self.mask_result_pattern(&expression.pat);
+        self.visit_block(&expression.body);
+        self.results.truncate(results);
     }
 
     fn visit_expr_if(&mut self, expression: &'ast syn::ExprIf) {
+        let results = self.results.len();
         let length = self.errors.len();
         let logged = self.logged.clone();
         self.visit_expr(&expression.cond);
         let mut binding = None;
         if let syn::Expr::Let(condition) = &*expression.cond {
+            self.mask_result_pattern(&condition.pat);
             self.bind_error(&condition.pat);
             if let syn::Pat::TupleStruct(pattern) = &*condition.pat
                 && let Some(syn::Pat::Ident(name)) = pattern.elems.first()
@@ -228,6 +386,7 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
         let then_logged = self.logged.clone();
         self.errors.truncate(length);
         self.logged = logged;
+        self.results.truncate(results);
         if let Some((_, otherwise)) = &expression.else_branch {
             self.visit_expr(otherwise);
         }
@@ -236,6 +395,16 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
                 .into_iter()
                 .filter(|(name, _)| self.errors.contains(name) && binding.as_ref() != Some(name)),
         );
+    }
+
+    fn visit_expr_while(&mut self, expression: &'ast syn::ExprWhile) {
+        self.visit_expr(&expression.cond);
+        let results = self.results.len();
+        if let syn::Expr::Let(condition) = &*expression.cond {
+            self.mask_result_pattern(&condition.pat);
+        }
+        self.visit_block(&expression.body);
+        self.results.truncate(results);
     }
 
     fn visit_macro(&mut self, item: &'ast syn::Macro) {
@@ -290,7 +459,7 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
     }
 
     fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
-        let result = matches!(&*call.receiver, syn::Expr::Path(path) if self.results.iter().any(|name| path.path.is_ident(name)));
+        let result = self.result_expression(&call.receiver);
         if result && matches!(call.method.to_string().as_str(), "map_err" | "inspect_err") {
             self.visit_expr(&call.receiver);
             for argument in &call.args {
@@ -311,6 +480,7 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
     }
 
     fn visit_block(&mut self, block: &'ast syn::Block) {
+        let results = self.results.len();
         let logged = self.logged.clone();
         let errors = self.errors.clone();
         syn::visit::visit_block(self, block);
@@ -326,6 +496,7 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
         self.logged = logged;
         self.logged.extend(retained);
         self.errors = errors;
+        self.results.truncate(results);
     }
 }
 

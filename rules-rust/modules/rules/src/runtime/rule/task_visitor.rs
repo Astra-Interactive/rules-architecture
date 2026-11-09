@@ -24,8 +24,9 @@ pub(crate) struct TaskVisitor<'source> {
     handles: Vec<(String, proc_macro2::Span, bool)>,
     local_self: bool,
     closures: Vec<(String, Option<syn::ExprClosure>, usize)>,
-    bindings: Vec<(String, Option<usize>)>,
+    bindings: Vec<(String, Option<usize>, Option<syn::Type>)>,
     return_start: usize,
+    self_type: Option<syn::Type>,
 }
 
 impl TaskVisitor<'_> {
@@ -68,6 +69,7 @@ impl TaskVisitor<'_> {
                     closures: Vec::new(),
                     bindings: Vec::new(),
                     return_start: 0,
+                    self_type: None,
                 };
                 visitor.visit_file(&file.syntax);
                 findings.extend(visitor.findings);
@@ -288,8 +290,8 @@ impl TaskVisitor<'_> {
         self.bindings
             .iter()
             .rev()
-            .find(|(name, _)| path.path.is_ident(name))
-            .and_then(|(_, identity)| *identity)
+            .find(|(name, _, _)| path.path.is_ident(name))
+            .and_then(|(_, identity, _)| *identity)
     }
 
     fn consume_handle(&mut self, expression: &syn::Expr) {
@@ -301,7 +303,7 @@ impl TaskVisitor<'_> {
     fn shadow_pattern(&mut self, pattern: &syn::Pat) {
         match pattern {
             syn::Pat::Ident(name) => {
-                self.bindings.push((name.ident.to_string(), None));
+                self.bindings.push((name.ident.to_string(), None, None));
                 let environment = self.closures.len();
                 self.closures
                     .push((name.ident.to_string(), None, environment));
@@ -350,7 +352,88 @@ impl TaskVisitor<'_> {
         }
     }
 
+    fn bind_channel_sender(&mut self, local: &syn::Local) {
+        let syn::Pat::Tuple(pattern) = &local.pat else {
+            return;
+        };
+        let Some(name) = pattern.elems.first().and_then(Self::pattern_name) else {
+            return;
+        };
+        let Some(init) = &local.init else {
+            return;
+        };
+        let syn::Expr::Call(call) = &*init.expr else {
+            return;
+        };
+        let syn::Expr::Path(path) = &*call.func else {
+            return;
+        };
+        if !self
+            .context
+            .resolve_external_call_paths(self.ordinal, self.module, &path.path)
+            .iter()
+            .any(|path| path.format_path() == "tokio::sync::mpsc::channel")
+        {
+            return;
+        }
+        if let Some((_, _, typed)) = self
+            .bindings
+            .iter_mut()
+            .rev()
+            .find(|(binding, _, _)| *name == binding)
+        {
+            *typed = Some(syn::parse_quote!(tokio::sync::mpsc::Sender<_>));
+        }
+    }
+
+    fn receiver_type(&self, expression: &syn::Expr) -> Option<syn::Type> {
+        match expression {
+            syn::Expr::Path(path) => self
+                .bindings
+                .iter()
+                .rev()
+                .find(|(name, _, _)| path.path.is_ident(name))
+                .and_then(|(_, _, typed)| typed.clone()),
+            syn::Expr::Reference(reference) => self.receiver_type(&reference.expr),
+            syn::Expr::Paren(paren) => self.receiver_type(&paren.expr),
+            syn::Expr::MethodCall(call) if call.method == "clone" => {
+                self.receiver_type(&call.receiver)
+            }
+            syn::Expr::Field(field) if matches!(&*field.base, syn::Expr::Path(path) if path.path.is_ident("self")) =>
+            {
+                let typed = self.self_type.as_ref()?;
+                self.context
+                    .resolve_workspace_type(self.ordinal, self.module, typed)
+                    .iter()
+                    .find_map(|target| {
+                        let item = &self.context.indexes[target.index].items[target.path.item?];
+                        let syn::Item::Struct(item) = &item.syntax else {
+                            return None;
+                        };
+                        item.fields
+                            .iter()
+                            .enumerate()
+                            .find_map(|(position, entry)| {
+                                let matching = match &field.member {
+                                    syn::Member::Named(name) => entry.ident.as_ref() == Some(name),
+                                    syn::Member::Unnamed(index) => position == index.index as usize,
+                                };
+                                matching.then(|| entry.ty.clone())
+                            })
+                    })
+            }
+            _ => None,
+        }
+    }
+
     fn bind_local(&mut self, local: &syn::Local) {
+        let typed = match &local.pat {
+            syn::Pat::Type(pattern) => Some((*pattern.ty).clone()),
+            _ => local
+                .init
+                .as_ref()
+                .and_then(|init| self.receiver_type(&init.expr)),
+        };
         let alias = local
             .init
             .as_ref()
@@ -369,16 +452,18 @@ impl TaskVisitor<'_> {
             alias
         };
         self.shadow_pattern(&local.pat);
+        self.bind_channel_sender(local);
         let Some(name) = Self::pattern_name(&local.pat) else {
             return;
         };
-        if let Some((_, identity)) = self
+        if let Some((_, identity, bound_type)) = self
             .bindings
             .iter_mut()
             .rev()
-            .find(|(binding, _)| *name == binding)
+            .find(|(binding, _, _)| *name == binding)
         {
             *identity = handle;
+            *bound_type = typed;
         }
         if self.rule == "CallbackBridgeShape" {
             let closure = local.init.as_ref().and_then(|init| match &*init.expr {
@@ -394,6 +479,236 @@ impl TaskVisitor<'_> {
                 *bound = closure;
             }
         }
+    }
+
+    fn callable_bound(&self, ordinal: usize, module: usize, bound: &syn::TypeParamBound) -> bool {
+        let syn::TypeParamBound::Trait(bound) = bound else {
+            return false;
+        };
+        (bound.path.segments.len() == 1
+            && bound.path.segments.first().is_some_and(|segment| {
+                ["Fn", "FnMut", "FnOnce"].contains(&segment.ident.to_string().as_str())
+            }))
+            && matches!(
+                self.context.indexes[ordinal].resolve_path(module, &bound.path),
+                Resolution::Local
+            )
+            || self
+                .context
+                .resolve_external_call_paths(ordinal, module, &bound.path)
+                .iter()
+                .any(|path| {
+                    ["std", "core"].contains(&path.package.as_str())
+                        && path
+                            .segments
+                            .last()
+                            .is_some_and(|name| ["Fn", "FnMut", "FnOnce"].contains(&name.as_str()))
+                })
+    }
+
+    fn carries_parameter(
+        &self,
+        ordinal: usize,
+        module: usize,
+        expression: &syn::Expr,
+        name: &syn::Ident,
+    ) -> bool {
+        match expression {
+            syn::Expr::Path(path) => path.path.is_ident(name),
+            syn::Expr::Call(call) => {
+                let syn::Expr::Path(path) = &*call.func else {
+                    return false;
+                };
+                let option = path.path.is_ident("Some")
+                    && matches!(
+                        self.context.indexes[ordinal].resolve_path(module, &path.path),
+                        Resolution::Local
+                    );
+                let owning = self
+                    .context
+                    .resolve_external_call_paths(ordinal, module, &path.path)
+                    .iter()
+                    .any(|path| {
+                        matches!(
+                            path.format_path().as_str(),
+                            "std::boxed::Box::new"
+                                | "alloc::boxed::Box::new"
+                                | "std::sync::Arc::new"
+                                | "alloc::sync::Arc::new"
+                                | "std::rc::Rc::new"
+                                | "alloc::rc::Rc::new"
+                                | "std::option::Option::Some"
+                                | "core::option::Option::Some"
+                        )
+                    });
+                (option || owning)
+                    && call
+                        .args
+                        .iter()
+                        .any(|argument| self.carries_parameter(ordinal, module, argument, name))
+            }
+            syn::Expr::Paren(paren) => self.carries_parameter(ordinal, module, &paren.expr, name),
+            syn::Expr::Reference(reference) => {
+                self.carries_parameter(ordinal, module, &reference.expr, name)
+            }
+            _ => false,
+        }
+    }
+
+    fn pattern_shadows(pattern: &syn::Pat, name: &syn::Ident) -> bool {
+        match pattern {
+            syn::Pat::Ident(binding) => {
+                binding.ident == *name
+                    || binding
+                        .subpat
+                        .as_ref()
+                        .is_some_and(|(_, pattern)| Self::pattern_shadows(pattern, name))
+            }
+            syn::Pat::Type(pattern) => Self::pattern_shadows(&pattern.pat, name),
+            syn::Pat::Paren(pattern) => Self::pattern_shadows(&pattern.pat, name),
+            syn::Pat::Tuple(pattern) => pattern
+                .elems
+                .iter()
+                .any(|pattern| Self::pattern_shadows(pattern, name)),
+            syn::Pat::TupleStruct(pattern) => pattern
+                .elems
+                .iter()
+                .any(|pattern| Self::pattern_shadows(pattern, name)),
+            syn::Pat::Struct(pattern) => pattern
+                .fields
+                .iter()
+                .any(|field| Self::pattern_shadows(&field.pat, name)),
+            _ => false,
+        }
+    }
+
+    fn shadows_parameter(block: &syn::Block, name: &syn::Ident) -> bool {
+        block.stmts.iter().any(|statement| matches!(statement, syn::Stmt::Local(local) if Self::pattern_shadows(&local.pat, name)))
+    }
+
+    fn stores_callback(
+        &self,
+        ordinal: usize,
+        module: usize,
+        expression: &syn::Expr,
+        name: &syn::Ident,
+        escaping: bool,
+        borrowed_receiver: bool,
+    ) -> bool {
+        match expression {
+            syn::Expr::Assign(assignment) => {
+                borrowed_receiver
+                    && matches!(&*assignment.left, syn::Expr::Field(field) if matches!(&*field.base, syn::Expr::Path(path) if path.path.is_ident("self")))
+                    && self.carries_parameter(ordinal, module, &assignment.right, name)
+            }
+            syn::Expr::Struct(structure) => {
+                escaping
+                    && structure
+                        .fields
+                        .iter()
+                        .any(|field| self.carries_parameter(ordinal, module, &field.expr, name))
+            }
+            syn::Expr::Return(returned) => returned.expr.as_ref().is_some_and(|value| {
+                self.stores_callback(ordinal, module, value, name, true, borrowed_receiver)
+            }),
+            syn::Expr::Block(block) => {
+                !Self::shadows_parameter(&block.block, name)
+                    && matches!(block.block.stmts.last(), Some(syn::Stmt::Expr(expression, semicolon)) if self.stores_callback(ordinal, module, expression, name, escaping && semicolon.is_none(), borrowed_receiver))
+            }
+            _ => false,
+        }
+    }
+
+    fn callback_parameter(
+        &self,
+        ordinal: usize,
+        module: usize,
+        signature: &syn::Signature,
+        position: usize,
+    ) -> bool {
+        let Some(syn::FnArg::Typed(parameter)) = signature
+            .inputs
+            .iter()
+            .filter(|argument| !matches!(argument, syn::FnArg::Receiver(_)))
+            .nth(position)
+        else {
+            return false;
+        };
+        match &*parameter.ty {
+            syn::Type::ImplTrait(typed) => typed.bounds.iter().any(|bound| self.callable_bound(ordinal, module, bound)),
+            syn::Type::Path(typed) => signature.generics.type_params().any(|generic| typed.path.is_ident(&generic.ident) && generic.bounds.iter().any(|bound| self.callable_bound(ordinal, module, bound)))
+                || signature.generics.where_clause.as_ref().is_some_and(|clause| clause.predicates.iter().any(|predicate| matches!(predicate, syn::WherePredicate::Type(predicate) if matches!(&predicate.bounded_ty, syn::Type::Path(path) if path.path.get_ident() == typed.path.get_ident()) && predicate.bounds.iter().any(|bound| self.callable_bound(ordinal, module, bound))))),
+            _ => false,
+        }
+    }
+
+    fn registered_parameter(
+        &self,
+        ordinal: usize,
+        module: usize,
+        signature: &syn::Signature,
+        block: &syn::Block,
+        position: usize,
+    ) -> bool {
+        if !self.callback_parameter(ordinal, module, signature, position) {
+            return false;
+        }
+        let Some(syn::FnArg::Typed(parameter)) = signature
+            .inputs
+            .iter()
+            .filter(|argument| !matches!(argument, syn::FnArg::Receiver(_)))
+            .nth(position)
+        else {
+            return false;
+        };
+        let Some(name) = Self::pattern_name(&parameter.pat) else {
+            return false;
+        };
+        let borrowed_receiver = signature.receiver().is_some_and(|receiver| matches!(&receiver.kind, syn::ReceiverKind::Reference(..)) || matches!(&receiver.kind, syn::ReceiverKind::Typed(_, typed) if matches!(&**typed, syn::Type::Reference(_))));
+        !Self::shadows_parameter(block, name)
+            && matches!(block.stmts.last(), Some(syn::Stmt::Expr(expression, semicolon)) if self.stores_callback(ordinal, module, expression, name, semicolon.is_none(), borrowed_receiver))
+    }
+
+    fn call_registers_callback(&self, call: &syn::ExprCall, position: usize) -> bool {
+        let syn::Expr::Path(path) = &*call.func else {
+            return false;
+        };
+        if self
+            .bindings
+            .iter()
+            .rev()
+            .any(|(name, _, _)| path.path.is_ident(name))
+        {
+            return false;
+        }
+        let active = node_predicate(
+            &self.context.indexes[self.ordinal],
+            self.module,
+            &self.file.path,
+            find_node_span(call.span()),
+        );
+        self.context.resolve_workspace_path(self.ordinal, self.module, &path.path).iter().any(|target| {
+            let Some(identity) = target.path.item else { return false; };
+            let item = &self.context.indexes[target.index].items[identity];
+            active.and(&target.path.cfg).and(&item.cfg).is_satisfiable() && matches!(&item.syntax, syn::Item::Fn(function) if self.registered_parameter(target.index, item.module, &function.sig, &function.block, position))
+        })
+    }
+
+    fn method_registers_callback(&self, call: &syn::ExprMethodCall, position: usize) -> bool {
+        let Some(typed) = self.receiver_type(&call.receiver) else {
+            return false;
+        };
+        let active = node_predicate(
+            &self.context.indexes[self.ordinal],
+            self.module,
+            &self.file.path,
+            find_node_span(call.span()),
+        );
+        self.context.resolve_workspace_type(self.ordinal, self.module, &typed).iter().any(|target| {
+            let Some(identity) = target.path.item else { return false; };
+            let index = &self.context.indexes[target.index];
+            index.implementations.iter().filter(|implementation| active.and(&target.path.cfg).and(&implementation.cfg).is_satisfiable() && index.resolve_type_items(implementation.module, &implementation.syntax.self_ty).contains(&identity)).any(|implementation| implementation.syntax.items.iter().any(|item| matches!(item, syn::ImplItem::Fn(function) if function.sig.ident == call.method && active.and(&implementation.cfg).and(&crate::source::model::CfgPredicate::from_attributes(&function.attrs)).is_satisfiable() && self.registered_parameter(target.index, implementation.module, &function.sig, &function.block, position))))
+        })
     }
 
     fn visit_condition(&mut self, condition: &syn::Expr) {
@@ -424,11 +739,14 @@ impl TaskVisitor<'_> {
         };
         if let Some((closure, environment)) = bound {
             let later_bindings = self.closures.split_off(environment);
+            let later_types = self.bindings.split_off(environment);
             self.callback_depth += 1;
             self.visit_expr_closure(&closure);
             self.callback_depth -= 1;
             self.closures.truncate(environment);
             self.closures.extend(later_bindings);
+            self.bindings.truncate(environment);
+            self.bindings.extend(later_types);
         }
     }
 
@@ -447,9 +765,51 @@ impl TaskVisitor<'_> {
         }
         self.consume_handle(argument);
     }
+
+    fn call_violation(&self, canonical: Option<&str>) -> bool {
+        let spawn = canonical == Some("tokio::spawn");
+        match self.rule {
+            "ThreadPrimitive" => {
+                self.thread_expect
+                    && canonical == Some("std::thread::spawn")
+                    && !is_technology(
+                        self.context,
+                        &self.context.indexes[self.ordinal],
+                        self.module,
+                    )
+            }
+            "DetachedTask" => spawn && self.discard,
+            "BridgeCleanup" => spawn && self.drop_context,
+            "CallbackBridgeShape" => spawn && self.callback_depth > 0,
+            "BlockingCallInAsync" => {
+                self.async_context
+                    && canonical.is_some_and(|path| {
+                        path == "std::thread::sleep"
+                            || path.starts_with("std::fs::")
+                            || path.starts_with("std::sync::mpsc::")
+                    })
+            }
+            _ => false,
+        }
+    }
 }
 
 impl<'ast> Visit<'ast> for TaskVisitor<'_> {
+    fn visit_fn_arg(&mut self, argument: &'ast syn::FnArg) {
+        let syn::FnArg::Typed(parameter) = argument else {
+            return;
+        };
+        self.shadow_pattern(&parameter.pat);
+        if let Some(name) = Self::pattern_name(&parameter.pat)
+            && let Some((_, _, typed)) = self
+                .bindings
+                .iter_mut()
+                .rev()
+                .find(|(binding, _, _)| *name == binding)
+        {
+            *typed = Some((*parameter.ty).clone());
+        }
+    }
     fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {
         self.shadow_pattern(&syn::Pat::Ident(pattern.clone()));
     }
@@ -562,6 +922,10 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
         if let Some(value) = &expression.expr {
             self.consume_handle(value);
         }
+        let discard = self.discard;
+        self.discard = false;
+        syn::visit::visit_expr_return(self, expression);
+        self.discard = discard;
         if self.rule == "DetachedTask" {
             let pending = self
                 .handles
@@ -573,7 +937,6 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
                 self.report(span);
             }
         }
-        syn::visit::visit_expr_return(self, expression);
     }
 
     fn visit_expr_struct(&mut self, expression: &'ast syn::ExprStruct) {
@@ -622,6 +985,7 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
     }
 
     fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
+        let self_type = self.self_type.replace((*item.self_ty).clone());
         let local_self = self.local_self;
         self.local_self = !self.context.indexes[self.ordinal]
             .resolve_type_items(self.module, &item.self_ty)
@@ -637,6 +1001,7 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
         self.drop_context = parent;
         self.thread_expect = expectation;
         self.local_self = local_self;
+        self.self_type = self_type;
     }
 
     fn visit_impl_item_fn(&mut self, item: &'ast syn::ImplItemFn) {
@@ -747,39 +1112,17 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
             syn::Expr::Path(path) => self.external(&path.path),
             _ => None,
         };
-        let spawn = canonical.as_deref() == Some("tokio::spawn");
-        let violation = match self.rule {
-            "ThreadPrimitive" => {
-                self.thread_expect
-                    && canonical.as_deref() == Some("std::thread::spawn")
-                    && !is_technology(
-                        self.context,
-                        &self.context.indexes[self.ordinal],
-                        self.module,
-                    )
-            }
-            "DetachedTask" => spawn && self.discard,
-            "BridgeCleanup" => spawn && self.drop_context,
-            "CallbackBridgeShape" => spawn && self.callback_depth > 0,
-            "BlockingCallInAsync" => {
-                self.async_context
-                    && canonical.as_deref().is_some_and(|path| {
-                        path == "std::thread::sleep"
-                            || path.starts_with("std::fs::")
-                            || path.starts_with("std::sync::mpsc::")
-                    })
-            }
-            _ => false,
-        };
-        if violation {
+        if self.call_violation(canonical.as_deref()) {
             self.report(expression.span());
         }
         self.check_unwind(expression, canonical.as_deref());
         let is_drop = canonical
             .as_deref()
             .is_some_and(|path| matches!(path, "std::mem::drop" | "core::mem::drop"));
-        for argument in &expression.args {
-            if self.rule == "CallbackBridgeShape" {
+        for (position, argument) in expression.args.iter().enumerate() {
+            let registered = self.rule == "CallbackBridgeShape"
+                && self.call_registers_callback(expression, position);
+            if registered {
                 self.visit_callback_argument(argument);
             }
             self.consume_argument(argument, is_drop);
@@ -790,7 +1133,7 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
                 self.visit_expr(argument);
                 self.discard = parent;
             } else {
-                let callback = matches!(argument, syn::Expr::Closure(_));
+                let callback = registered && matches!(argument, syn::Expr::Closure(_));
                 self.callback_depth += usize::from(callback);
                 let parent = self.discard;
                 self.discard = false;
@@ -804,18 +1147,34 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
     }
 
     fn visit_expr_method_call(&mut self, expression: &'ast syn::ExprMethodCall) {
+        if self.rule == "CallbackBridgeShape"
+            && self.callback_depth > 0
+            && expression.method == "blocking_send"
+            && self
+                .receiver_type(&expression.receiver)
+                .is_some_and(|typed| {
+                    self.context
+                        .resolve_outer_external_type_paths(self.ordinal, self.module, &typed)
+                        .iter()
+                        .any(|path| path.format_path() == "tokio::sync::mpsc::Sender")
+                })
+        {
+            self.report(expression.span());
+        }
         if expression.method == "abort" {
             self.consume_handle(&expression.receiver);
         }
         let discard = self.discard;
         self.discard = false;
         self.visit_expr(&expression.receiver);
-        for argument in &expression.args {
-            if self.rule == "CallbackBridgeShape" {
+        for (position, argument) in expression.args.iter().enumerate() {
+            let registered = self.rule == "CallbackBridgeShape"
+                && self.method_registers_callback(expression, position);
+            if registered {
                 self.visit_callback_argument(argument);
             }
             self.consume_handle(argument);
-            let callback = matches!(argument, syn::Expr::Closure(_));
+            let callback = registered && matches!(argument, syn::Expr::Closure(_));
             self.callback_depth += usize::from(callback);
             self.visit_expr(argument);
             self.callback_depth -= usize::from(callback);

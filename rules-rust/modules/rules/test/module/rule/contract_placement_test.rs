@@ -4,6 +4,15 @@ use crate::test::check::usecase::read_case_context;
 use crate::test::module::util::read_shape_context;
 
 #[test]
+fn given_di_trait_with_multiple_implementations_when_checked_then_contract_stays_in_di() {
+    let context = read_shape_context(
+        "mod di { trait MailModule {} struct SmtpModule; struct MemoryModule; impl MailModule for SmtpModule {} impl MailModule for MemoryModule {} }",
+        &[],
+    );
+    assert!(ContractPlacement.check(&context).is_empty());
+}
+
+#[test]
 fn given_reexported_workspace_usecase_when_implemented_then_only_own_sibling_impl_usecase_is_accepted()
  {
     let mut context = crate::test::dependency::util::read_role_context(

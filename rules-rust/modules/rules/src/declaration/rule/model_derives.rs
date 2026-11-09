@@ -11,13 +11,97 @@ use crate::source::util::find_node_span;
 pub(crate) struct ModelDerives;
 
 impl ModelDerives {
+    fn copy_implementation(
+        index: &crate::source::model::CrateIndex,
+        identity: usize,
+        implementation: &crate::source::model::IndexedImpl,
+        cfg: &crate::source::model::CfgPredicate,
+    ) -> bool {
+        let Some((path, _)) = &implementation.syntax.trait_ else {
+            return false;
+        };
+        let owns_type = crate::module::util::owns_implementation(index, identity, implementation);
+        let unconditional =
+            implementation.syntax.generics.params.is_empty() && cfg.implies(&implementation.cfg);
+        if !owns_type || !unconditional {
+            return false;
+        }
+        match index.resolve_path(implementation.module, path) {
+            crate::source::model::Resolution::Local => path.is_ident("Copy"),
+            crate::source::model::Resolution::External(path) => {
+                ["std::marker::Copy", "core::marker::Copy"].contains(&path.as_str())
+            }
+            _ => false,
+        }
+    }
+
+    fn item_copy(
+        context: &RuleContext,
+        target: &crate::source::model::WorkspaceResolvedPath,
+        cfg: &crate::source::model::CfgPredicate,
+    ) -> bool {
+        let Some(identity) = target.path.item else {
+            return false;
+        };
+        let index = &context.indexes[target.index];
+        let item = &index.items[identity];
+        let attributes = match &item.syntax {
+            syn::Item::Struct(value) if value.generics.params.is_empty() => &value.attrs,
+            syn::Item::Enum(value) if value.generics.params.is_empty() => &value.attrs,
+            syn::Item::Union(value) if value.generics.params.is_empty() => &value.attrs,
+            _ => return false,
+        };
+        derives(attributes, "Copy")
+            || index.implementations.iter().any(|implementation| {
+                Self::copy_implementation(
+                    index,
+                    identity,
+                    implementation,
+                    &cfg.and(&target.path.cfg),
+                )
+            })
+    }
+
+    fn nominal_copy(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        typed: &syn::Type,
+        cfg: &crate::source::model::CfgPredicate,
+    ) -> bool {
+        let targets = context.resolve_outer_workspace_type(ordinal, module, typed);
+        if !targets.is_empty() {
+            return targets
+                .iter()
+                .filter(|target| cfg.and(&target.path.cfg).is_satisfiable())
+                .all(|target| Self::item_copy(context, target, cfg));
+        }
+        context
+            .resolve_outer_external_type_paths(ordinal, module, typed)
+            .iter()
+            .any(|path| {
+                let identity = path
+                    .segments
+                    .iter()
+                    .skip(1)
+                    .map(String::as_str)
+                    .collect::<Vec<_>>()
+                    .join("::");
+                (path.package == "uuid" && identity == "Uuid")
+                    || (["std", "core"].contains(&path.package.as_str())
+                        && ["time::Duration", "time::Instant", "time::SystemTime"]
+                            .contains(&identity.as_str()))
+            })
+    }
+
     fn supports_copy(
         context: &RuleContext,
         ordinal: usize,
         module: usize,
         typed: &syn::Type,
+        cfg: &crate::source::model::CfgPredicate,
     ) -> bool {
-        let resolved = context.resolve_type_syntax(ordinal, module, typed);
+        let resolved = context.resolve_type_syntax_under(ordinal, module, typed, cfg);
         !resolved.is_empty()
             && resolved.iter().all(|resolved| match &resolved.typed {
                 syn::Type::Reference(reference) => reference.mutability.is_none(),
@@ -26,7 +110,13 @@ impl ModelDerives {
                         context.indexes[resolved.index].resolve_path(resolved.module, &path.path),
                         crate::source::model::Resolution::Local
                     );
-                    builtin
+                    Self::nominal_copy(
+                        context,
+                        resolved.index,
+                        resolved.module,
+                        &resolved.typed,
+                        &resolved.cfg,
+                    ) || builtin
                         && path.path.get_ident().is_some_and(|name| {
                             [
                                 "bool", "char", "u8", "u16", "u32", "u64", "u128", "usize", "i8",
@@ -38,6 +128,20 @@ impl ModelDerives {
                 }
                 _ => false,
             })
+    }
+
+    fn copy_field(
+        context: &RuleContext,
+        ordinal: usize,
+        item: &crate::source::model::IndexedItem,
+        field: &syn::Field,
+    ) -> bool {
+        let cfg = item
+            .cfg
+            .and(&crate::source::model::CfgPredicate::from_attributes(
+                &field.attrs,
+            ));
+        Self::supports_copy(context, ordinal, item.module, &field.ty, &cfg)
     }
 }
 
@@ -60,7 +164,7 @@ impl Rule for ModelDerives {
                     && value
                         .fields
                         .iter()
-                        .all(|field| Self::supports_copy(context, ordinal, item.module, &field.ty))
+                        .all(|field| Self::copy_field(context, ordinal, item, field))
                 {
                     required.push("Copy");
                 }

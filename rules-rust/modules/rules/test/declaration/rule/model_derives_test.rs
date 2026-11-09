@@ -3,6 +3,72 @@ use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
 
 #[test]
+fn given_nominal_copy_identifier_when_checked_then_derive_and_explicit_impl_require_copy() {
+    assert_code_findings(
+        &ModelDerives,
+        "ModelDerives",
+        "#[derive(Copy, Clone)] struct Number(u64);\nstruct Manual(u64); impl Copy for Manual {} impl Clone for Manual { fn clone(&self) -> Self { *self } }\nmod model {\n#[derive(Debug, Clone, PartialEq, Eq, Hash)] struct UserId(crate::Number);\n#[derive(Debug, Clone, PartialEq, Eq, Hash)] struct ManualId(crate::Manual);\n#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] struct ValidId(crate::Number);\n}\n",
+        &[4, 5],
+    );
+}
+
+#[test]
+fn given_uuid_identifier_when_checked_then_resolved_external_copy_is_required() {
+    assert_code_findings(
+        &ModelDerives,
+        "ModelDerives",
+        "use uuid::Uuid as External; mod model {\n#[derive(Debug, Clone, PartialEq, Eq, Hash)] struct UserId(super::External);\n#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)] struct ValidId(uuid::Uuid);\n#[derive(Debug, Clone, PartialEq, Eq, Hash)] struct OtherId(vendor::Uuid);\n}",
+        &[2],
+    );
+}
+
+#[test]
+fn given_renamed_uuid_dependency_when_checked_then_package_identity_proves_copy() {
+    use crate::check::api::Rule;
+    let mut context = crate::test::declaration::util::read_code_context(
+        "mod model { #[derive(Debug, Clone, PartialEq, Eq, Hash)] struct UserId(identifier::Uuid); }",
+    );
+    context.indexes[0]
+        .dependencies
+        .push("identifier".to_owned());
+    context.workspace.members[0].name = context.indexes[0].crate_name.clone();
+    context.workspace.members[0]
+        .dependencies
+        .push(crate::workspace::model::Dependency {
+            name: "uuid".to_owned(),
+            code_name: "identifier".to_owned(),
+            path: None,
+            kind: crate::workspace::model::DependencyKind::Normal,
+            features: Vec::new(),
+            is_target_specific: false,
+            line: None,
+        });
+    let findings = ModelDerives.check(&context);
+    assert_eq!(findings.len(), 1);
+    assert!(findings[0].finding.message.contains("Copy"));
+}
+
+#[test]
+fn given_local_uuid_and_cfg_copy_types_when_checked_then_requires_copy_only_where_proven() {
+    assert_code_findings(
+        &ModelDerives,
+        "ModelDerives",
+        "mod uuid { pub struct Uuid; } #[cfg(unix)] #[derive(Copy)] struct Inner; #[cfg(not(unix))] struct Inner;\nmod model {\n#[derive(Debug, Clone, PartialEq, Eq, Hash)] struct LocalId(crate::uuid::Uuid);\n#[cfg(unix)] #[derive(Debug, Clone, PartialEq, Eq, Hash)] struct UnixId(crate::Inner);\n#[cfg(not(unix))] #[derive(Debug, Clone, PartialEq, Eq, Hash)] struct OtherId(crate::Inner);\n}",
+        &[4],
+    );
+}
+
+#[test]
+fn given_conditional_copy_impl_when_checked_then_uncovered_cfg_does_not_prove_copy() {
+    assert_code_findings(
+        &ModelDerives,
+        "ModelDerives",
+        "struct Value; #[cfg(unix)] impl Copy for Value {}\nmod model { #[derive(Debug, Clone, PartialEq, Eq, Hash)] struct UserId(crate::Value); }",
+        &[],
+    );
+}
+
+#[test]
 fn given_identifier_copy_support_when_checked_then_requires_copy_only_for_proven_inner_types() {
     assert_code_findings(
         &ModelDerives,

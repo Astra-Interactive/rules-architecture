@@ -4,6 +4,26 @@ use crate::test::declaration::util::assert_code_fixture;
 use crate::test::declaration::util::{assert_code_findings, read_code_context};
 
 #[test]
+fn given_awaited_handle_in_return_value_when_checked_then_does_not_report_detachment() {
+    for returned in ["handle.await", "Ok(handle.await?)"] {
+        assert_code_findings(
+            &DetachedTask,
+            "DetachedTask",
+            &format!(
+                "async fn run() -> Result<(), tokio::task::JoinError> {{\n let handle = tokio::spawn(async {{}});\n return {returned};\n}}"
+            ),
+            &[],
+        );
+    }
+    assert_code_findings(
+        &DetachedTask,
+        "DetachedTask",
+        "fn run() -> tokio::task::JoinHandle<()> { return tokio::spawn(async {}); }",
+        &[],
+    );
+}
+
+#[test]
 fn given_shadowed_handle_patterns_when_consumed_then_preserves_the_outer_task_identity() {
     for body in [
         "{ let handle = 1u32; consume(handle); }",

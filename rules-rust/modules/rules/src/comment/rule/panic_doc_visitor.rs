@@ -80,9 +80,94 @@ impl PanicDocVisitor<'_> {
                             .is_some_and(|name| ["Option", "Result"].contains(&name.as_str()))
                 })
     }
+
+    fn literal_index(expression: &syn::Expr) -> Option<u128> {
+        match expression {
+            syn::Expr::Lit(literal) => match &literal.lit {
+                syn::Lit::Int(integer) => integer.base10_parse().ok(),
+                _ => None,
+            },
+            syn::Expr::Paren(paren) => Self::literal_index(&paren.expr),
+            syn::Expr::Group(group) => Self::literal_index(&group.expr),
+            _ => None,
+        }
+    }
+
+    fn safe_array_index(array: &syn::TypeArray, index: &syn::Expr) -> bool {
+        matches!((Self::literal_index(&array.len), Self::literal_index(index)), (Some(length), Some(index)) if index < length)
+    }
+
+    fn safe_range(index: &syn::Expr, length: Option<u128>) -> bool {
+        let syn::Expr::Range(range) = index else {
+            return false;
+        };
+        let start = match range.start.as_deref() {
+            Some(start) => Self::literal_index(start),
+            None => Some(0),
+        };
+        let end = match range.end.as_deref() {
+            Some(end) => Self::literal_index(end).and_then(|end| match range.limits {
+                syn::RangeLimits::Closed(_) => end.checked_add(1),
+                syn::RangeLimits::HalfOpen(_) => Some(end),
+            }),
+            None if start == Some(0) => return true,
+            None => length,
+        };
+        matches!((start, end), (Some(start), Some(end)) if start <= end && end <= length.unwrap_or(0))
+    }
+
+    fn safe_index(typed: &syn::Type, index: &syn::Expr) -> bool {
+        if let syn::Expr::Paren(paren) = index {
+            return Self::safe_index(typed, &paren.expr);
+        }
+        if let syn::Expr::Group(group) = index {
+            return Self::safe_index(typed, &group.expr);
+        }
+        match typed {
+            syn::Type::Reference(reference) => Self::safe_index(&reference.elem, index),
+            syn::Type::Slice(_) => Self::safe_range(index, None),
+            syn::Type::Array(array) => {
+                Self::safe_array_index(array, index)
+                    || Self::safe_range(index, Self::literal_index(&array.len))
+            }
+            _ => true,
+        }
+    }
 }
 
 impl<'ast> Visit<'ast> for PanicDocVisitor<'_> {
+    fn visit_block(&mut self, block: &'ast syn::Block) {
+        let parameters = self.parameters.clone();
+        syn::visit::visit_block(self, block);
+        self.parameters = parameters;
+    }
+
+    fn visit_local(&mut self, local: &'ast syn::Local) {
+        if let Some(initializer) = &local.init {
+            self.visit_expr(&initializer.expr);
+        }
+        self.visit_pat(&local.pat);
+    }
+
+    fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {
+        self.parameters.remove(&pattern.ident.to_string());
+        syn::visit::visit_pat_ident(self, pattern);
+    }
+
+    fn visit_expr_index(&mut self, expression: &'ast syn::ExprIndex) {
+        if let syn::Expr::Path(path) = expression.expr.as_ref()
+            && let Some(name) = path.path.get_ident()
+            && let Some(typed) = self.parameters.get(&name.to_string())
+        {
+            self.found |= self
+                .context
+                .resolve_type_syntax(self.ordinal, self.module, typed)
+                .iter()
+                .any(|resolved| !Self::safe_index(&resolved.typed, &expression.index));
+        }
+        syn::visit::visit_expr_index(self, expression);
+    }
+
     fn visit_macro(&mut self, expression: &'ast syn::Macro) {
         let names = [
             "panic",

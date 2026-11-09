@@ -191,6 +191,7 @@ impl ContractPlacement {
             || extension
             || usecase
             || state_holder
+            || crate::module::util::is_di_type(context, ordinal, item)
             || ((entry || mixed_core) && context.has_registration_shape(ordinal, item))
     }
 }

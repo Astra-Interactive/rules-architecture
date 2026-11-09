@@ -242,6 +242,17 @@ fn given_path_adapter_chains_when_checked_then_only_maximal_three_step_runs_repo
 }
 
 #[test]
+fn given_two_step_string_adaptation_when_checked_then_only_equivalent_function_paths_report() {
+    assert_lines(
+        &TrivialClosurePath,
+        &read_code_context(
+            "fn parse_order(value: &str) -> usize { value.len() }\nfn run(text: &str, custom: Custom) {\nlet values = text.lines().map(|line| parse_order(line.trim()));\nlet paths = text.lines().map(str::trim).map(parse_order);\nlet captured = text.lines().map(|line| custom.parse(line.trim()));\nlet three = text.lines().map(|line| parse_order(line.trim().trim()));\nlet different = custom.lines().map(|line| parse_order(line.trim()));\nlet field = text.lines().map(|line| parse_order(line.value.trim()));\nlet repeated = text.lines().map(|line| parse_order(combine(line.trim(), line)));\n{ let text = custom; let named = text.lines().map(|line| parse_order(line.trim())); }\nlet final_values = text.lines().map(|line| parse_order(line.trim()));\n}\nstruct Custom; fn combine<'text>(first: &'text str, second: &'text str) -> &'text str { first }",
+        ),
+        &[3, 11],
+    );
+}
+
+#[test]
 fn given_doc_scope_rules_when_checked_then_impl_docs_labels_and_published_panic_contracts_are_precise()
  {
     let mut context = read_code_context(
@@ -254,12 +265,34 @@ fn given_doc_scope_rules_when_checked_then_impl_docs_labels_and_published_panic_
     .expect("published metadata");
     assert_lines(&DocCommentScope, &context, &[2, 5, 7]);
     context = read_code_context(
-        "/// Repeats the function.\nfn wrong() {}\n/// # Errors\n/// Returns [`Failure`] for missing input.\nfn valid() {}\n/// Platform issue: [details](https://example.invalid/issue).\nfn reason() {}",
+        "/// Wrong.\nfn wrong() {}\n/// # Errors\n/// Returns [`Failure`] for missing input.\nfn valid() {}\n/// Platform issue: [details](https://example.invalid/issue).\nfn reason() {}",
     );
     context.workspace.members[0].manifest =
         crate::workspace::util::parse_toml_file("Cargo.toml", "[package]\nname=\"case-sample\"\n")
             .expect("application metadata");
     assert_lines(&DocCommentScope, &context, &[1]);
+}
+
+#[test]
+fn given_trim_variants_and_unsafe_callees_when_checked_then_recommends_only_safe_function_paths() {
+    assert_lines(
+        &TrivialClosurePath,
+        &read_code_context(
+            "fn parse_line(line: &str) -> usize { line.len() }\nunsafe fn parse_unsafe(line: &str) -> usize { line.len() }\n#[target_feature(enable = \"sse2\")] unsafe fn parse_feature(line: &str) -> usize { line.len() }\nfn parse_generic<T: Default>(line: &str) -> T { T::default() }\nfn run(text: &str) {\nlet start = text.lines().map(|line| parse_line(line.trim_start()));\nlet end = text.lines().map(|line| parse_line(line.trim_end()));\nlet unsafe_call = unsafe { text.lines().map(|line| parse_unsafe(line.trim())).count() };\nlet feature_call = unsafe { text.lines().map(|line| parse_feature(line.trim())).count() };\nlet generic = text.lines().map(|line| parse_generic::<usize>(line.trim()));\n}",
+        ),
+        &[6, 7],
+    );
+}
+
+#[test]
+fn given_safe_target_feature_callees_when_checked_then_retains_closures_that_enable_the_call() {
+    assert_lines(
+        &TrivialClosurePath,
+        &read_code_context(
+            "#[target_feature(enable = \"sse2\")] fn parse_feature(line: &str) -> usize { line.len() }\n#[cfg_attr(target_arch = \"x86_64\", target_feature(enable = \"sse2\"))] fn parse_conditional(line: &str) -> usize { line.len() }\nfn run(text: &str) {\nlet feature_call = unsafe { text.lines().map(|line| parse_feature(line.trim())).count() };\nlet conditional_call = unsafe { text.lines().map(|line| parse_conditional(line.trim())).count() };\n}",
+        ),
+        &[],
+    );
 }
 
 #[test]

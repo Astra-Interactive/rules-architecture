@@ -6,8 +6,10 @@ use crate::runtime::rule::GuardWrites;
 use crate::runtime::rule::SelectBranches;
 use crate::runtime::util::expects_lint;
 use crate::runtime::util::node_predicate;
+use crate::source::model::ResolvedTypeSyntax;
 use crate::source::model::SourceFile;
 use crate::source::util::find_node_span;
+use std::rc::Rc;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
 
@@ -18,12 +20,13 @@ pub(crate) struct TypedRuntimeVisitor<'source> {
     file: &'source SourceFile,
     rule: &'static str,
     findings: Vec<RuleFinding>,
-    bindings: Vec<(String, syn::Type, usize)>,
+    bindings: Vec<(String, Rc<ResolvedTypeSyntax>)>,
     self_type: Option<syn::Type>,
     synchronous_boundary: bool,
     loops: usize,
     thread_expect: bool,
     async_context: bool,
+    runtime_main: bool,
 }
 
 impl TypedRuntimeVisitor<'_> {
@@ -62,6 +65,7 @@ impl TypedRuntimeVisitor<'_> {
                     loops: 0,
                     thread_expect: expects_lint(&file.syntax.attrs, "disallowed_methods"),
                     async_context: false,
+                    runtime_main: false,
                 };
                 visitor.visit_file(&file.syntax);
                 findings.extend(visitor.findings);
@@ -88,43 +92,206 @@ impl TypedRuntimeVisitor<'_> {
         ));
     }
 
-    fn receiver_types(&self, expression: &syn::Expr) -> Vec<(syn::Type, usize)> {
+    fn build_receiver_type(&self, typed: syn::Type, module: usize) -> Rc<ResolvedTypeSyntax> {
+        Rc::new(ResolvedTypeSyntax {
+            index: self.ordinal,
+            module,
+            typed,
+            cfg: crate::source::model::CfgPredicate::All(Vec::new()),
+            has_unsubstituted_parameters: false,
+        })
+    }
+
+    fn result_types(&self, expression: &syn::Expr) -> Vec<Rc<ResolvedTypeSyntax>> {
+        self.receiver_types(expression)
+            .into_iter()
+            .flat_map(|receiver| {
+                self.context.resolve_type_syntax_under(
+                    receiver.index,
+                    receiver.module,
+                    &receiver.typed,
+                    &receiver.cfg,
+                )
+            })
+            .filter_map(|resolved| {
+                let outer = self.context.resolve_outer_external_type_paths(
+                    resolved.index,
+                    resolved.module,
+                    &resolved.typed,
+                );
+                if !outer.iter().any(|path| {
+                    matches!(
+                        path.format_path().as_str(),
+                        "std::result::Result" | "core::result::Result"
+                    )
+                }) {
+                    return None;
+                }
+                let syn::Type::Path(path) = &resolved.typed else {
+                    return None;
+                };
+                let syn::PathArguments::AngleBracketed(arguments) =
+                    &path.path.segments.last()?.arguments
+                else {
+                    return None;
+                };
+                let syn::GenericArgument::Type(success) = arguments.args.first()? else {
+                    return None;
+                };
+                Some(Rc::new(ResolvedTypeSyntax {
+                    typed: success.clone(),
+                    ..resolved
+                }))
+            })
+            .collect()
+    }
+
+    fn runtime_method_type(&self, call: &syn::ExprMethodCall) -> Vec<Rc<ResolvedTypeSyntax>> {
+        if ["unwrap", "expect"].iter().any(|name| call.method == *name) {
+            let success = self.result_types(&call.receiver);
+            if !success.is_empty() {
+                return success;
+            }
+            return self.receiver_types(&call.receiver);
+        }
+        if call.method == "map_err" && !self.result_types(&call.receiver).is_empty() {
+            return self.receiver_types(&call.receiver);
+        }
+        if call.method == "clone" {
+            return self.receiver_types(&call.receiver);
+        }
+        if call.method == "build" && self.receiver_has(&call.receiver, &["tokio::runtime::Builder"])
+        {
+            return vec![self.build_receiver_type(
+                syn::parse_quote!(::std::result::Result<tokio::runtime::Runtime, _>),
+                self.module,
+            )];
+        }
+        if matches!(
+            call.method.to_string().as_str(),
+            "enable_all"
+                | "enable_io"
+                | "enable_time"
+                | "worker_threads"
+                | "max_blocking_threads"
+                | "thread_name"
+                | "thread_stack_size"
+        ) && self.receiver_has(&call.receiver, &["tokio::runtime::Builder"])
+        {
+            return self.receiver_types(&call.receiver);
+        }
+        if call.method == "handle"
+            && self.receiver_has(&call.receiver, &["tokio::runtime::Runtime"])
+        {
+            return vec![
+                self.build_receiver_type(syn::parse_quote!(tokio::runtime::Handle), self.module),
+            ];
+        }
+        Vec::new()
+    }
+
+    fn tail_expression(expression: &syn::Expr) -> &syn::Expr {
+        if let syn::Expr::Block(block) = expression
+            && let [syn::Stmt::Expr(tail, None)] = block.block.stmts.as_slice()
+        {
+            return Self::tail_expression(tail);
+        }
+        expression
+    }
+
+    fn diverges(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Return(_) | syn::Expr::Break(_) | syn::Expr::Continue(_) => true,
+            syn::Expr::Block(block) => block.block.stmts.iter().any(|statement| matches!(statement, syn::Stmt::Expr(expression, _) if self.diverges(expression))),
+            syn::Expr::Macro(expression) => self.context.resolve_external_call_paths(self.ordinal, self.module, &expression.mac.path).iter().any(|path| matches!(path.format_path().as_str(), "std::panic" | "core::panic" | "std::unreachable" | "core::unreachable")),
+            syn::Expr::Call(call) => matches!(&*call.func, syn::Expr::Path(path) if self.context.resolve_external_call_paths(self.ordinal, self.module, &path.path).iter().any(|path| matches!(path.format_path().as_str(), "std::process::exit" | "std::process::abort"))),
+            _ => false,
+        }
+    }
+
+    fn match_result_types(&self, expression: &syn::ExprMatch) -> Vec<Rc<ResolvedTypeSyntax>> {
+        let success = self.result_types(&expression.expr);
+        if success.is_empty() {
+            return Vec::new();
+        }
+        let mut returns_success = false;
+        for arm in &expression.arms {
+            if self.diverges(&arm.body) {
+                continue;
+            }
+            let syn::Pat::TupleStruct(pattern) = &arm.pat else {
+                return Vec::new();
+            };
+            if !crate::runtime::util::is_result_variant(
+                self.context,
+                self.ordinal,
+                self.module,
+                &pattern.path,
+                "Ok",
+            ) {
+                return Vec::new();
+            }
+            let Some(syn::Pat::Ident(binding)) = pattern.elems.first() else {
+                return Vec::new();
+            };
+            if !matches!(Self::tail_expression(&arm.body), syn::Expr::Path(path) if path.path.is_ident(&binding.ident))
+            {
+                return Vec::new();
+            }
+            returns_success = true;
+        }
+        if returns_success { success } else { Vec::new() }
+    }
+
+    fn self_field_receiver_types(&self, field: &syn::ExprField) -> Vec<Rc<ResolvedTypeSyntax>> {
+        let Some(typed) = &self.self_type else {
+            return Vec::new();
+        };
+        self.context.indexes[self.ordinal]
+            .resolve_type_items(self.module, typed)
+            .iter()
+            .flat_map(|identity| {
+                let declaration = &self.context.indexes[self.ordinal].items[*identity];
+                let syn::Item::Struct(item) = &declaration.syntax else {
+                    return Vec::new();
+                };
+                item.fields
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(position, entry)| {
+                        let matching = match &field.member {
+                            syn::Member::Named(name) => entry.ident.as_ref() == Some(name),
+                            syn::Member::Unnamed(index) => position == index.index as usize,
+                        };
+                        matching
+                            .then(|| self.build_receiver_type(entry.ty.clone(), declaration.module))
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect()
+    }
+
+    fn receiver_types(&self, expression: &syn::Expr) -> Vec<Rc<ResolvedTypeSyntax>> {
         match expression {
             syn::Expr::Reference(reference) => self.receiver_types(&reference.expr),
             syn::Expr::Paren(paren) => self.receiver_types(&paren.expr),
+            syn::Expr::Group(group) => self.receiver_types(&group.expr),
+            syn::Expr::Try(expression) => self.result_types(&expression.expr),
+            syn::Expr::Match(expression) => self.match_result_types(expression),
+            syn::Expr::Call(_) => self
+                .constructor_type(expression)
+                .map(|typed| vec![self.build_receiver_type(typed, self.module)])
+                .unwrap_or_default(),
+            syn::Expr::MethodCall(call) => self.runtime_method_type(call),
             syn::Expr::Path(path) => self
                 .bindings
                 .iter()
                 .rev()
-                .find(|(name, _, _)| path.path.is_ident(name))
-                .map(|(_, typed, module)| vec![(typed.clone(), *module)])
+                .find(|(name, _)| path.path.is_ident(name))
+                .map(|(_, typed)| vec![Rc::clone(typed)])
                 .unwrap_or_default(),
-            syn::Expr::Field(field) if matches!(&*field.base, syn::Expr::Path(path) if path.path.is_ident("self")) =>
-            {
-                let Some(typed) = &self.self_type else {
-                    return Vec::new();
-                };
-                self.context.indexes[self.ordinal]
-                    .resolve_type_items(self.module, typed)
-                    .iter()
-                    .flat_map(|identity| {
-                        let declaration = &self.context.indexes[self.ordinal].items[*identity];
-                        let syn::Item::Struct(item) = &declaration.syntax else {
-                            return Vec::new();
-                        };
-                        item.fields
-                            .iter()
-                            .enumerate()
-                            .filter_map(|(position, entry)| {
-                                let matching = match &field.member {
-                                    syn::Member::Named(name) => entry.ident.as_ref() == Some(name),
-                                    syn::Member::Unnamed(index) => position == index.index as usize,
-                                };
-                                matching.then(|| (entry.ty.clone(), declaration.module))
-                            })
-                            .collect::<Vec<_>>()
-                    })
-                    .collect()
+            syn::Expr::Field(field) if matches!(&*field.base, syn::Expr::Path(path) if path.path.is_ident("self")) => {
+                self.self_field_receiver_types(field)
             }
             _ => Vec::new(),
         }
@@ -137,11 +304,21 @@ impl TypedRuntimeVisitor<'_> {
             &self.file.path,
             find_node_span(expression.span()),
         );
-        self.receiver_types(expression)
-            .iter()
-            .any(|(typed, module)| {
-                self.receiver_identity(self.ordinal, *module, typed, &active, names, 0)
-            })
+        self.receiver_types(expression).iter().any(|receiver| {
+            let compatible = active
+                .in_scope(self.ordinal)
+                .and(&receiver.cfg.in_scope(receiver.index));
+            compatible.is_satisfiable()
+                && !receiver.has_unsubstituted_parameters
+                && self.receiver_identity(
+                    receiver.index,
+                    receiver.module,
+                    &receiver.typed,
+                    &compatible,
+                    names,
+                    0,
+                )
+        })
     }
 
     fn receiver_identity(
@@ -166,7 +343,7 @@ impl TypedRuntimeVisitor<'_> {
             return self.receiver_identity(ordinal, module, inner, active, names, depth + 1);
         }
         self.context.resolve_type_syntax(ordinal, module, typed).iter().any(|resolved| {
-            if !active.and(&resolved.cfg).is_satisfiable() { return false; }
+            if !active.and(&resolved.cfg.in_scope(resolved.index)).is_satisfiable() { return false; }
             let outer = self.context.resolve_outer_external_type_paths(resolved.index, resolved.module, &resolved.typed);
             if outer.iter().any(|path| names.contains(&path.format_path().as_str())) { return true; }
             if !outer.iter().any(|path| matches!(path.format_path().as_str(), "std::sync::Arc" | "alloc::sync::Arc" | "std::rc::Rc" | "alloc::rc::Rc" | "std::boxed::Box" | "alloc::boxed::Box" | "std::pin::Pin" | "core::pin::Pin")) { return false; }
@@ -183,24 +360,25 @@ impl TypedRuntimeVisitor<'_> {
             if let syn::FnArg::Typed(parameter) = argument
                 && let syn::Pat::Ident(name) = &*parameter.pat
             {
-                self.bindings
-                    .push((name.ident.to_string(), (*parameter.ty).clone(), self.module));
+                self.bindings.push((
+                    name.ident.to_string(),
+                    self.build_receiver_type((*parameter.ty).clone(), self.module),
+                ));
             }
         }
     }
 
     fn bind_pattern(&mut self, pattern: &syn::Pat) {
         match pattern {
-            syn::Pat::Ident(name) => {
-                self.bindings
-                    .push((name.ident.to_string(), syn::parse_quote!(_), self.module))
-            }
+            syn::Pat::Ident(name) => self.bindings.push((
+                name.ident.to_string(),
+                self.build_receiver_type(syn::parse_quote!(_), self.module),
+            )),
             syn::Pat::Type(pattern) => {
                 if let syn::Pat::Ident(name) = &*pattern.pat {
                     self.bindings.push((
                         name.ident.to_string(),
-                        (*pattern.ty).clone(),
-                        self.module,
+                        self.build_receiver_type((*pattern.ty).clone(), self.module),
                     ));
                 }
             }
@@ -209,42 +387,75 @@ impl TypedRuntimeVisitor<'_> {
                     self.bind_pattern(element);
                 }
             }
+            syn::Pat::TupleStruct(pattern) => {
+                for element in &pattern.elems {
+                    self.bind_pattern(element);
+                }
+            }
+            syn::Pat::Struct(pattern) => {
+                for field in &pattern.fields {
+                    self.bind_pattern(&field.pat);
+                }
+            }
+            syn::Pat::Reference(pattern) => self.bind_pattern(&pattern.pat),
+            syn::Pat::Paren(pattern) => self.bind_pattern(&pattern.pat),
             _ => {}
         }
     }
 
     fn constructor_type(&self, expression: &syn::Expr) -> Option<syn::Type> {
-        if let syn::Expr::Call(call) = expression
-            && let syn::Expr::Path(path) = &*call.func
-            && path.path.segments.last().is_some_and(|method| {
-                ["new", "default", "with_capacity"]
-                    .iter()
-                    .any(|name| method.ident == name)
-            })
-        {
-            let mut owner = path.path.clone();
-            if owner.segments.len() > 1 {
-                owner.segments.pop();
-                owner.segments.pop_punct();
-                let typed = syn::Type::Path(syn::TypePath {
-                    attrs: Vec::new(),
-                    qself: None,
-                    path: owner,
-                });
-                if !self
-                    .context
-                    .resolve_outer_workspace_type(self.ordinal, self.module, &typed)
-                    .is_empty()
-                    || !self
-                        .context
-                        .resolve_outer_external_type_paths(self.ordinal, self.module, &typed)
-                        .is_empty()
-                {
-                    return Some(typed);
-                }
-            }
+        let syn::Expr::Call(call) = expression else {
+            return None;
+        };
+        let syn::Expr::Path(path) = &*call.func else {
+            return None;
+        };
+        let method = path.path.segments.last()?;
+        let constructor = [
+            "new",
+            "default",
+            "with_capacity",
+            "new_current_thread",
+            "new_multi_thread",
+            "current",
+            "try_current",
+        ]
+        .iter()
+        .any(|name| method.ident == name);
+        if !constructor || path.path.segments.len() <= 1 {
+            return None;
         }
-        None
+        let mut owner = path.path.clone();
+        owner.segments.pop();
+        owner.segments.pop_punct();
+        let typed = syn::Type::Path(syn::TypePath {
+            attrs: Vec::new(),
+            qself: None,
+            path: owner,
+        });
+        let workspace =
+            self.context
+                .resolve_outer_workspace_type(self.ordinal, self.module, &typed);
+        let external =
+            self.context
+                .resolve_outer_external_type_paths(self.ordinal, self.module, &typed);
+        if workspace.is_empty() && external.is_empty() {
+            return None;
+        }
+        let fallible = self
+            .context
+            .resolve_external_call_paths(self.ordinal, self.module, &path.path)
+            .iter()
+            .any(|path| {
+                matches!(
+                    path.format_path().as_str(),
+                    "tokio::runtime::Runtime::new" | "tokio::runtime::Handle::try_current"
+                )
+            });
+        if fallible {
+            return Some(syn::parse_quote!(::std::result::Result<#typed, _>));
+        }
+        Some(typed)
     }
 
     fn channel_types(&self, path: &syn::Path) -> Option<(&'static str, &'static str)> {
@@ -281,8 +492,10 @@ impl TypedRuntimeVisitor<'_> {
             if let syn::Pat::Ident(name) = pattern
                 && let Ok(typed) = syn::parse_str::<syn::Type>(typed)
             {
-                self.bindings
-                    .push((name.ident.to_string(), typed, self.module));
+                self.bindings.push((
+                    name.ident.to_string(),
+                    self.build_receiver_type(typed, self.module),
+                ));
             }
         }
     }
@@ -297,10 +510,10 @@ impl TypedRuntimeVisitor<'_> {
             if types.is_empty()
                 && let Some(typed) = self.constructor_type(&init.expr)
             {
-                types.push((typed, self.module));
+                types.push(self.build_receiver_type(typed, self.module));
             }
-            if let Some((typed, module)) = types.into_iter().next() {
-                self.bindings.push((name.ident.to_string(), typed, module));
+            if let Some(typed) = types.into_iter().next() {
+                self.bindings.push((name.ident.to_string(), typed));
                 return;
             }
         }
@@ -436,9 +649,12 @@ impl TypedRuntimeVisitor<'_> {
         }
         self.receiver_types(&call.receiver)
             .iter()
-            .flat_map(|(typed, module)| {
-                self.context
-                    .resolve_external_type_paths(self.ordinal, *module, typed)
+            .flat_map(|receiver| {
+                self.context.resolve_external_type_paths(
+                    receiver.index,
+                    receiver.module,
+                    &receiver.typed,
+                )
             })
             .any(|path| {
                 path.package == "tokio"
@@ -460,12 +676,12 @@ impl TypedRuntimeVisitor<'_> {
             let collections = self
                 .receiver_types(&call.receiver)
                 .iter()
-                .flat_map(|(typed, module)| {
+                .flat_map(|receiver| {
                     crate::runtime::util::guard_collection_fields(
                         self.context,
-                        self.ordinal,
-                        *module,
-                        typed,
+                        receiver.index,
+                        receiver.module,
+                        &receiver.typed,
                         0,
                     )
                 })
@@ -660,7 +876,28 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
                 }
             }
         }
-        syn::visit::visit_expr_match(self, expression);
+        self.visit_expr(&expression.expr);
+        let success = self.result_types(&expression.expr);
+        for arm in &expression.arms {
+            let length = self.bindings.len();
+            self.bind_pattern(&arm.pat);
+            if let syn::Pat::TupleStruct(pattern) = &arm.pat
+                && crate::runtime::util::is_result_variant(
+                    self.context,
+                    self.ordinal,
+                    self.module,
+                    &pattern.path,
+                    "Ok",
+                )
+                && let Some(syn::Pat::Ident(binding)) = pattern.elems.first()
+                && let Some(typed) = success.first()
+            {
+                self.bindings
+                    .push((binding.ident.to_string(), Rc::clone(typed)));
+            }
+            syn::visit::visit_arm(self, arm);
+            self.bindings.truncate(length);
+        }
     }
     fn visit_expr_closure(&mut self, expression: &'ast syn::ExprClosure) {
         let asynchronous = self.async_context;
@@ -764,6 +1001,16 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
     }
 
     fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
+        let runtime_main = self.runtime_main;
+        self.runtime_main = item.sig.ident == "main"
+            && self.context.indexes[self.ordinal].modules[self.module]
+                .module
+                .path
+                .is_empty()
+            && self.context.project_config.crates.iter().any(|config| {
+                config.name == self.context.indexes[self.ordinal].crate_name
+                    && config.role == Some(crate::config::model::Role::EntryPoint)
+            });
         let asynchronous = self.async_context;
         self.async_context = item.sig.asyncness.is_some();
         let expectation = self.thread_expect;
@@ -777,6 +1024,7 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
         self.synchronous_boundary = boundary;
         self.thread_expect = expectation;
         self.async_context = asynchronous;
+        self.runtime_main = runtime_main;
     }
 
     fn visit_impl_item_fn(&mut self, item: &'ast syn::ImplItemFn) {
@@ -898,6 +1146,22 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
     fn visit_expr_method_call(&mut self, expression: &'ast syn::ExprMethodCall) {
         let expectation = self.thread_expect;
         self.thread_expect |= expects_lint(&expression.attrs, "disallowed_methods");
+        if expression.method == "block_on"
+            && self.receiver_has(
+                &expression.receiver,
+                &["tokio::runtime::Runtime", "tokio::runtime::Handle"],
+            )
+        {
+            let index = &self.context.indexes[self.ordinal];
+            let in_test = index.modules[self.module].tree != crate::source::model::SourceTree::Src;
+            let outside_boundary = !self.runtime_main
+                && !crate::declaration::util::is_technology(self.context, index, self.module);
+            if self.rule == "BlockOnInTest" && in_test
+                || self.rule == "BlockOnOutsideBoundary" && outside_boundary
+            {
+                self.report(expression.span());
+            }
+        }
         if self.rule == "BlockingCallInAsync"
             && self.async_context
             && self.receiver_has(

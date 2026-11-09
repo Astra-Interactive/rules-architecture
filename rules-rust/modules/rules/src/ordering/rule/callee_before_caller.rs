@@ -71,7 +71,22 @@ impl CalleeBeforeCaller {
         findings
     }
 
-    fn check_items(items: &[syn::Item]) -> Vec<proc_macro2::Span> {
+    fn declares_type(items: &[syn::Item]) -> bool {
+        items.iter().any(|item| match item {
+            syn::Item::Struct(_)
+            | syn::Item::Enum(_)
+            | syn::Item::Union(_)
+            | syn::Item::Trait(_)
+            | syn::Item::Type(_) => true,
+            syn::Item::Mod(module) => module
+                .content
+                .as_ref()
+                .is_some_and(|(_, children)| Self::declares_type(children)),
+            _ => false,
+        })
+    }
+
+    fn check_items(items: &[syn::Item], free_functions: bool) -> Vec<proc_macro2::Span> {
         let functions: Vec<FunctionBody<'_>> = items
             .iter()
             .filter_map(|item| match item {
@@ -82,7 +97,11 @@ impl CalleeBeforeCaller {
                 _ => None,
             })
             .collect();
-        let mut findings = Self::check_scope(&functions, None);
+        let mut findings = if free_functions {
+            Self::check_scope(&functions, None)
+        } else {
+            Vec::new()
+        };
         for item in items {
             match item {
                 syn::Item::Impl(value) => {
@@ -102,7 +121,7 @@ impl CalleeBeforeCaller {
                 }
                 syn::Item::Mod(module) => {
                     if let Some((_, children)) = &module.content {
-                        findings.extend(Self::check_items(children));
+                        findings.extend(Self::check_items(children, free_functions));
                     }
                 }
                 _ => {}
@@ -115,7 +134,7 @@ impl CalleeBeforeCaller {
 impl Rule for CalleeBeforeCaller {
     fn check(&self, context: &RuleContext) -> Vec<RuleFinding> {
         context.crates.iter().flat_map(|sources| &sources.files).filter(|file| !file.is_generated).flat_map(|file| {
-            Self::check_items(&file.syntax.items).into_iter().map(|span| build_node_finding("CalleeBeforeCaller", &file.path, find_node_span(span), format_module_path(&file.module.crate_name, &file.module.path), "Declare a callee above its caller in the same scope (code-ordering.rs.md)".to_owned())).collect::<Vec<_>>()
+            Self::check_items(&file.syntax.items, !Self::declares_type(&file.syntax.items)).into_iter().map(|span| build_node_finding("CalleeBeforeCaller", &file.path, find_node_span(span), format_module_path(&file.module.crate_name, &file.module.path), "Declare a callee above its caller in the same scope (code-ordering.rs.md)".to_owned())).collect::<Vec<_>>()
         }).collect()
     }
 }

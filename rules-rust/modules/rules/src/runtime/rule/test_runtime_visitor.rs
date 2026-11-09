@@ -88,57 +88,241 @@ impl TestRuntimeVisitor<'_> {
                 .any(|parameter| self.model_parameter(item.module, parameter))
     }
 
-    fn model_only(&self, block: &syn::Block) -> bool {
-        if block
-            .stmts
+    fn model_targets(
+        &self,
+        expression: &syn::Expr,
+        bindings: &[(String, Vec<crate::source::model::WorkspaceResolvedPath>)],
+    ) -> Vec<crate::source::model::WorkspaceResolvedPath> {
+        match expression {
+            syn::Expr::Reference(reference) => self.model_targets(&reference.expr, bindings),
+            syn::Expr::Paren(paren) => self.model_targets(&paren.expr, bindings),
+            syn::Expr::Path(path) => bindings
+                .iter()
+                .rev()
+                .find(|(name, _)| path.path.is_ident(name))
+                .map(|(_, targets)| targets.clone())
+                .unwrap_or_else(|| {
+                    self.context
+                        .resolve_workspace_path(self.ordinal, self.module, &path.path)
+                }),
+            syn::Expr::Struct(structure) => {
+                self.context
+                    .resolve_workspace_path(self.ordinal, self.module, &structure.path)
+            }
+            syn::Expr::Call(call) => {
+                let syn::Expr::Path(path) = &*call.func else {
+                    return Vec::new();
+                };
+                let mut owner = path.path.clone();
+                owner.segments.pop();
+                owner.segments.pop_punct();
+                self.context
+                    .resolve_workspace_path(self.ordinal, self.module, &owner)
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    fn pure_method(item: &syn::ImplItem, name: &syn::Ident) -> bool {
+        let syn::ImplItem::Fn(function) = item else {
+            return false;
+        };
+        if function.sig.ident != *name || function.sig.asyncness.is_some() {
+            return false;
+        }
+        if !crate::source::model::CfgPredicate::from_attributes(&function.attrs).is_satisfiable() {
+            return false;
+        }
+        let body = syn::Expr::Block(syn::ExprBlock {
+            attrs: Vec::new(),
+            label: None,
+            block: function.block.clone(),
+        });
+        let effects = crate::runtime::rule::ClosureEffects::collect(&body);
+        effects.calls.is_empty()
+            && effects.methods.is_empty()
+            && effects.macros.is_empty()
+            && !effects.assigns_capture
+    }
+
+    fn pure_model_method(
+        &self,
+        targets: &[crate::source::model::WorkspaceResolvedPath],
+        name: &syn::Ident,
+    ) -> bool {
+        targets.iter().any(|target| {
+            let Some(identity) = target.path.item else {
+                return false;
+            };
+            let index = &self.context.indexes[target.index];
+            let item = &index.items[identity];
+            if !index.modules[item.module]
+                .module
+                .path
+                .iter()
+                .any(|segment| segment == "model")
+            {
+                return false;
+            }
+            index
+                .implementations
+                .iter()
+                .filter(|implementation| {
+                    implementation.cfg.and(&target.path.cfg).is_satisfiable()
+                        && index
+                            .resolve_type_items(
+                                implementation.module,
+                                &implementation.syntax.self_ty,
+                            )
+                            .contains(&identity)
+                })
+                .any(|implementation| {
+                    implementation
+                        .syntax
+                        .items
+                        .iter()
+                        .any(|item| Self::pure_method(item, name))
+                })
+        })
+    }
+
+    fn model_call(
+        &self,
+        call: &syn::ExprCall,
+        bindings: &[(String, Vec<crate::source::model::WorkspaceResolvedPath>)],
+    ) -> bool {
+        let syn::Expr::Path(path) = &*call.func else {
+            return false;
+        };
+        if bindings
             .iter()
-            .any(crate::runtime::rule::AwaitVisitor::in_statement)
+            .rev()
+            .any(|(name, _)| path.path.is_ident(name))
         {
             return false;
         }
-        let expression = syn::Expr::Block(syn::ExprBlock {
-            attrs: Vec::new(),
-            label: None,
-            block: block.clone(),
+        let model_rule = self
+            .context
+            .resolve_workspace_path(self.ordinal, self.module, &path.path)
+            .iter()
+            .any(|target| {
+                target.index == self.ordinal
+                    && target.path.item.is_some_and(|identity| {
+                        self.model_rule(&self.context.indexes[target.index].items[identity])
+                    })
+            });
+        let expression = syn::Expr::Call(call.clone());
+        let constructor = path.path.segments.last().is_some_and(|name| {
+            self.pure_model_method(&self.model_targets(&expression, bindings), &name.ident)
         });
-        let effects = crate::runtime::rule::ClosureEffects::collect(&expression);
-        if effects.macros.iter().any(|item| {
-            if self.builtin_assertion(item) {
-                return false;
+        model_rule || constructor
+    }
+
+    fn model_expression(
+        &self,
+        expression: &syn::Expr,
+        bindings: &mut Vec<(String, Vec<crate::source::model::WorkspaceResolvedPath>)>,
+        exercised: &mut bool,
+    ) -> bool {
+        match expression {
+            syn::Expr::Path(_) | syn::Expr::Lit(_) => true,
+            syn::Expr::Reference(reference) => {
+                self.model_expression(&reference.expr, bindings, exercised)
             }
-            !self
-                .context
-                .resolve_external_call_paths(self.ordinal, self.module, &item.path)
+            syn::Expr::Paren(paren) => self.model_expression(&paren.expr, bindings, exercised),
+            syn::Expr::Field(field) => self.model_expression(&field.base, bindings, exercised),
+            syn::Expr::Unary(unary) => self.model_expression(&unary.expr, bindings, exercised),
+            syn::Expr::Binary(binary) => {
+                self.model_expression(&binary.left, bindings, exercised)
+                    && self.model_expression(&binary.right, bindings, exercised)
+            }
+            syn::Expr::Struct(structure) => structure
+                .fields
                 .iter()
-                .any(|path| {
-                    ["std", "core"].contains(&path.package.as_str())
-                        && path.segments.last().is_some_and(|name| {
-                            ["assert", "assert_eq", "assert_ne"].contains(&name.as_str())
-                        })
-                })
-        }) {
+                .all(|field| self.model_expression(&field.expr, bindings, exercised)),
+            syn::Expr::Block(block) => self.model_block(&block.block, bindings, exercised),
+            syn::Expr::MethodCall(call) => {
+                let targets = self.model_targets(&call.receiver, bindings);
+                if !self.pure_model_method(&targets, &call.method) {
+                    return false;
+                }
+                *exercised = true;
+                self.model_expression(&call.receiver, bindings, exercised)
+                    && call
+                        .args
+                        .iter()
+                        .all(|argument| self.model_expression(argument, bindings, exercised))
+            }
+            syn::Expr::Call(call) => {
+                if !self.model_call(call, bindings) {
+                    return false;
+                }
+                *exercised = true;
+                call.args
+                    .iter()
+                    .all(|argument| self.model_expression(argument, bindings, exercised))
+            }
+            syn::Expr::Macro(item) => self.model_assertion(&item.mac, bindings, exercised),
+            _ => false,
+        }
+    }
+
+    fn model_assertion(
+        &self,
+        item: &syn::Macro,
+        bindings: &mut Vec<(String, Vec<crate::source::model::WorkspaceResolvedPath>)>,
+        exercised: &mut bool,
+    ) -> bool {
+        if !self.builtin_assertion(item) {
             return false;
         }
-        if effects.calls.is_empty() || !effects.methods.is_empty() {
-            return false;
-        }
-        effects.calls.iter().all(|call| {
-            let syn::Expr::Path(path) = &*call.func else {
-                return false;
-            };
-            let crate::source::model::Resolution::Internal(paths) =
-                self.context.indexes[self.ordinal].resolve_path(self.module, &path.path)
-            else {
-                return false;
-            };
-            paths.iter().any(|path| {
-                let Some(identity) = path.item else {
+        crate::source::util::parse_macro_arguments(item)
+            .iter()
+            .all(|argument| self.model_expression(argument, bindings, exercised))
+    }
+
+    fn model_block(
+        &self,
+        block: &syn::Block,
+        bindings: &mut Vec<(String, Vec<crate::source::model::WorkspaceResolvedPath>)>,
+        exercised: &mut bool,
+    ) -> bool {
+        let length = bindings.len();
+        let pure = block.stmts.iter().all(|statement| match statement {
+            syn::Stmt::Local(local) => {
+                let Some(init) = &local.init else {
                     return false;
                 };
-                let index = &self.context.indexes[self.ordinal];
-                self.model_rule(&index.items[identity])
-            })
-        })
+                if !self.model_expression(&init.expr, bindings, exercised) {
+                    return false;
+                }
+                let (pattern, targets) = match &local.pat {
+                    syn::Pat::Type(typed) => (
+                        &*typed.pat,
+                        self.context
+                            .resolve_workspace_type(self.ordinal, self.module, &typed.ty),
+                    ),
+                    pattern => (pattern, self.model_targets(&init.expr, bindings)),
+                };
+                let syn::Pat::Ident(name) = pattern else {
+                    return false;
+                };
+                bindings.push((name.ident.to_string(), targets));
+                true
+            }
+            syn::Stmt::Expr(expression, _) => {
+                self.model_expression(expression, bindings, exercised)
+            }
+            syn::Stmt::Macro(item) => self.model_assertion(&item.mac, bindings, exercised),
+            syn::Stmt::Item(_) => false,
+        });
+        bindings.truncate(length);
+        pure
+    }
+
+    fn model_only(&self, block: &syn::Block) -> bool {
+        let mut exercised = false;
+        self.model_block(block, &mut Vec::new(), &mut exercised) && exercised
     }
     pub(crate) fn check_context(context: &RuleContext, rule: &'static str) -> Vec<RuleFinding> {
         let mut findings = Vec::new();
@@ -266,10 +450,7 @@ impl<'ast> Visit<'ast> for TestRuntimeVisitor<'_> {
             let builtin = attribute.path().is_ident("test");
             if self.rule == "ModelRuleTest" && tokio {
                 let module = &self.context.indexes[self.ordinal].modules[self.module];
-                if module.tree != SourceTree::Src
-                    && module.module.path.iter().any(|segment| segment == "util")
-                    && self.model_only(&item.block)
-                {
+                if module.tree != SourceTree::Src && self.model_only(&item.block) {
                     self.report(attribute.span());
                 }
             }
@@ -297,7 +478,12 @@ impl<'ast> Visit<'ast> for TestRuntimeVisitor<'_> {
                 .any(|path| {
                     matches!(
                         path.format_path().as_str(),
-                        "tokio::time::sleep" | "tokio::time::interval" | "tokio::time::timeout"
+                        "tokio::time::sleep"
+                            | "tokio::time::sleep_until"
+                            | "tokio::time::interval"
+                            | "tokio::time::interval_at"
+                            | "tokio::time::timeout"
+                            | "tokio::time::timeout_at"
                     )
                 })
         {

@@ -185,6 +185,28 @@ impl<'a> PathEdgeVisitor<'a> {
             && segments.next().is_none()
     }
 
+    fn quotation_is_spanned(&self, path: &syn::Path) -> Option<bool> {
+        let Resolution::External(path) = self.index.resolve_path(self.module, path) else {
+            return None;
+        };
+        let mut segments = path.split("::");
+        let root = segments.next()?;
+        let package = self
+            .index
+            .dependency_packages
+            .get(root)
+            .map_or(root, String::as_str);
+        let name = segments.next()?;
+        if segments.next().is_some() {
+            return None;
+        }
+        match (package, name) {
+            ("syn", "parse_quote") | ("quote", "quote") => Some(false),
+            ("syn", "parse_quote_spanned") | ("quote", "quote_spanned") => Some(true),
+            _ => None,
+        }
+    }
+
     pub(crate) fn record_resolution(&mut self, path: &syn::Path) {
         let Some(first) = path.segments.first() else {
             return;
@@ -238,6 +260,48 @@ impl<'a> PathEdgeVisitor<'a> {
                 }
             }
             _ => {}
+        }
+    }
+
+    fn visit_quote_interpolations(&mut self, tokens: proc_macro2::TokenStream) {
+        let mut tokens = tokens.into_iter();
+        while let Some(token) = tokens.next() {
+            match token {
+                proc_macro2::TokenTree::Group(group) => {
+                    self.visit_quote_interpolations(group.stream())
+                }
+                proc_macro2::TokenTree::Punct(punctuation) if punctuation.as_char() == '#' => {
+                    match tokens.next() {
+                        Some(proc_macro2::TokenTree::Ident(name)) => {
+                            let path: syn::Path = syn::parse_quote!(#name);
+                            self.record_resolution(&path);
+                        }
+                        Some(proc_macro2::TokenTree::Group(group)) => {
+                            self.visit_quote_interpolations(group.stream())
+                        }
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn visit_quotation(&mut self, expression: &syn::Macro, spanned: bool) {
+        self.record_resolution(&expression.path);
+        if !spanned {
+            self.visit_quote_interpolations(expression.tokens.clone());
+            return;
+        }
+        let parser = |input: syn::parse::ParseStream<'_>| {
+            let span: syn::Expr = input.parse()?;
+            input.parse::<syn::Token![=>]>()?;
+            let quoted: proc_macro2::TokenStream = input.parse()?;
+            Ok((span, quoted))
+        };
+        if let Ok((span, quoted)) = syn::parse::Parser::parse2(parser, expression.tokens.clone()) {
+            self.visit_expr(&span);
+            self.visit_quote_interpolations(quoted);
         }
     }
 }
@@ -402,6 +466,10 @@ impl<'ast> Visit<'ast> for PathEdgeVisitor<'_> {
     }
 
     fn visit_macro(&mut self, expression: &'ast syn::Macro) {
+        if let Some(spanned) = self.quotation_is_spanned(&expression.path) {
+            self.visit_quotation(expression, spanned);
+            return;
+        }
         if expression.path.is_ident("matches") {
             let mut tokens = expression.tokens.clone().into_iter();
             let mut input = proc_macro2::TokenStream::new();

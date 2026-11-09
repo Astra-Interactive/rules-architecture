@@ -416,7 +416,8 @@ impl Rule for DiModuleShape {
         for (ordinal, index) in context.indexes.iter().enumerate() {
             for (identity, item) in index.items.iter().enumerate() {
                 let di = is_di_type(context, ordinal, item);
-                let shape = di && !matches!(item.syntax, syn::Item::Struct(_));
+                let shape =
+                    di && !matches!(item.syntax, syn::Item::Struct(_) | syn::Item::Trait(_));
                 let kind = find_kind_name(context, ordinal, item.module);
                 let relevant =
                     di || kind == "usecase" || context.is_entry_kind(&index.crate_name, kind);
@@ -424,12 +425,24 @@ impl Rule for DiModuleShape {
                     && Self::item_generics(item).is_some_and(|generics| {
                         Self::generic_contract(context, ordinal, item, generics)
                     });
+                let constructs_outside_new =
+                    di && Self::constructs_outside_new(context, ordinal, identity);
                 let service = di
                     && (Self::service_fields(context, ordinal, item)
                         || Self::individual_service_parameters(context, ordinal, identity)
-                        || Self::constructs_outside_new(context, ordinal, identity));
+                        || constructs_outside_new);
+                let message = if constructs_outside_new {
+                    "DI modules construct services/dependencies only in new (di-manual.rs.md)"
+                } else {
+                    "a DI module is a struct or a trait on a package-layout contract trigger; DI, use cases and entry-point types receive trait objects instead of workspace-contract generic parameters"
+                };
                 if shape || bound || service {
-                    findings.push(build_shape_item_finding(index, item, "DiModuleShape", "a DI module is a struct; DI, use cases and entry-point types receive trait objects instead of workspace-contract generic parameters"));
+                    findings.push(build_shape_item_finding(
+                        index,
+                        item,
+                        "DiModuleShape",
+                        message,
+                    ));
                 }
             }
         }

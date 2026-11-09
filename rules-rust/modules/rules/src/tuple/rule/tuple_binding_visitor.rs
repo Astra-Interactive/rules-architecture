@@ -12,6 +12,7 @@ pub(crate) struct TupleBindingVisitor<'context> {
     spans: Vec<NodeSpan>,
     types: HashMap<String, Option<syn::Type>>,
     tuples: HashSet<String>,
+    iterators: HashMap<String, bool>,
 }
 
 impl<'context> TupleBindingVisitor<'context> {
@@ -23,6 +24,7 @@ impl<'context> TupleBindingVisitor<'context> {
             spans: Vec::new(),
             types: HashMap::new(),
             tuples: HashSet::new(),
+            iterators: HashMap::new(),
         }
     }
     pub(crate) fn collect_item(mut self, item: &syn::Item) -> Vec<NodeSpan> {
@@ -153,6 +155,7 @@ impl<'context> TupleBindingVisitor<'context> {
     fn parameters(&mut self, signature: &syn::Signature) {
         self.types.clear();
         self.tuples.clear();
+        self.iterators.clear();
         for input in &signature.inputs {
             if let syn::FnArg::Typed(parameter) = input
                 && let syn::Pat::Ident(binding) = parameter.pat.as_ref()
@@ -170,6 +173,125 @@ impl<'context> TupleBindingVisitor<'context> {
         }
     }
 
+    fn collection_override(&self, collection: &str, method: &str) -> bool {
+        self.context.indexes[self.ordinal].implementations.iter().any(|implementation| {
+            if implementation.syntax.trait_.is_none() || !implementation.syntax.items.iter().any(|item| matches!(item, syn::ImplItem::Fn(function) if function.sig.ident == method)) {
+                return false;
+            }
+            self.context.resolve_type_syntax(self.ordinal, implementation.module, &implementation.syntax.self_ty).iter().any(|resolved| {
+                let mut typed = &resolved.typed;
+                while let syn::Type::Reference(reference) = typed { typed = &reference.elem; }
+                let syn::Type::Path(path) = typed else { return false; };
+                let generic_receiver = path.path.get_ident().is_some_and(|name| implementation.syntax.generics.params.iter().any(|parameter| matches!(parameter, syn::GenericParam::Type(parameter) if parameter.ident == *name)));
+                generic_receiver || self.context.canonical_external_type_path(resolved.index, resolved.module, &path.path).is_some_and(|identity| {
+                    ["std", "alloc"].contains(&identity.package.as_str()) && match collection {
+                        "Vec" => identity.segments.iter().skip(1).map(String::as_str).eq(["vec", "Vec"]),
+                        "String" => identity.segments.iter().skip(1).map(String::as_str).eq(["string", "String"]),
+                        _ => false,
+                    }
+                })
+            })
+        })
+    }
+
+    fn standard_iterator_type(
+        &self,
+        ordinal: usize,
+        module: usize,
+        typed: &syn::Type,
+        method: &str,
+    ) -> bool {
+        match typed {
+            syn::Type::Reference(reference) => {
+                self.standard_iterator_type(ordinal, module, &reference.elem, method)
+            }
+            syn::Type::Slice(_) | syn::Type::Array(_) => {
+                ["iter", "iter_mut", "into_iter"].contains(&method)
+            }
+            syn::Type::Path(path)
+                if path.path.is_ident("str")
+                    && matches!(
+                        self.context.indexes[ordinal].resolve_path(module, &path.path),
+                        Resolution::Local
+                    ) =>
+            {
+                ["chars", "lines", "bytes"].contains(&method)
+            }
+            syn::Type::Path(path) => self
+                .context
+                .canonical_external_type_path(ordinal, module, &path.path)
+                .is_some_and(|identity| {
+                    ["std", "alloc"].contains(&identity.package.as_str())
+                        && match identity
+                            .segments
+                            .iter()
+                            .skip(1)
+                            .map(String::as_str)
+                            .collect::<Vec<_>>()
+                            .as_slice()
+                        {
+                            ["vec", "Vec"] => {
+                                ["iter", "iter_mut", "into_iter"].contains(&method)
+                                    && !self.collection_override("Vec", method)
+                            }
+                            ["string", "String"] => {
+                                ["chars", "lines", "bytes"].contains(&method)
+                                    && !self.collection_override("String", method)
+                            }
+                            _ => false,
+                        }
+                }),
+            _ => false,
+        }
+    }
+
+    fn standard_iterator_seed(&self, receiver: &syn::Expr, method: &str) -> bool {
+        match receiver {
+            syn::Expr::Paren(paren) => self.standard_iterator_seed(&paren.expr, method),
+            syn::Expr::Reference(reference) => self.standard_iterator_seed(&reference.expr, method),
+            syn::Expr::Lit(literal) if matches!(literal.lit, syn::Lit::Str(_)) => {
+                ["chars", "lines", "bytes"].contains(&method)
+            }
+            syn::Expr::Path(path) => path
+                .path
+                .get_ident()
+                .and_then(|name| self.types.get(&name.to_string()))
+                .and_then(Option::as_ref)
+                .is_some_and(|typed| {
+                    self.context
+                        .resolve_type_syntax(self.ordinal, self.module, typed)
+                        .iter()
+                        .any(|resolved| {
+                            self.standard_iterator_type(
+                                resolved.index,
+                                resolved.module,
+                                &resolved.typed,
+                                method,
+                            )
+                        })
+                }),
+            _ => false,
+        }
+    }
+
+    fn standard_iterator(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Paren(paren) => self.standard_iterator(&paren.expr),
+            syn::Expr::Path(path) => path
+                .path
+                .get_ident()
+                .is_some_and(|name| self.iterators.contains_key(&name.to_string())),
+            syn::Expr::MethodCall(call) if call.args.is_empty() => {
+                self.standard_iterator_seed(&call.receiver, &call.method.to_string())
+                    || (["enumerate", "rev", "copied", "cloned"]
+                        .iter()
+                        .any(|name| call.method == *name)
+                        && self.standard_iterator(&call.receiver))
+            }
+            _ => false,
+        }
+    }
+
     fn tuple_expression(&self, expression: &syn::Expr) -> bool {
         match expression {
             syn::Expr::Tuple(tuple) => tuple.elems.len() >= 2,
@@ -181,10 +303,33 @@ impl<'context> TupleBindingVisitor<'context> {
                 .get_ident()
                 .is_some_and(|name| self.tuples.contains(&name.to_string())),
             syn::Expr::MethodCall(call) => {
-                ["split_at", "split_at_mut"]
+                (["split_at", "split_at_mut"]
                     .iter()
                     .any(|name| call.method == *name)
-                    && self.standard_receiver(&call.receiver)
+                    && self.standard_receiver(&call.receiver))
+                    || (["partition", "unzip"]
+                        .iter()
+                        .any(|name| call.method == *name)
+                        && self.standard_iterator(&call.receiver))
+            }
+            _ => false,
+        }
+    }
+
+    fn tuple_iterator(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Paren(paren) => self.tuple_iterator(&paren.expr),
+            syn::Expr::Path(path) => path
+                .path
+                .get_ident()
+                .and_then(|name| self.iterators.get(&name.to_string()))
+                .copied()
+                .unwrap_or(false),
+            syn::Expr::MethodCall(call) if call.method == "enumerate" && call.args.is_empty() => {
+                self.standard_iterator(&call.receiver)
+            }
+            syn::Expr::MethodCall(call) if call.method == "rev" && call.args.is_empty() => {
+                self.tuple_iterator(&call.receiver)
             }
             _ => false,
         }
@@ -193,13 +338,20 @@ impl<'context> TupleBindingVisitor<'context> {
 
 impl<'ast> Visit<'ast> for TupleBindingVisitor<'_> {
     fn visit_expr_for_loop(&mut self, expression: &'ast syn::ExprForLoop) {
+        if matches!(expression.pat.as_ref(), syn::Pat::Ident(_))
+            && self.tuple_iterator(&expression.expr)
+        {
+            self.spans.push(find_node_span(expression.pat.span()));
+        }
         self.visit_expr(&expression.expr);
         let types = self.types.clone();
         let tuples = self.tuples.clone();
+        let iterators = self.iterators.clone();
         self.visit_pat(&expression.pat);
         self.visit_block(&expression.body);
         self.types = types;
         self.tuples = tuples;
+        self.iterators = iterators;
     }
 
     fn visit_expr_let(&mut self, expression: &'ast syn::ExprLet) {
@@ -210,10 +362,12 @@ impl<'ast> Visit<'ast> for TupleBindingVisitor<'_> {
     fn visit_expr_if(&mut self, expression: &'ast syn::ExprIf) {
         let types = self.types.clone();
         let tuples = self.tuples.clone();
+        let iterators = self.iterators.clone();
         self.visit_expr(&expression.cond);
         self.visit_block(&expression.then_branch);
         self.types = types;
         self.tuples = tuples;
+        self.iterators = iterators;
         if let Some((_, branch)) = &expression.else_branch {
             self.visit_expr(branch);
         }
@@ -222,15 +376,18 @@ impl<'ast> Visit<'ast> for TupleBindingVisitor<'_> {
     fn visit_expr_while(&mut self, expression: &'ast syn::ExprWhile) {
         let types = self.types.clone();
         let tuples = self.tuples.clone();
+        let iterators = self.iterators.clone();
         self.visit_expr(&expression.cond);
         self.visit_block(&expression.body);
         self.types = types;
         self.tuples = tuples;
+        self.iterators = iterators;
     }
 
     fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {
         self.types.insert(pattern.ident.to_string(), None);
         self.tuples.remove(&pattern.ident.to_string());
+        self.iterators.remove(&pattern.ident.to_string());
         syn::visit::visit_pat_ident(self, pattern);
     }
 
@@ -245,26 +402,32 @@ impl<'ast> Visit<'ast> for TupleBindingVisitor<'_> {
     fn visit_expr_closure(&mut self, closure: &'ast syn::ExprClosure) {
         let types = self.types.clone();
         let tuples = self.tuples.clone();
+        let iterators = self.iterators.clone();
         syn::visit::visit_expr_closure(self, closure);
         self.types = types;
         self.tuples = tuples;
+        self.iterators = iterators;
     }
 
     fn visit_arm(&mut self, arm: &'ast syn::Arm) {
         let types = self.types.clone();
         let tuples = self.tuples.clone();
+        let iterators = self.iterators.clone();
         syn::visit::visit_arm(self, arm);
         self.types = types;
         self.tuples = tuples;
+        self.iterators = iterators;
     }
 
     fn visit_item_fn(&mut self, function: &'ast syn::ItemFn) {
         let types = self.types.clone();
         let tuples = self.tuples.clone();
+        let iterators = self.iterators.clone();
         self.parameters(&function.sig);
         self.visit_block(&function.block);
         self.types = types;
         self.tuples = tuples;
+        self.iterators = iterators;
     }
 
     fn visit_impl_item_fn(&mut self, function: &'ast syn::ImplItemFn) {
@@ -275,12 +438,18 @@ impl<'ast> Visit<'ast> for TupleBindingVisitor<'_> {
     fn visit_block(&mut self, block: &'ast syn::Block) {
         let types = self.types.clone();
         let tuples = self.tuples.clone();
+        let iterators = self.iterators.clone();
         syn::visit::visit_block(self, block);
         self.types = types;
         self.tuples = tuples;
+        self.iterators = iterators;
     }
 
     fn visit_local(&mut self, local: &'ast syn::Local) {
+        let iterator = local.init.as_ref().and_then(|initializer| {
+            self.standard_iterator(&initializer.expr)
+                .then(|| self.tuple_iterator(&initializer.expr))
+        });
         let named = match &local.pat {
             syn::Pat::Ident(_) => true,
             syn::Pat::Type(typed) => matches!(typed.pat.as_ref(), syn::Pat::Ident(_)),
@@ -323,6 +492,9 @@ impl<'ast> Visit<'ast> for TupleBindingVisitor<'_> {
         let name = binding.ident.to_string();
         self.tuples.remove(&name);
         self.types.insert(name.clone(), annotation.or(inherited));
+        if let Some(tuple) = iterator {
+            self.iterators.insert(name.clone(), tuple);
+        }
         if tuple {
             self.tuples.insert(name);
         }

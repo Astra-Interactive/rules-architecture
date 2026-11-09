@@ -66,6 +66,39 @@ impl TupleTypeVisitor {
         }
     }
 
+    fn visit_destructured_type(&mut self, pattern: &syn::Pat, typed: &syn::Type) {
+        match (pattern, typed) {
+            (syn::Pat::Tuple(bindings), syn::Type::Tuple(tuple)) => {
+                let rest = bindings
+                    .elems
+                    .iter()
+                    .position(|binding| matches!(binding, syn::Pat::Rest(_)));
+                for (position, binding) in bindings.elems.iter().enumerate() {
+                    if matches!(binding, syn::Pat::Rest(_)) {
+                        continue;
+                    }
+                    let element = if rest.is_some_and(|rest| position > rest) {
+                        tuple
+                            .elems
+                            .len()
+                            .checked_sub(bindings.elems.len() - position)
+                    } else {
+                        Some(position)
+                    };
+                    if let Some(element) =
+                        element.and_then(|position| tuple.elems.iter().nth(position))
+                    {
+                        self.visit_destructured_type(binding, element);
+                    }
+                }
+            }
+            (syn::Pat::Reference(binding), syn::Type::Reference(reference)) => {
+                self.visit_destructured_type(&binding.pat, &reference.elem);
+            }
+            _ => self.visit_type(typed),
+        }
+    }
+
     pub(crate) fn collect_findings(mut self, syntax: &syn::File) -> Vec<RuleFinding> {
         self.visit_file(syntax);
         self.findings
@@ -75,6 +108,21 @@ impl TupleTypeVisitor {
 }
 
 impl<'ast> Visit<'ast> for TupleTypeVisitor {
+    fn visit_local(&mut self, local: &'ast syn::Local) {
+        if let syn::Pat::Type(pattern) = &local.pat {
+            self.visit_pat(&pattern.pat);
+            self.visit_destructured_type(&pattern.pat, &pattern.ty);
+            if let Some(initializer) = &local.init {
+                self.visit_expr(&initializer.expr);
+                if let Some((_, diverging)) = &initializer.diverge {
+                    self.visit_expr(diverging);
+                }
+            }
+            return;
+        }
+        syn::visit::visit_local(self, local);
+    }
+
     fn visit_macro(&mut self, item: &'ast syn::Macro) {
         for argument in &parse_macro_arguments(item) {
             self.visit_expr(argument);

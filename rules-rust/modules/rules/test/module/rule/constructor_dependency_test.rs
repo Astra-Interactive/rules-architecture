@@ -1,4 +1,38 @@
 #[test]
+fn given_traitless_behavior_when_constructed_by_consumer_then_inject_dependency() {
+    for operation in [
+        "std::net::TcpStream::connect(\"localhost:25\")",
+        "std::fs::write(\"message\", \"sent\")",
+    ] {
+        crate::test::module::util::assert_di_lines(
+            &crate::module::rule::ConstructorDependency,
+            &format!(
+                "struct SmtpMailSender; impl SmtpMailSender {{ fn new() -> Self {{ Self }} fn send(&self) {{ let _result = {operation}; }} }}\nstruct Reminder; impl Reminder {{ fn new() -> Self {{ let sender = SmtpMailSender::new(); Self }} }}"
+            ),
+            &[2],
+        );
+    }
+}
+
+#[test]
+fn given_traitless_data_codec_when_constructed_then_own_data_is_not_a_dependency() {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::ConstructorDependency,
+        "struct Packet(Vec<u8>); impl Packet { fn new() -> Self { Self(Vec::new()) } fn encode(&self) -> Vec<u8> { self.0.clone() } fn update(&mut self) { self.0.push(1); } } struct Session; impl Session { fn new() -> Self { let packet = Packet::new(); Self } }",
+        &[],
+    );
+}
+
+#[test]
+fn given_cfg_exclusive_io_behavior_when_constructed_then_inactive_behavior_is_not_a_dependency() {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::ConstructorDependency,
+        "struct Adapter; impl Adapter { fn new() -> Self { Self } #[cfg(unix)] fn send(&self) { let _result = std::fs::read(\"input\"); } } struct Consumer; #[cfg(not(unix))] impl Consumer { fn new() -> Self { let adapter = Adapter::new(); Self } }",
+        &[],
+    );
+}
+
+#[test]
 fn given_real_cargo_rename_and_reexport_when_dependency_constructed_then_identity_and_statement_anchor_match()
  {
     use crate::source::api::SourceReader;

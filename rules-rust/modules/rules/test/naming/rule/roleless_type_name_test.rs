@@ -3,6 +3,46 @@ use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
 
 #[test]
+fn given_factory_return_when_checked_then_requires_the_resolved_colocated_product() {
+    for output in ["u64", "Vec<Product>", "other::Product", "Product", "Alias"] {
+        assert_code_findings(
+            &RolelessTypeName,
+            "RolelessTypeName",
+            &format!(
+                "struct Product; type Alias = Product; mod other {{ pub struct Product; }}\ntrait ProductFactory: Send + Sync {{ fn invoke(&self) -> {output}; }}"
+            ),
+            if ["Product", "Alias"].contains(&output) {
+                &[]
+            } else {
+                &[2]
+            },
+        );
+    }
+}
+
+#[test]
+fn given_cfg_products_and_dynamic_contract_when_checked_then_returns_matching_product() {
+    assert_code_findings(
+        &RolelessTypeName,
+        "RolelessTypeName",
+        "#[cfg(unix)] struct Product; #[cfg(not(unix))] struct Product; trait ProductFactory: Send + Sync { fn invoke(&self) -> Product; }",
+        &[],
+    );
+    assert_code_findings(
+        &RolelessTypeName,
+        "RolelessTypeName",
+        "trait Product {} trait ProductFactory: Send + Sync { fn invoke(&self) -> std::sync::Arc<dyn Product>; }",
+        &[],
+    );
+    assert_code_findings(
+        &RolelessTypeName,
+        "RolelessTypeName",
+        "struct Product; trait ProductFactory: Send + Sync { fn invoke(&self); }",
+        &[1],
+    );
+}
+
+#[test]
 fn given_persistent_code_fixtures_when_checked_then_match_exact_anchors() {
     assert_code_fixture(&RolelessTypeName, "RolelessTypeName", "bad");
     assert_code_fixture(&RolelessTypeName, "RolelessTypeName", "good");

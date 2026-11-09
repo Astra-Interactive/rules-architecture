@@ -52,16 +52,8 @@ impl DocScopeVisitor<'_> {
                 .iter()
                 .any(|label| line.trim_start().starts_with(label))
         });
-        let link = text.contains("](")
-            || text.contains("[`")
-            || text.contains("https://")
-            || text.contains("http://");
-        let application = !self.published
-            && !doc_heading(&cleaned, "Errors")
-            && !doc_heading(&cleaned, "Safety")
-            && !link;
         let panic = panic && !doc_heading(&cleaned, "Panics");
-        if forbidden || labels || application || panic {
+        if forbidden || labels || panic {
             self.spans.push(span);
         }
     }
@@ -81,6 +73,60 @@ impl DocScopeVisitor<'_> {
                     .map(|item| item.module)
             })
             .unwrap_or(0)
+    }
+
+    fn repeats_trait_doc(
+        &self,
+        attributes: &[syn::Attribute],
+        span: NodeSpan,
+        signature: &syn::Signature,
+    ) -> bool {
+        let Some((_, text)) = joined_doc(attributes) else {
+            return false;
+        };
+        let Some(implementation) = self.context.indexes[self.ordinal]
+            .implementations
+            .iter()
+            .find(|implementation| {
+                implementation.file == self.file && implementation.span.contains(&span)
+            })
+        else {
+            return false;
+        };
+        let Some((path, _)) = &implementation.syntax.trait_ else {
+            return false;
+        };
+        let normalize = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+        self.context
+            .resolve_workspace_path(self.ordinal, implementation.module, path)
+            .iter()
+            .any(|target| {
+                if !self.cfg.and(&target.path.cfg).is_satisfiable() {
+                    return false;
+                }
+                let Some(identity) = target.path.item else {
+                    return false;
+                };
+                let syn::Item::Trait(contract) =
+                    &self.context.indexes[target.index].items[identity].syntax
+                else {
+                    return false;
+                };
+                contract.items.iter().any(|item| {
+                    let syn::TraitItem::Fn(function) = item else {
+                        return false;
+                    };
+                    function.sig.ident == signature.ident
+                        && self
+                            .cfg
+                            .and(&crate::source::model::CfgPredicate::from_attributes(
+                                &function.attrs,
+                            ))
+                            .is_satisfiable()
+                        && joined_doc(&function.attrs)
+                            .is_some_and(|(_, original)| normalize(&original) == normalize(&text))
+                })
+            })
     }
 
     fn public_function(
@@ -111,7 +157,25 @@ impl DocScopeVisitor<'_> {
                 block,
             );
         if joined_doc(attributes).is_some() {
-            self.inspect(attributes, self.trait_impl, panic);
+            let repeats_name = joined_doc(attributes).is_some_and(|(_, text)| {
+                let words = |text: &str| {
+                    text.split(|character: char| !character.is_alphanumeric())
+                        .filter(|word| !word.is_empty())
+                        .map(str::to_lowercase)
+                        .collect::<Vec<_>>()
+                };
+                words(&text) == words(&signature.ident.to_string())
+            });
+            let invalid_error_contract = self.trait_impl
+                && joined_doc(attributes).is_some_and(|(_, text)| doc_heading(&text, "Errors"))
+                && matches!(signature.output, syn::ReturnType::Default);
+            let repeats_trait =
+                self.trait_impl && self.repeats_trait_doc(attributes, fallback, signature);
+            self.inspect(
+                attributes,
+                repeats_name || invalid_error_contract || repeats_trait,
+                panic,
+            );
         } else if panic {
             self.spans.push(fallback);
         }
@@ -174,7 +238,17 @@ impl<'ast> Visit<'ast> for DocScopeVisitor<'_> {
         syn::visit::visit_impl_item_fn(self, function);
     }
     fn visit_trait_item_fn(&mut self, function: &'ast syn::TraitItemFn) {
-        self.inspect(&function.attrs, false, false);
+        if let Some(block) = &function.default {
+            self.public_function(
+                &function.attrs,
+                &syn::Visibility::Public(Default::default()),
+                block,
+                crate::source::util::find_node_span(syn::spanned::Spanned::span(function)),
+                &function.sig,
+            );
+        } else {
+            self.inspect(&function.attrs, false, false);
+        }
         syn::visit::visit_trait_item_fn(self, function);
     }
     fn visit_field(&mut self, item: &'ast syn::Field) {

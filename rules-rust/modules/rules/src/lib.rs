@@ -782,6 +782,7 @@ pub(crate) mod runtime {
         pub(crate) use detached_task::DetachedTask;
         pub(crate) use duration_overload_call::DurationOverloadCall;
         pub(crate) use error_logging::ErrorLogging;
+        pub(crate) use fallible_step_visitor::FallibleStepVisitor;
         pub(crate) use guard_writes::GuardWrites;
         pub(crate) use ignored_test::IgnoredTest;
         pub(crate) use impure_update_closure::ImpureUpdateClosure;
@@ -813,6 +814,7 @@ pub(crate) mod runtime {
         mod detached_task;
         mod duration_overload_call;
         mod error_logging;
+        mod fallible_step_visitor;
         mod guard_writes;
         mod ignored_test;
         mod impure_update_closure;

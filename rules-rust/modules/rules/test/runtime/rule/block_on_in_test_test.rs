@@ -23,8 +23,41 @@ fn given_forbidden_code_when_checked_then_reports_exact_node_lines() {
     assert_code_findings(
         &BlockOnInTest,
         "BlockOnInTest",
-        "#[cfg(test)]\nmod test {\n    use tokio::runtime::{Runtime as AsyncRuntime, Builder as AsyncBuilder};\n    fn run() {\n        let runtime = AsyncRuntime::new();\n        let runtime = AsyncBuilder::new_current_thread();\n        runtime.block_on(work());\n        futures::executor::block_on(work());\n    }\n}",
+        "#[cfg(test)]\nmod test {\n    use tokio::runtime::{Runtime as AsyncRuntime, Builder as AsyncBuilder};\n    fn run() {\n        let runtime = AsyncRuntime::new();\n        let runtime = AsyncBuilder::new_current_thread().build().unwrap();\n        runtime.block_on(work());\n        futures::executor::block_on(work());\n    }\n}",
         &[5, 6, 7, 8],
+    );
+}
+
+#[test]
+fn given_unrelated_or_shadowed_block_on_receiver_when_checked_then_allows_project_method() {
+    assert_code_findings(
+        &BlockOnInTest,
+        "BlockOnInTest",
+        "struct Queue; impl Queue { fn block_on(&self, _: u32) {} }\n#[cfg(test)] mod test { fn verify(runtime: tokio::runtime::Runtime) {\n let queue = crate::Queue; queue.block_on(1);\n { let runtime = queue; runtime.block_on(2); }\n runtime.block_on(async {});\n} }",
+        &[5],
+    );
+}
+
+#[test]
+fn given_handle_result_and_same_named_project_methods_when_checked_then_reports_only_tokio_blocking()
+ {
+    assert_code_findings(
+        &BlockOnInTest,
+        "BlockOnInTest",
+        "#[cfg(test)]\nmod test {\n    fn run() -> Result<(), ()> {\n        let handle = tokio::runtime::Handle::try_current().map_err(|_| ())?;\n        handle.block_on(async {});\n        Ok(())\n    }\n}",
+        &[5],
+    );
+    assert_code_findings(
+        &BlockOnInTest,
+        "BlockOnInTest",
+        "#[cfg(test)]\nmod test {\n    struct Value;\n    impl Value { fn block_on(&self, _: u32) {} }\n    fn run(value: Value) { value.block_on(1); }\n}",
+        &[],
+    );
+    assert_code_findings(
+        &BlockOnInTest,
+        "BlockOnInTest",
+        "#[cfg(test)]\nmod test {\n    struct Custom;\n    impl Custom { fn block_on(&self, _: u32) {} }\n    fn run() {\n        let runtime = match tokio::runtime::Runtime::new() {\n            Ok(runtime) => { let runtime = Custom; runtime },\n            Err(_) => Custom,\n        };\n        runtime.block_on(1);\n    }\n}",
+        &[6],
     );
 }
 

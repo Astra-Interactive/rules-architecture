@@ -1,7 +1,7 @@
 use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
 use crate::check::util::{build_node_finding, format_module_path};
-use crate::runtime::rule::TypedRuntimeVisitor;
+use crate::runtime::rule::{FallibleStepVisitor, TypedRuntimeVisitor};
 use crate::source::model::SourceFile;
 use crate::source::util::find_node_span;
 use syn::spanned::Spanned;
@@ -13,6 +13,7 @@ struct ConsumptionVisitor<'source> {
     file: &'source SourceFile,
     allowed: bool,
     spans: Vec<proc_macro2::Span>,
+    composed_steps: Vec<proc_macro2::Span>,
 }
 
 fn expects_discard(attribute: &syn::Attribute) -> bool {
@@ -40,7 +41,13 @@ impl<'ast> Visit<'ast> for ConsumptionVisitor<'_> {
         }
         self.allowed = false;
         if let Some(init) = &local.init {
+            if FallibleStepVisitor::count(&init.expr) > 1 {
+                self.composed_steps.push(local.span());
+            }
             self.visit_expr(&init.expr);
+            if let Some((_, diverge)) = &init.diverge {
+                self.visit_expr(diverge);
+            }
         }
         self.allowed = parent;
     }
@@ -64,12 +71,22 @@ impl Rule for ResultConsumption {
                     file,
                     allowed: false,
                     spans: Vec::new(),
+                    composed_steps: Vec::new(),
                 };
                 visitor.visit_file(&visitor.file.syntax);
                 for span in visitor.spans {
                     findings.push(build_node_finding("ResultConsumption", &file.path, find_node_span(span),
                         format_module_path(&file.module.crate_name, &file.module.path),
                         "Scope let_underscore_must_use expectations to the intentional discard statement (error-handling.rs.md)".to_owned()));
+                }
+                for span in visitor.composed_steps {
+                    findings.push(build_node_finding(
+                        "ResultConsumption",
+                        &file.path,
+                        find_node_span(span),
+                        format_module_path(&file.module.crate_name, &file.module.path),
+                        "Name each fallible step in its own let before composing the next step (error-handling.rs.md)".to_owned(),
+                    ));
                 }
             }
         }

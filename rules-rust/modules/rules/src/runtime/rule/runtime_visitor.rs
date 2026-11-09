@@ -123,6 +123,11 @@ impl RuntimeVisitor<'_> {
                 findings.extend(visitor.findings);
             }
         }
+        if matches!(rule, "BlockOnInTest" | "BlockOnOutsideBoundary") {
+            findings.extend(crate::runtime::rule::TypedRuntimeVisitor::check_context(
+                context, rule,
+            ));
+        }
         findings
     }
 }
@@ -178,13 +183,6 @@ impl<'ast> Visit<'ast> for RuntimeVisitor<'_> {
             self.report(attribute.span(), "Build the async runtime in entry-point main instead of tokio::main (di-manual.rs.md)");
         }
         syn::visit::visit_attribute(self, attribute);
-    }
-
-    fn visit_expr_method_call(&mut self, expression: &'ast syn::ExprMethodCall) {
-        if expression.method == "block_on" {
-            self.check_runtime_call(expression.span(), true);
-        }
-        syn::visit::visit_expr_method_call(self, expression);
     }
 
     fn visit_expr_call(&mut self, expression: &'ast syn::ExprCall) {

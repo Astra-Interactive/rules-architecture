@@ -3,6 +3,28 @@ use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
 
 #[test]
+fn given_deadline_timer_variants_when_test_is_not_paused_then_requires_paused_time() {
+    for timer in ["sleep_until", "interval_at", "timeout_at"] {
+        assert_code_findings(
+            &TestTimePaused,
+            "TestTimePaused",
+            &format!(
+                "use tokio::time::{timer} as wait;\n#[tokio::test]\nasync fn verify() {{ let deadline = tokio::time::Instant::now(); wait(deadline).await; }}"
+            ),
+            &[3],
+        );
+        assert_code_findings(
+            &TestTimePaused,
+            "TestTimePaused",
+            &format!(
+                "mod local {{ pub fn {timer}(_: u32) {{}} }}\n#[test]\nfn verify() {{ local::{timer}(1); }}"
+            ),
+            &[],
+        );
+    }
+}
+
+#[test]
 fn given_runtime_counterexamples_when_checked_then_matches_exact_node_anchors() {
     assert_code_findings(
         &TestTimePaused,
