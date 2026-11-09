@@ -263,7 +263,7 @@ The floor is 1.93.0; the library declares `rust-version = "1.93"`.
 | `XtaskAlias` | workspace | an `xtask` member without `[alias] xtask = "run --package xtask --"` in the workspace Cargo configuration |
 | `ShellAutomation` | workspace | a `*.sh`, `Makefile`, `makefile`, `justfile` or `Justfile` at the workspace root or directly in a member directory. Approximate: what counts as build automation is the reviewer's call |
 | `DependencyFloor` | workspace | `Cargo.lock` resolving a crate below the supported floor recorded by this library |
-| `TimeCrate` | workspace | members that together declare more than one of `chrono`, `time` and `jiff` as non-dev dependencies |
+| `TimeCrate` | workspace | members that together declare more than one of `chrono`, `time` and `jiff`, including development dependencies and renamed packages |
 | `PlatformSourceSetUnit` | crate | a member, other than an entry point, whose last path segment is a target word (documented resolution policy), as Kotlin reports a unit named after one of its eight targets (and not the root or an entry point) |
 | `UnitDependency` | edge (manifest) | normal/build member edges forbidden by the dependent role, fake-feature boundary, tooling or proc-macro boundary |
 | `ApiUnitDependency` | edge (manifest) | dependencies forbidden by the architecture's api role row |
@@ -285,13 +285,13 @@ The floor is 1.93.0; the library declares `rust-version = "1.93"`.
 | `PackageDependencyCycle` | node | each strongly connected component of more than one kind module among production edges, under compatible cfg predicates, with one `file:line` per pair |
 | `PlatformImport` | node | in `model`, `api` and `usecase` modules and in every module of a plugin `api`, `core-api`, `storage-contract` or `contract` crate, a path to a platform crate or a technology crate (a crate whose word names a technology module or `technology` crate of the workspace, or is in `technology-words`) |
 | `ContractPlacement` | node | a trait outside `api`, except a `<Type>Factory`, a `<Type>Ext` in `util`, a use-case trait in `usecase` (P3: app `api` crates only), a state holder's trait beside its `Default…` in an entry-point kind, and a registration trait in its mechanism's module; an `impl` of a crate trait inside `api`; a `stub` module holding anything but structs that implement crate traits. P3: an app use-case trait not in the owner's `api` `usecase`, or its `Default…` not in the `impl` `usecase`. Approx registration shape: every method synchronous, required, returning `()`, taking `&self` plus parameters whose types all come from external crates; such a trait may sit in an entry-point kind or in mixed `core` |
-| `UseCaseShape` | node | a `*UseCase` struct outside `usecase`; a struct in `usecase` not named two or more words then `UseCase`; a public method other than `new` and `invoke`; no `invoke`; an `async fn invoke` without `.await`; a field mentioning a `*UseCase` type, or `.invoke(` on one |
+| `UseCaseShape` | node | placement/naming/public-surface checks, use-case chaining, supported plain contract passthrough and contract field ownership; semantic business-rule necessity remains review |
 | `UseCaseAbstraction` | node | a trait named `*UseCase` outside the `usecase` kind of an app's `api` crate |
 | `UtilShape` | node | a struct, enum, union, type alias, const or static in `util`, and an inherent `impl T` outside T's file and outside `util`, except in `extension-kinds` |
-| `UtilFileName` | node, module | a file named `utils.rs`, `helpers.rs` or `extensions.rs`; generated files skipped |
+| `UtilFileName` | node, module | generic utils/helpers/extensions filenames and supported util receiver/predicate naming mismatches; generated files skipped |
 | `UtilFunctionAsExtension` | node | a free function in `util` with exactly one parameter of a crate model type, `&` and `&mut` removed |
 | `PluralPackageName` | module | a block name ending in `s` but not in `ss`, `us` or `is`, unless in `plural-concepts` or one of Kotlin's two built-in words, `news` and `settings` (README) |
-| `DiPlacement` | node, module | a `*Module` struct outside `di` |
+| `DiPlacement` | node, module | misplaced wiring structs, missing DI for proven dependency assembly/resource ownership, and DI in proven contracts/models-only crates |
 | `RootModulePlacement` | node | a `root-module` struct outside `src/di/root_module.rs` of an `entry-point` crate, and more than one in a crate |
 | `EntryPointShape` | node, module | in an `entry-point` root, blocks other than `di` and the fixture and test blocks; `pub fn main`; a non-`pub` host item in a cdylib |
 | `EntryPointVisibility` | node | a `pub` type in an entry-point kind |
@@ -306,26 +306,26 @@ The floor is 1.93.0; the library declares `rust-version = "1.93"`.
 | `InMemoryPlacement` | node | an `InMemory*` struct outside a `memory` module, and an implementation of trait `T` in `memory` not named `InMemory<T>` |
 | `ImplPlacement` | node | an `impl` of a crate type outside that type's file, except: an inherent impl in `util/<t>_ext.rs`; `From` or `TryFrom` between a model type and a type declared in the file holding the impl (the technology representation's file); `From` or `TryFrom` between a model type and an external crate's type, in a technology module of that crate; P3: a framework's trait for an error enum, in the `error` kind of an `entry-point` crate |
 | `UnsafePlacement` | node | an `unsafe` block, `unsafe fn`, `unsafe impl` or `unsafe trait` outside a technology module |
-| `ListenerName` | node | a struct in `event` that implements an external trait but is not named `*Listener`, or is named `*Event`; an implementation of an external trait named `*Listener` outside `event` |
+| `ListenerName` | node | a struct implementing an external `*Listener` trait that is not named `*Listener`, or implements that trait outside `event`; unrelated external traits such as `Drop` do not establish listener intent |
 | `EventPlacement` | node | a type named `*Event` outside `model` |
 | `IntraDocLink` | node | an inline code span in a doc comment holding exactly an identifier (or `Type::member`) that resolves in the item's scope and is not written as an intra-doc link |
 | `VisibilityTier` | node | public reachability and indexed type/item users; inferred widest visibility for fields/methods remains review |
-| `AssociatedFactoryFunction` | node | an associated function without `self` on a model type other than `new`, wherever its `impl` is; a free `create_*` function outside `util`, or one that does not return `Result` |
+| `AssociatedFactoryFunction` | node | an associated function without `self` on a model type other than `new`, wherever its `impl` is; a free `create_*` returning a proven model, directly or through supported Result/Option aliases, outside `util` or without `Result`; naming alone does not classify a helper as an aggregate factory |
 | `ModelContainsFunctions` | node | for a model type: more than one inherent `impl` in its file; in that `impl`, anything but associated consts and, when `new` calls `assert!`, `new` and accessors (one field read of `self`); any other method in the type's file |
-| `ModelShouldBeImmutable` | node | mutable self receivers on model methods; arbitrary receiver field-assignment inference remains review |
+| `ModelShouldBeImmutable` | node | mutable self receivers and field writes through supported typed model parameters, locals and reference aliases; arbitrary receiver inference remains review |
 | `ForbiddenImport` | node | a path to `chrono`, `time` or `jiff` outside technology modules, `technology` crates and `contract` crates |
 | `ForbiddenComment` | none | region markers, separator lines and section headers in comments and doc comments (fences and thematic breaks in doc comments aside); generated files skipped |
 | `ClosureParameterName` | node | a one-letter closure parameter, including destructured bindings |
-| `ExplicitItName` | node | an `it` binding, parameter, field or loop label |
-| `FunctionVerb` | node | a function starting with `get_`, `map`, `make`, `do`, `handle` or `process`; trait methods, tests and the four collection lookup names keep their names |
+| `ExplicitItName` | node | an `it` binding, parameter, field, loop label, owned item or import binding; trait-required names are preserved |
+| `FunctionVerb` | node | a function starting with `get_`, `map`, `make`, `do`, `handle` or `process`; receiverless collection lookup names also report; trait methods and tests keep their names, while inherent lookup semantics require review |
 | `ImplementationName` | node | Impl/Interface suffixes, interface I prefixes, and generic Database/Network/Local/Remote prefixes on proven implementations; correspondence with a full trait name remains review |
 | `RolelessTypeName` | node | as Kotlin does: a struct, enum, union or trait named `*Validator`; one named `*Factory` that is not the runtime-factory form; one named `*WarmUp` outside a `warmup` module and `*Migration` outside a `migration` module |
 | `KindNameInPackage` | node | utility suffixes, Model/Entity repetition in model kinds, and Service/API suffixes on contracts |
-| `BareIdentifier` | node | as Kotlin does: a field of a struct or of an enum variant named `id` or ending in `_id` (Kotlin's `id\|.*[a-z0-9]Id` in snake case) whose type, inside `Option` or not, is `String`, `&str`, `Box<str>`, `Arc<str>`, an integer primitive (Kotlin's `Int` and `Long`) or a path whose last segment is `Uuid`; and a struct named `*Id` that is not a tuple struct of one field (Kotlin's value class; `arch-domain.rs.md`, Typed identifier). Not, as Kotlin: a type deriving `Serialize` or `Deserialize` (Kotlin skips a `@Serializable` class); a type in a technology module or in a crate whose last path segment is `contract` (Kotlin skips technology and `contract` packages); an enum or trait named `*Id`. Approx (Id:4): a model struct with exactly one named field, which a single-property value object writes as a tuple struct |
+| `BareIdentifier` | node | bare standard strings, UUIDs or integer primitives (including supported aliases/wrappers) in ID fields, malformed typed-ID structs, and single-property named model value objects; serialization alone does not exempt domain models, while technology/wire contract boundaries do |
 | `TestFunctionName` | node | a test name outside `given_<state>_when_<action>_then_<outcome>` |
 | `CallbackDeclaration` | node | outside the test and fixture trees, as Kotlin does outside test sources: a function parameter or a struct field named `on_*` whose type, inside `Option` or not, is a closure type (`impl Fn…`, `dyn Fn…` behind any pointer, an `fn(…)` pointer: Kotlin's function type) or a type parameter bounded by `Fn`, `FnMut` or `FnOnce`; a trait the project declares named `*Listener` or `*Callback` |
 | `DeclarationOrder` | node | constants, type families, constructors or trait associated items out of their required order |
-| `CalleeBeforeCaller` | node | a caller above its callee in one file or impl; constructors and mutual recursion exempt |
+| `CalleeBeforeCaller` | node | same-module or own-type callers above callees, including self-qualified paths and proven local function aliases with lexical scope; constructors and mutual recursion are exempt; arbitrary dynamic call targets remain review |
 | `OneTypeFamilyPerFile` | node, module | a mismatched file name, multiple behavioural types, unrelated secondary types or free functions beside a type; `<Type>Factory` is exempt |
 | `ConstantOutsideImpl` | node | a type's constants outside or before the end of its inherent impl |
 | `NamespaceType` | node | a struct without fields, or an enum without variants, with an inherent impl holding a function and no trait impl |
@@ -345,38 +345,38 @@ The floor is 1.93.0; the library declares `rust-version = "1.93"`.
 | `BlockOnInTest` | node | `block_on`, `Runtime::new`, `Builder::new_*` and `futures::executor::block_on` in the test and fixture trees |
 | `IgnoredTest` | node | `#[ignore]` |
 | `ExpectScope` | node | a lint expectation outside the prescribed lint list or smallest item, including inner and module-level expectations |
-| `DetachedTask` | node | `tokio::spawn`, resolved through `use` aliases, as a bare statement, under `let _ =`, or inside `drop(…)` |
-| `WatchTimeout` | node | a `timeout` call whose future is `<x>.wait_for(<a closure returning true>)`, or an `async` block without `.await` |
-| `ImpureUpdateClosure` | node | a `fetch_update` closure that assigns a captured name |
+| `DetachedTask` | node | proven spawned handles discarded directly, explicitly dropped, or abandoned after supported local binding/branch analysis; arbitrary ownership and shutdown flows remain review |
+| `WatchTimeout` | node | supported immediately-ready timeout futures and tautological watch predicates; general readiness and predicate semantics remain review |
+| `ImpureUpdateClosure` | node | captured state assignments and supported captured collection mutations in atomic updates; known locking/I/O is checked where receiver identity is established |
 | `CallbackBridgeShape` | node | spawning inside an argument closure; classifying external closures as asynchronous callbacks remains review |
 | `BridgeCleanup` | node | `tokio::spawn` inside `fn drop` of an `impl Drop` |
 | `ThreadPrimitive` | node | an `#[expect(clippy::disallowed_methods)]` covering a thread start outside a technology module |
 | `DurationOverloadCall` | node | `Duration::from_*(<x>.as_millis() \| as_secs() \| as_micros() \| as_nanos() \| as_secs_f64() …)` round trips |
-| `ResultConsumption` | node | an `#[expect(clippy::let_underscore_must_use)]` on anything but a `let _ = …;` statement |
-| `DiModuleLifecycle` | node | a DI module method named `start`, `reload` or `stop`, and `.await`, `block_on` or `.join(` in an `on_disable` |
-| `RootModuleConstruction` | node | a constructor call in the root module's `new` whose type is not a `*Module` |
+| `ResultConsumption` | node | discarded-result expectations outside a let-underscore statement or without a proven permitted sender method/type pair; unknown receiver identity does not establish an exception |
+| `DiModuleLifecycle` | node | unsupported lifecycle names/async teardown, supported child forwarding/order checks, borrowed-child ownership and task-scope cancellation; arbitrary external lifecycle semantics remain review |
+| `RootModuleConstruction` | node | non-module construction/factories and supported service-starting work in root assembly or lifecycle methods |
 | `SystemClockOutsideDi` | node | a `SystemClock` constructed outside `di` and the test tree; a `SystemClock` declared outside a `system` module; a trait `Clock` that does not declare exactly `fn now(&self) -> SystemTime` |
-| `TimePrimitive` | node | Instant in project fields/returns and integer temporal constants; primitive value intent and external boundaries remain review |
-| `ModelDerives` | node | a model struct without `Debug`, `Clone` and `PartialEq`, and a `*Id` without `Debug, Clone, PartialEq, Eq, Hash` |
-| `ValueObjectShape` | node | for a model type whose `new` calls `assert!`: a non-private field; a statement in `new` other than `assert!` calls and the construction; a field without an accessor of the same name; a `parse_<type>` function outside `util` |
+| `TimePrimitive` | node | Instant in project fields/returns or supported local storage/send/log operations, and numeric/text constants with explicit time-unit suffixes; local elapsed-duration measurements pass, arbitrary temporal intent and external boundaries remain review |
+| `ModelDerives` | node | a model struct without `Debug`, `Clone` and `PartialEq`, a `*Id` without `Debug, Clone, PartialEq, Eq, Hash`, and missing `Copy` when its inner type is proven Copy |
+| `ValueObjectShape` | node | validated-model field privacy/accessors and constructor purity, plus supported parse-function location, signature and single-construction flow |
 | `ContractShape` | node | contract supertraits/generics, missing async_trait, non-BoxStream stream contracts, callback/task handles and external error types |
-| `ErrorFamilyShape` | node | an error enum without `Debug` and `thiserror::Error`; a variant without `#[error]`; a `#[source]` field not typed `Box<dyn Error + Send + Sync>` |
-| `ErrorLogging` | node | a `tracing` or `log` macro inside an `Err(<name>)` arm or `if let Err(<name>)` that uses `<name>` only in the format string |
+| `ErrorFamilyShape` | node | non-enum error families, missing Debug/thiserror::Error/error messages, non-boxed source fields and proven foreign from/source payloads |
+| `ErrorLogging` | node | supported caught errors logged without an error-chain field, logged repeatedly on the same supported path, or logged before propagation; arbitrary logger adapters and interprocedural exactly-once handling remain review |
 | `CatchUnwind` | node | `catch_unwind` whose closure calls a crate-local item |
 | `DocCommentScope` | node | application docs, inherited trait-method docs, missing published error/safety contracts and proven panic docs; unknown receiver panic behavior remains review |
 | `GlobalState` | node | a `static` typed `OnceLock`, `LazyLock`, `Mutex` or `RwLock`; `lazy_static!`; installing a logging subscriber (`set_global_default`, `.init()` on a subscriber builder) outside `fn main` |
-| `DiModuleShape` | node | a DI module that is not a struct or constructs services outside `new`; a generic parameter bounded by a crate trait on a DI module, use case or entry-point type; a deferred field typed other than `OnceLock` |
-| `ConstructorDependency` | node | outside `di`, the root module and the trees, a construction (`X::new(…)`, `X { … }` or unit `X`) of a workspace type that implements a workspace trait, inside `new`, `with_*`, `from_*`, `Default::default` or another type's methods |
-| `MainShape` | node | an entry-point `fn main` lacking a `Builder::new_*` runtime, one `block_on` whose block constructs the root module and calls `on_enable`, or `on_disable` after `block_on` |
+| `DiModuleShape` | node | non-struct DI, service construction outside new, generic contract parameters, unsupported sharing/deferred storage and contract injection despite an accessible compatible provider module; external semantics remain review |
+| `ConstructorDependency` | node | supported construction/factory calls of proven replaceable dependencies outside composition boundaries; data containers and host root assembly are preserved |
+| `MainShape` | node | entry main runtime/root enable/disable structure and supported awaited shutdown wait; arbitrary runtime control flow remains review |
 | `BlockingCallInAsync` | node | `std::thread::sleep`, `std::fs::*` or `std::sync::mpsc::*` inside an `async fn` or `async` block |
-| `BroadcastLag` | node | `while let Ok(…) = <x>.recv().await` |
+| `BroadcastLag` | node | terminating while-let or supported match loops on proven broadcast receivers; Closed termination and continuing Lagged handling pass |
 | `SelectCancelSafety` | node | a branch future of `tokio::select!` inside a loop that calls `read_exact`, `read_to_end`, `write_all` or `lock` |
 | `JoinSetBehindLock` | node | a type `Mutex<JoinSet<…>>` or `RwLock<JoinSet<…>>` |
 | `BlockingLockInSync` | node | `blocking_lock()` in `fn drop` or in `on_disable` |
-| `CriticalSectionWrite` | node | a guard scope (`let mut g = <x>.lock()` or `.write()`) with more than one write through `g`, or a statement after the write |
-| `LockChoice` | node | a `Mutex` or `RwLock` (any crate) of `bool` or an integer |
-| `TestTimePaused` | node | a test calling `tokio::time::sleep`, `interval` or `timeout` without `start_paused = true`; `start_paused` with `flavor = "multi_thread"`; `start_paused` in a crate without tokio's `test-util` in `[dev-dependencies]` |
-| `ModelRuleTest` | node | `#[tokio::test]` in a test file that mirrors a `util` file |
+| `CriticalSectionWrite` | node | multiple writes or trailing operations in supported guard scopes, including supported collection mutations and nested branches; arbitrary panic atomicity remains review |
+| `LockChoice` | node | proven integer/Boolean locks and supported RwLock patterns; general access-contention semantics remain review |
+| `TestTimePaused` | node | known virtual-time operations without a paused test, incompatible runtime flavor, and missing tokio test-util; arbitrary helper timing remains review |
+| `ModelRuleTest` | node | `#[tokio::test]` with no await that directly exercises a proven pure model rule; a `util` path alone does not classify an integration test |
 | `Unanalysable` | node, crate | a root file or file module that does not parse, a missing module file, `include!`, `cfg_attr(…, path = …)`, an item macro call in the root file |
 | `UnfulfilledExpectation` | none | an expectation with no finding in its permitted scope |
 | `UnknownRule` | none | an exception naming no catalogue rule |
