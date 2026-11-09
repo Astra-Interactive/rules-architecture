@@ -4,12 +4,14 @@ use crate::source::model::NodeSpan;
 use crate::source::model::SourceReference;
 use crate::source::model::SourceTree;
 use crate::source::model::UnanalysableSource;
+use std::collections::BTreeMap;
 
 #[derive(Clone)]
 pub(crate) struct CrateIndex {
     pub(crate) crate_name: String,
     pub(crate) target: String,
     pub(crate) dependencies: Vec<String>,
+    pub(crate) dependency_packages: BTreeMap<String, String>,
     pub(crate) modules: Vec<IndexedModule>,
     pub(crate) items: Vec<IndexedItem>,
     pub(crate) implementations: Vec<IndexedImpl>,

@@ -55,7 +55,24 @@ impl<'a> CrateIndexBuilder<'a> {
                                 .map(|target| target.name.replace('-', "_"))
                         }),
                 );
-                Self::new(sources, dependencies).build()
+                let mut builder = Self::new(sources, dependencies);
+                if let Some(member) = workspace
+                    .members
+                    .iter()
+                    .find(|member| member.name == sources.crate_name)
+                {
+                    builder.index.dependency_packages = member
+                        .dependencies
+                        .iter()
+                        .map(|dependency| {
+                            (
+                                dependency.code_name.clone(),
+                                dependency.name.replace('-', "_"),
+                            )
+                        })
+                        .collect();
+                }
+                builder.build()
             })
             .collect()
     }
@@ -67,6 +84,7 @@ impl<'a> CrateIndexBuilder<'a> {
                 crate_name: sources.crate_name.clone(),
                 target: sources.target.clone(),
                 dependencies,
+                dependency_packages: std::collections::BTreeMap::new(),
                 modules: Vec::new(),
                 items: Vec::new(),
                 implementations: Vec::new(),

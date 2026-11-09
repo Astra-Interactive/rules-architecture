@@ -164,6 +164,27 @@ impl<'a> PathEdgeVisitor<'a> {
         }
     }
 
+    fn is_logging_macro(&self, path: &syn::Path) -> bool {
+        let Resolution::External(path) = self.index.resolve_path(self.module, path) else {
+            return false;
+        };
+        let mut segments = path.split("::");
+        let Some(root) = segments.next() else {
+            return false;
+        };
+        let package = self
+            .index
+            .dependency_packages
+            .get(root)
+            .map_or(root, String::as_str);
+        matches!(package, "tracing" | "log")
+            && matches!(
+                segments.next(),
+                Some("trace" | "debug" | "info" | "warn" | "error" | "event" | "span")
+            )
+            && segments.next().is_none()
+    }
+
     pub(crate) fn record_resolution(&mut self, path: &syn::Path) {
         let Some(first) = path.segments.first() else {
             return;
@@ -404,8 +425,13 @@ impl<'ast> Visit<'ast> for PathEdgeVisitor<'_> {
             }
             return;
         }
+        let logging = self.is_logging_macro(&expression.path);
         for argument in &parse_macro_arguments(expression) {
-            self.visit_expr(argument);
+            if logging && let syn::Expr::Assign(field) = argument {
+                self.visit_expr(&field.right);
+            } else {
+                self.visit_expr(argument);
+            }
         }
     }
 

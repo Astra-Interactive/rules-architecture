@@ -3,8 +3,70 @@ use crate::source::model::Resolution;
 use crate::source::model::SourceTree;
 use crate::source::syn::CrateIndexBuilder;
 use crate::source::syn::ModuleTreeWalker;
+use crate::test::declaration::util::read_code_context;
+use crate::workspace::api::WorkspaceReader;
+use crate::workspace::cargo::CargoWorkspaceReader;
+use crate::workspace::util::resolve_cargo_path;
 use std::collections::BTreeMap;
 use std::fs;
+
+#[test]
+fn given_cargo_renamed_loggers_when_indexed_then_package_identity_controls_field_grammar() {
+    for package in ["tracing", "log", "custom"] {
+        let directory = tempfile::tempdir().expect("temporary workspace");
+        fs::create_dir_all(directory.path().join("provider/src")).expect("provider directory");
+        fs::write(directory.path().join("provider/src/lib.rs"), "").expect("provider source");
+        fs::write(
+            directory.path().join("provider/Cargo.toml"),
+            format!("[package]\nname = '{package}'\nversion = '0.1.0'\n"),
+        )
+        .expect("provider manifest");
+        fs::write(
+            directory.path().join("Cargo.toml"),
+            format!("[package]\nname = 'sample'\nversion = '0.1.0'\n[workspace]\n[dependencies]\ntelemetry = {{ package = '{package}', path = 'provider' }}\n"),
+        )
+        .expect("consumer manifest");
+        fs::create_dir(directory.path().join("src")).expect("consumer directory");
+        fs::write(
+            directory.path().join("src/lib.rs"),
+            "use telemetry::info as record; fn run(value: u64) { telemetry::info!(direct = value); record!(aliased = value); record!(broken = missing); }",
+        )
+        .expect("consumer source");
+        let workspace = CargoWorkspaceReader::new(resolve_cargo_path())
+            .read_workspace(directory.path())
+            .expect("valid renamed dependency workspace");
+        let sources = ModuleTreeWalker::new(
+            directory.path().to_owned(),
+            "sample".to_owned(),
+            "sample".to_owned(),
+        )
+        .walk_crate("src/lib.rs", SourceTree::Src);
+        let indexes = CrateIndexBuilder::build_all(&[sources], &workspace);
+        let subjects = indexes[0]
+            .unanalysable
+            .iter()
+            .map(|site| site.subject.as_str())
+            .collect::<Vec<_>>();
+        if package == "custom" {
+            assert_eq!(subjects, ["direct", "aliased", "broken", "missing"]);
+        } else {
+            assert_eq!(subjects, ["missing"]);
+        }
+    }
+}
+
+#[test]
+fn given_logger_field_labels_when_indexed_then_only_field_values_are_variable_references() {
+    let context = read_code_context(
+        "use tracing::info as record; fn run(value: u64) { record!(field = value); tracing::info!(other = missing); custom!(unknown = value); }",
+    );
+    let subjects = context.indexes[0]
+        .unanalysable
+        .iter()
+        .map(|site| site.subject.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(subjects, ["missing", "unknown"]);
+}
 
 #[test]
 fn given_absolute_external_paths_and_local_shadowing_when_resolved_then_external_roots_keep_their_namespace()
