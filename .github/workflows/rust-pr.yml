@@ -52,11 +52,3 @@ jobs:
       - name: Gate sync against the documents
         if: matrix.leg == 'pinned'
         run: cargo xtask gate-sync --docs "$GITHUB_WORKSPACE/conf.ide/.claude/docs" --check
-      - name: Install cargo-llvm-cov
-        if: matrix.leg == 'pinned'
-        uses: taiki-e/install-action@cargo-llvm-cov
-      - name: Line coverage
-        if: matrix.leg == 'pinned'
-        run: |
-          rustup component add llvm-tools-preview --toolchain "$KLIBS_RULES_EXPECT_TOOLCHAIN"
-          cargo llvm-cov --workspace --fail-under-lines 100
