@@ -1,6 +1,5 @@
 RootPackagePath	Cargo.toml:0	.	set `[workspace.metadata.klibs-rules] prefix`: member names give no unique prefix
-TimeCrate	Cargo.toml:0	.	choose one non-development time crate for the workspace; found chrono, jiff, time
-DiPlacement	instances/di-manual-rs/src/main.rs:8	shop_server::di	a contracts-and-models-only crate has no dependency wiring module
+TimeCrate	Cargo.toml:0	.	choose one time crate for the workspace, including development dependencies; found chrono, jiff, time
 RootFileShape	modules/acme-sdk/src/lib.rs:1	acme_sdk	the root file holds only the module tree and the items the platform calls
 RootFileShape	modules/acme-sdk/src/lib.rs:2	acme_sdk	the root file holds only the module tree and the items the platform calls
 RootFileShape	modules/acme-sdk/src/lib.rs:3	acme_sdk	the root file holds only the module tree and the items the platform calls

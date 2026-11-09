@@ -61,3 +61,109 @@ fn given_persistent_di_policy_pairs_when_checked_then_exact_nodes_and_subjects_m
         );
     }
 }
+#[test]
+fn given_lifecycle_paths_when_checked_then_every_owned_child_and_abort_must_run() {
+    for body in [
+        "",
+        "if false { self.scope.abort(); }",
+        "if flag { return; } self.scope.abort();",
+        "if flag { self.scope.abort(); } else { self.scope.abort(); }",
+    ] {
+        crate::test::module::util::assert_di_lines(
+            &crate::module::rule::DiModuleLifecycle,
+            &format!(
+                "struct TaskScope; trait Lifecycle {{ fn on_disable(&self); }} mod di {{ struct ParentModule {{ scope: super::TaskScope }} impl super::Lifecycle for ParentModule {{ fn on_disable(&self) {{ let flag = true; {body} }} }} }}"
+            ),
+            if body.contains("else") { &[] } else { &[1] },
+        );
+    }
+    for method in ["on_enable", "on_disable", "on_reload"] {
+        crate::test::module::util::assert_di_lines(
+            &crate::module::rule::DiModuleLifecycle,
+            &format!(
+                "mod di {{ struct ParentModule; impl ParentModule {{ async fn {method}(&self) {{}} }} }}"
+            ),
+            &[1],
+        );
+        crate::test::module::util::assert_di_lines(
+            &crate::module::rule::DiModuleLifecycle,
+            &format!(
+                "mod di {{ struct ChildModule; struct ParentModule {{ one: ChildModule, two: ChildModule }} impl ParentModule {{ fn {method}(&self) {{ self.one.{method}(); }} }} }}"
+            ),
+            &[1],
+        );
+    }
+}
+
+#[test]
+fn given_dependency_order_when_forwarding_lifecycle_then_independent_field_order_does_not_matter() {
+    for method in ["on_enable", "on_disable", "on_reload"] {
+        for correct in [false, true] {
+            let order = if correct == (method == "on_disable") {
+                ["dependent", "provider"]
+            } else {
+                ["provider", "dependent"]
+            };
+            crate::test::module::util::assert_di_lines(
+                &crate::module::rule::DiModuleLifecycle,
+                &format!(
+                    "mod di {{ trait Lifecycle {{ fn {method}(&self); }} struct ProviderModule; struct DependentModule; impl DependentModule {{ fn new(provider: &ProviderModule) -> Self {{ Self }} }} struct ParentModule {{ dependent: DependentModule, provider: ProviderModule }} impl Lifecycle for ParentModule {{ fn {method}(&self) {{ self.{}.{method}(); self.{}.{method}(); }} }} }}",
+                    order[0], order[1]
+                ),
+                if correct { &[] } else { &[1] },
+            );
+        }
+    }
+}
+#[test]
+fn given_many_independent_conditionals_when_forwarding_then_equivalent_execution_states_are_merged()
+{
+    let branches = "if flag {}".repeat(30);
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::DiModuleLifecycle,
+        &format!(
+            "trait Lifecycle {{ fn on_disable(&self); }} struct TaskScope; mod di {{ struct ParentModule {{ scope: super::TaskScope }} impl super::Lifecycle for ParentModule {{ fn on_disable(&self) {{ let flag = true; {branches} self.scope.abort(); }} }} }}"
+        ),
+        &[],
+    );
+}
+#[test]
+fn given_inherited_lifecycle_defaults_when_checked_then_only_child_work_requires_explicit_forwarding()
+ {
+    for child in ["", "fn on_reload(&self) {}"] {
+        crate::test::module::util::assert_di_lines(
+            &crate::module::rule::DiModuleLifecycle,
+            &format!(
+                "trait Lifecycle {{ fn on_reload(&self) {{}} }} mod di {{ struct ChildModule; impl super::Lifecycle for ChildModule {{ {child} }} struct ParentModule {{ child: ChildModule }} impl super::Lifecycle for ParentModule {{}} }}"
+            ),
+            if child.is_empty() { &[] } else { &[1] },
+        );
+    }
+}
+#[test]
+fn given_many_distinct_branch_histories_when_forwarding_then_pairwise_flow_states_remain_bounded() {
+    let branches = "if flag { self.one.on_enable(); } else { self.two.on_enable(); }".repeat(30);
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::DiModuleLifecycle,
+        &format!(
+            "trait Lifecycle {{ fn on_enable(&self); }} mod di {{ struct ChildModule; struct ParentModule {{ one: ChildModule, two: ChildModule }} impl super::Lifecycle for ParentModule {{ fn on_enable(&self) {{ let flag = true; {branches} self.one.on_enable(); self.two.on_enable(); }} }} }}"
+        ),
+        &[],
+    );
+}
+#[test]
+fn given_nested_branch_projections_when_forwarding_then_repeated_subtree_states_are_memoized() {
+    let mut body = "self.one.on_enable(); self.two.on_enable();".to_owned();
+    for _ in 0..25 {
+        body = format!(
+            "if flag {{ self.one.on_enable(); }} else {{ self.two.on_enable(); }} {{ {body} }}"
+        );
+    }
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::DiModuleLifecycle,
+        &format!(
+            "trait Lifecycle {{ fn on_enable(&self); }} mod di {{ struct ChildModule; struct ParentModule {{ one: ChildModule, two: ChildModule }} impl super::Lifecycle for ParentModule {{ fn on_enable(&self) {{ let flag = true; {body} }} }} }}"
+        ),
+        &[],
+    );
+}

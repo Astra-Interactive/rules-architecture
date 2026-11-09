@@ -72,7 +72,19 @@ impl Rule for CallbackDeclaration {
             if is_test_tree {
                 continue;
             }
-            let spans = CallbackVisitor::new().collect_spans(file);
+            let Some((ordinal, index)) = context.indexes.iter().enumerate().find(|(_, index)| {
+                index.crate_name == file.module.crate_name && index.target == file.module.target
+            }) else {
+                continue;
+            };
+            let Some(module) = index
+                .modules
+                .iter()
+                .find(|module| module.module == file.module)
+            else {
+                continue;
+            };
+            let spans = CallbackVisitor::new(context, ordinal, module.id).collect_spans(file);
             findings.extend(spans.into_iter().map(|span| build_node_finding("CallbackDeclaration", &file.path, find_node_span(span), file.path.clone(), "Return async results or streams instead of declaring callbacks (no-callbacks.rs.md)".to_owned())));
         }
         let candidates = context

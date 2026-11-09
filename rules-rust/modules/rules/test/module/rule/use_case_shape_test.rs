@@ -83,7 +83,7 @@ fn given_concrete_and_generic_use_case_fields_when_checked_then_trait_object_and
     );
     crate::test::module::util::assert_di_lines(
         &crate::module::rule::UseCaseShape,
-        "mod usecase { struct LoadInvoiceUseCase { repo: std::sync::Arc<dyn Send + Sync> } impl LoadInvoiceUseCase { fn invoke(&self) { let result = 1; } } }",
+        "mod usecase { struct LoadInvoiceUseCase { repo: std::sync::Arc<dyn Send + Sync> } impl LoadInvoiceUseCase { pub fn invoke(&self) { let result = 1; } } }",
         &[],
     );
     crate::test::module::util::assert_di_lines(
@@ -97,7 +97,80 @@ fn given_concrete_and_generic_use_case_fields_when_checked_then_trait_object_and
 fn given_di_alias_shape_when_checked_then_preserves_defined_exceptions() {
     crate::test::module::util::assert_di_lines(
         &crate::module::rule::UseCaseShape,
-        "mod api { pub trait Repo {} } mod file { pub struct Repo; #[cfg(unix)] impl crate::api::Repo for Repo {} } mod usecase { #[cfg(not(unix))] struct LoadInvoiceUseCase { repo: crate::file::Repo } #[cfg(not(unix))] impl LoadInvoiceUseCase { fn invoke(&self) {} } }",
+        "mod api { pub trait Repo {} } mod file { pub struct Repo; #[cfg(unix)] impl crate::api::Repo for Repo {} } mod usecase { #[cfg(not(unix))] struct LoadInvoiceUseCase { repo: crate::file::Repo } #[cfg(not(unix))] impl LoadInvoiceUseCase { pub fn invoke(&self) {} } }",
+        &[],
+    );
+}
+#[test]
+fn given_forwarded_bindings_and_private_invoke_when_checked_then_only_business_decision_with_public_entry_passes()
+ {
+    for body in [
+        "let result = self.repo.read(); result",
+        "let result = self.repo.read(); return result;",
+    ] {
+        crate::test::module::util::assert_di_lines(
+            &UseCaseShape,
+            &format!(
+                "mod usecase {{ struct ReadInvoiceUseCase {{ repo: String }} impl ReadInvoiceUseCase {{ pub fn invoke(&self) {{ {body} }} }} }}"
+            ),
+            &[1],
+        );
+    }
+    crate::test::module::util::assert_di_lines(
+        &UseCaseShape,
+        "mod usecase { struct ReadInvoiceUseCase; impl ReadInvoiceUseCase { fn invoke(&self) {} } }",
+        &[1],
+    );
+    crate::test::module::util::assert_di_lines(
+        &UseCaseShape,
+        "mod usecase { struct ReadInvoiceUseCase { repo: String } impl ReadInvoiceUseCase { pub(crate) fn invoke(&self) -> bool { let result = self.repo.is_empty(); !result } } }",
+        &[],
+    );
+}
+
+#[test]
+fn given_usecase_contract_constructor_arguments_when_checked_then_only_arc_trait_objects_pass() {
+    for parameter in [
+        "Box<dyn crate::api::Repo>",
+        "&dyn crate::api::Repo",
+        "std::sync::Arc<dyn crate::api::Repo>",
+    ] {
+        crate::test::module::util::assert_di_lines(
+            &UseCaseShape,
+            &format!(
+                "mod api {{ pub trait Repo {{}} }} mod usecase {{ struct ReadInvoiceUseCase; impl ReadInvoiceUseCase {{ pub fn new(repo: {parameter}) -> Self {{ Self }} pub fn invoke(&self) {{}} }} }}"
+            ),
+            if parameter.starts_with("std::sync::Arc") {
+                &[]
+            } else {
+                &[1]
+            },
+        );
+    }
+}
+#[test]
+fn given_read_modify_write_or_adapted_argument_when_checked_then_business_orchestration_is_preserved()
+ {
+    for body in [
+        "let balance = self.repo.read_balance(); self.repo.write_balance(balance + 1);",
+        "self.repo.write_balance(balance + 1)",
+        "let first = self.repo.read(); let second = self.repo.read(); second",
+    ] {
+        crate::test::module::util::assert_di_lines(
+            &UseCaseShape,
+            &format!(
+                "mod usecase {{ struct PayInvoiceUseCase {{ repo: String }} impl PayInvoiceUseCase {{ pub fn invoke(&self, balance: i64) {{ {body} }} }} }}"
+            ),
+            &[],
+        );
+    }
+}
+#[test]
+fn given_trait_invoke_and_aliased_shared_contract_when_checked_then_the_public_entry_and_arc_identity_are_preserved()
+ {
+    crate::test::module::util::assert_di_lines(
+        &UseCaseShape,
+        "mod api { use std::sync::Arc; pub trait Repo {} pub type SharedRepo = Arc<dyn Repo>; } trait Invocation { fn invoke(&self); } mod usecase { struct ReadInvoiceUseCase; impl ReadInvoiceUseCase { pub fn new(repo: crate::api::SharedRepo) -> Self { Self } } impl crate::Invocation for ReadInvoiceUseCase { fn invoke(&self) {} } }",
         &[],
     );
 }

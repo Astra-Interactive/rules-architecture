@@ -18,6 +18,128 @@ pub(crate) struct TestRuntimeVisitor<'source> {
 }
 
 impl TestRuntimeVisitor<'_> {
+    fn builtin_assertion(&self, item: &syn::Macro) -> bool {
+        let Some(name) = item.path.get_ident() else {
+            return false;
+        };
+        if !["assert", "assert_eq", "assert_ne"]
+            .iter()
+            .any(|expected| name == expected)
+        {
+            return false;
+        }
+        let index = &self.context.indexes[self.ordinal];
+        !index.items.iter().any(|item| *name == item.name)
+            && !index
+                .imports
+                .iter()
+                .any(|import| import.name.as_deref() == Some(name.to_string().as_str()))
+    }
+    fn model_parameter(&self, module: usize, parameter: &syn::FnArg) -> bool {
+        let syn::FnArg::Typed(parameter) = parameter else {
+            return false;
+        };
+        self.context
+            .resolve_workspace_type(self.ordinal, module, &parameter.ty)
+            .iter()
+            .any(|target| {
+                target.path.item.is_some_and(|identity| {
+                    let index = &self.context.indexes[target.index];
+                    index.modules[index.items[identity].module]
+                        .module
+                        .path
+                        .iter()
+                        .any(|segment| segment == "model")
+                })
+            })
+    }
+
+    fn model_rule(&self, item: &crate::source::model::IndexedItem) -> bool {
+        let index = &self.context.indexes[self.ordinal];
+        if !index.modules[item.module]
+            .module
+            .path
+            .iter()
+            .any(|segment| segment == "util")
+        {
+            return false;
+        }
+        let syn::Item::Fn(function) = &item.syntax else {
+            return false;
+        };
+        let body = syn::Expr::Block(syn::ExprBlock {
+            attrs: Vec::new(),
+            label: None,
+            block: (*function.block).clone(),
+        });
+        let effects = crate::runtime::rule::ClosureEffects::collect(&body);
+        if !effects.calls.is_empty()
+            || !effects.methods.is_empty()
+            || effects.assigns_capture
+            || !effects.macros.is_empty()
+        {
+            return false;
+        }
+        function.sig.asyncness.is_none()
+            && function
+                .sig
+                .inputs
+                .iter()
+                .any(|parameter| self.model_parameter(item.module, parameter))
+    }
+
+    fn model_only(&self, block: &syn::Block) -> bool {
+        if block
+            .stmts
+            .iter()
+            .any(crate::runtime::rule::AwaitVisitor::in_statement)
+        {
+            return false;
+        }
+        let expression = syn::Expr::Block(syn::ExprBlock {
+            attrs: Vec::new(),
+            label: None,
+            block: block.clone(),
+        });
+        let effects = crate::runtime::rule::ClosureEffects::collect(&expression);
+        if effects.macros.iter().any(|item| {
+            if self.builtin_assertion(item) {
+                return false;
+            }
+            !self
+                .context
+                .resolve_external_call_paths(self.ordinal, self.module, &item.path)
+                .iter()
+                .any(|path| {
+                    ["std", "core"].contains(&path.package.as_str())
+                        && path.segments.last().is_some_and(|name| {
+                            ["assert", "assert_eq", "assert_ne"].contains(&name.as_str())
+                        })
+                })
+        }) {
+            return false;
+        }
+        if effects.calls.is_empty() || !effects.methods.is_empty() {
+            return false;
+        }
+        effects.calls.iter().all(|call| {
+            let syn::Expr::Path(path) = &*call.func else {
+                return false;
+            };
+            let crate::source::model::Resolution::Internal(paths) =
+                self.context.indexes[self.ordinal].resolve_path(self.module, &path.path)
+            else {
+                return false;
+            };
+            paths.iter().any(|path| {
+                let Some(identity) = path.item else {
+                    return false;
+                };
+                let index = &self.context.indexes[self.ordinal];
+                self.model_rule(&index.items[identity])
+            })
+        })
+    }
     pub(crate) fn check_context(context: &RuleContext, rule: &'static str) -> Vec<RuleFinding> {
         let mut findings = Vec::new();
         for sources in &context.crates {
@@ -146,6 +268,7 @@ impl<'ast> Visit<'ast> for TestRuntimeVisitor<'_> {
                 let module = &self.context.indexes[self.ordinal].modules[self.module];
                 if module.tree != SourceTree::Src
                     && module.module.path.iter().any(|segment| segment == "util")
+                    && self.model_only(&item.block)
                 {
                     self.report(attribute.span());
                 }

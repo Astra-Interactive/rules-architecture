@@ -1,6 +1,5 @@
 use crate::check::api::Rule;
 use crate::check::model::{Anchor, Finding, Location, RuleContext, RuleFinding, RuleId};
-use crate::workspace::model::DependencyKind;
 use std::collections::BTreeSet;
 
 pub(crate) struct TimeCrate;
@@ -12,7 +11,6 @@ impl Rule for TimeCrate {
             .members
             .iter()
             .flat_map(|member| &member.dependencies)
-            .filter(|dependency| dependency.kind != DependencyKind::Development)
             .map(|dependency| dependency.name.as_str())
             .filter(|name| ["chrono", "time", "jiff"].contains(name))
             .collect();
@@ -28,7 +26,7 @@ impl Rule for TimeCrate {
                 },
                 subject: ".".to_owned(),
                 message: format!(
-                    "choose one non-development time crate for the workspace; found {}",
+                    "choose one time crate for the workspace, including development dependencies; found {}",
                     clocks.into_iter().collect::<Vec<_>>().join(", ")
                 ),
             },

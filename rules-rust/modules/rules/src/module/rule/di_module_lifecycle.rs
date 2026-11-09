@@ -9,6 +9,229 @@ use syn::{ImplItem, Item};
 pub(crate) struct DiModuleLifecycle;
 
 impl DiModuleLifecycle {
+    fn required_trait_method(member: &syn::TraitItem) -> Option<String> {
+        match member {
+            syn::TraitItem::Fn(method)
+                if method
+                    .default
+                    .as_ref()
+                    .is_none_or(|body| !body.stmts.is_empty()) =>
+            {
+                Some(method.sig.ident.to_string())
+            }
+            _ => None,
+        }
+    }
+
+    fn lifecycle_methods(
+        context: &RuleContext,
+        target: &crate::source::model::WorkspaceResolvedPath,
+    ) -> std::collections::BTreeSet<String> {
+        let Some(identity) = target.path.item else {
+            return std::collections::BTreeSet::new();
+        };
+        let index = &context.indexes[target.index];
+        let mut names = std::collections::BTreeSet::new();
+        for implementation in index
+            .implementations
+            .iter()
+            .filter(|implementation| owns_implementation(index, identity, implementation))
+        {
+            let Some((path, _)) = &implementation.syntax.trait_ else {
+                continue;
+            };
+            if !crate::module::util::lifecycle_trait_path(
+                context,
+                target.index,
+                implementation.module,
+                path,
+            ) {
+                continue;
+            }
+            names.extend(
+                implementation
+                    .syntax
+                    .items
+                    .iter()
+                    .filter_map(|member| match member {
+                        ImplItem::Fn(method) => Some(method.sig.ident.to_string()),
+                        _ => None,
+                    }),
+            );
+            for contract in
+                context.resolve_workspace_path(target.index, implementation.module, path)
+            {
+                let Some(identity) = contract.path.item else {
+                    continue;
+                };
+                if let Item::Trait(contract) =
+                    &context.indexes[contract.index].items[identity].syntax
+                {
+                    names.extend(
+                        contract
+                            .items
+                            .iter()
+                            .filter_map(Self::required_trait_method),
+                    );
+                }
+            }
+        }
+        names
+    }
+
+    fn missing_lifecycle_method(
+        context: &RuleContext,
+        ordinal: usize,
+        identity: usize,
+        owned: &[String],
+    ) -> bool {
+        let index = &context.indexes[ordinal];
+        let item = &index.items[identity];
+        let Item::Struct(structure) = &item.syntax else {
+            return false;
+        };
+        let required: std::collections::BTreeSet<_> = structure
+            .fields
+            .iter()
+            .filter(|field| {
+                field
+                    .ident
+                    .as_ref()
+                    .is_some_and(|name| owned.contains(&name.to_string()))
+            })
+            .flat_map(|field| context.resolve_workspace_type(ordinal, item.module, &field.ty))
+            .flat_map(|target| Self::lifecycle_methods(context, &target))
+            .collect();
+        let provided: std::collections::BTreeSet<_> = index
+            .implementations
+            .iter()
+            .filter(|implementation| owns_implementation(index, identity, implementation))
+            .flat_map(|implementation| &implementation.syntax.items)
+            .filter_map(|member| match member {
+                ImplItem::Fn(method) => Some(method.sig.ident.to_string()),
+                _ => None,
+            })
+            .collect();
+        !required.is_subset(&provided)
+    }
+
+    fn child_dependencies(
+        context: &RuleContext,
+        target: &crate::source::model::WorkspaceResolvedPath,
+    ) -> Vec<crate::source::model::WorkspaceResolvedPath> {
+        let Some(identity) = target.path.item else {
+            return Vec::new();
+        };
+        let index = &context.indexes[target.index];
+        let mut dependencies = Vec::new();
+        for implementation in index
+            .implementations
+            .iter()
+            .filter(|implementation| owns_implementation(index, identity, implementation))
+        {
+            let parameters = implementation
+                .syntax
+                .items
+                .iter()
+                .filter_map(|member| match member {
+                    ImplItem::Fn(function) if function.sig.ident == "new" => {
+                        Some(&function.sig.inputs)
+                    }
+                    _ => None,
+                })
+                .flatten();
+            for parameter in parameters {
+                if let syn::FnArg::Typed(parameter) = parameter {
+                    dependencies.extend(context.resolve_workspace_type(
+                        target.index,
+                        implementation.module,
+                        &parameter.ty,
+                    ));
+                }
+            }
+        }
+        dependencies
+    }
+
+    fn matches_dependency(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        typed: &syn::Type,
+        dependencies: &[crate::source::model::WorkspaceResolvedPath],
+    ) -> bool {
+        context
+            .resolve_workspace_type(ordinal, module, typed)
+            .iter()
+            .any(|field| {
+                dependencies.iter().any(|parameter| {
+                    field.index == parameter.index && field.path.item == parameter.path.item
+                })
+            })
+    }
+
+    fn path_order_invalid(path: &[String], child: &str, dependency: &str, method: &str) -> bool {
+        let child = path.iter().position(|name| name == child);
+        let dependency = path.iter().position(|name| name == dependency);
+        let (Some(child), Some(dependency)) = (child, dependency) else {
+            return false;
+        };
+        if method == "on_disable" {
+            child > dependency
+        } else {
+            dependency > child
+        }
+    }
+
+    fn invalid_order(
+        context: &RuleContext,
+        ordinal: usize,
+        identity: usize,
+        method: &str,
+        paths: &[Vec<String>],
+    ) -> bool {
+        let item = &context.indexes[ordinal].items[identity];
+        let Item::Struct(structure) = &item.syntax else {
+            return false;
+        };
+        for child in &structure.fields {
+            let Some(child_name) = child.ident.as_ref().map(ToString::to_string) else {
+                continue;
+            };
+            let dependencies: Vec<_> = context
+                .resolve_workspace_type(ordinal, item.module, &child.ty)
+                .iter()
+                .flat_map(|target| Self::child_dependencies(context, target))
+                .collect();
+            for dependency in &structure.fields {
+                let Some(dependency_name) = dependency.ident.as_ref().map(ToString::to_string)
+                else {
+                    continue;
+                };
+                if dependency_name == child_name {
+                    continue;
+                }
+                let required = Self::matches_dependency(
+                    context,
+                    ordinal,
+                    item.module,
+                    &dependency.ty,
+                    &dependencies,
+                );
+                if !required {
+                    continue;
+                }
+                let wrong = paths.iter().any(|path| {
+                    Self::path_order_invalid(path, &child_name, &dependency_name, method)
+                });
+                if wrong {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     fn add_field(
         context: &RuleContext,
         ordinal: usize,
@@ -125,13 +348,14 @@ impl DiModuleLifecycle {
                     .iter()
                     .any(|name| method.sig.ident == *name);
                 facts.invalid |= Self::parameters(context, ordinal, implementation.module, method);
-                if !["on_enable", "on_disable"]
+                if !["on_enable", "on_disable", "on_reload"]
                     .iter()
                     .any(|name| method.sig.ident == *name)
                 {
                     continue;
                 }
                 let name = method.sig.ident.to_string();
+                facts.invalid |= method.sig.asyncness.is_some();
                 let body = LifecycleBodyVisitor::inspect(
                     context,
                     ordinal,
@@ -142,6 +366,12 @@ impl DiModuleLifecycle {
                     &facts.scopes,
                 );
                 facts.invalid |= body.invalid;
+                facts.invalid |= facts
+                    .owned
+                    .iter()
+                    .any(|child| !body.forwarded.contains(child));
+                facts.invalid |=
+                    Self::invalid_order(context, ordinal, identity, &name, &body.paths);
                 facts.needs_lifecycle |= body.child_lifecycle;
                 facts.aborted.extend(body.aborted);
             }
@@ -159,6 +389,8 @@ impl DiModuleLifecycle {
             facts.invalid |=
                 crate::module::util::has_module_parameter_cycle(context, ordinal, identity);
             Self::methods(context, ordinal, identity, &mut facts);
+            facts.invalid |=
+                Self::missing_lifecycle_method(context, ordinal, identity, &facts.owned);
             facts.invalid |= facts
                 .scopes
                 .iter()

@@ -6,6 +6,23 @@ use crate::test::declaration::util::assert_code_fixture;
 use crate::test::declaration::util::read_code_context;
 
 #[test]
+fn given_callback_alias_parameter_when_checked_then_resolves_aliases_without_banning_ordinary_values()
+ {
+    assert_code_findings(
+        &CallbackDeclaration,
+        "CallbackDeclaration",
+        "type Handler = Box<dyn Fn()>;\nfn register(on_done: Handler) {}",
+        &[2],
+    );
+    assert_code_findings(
+        &CallbackDeclaration,
+        "CallbackDeclaration",
+        "type Handler = String;\nfn register(on_done: Handler) {}",
+        &[],
+    );
+}
+
+#[test]
 fn given_macro_expansion_test_target_when_checked_then_does_not_report_callback_declarations() {
     let mut context = read_code_context("trait TimerListener {} fn run(on_event: fn()) {}");
     for module in &mut context.indexes[0].modules {

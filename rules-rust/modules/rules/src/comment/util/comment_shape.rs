@@ -57,11 +57,11 @@ fn is_doc_fence_or_break(text: &str) -> bool {
 }
 
 pub(crate) fn find_forbidden_shape(text: &str, is_doc: bool) -> Option<&'static str> {
-    if text.contains('|') {
-        return None;
-    }
     if is_region_marker(text) {
         return Some("a region marker");
+    }
+    if text.contains('|') {
+        return None;
     }
     if is_doc && is_doc_fence_or_break(text) {
         return None;

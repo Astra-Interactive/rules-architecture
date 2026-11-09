@@ -16,9 +16,31 @@ struct LogVisitor<'source> {
     errors: Vec<String>,
     logged: Vec<(String, proc_macro2::Span)>,
     spans: Vec<proc_macro2::Span>,
+    results: Vec<String>,
+    propagating: bool,
 }
 
 impl LogVisitor<'_> {
+    fn bind_results(&mut self, signature: &syn::Signature) {
+        self.results.clear();
+        for argument in &signature.inputs {
+            if let syn::FnArg::Typed(parameter) = argument
+                && let syn::Pat::Ident(name) = &*parameter.pat
+                && self
+                    .context
+                    .resolve_outer_external_type_paths(self.ordinal, self.module, &parameter.ty)
+                    .iter()
+                    .any(|path| {
+                        matches!(
+                            path.format_path().as_str(),
+                            "std::result::Result" | "core::result::Result"
+                        )
+                    })
+            {
+                self.results.push(name.ident.to_string());
+            }
+        }
+    }
     fn bind_error(&mut self, pattern: &syn::Pat) {
         if let syn::Pat::TupleStruct(pattern) = pattern
             && crate::runtime::util::is_result_variant(
@@ -30,7 +52,11 @@ impl LogVisitor<'_> {
             )
             && let Some(syn::Pat::Ident(name)) = pattern.elems.first()
         {
-            self.errors.push(name.ident.to_string());
+            let name = name.ident.to_string();
+            self.logged.retain(|(logged, _)| logged != &name);
+            if !self.errors.contains(&name) {
+                self.errors.push(name);
+            }
         }
     }
 
@@ -56,6 +82,64 @@ impl LogVisitor<'_> {
             proc_macro2::TokenTree::Group(group) => Self::interpolation(group.stream(), name),
             _ => false,
         })
+    }
+
+    fn field_preserves_error(&self, field: &[proc_macro2::TokenTree], name: &str) -> bool {
+        let Some(assignment) = field.iter().position(
+            |token| matches!(token, proc_macro2::TokenTree::Punct(punct) if punct.as_char() == '='),
+        ) else {
+            return false;
+        };
+        let value = field[assignment + 1..]
+            .iter()
+            .cloned()
+            .collect::<proc_macro2::TokenStream>();
+        if !Self::token_names(value.clone())
+            .iter()
+            .any(|value| value == name)
+        {
+            return false;
+        }
+        let error_cast = syn::parse2::<syn::Expr>(value).is_ok_and(|expression| {
+            let syn::Expr::Cast(cast) = expression else {
+                return false;
+            };
+            self.context
+                .resolve_external_type_paths(self.ordinal, self.module, &cast.ty)
+                .iter()
+                .any(|path| {
+                    matches!(
+                        path.format_path().as_str(),
+                        "std::error::Error" | "core::error::Error"
+                    )
+                })
+        });
+        let error_capture = field[..assignment].windows(2).any(|pair| {
+            matches!(&pair[0], proc_macro2::TokenTree::Punct(punct) if punct.as_char() == ':')
+                && matches!(&pair[1], proc_macro2::TokenTree::Ident(ident) if ident == "err")
+        });
+        error_cast || error_capture
+    }
+
+    fn error_field(&self, tokens: proc_macro2::TokenStream, name: &str) -> bool {
+        let mut field = Vec::new();
+        for token in tokens
+            .into_iter()
+            .chain(std::iter::once(proc_macro2::TokenTree::Punct(
+                proc_macro2::Punct::new(',', proc_macro2::Spacing::Alone),
+            )))
+        {
+            if matches!(&token, proc_macro2::TokenTree::Punct(punct) if matches!(punct.as_char(), ',' | ';'))
+            {
+                if self.field_preserves_error(&field, name) {
+                    return true;
+                }
+                field.clear();
+            } else {
+                field.push(token);
+            }
+        }
+        false
     }
 
     fn propagate(&mut self, expression: &syn::Expr) {
@@ -110,29 +194,48 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
     fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
         let errors = std::mem::take(&mut self.errors);
         let logged = std::mem::take(&mut self.logged);
+        let results = std::mem::take(&mut self.results);
+        self.bind_results(&item.sig);
         syn::visit::visit_item_fn(self, item);
         self.errors = errors;
         self.logged = logged;
+        self.results = results;
     }
 
     fn visit_arm(&mut self, arm: &'ast syn::Arm) {
         let length = self.errors.len();
+        let logged = self.logged.clone();
         self.bind_error(&arm.pat);
         syn::visit::visit_arm(self, arm);
         self.errors.truncate(length);
+        self.logged = logged;
     }
 
     fn visit_expr_if(&mut self, expression: &'ast syn::ExprIf) {
         let length = self.errors.len();
+        let logged = self.logged.clone();
         self.visit_expr(&expression.cond);
+        let mut binding = None;
         if let syn::Expr::Let(condition) = &*expression.cond {
             self.bind_error(&condition.pat);
+            if let syn::Pat::TupleStruct(pattern) = &*condition.pat
+                && let Some(syn::Pat::Ident(name)) = pattern.elems.first()
+            {
+                binding = Some(name.ident.to_string());
+            }
         }
         self.visit_block(&expression.then_branch);
+        let then_logged = self.logged.clone();
         self.errors.truncate(length);
+        self.logged = logged;
         if let Some((_, otherwise)) = &expression.else_branch {
             self.visit_expr(otherwise);
         }
+        self.logged.extend(
+            then_logged
+                .into_iter()
+                .filter(|(name, _)| self.errors.contains(name) && binding.as_ref() != Some(name)),
+        );
     }
 
     fn visit_macro(&mut self, item: &'ast syn::Macro) {
@@ -147,10 +250,17 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
         let names = Self::token_names(item.tokens.clone());
         for name in &self.errors {
             let outside = names.contains(name);
-            if Self::interpolation(item.tokens.clone(), name) && !outside {
+            let mentions = outside || Self::interpolation(item.tokens.clone(), name);
+            if mentions && !self.error_field(item.tokens.clone(), name) {
                 self.spans.push(item.span());
             }
-            if outside {
+            if mentions {
+                if self.propagating {
+                    self.spans.push(item.span());
+                }
+                if self.logged.iter().any(|(logged, _)| logged == name) {
+                    self.spans.push(item.span());
+                }
                 self.logged.push((name.clone(), item.span()));
             }
         }
@@ -173,7 +283,31 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
                     .map(|(_, span)| *span),
             );
         }
+        let parent = self.propagating;
+        self.propagating = true;
         syn::visit::visit_expr_try(self, expression);
+        self.propagating = parent;
+    }
+
+    fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+        let result = matches!(&*call.receiver, syn::Expr::Path(path) if self.results.iter().any(|name| path.path.is_ident(name)));
+        if result && matches!(call.method.to_string().as_str(), "map_err" | "inspect_err") {
+            self.visit_expr(&call.receiver);
+            for argument in &call.args {
+                let errors = self.errors.clone();
+                let logged = self.logged.clone();
+                if let syn::Expr::Closure(closure) = argument
+                    && let Some(syn::Pat::Ident(name)) = closure.inputs.first()
+                {
+                    self.errors.push(name.ident.to_string());
+                }
+                self.visit_expr(argument);
+                self.errors = errors;
+                self.logged = logged;
+            }
+            return;
+        }
+        syn::visit::visit_expr_method_call(self, call);
     }
 
     fn visit_block(&mut self, block: &'ast syn::Block) {
@@ -183,7 +317,14 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
         if let Some(syn::Stmt::Expr(expression, None)) = block.stmts.last() {
             self.propagate(expression);
         }
+        let retained = self
+            .logged
+            .iter()
+            .filter(|(name, _)| errors.contains(name))
+            .cloned()
+            .collect::<Vec<_>>();
         self.logged = logged;
+        self.logged.extend(retained);
         self.errors = errors;
     }
 }
@@ -219,6 +360,8 @@ impl Rule for ErrorLogging {
                     errors: Vec::new(),
                     logged: Vec::new(),
                     spans: Vec::new(),
+                    results: Vec::new(),
+                    propagating: false,
                 };
                 visitor.visit_file(&visitor.file.syntax);
                 visitor

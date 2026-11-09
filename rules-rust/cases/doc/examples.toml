@@ -711,7 +711,7 @@ lines = "1-10"
 split = "none"
 wrap = "items"
 sha256 = "1abbeae319a110f7e620cd041f83f590106b444bf45554bef0936214206be6a1"
-expected = [{ line = 3, carrier = "ConstructorDependency" }, { line = 3, carrier = "SystemClockOutsideDi" }]
+expected = [{ line = 3, carrier = "ConstructorDependency" }, { line = 3, carrier = "DiPlacement" }, { line = 3, carrier = "SystemClockOutsideDi" }]
 review = []
 [[example.fragment]]
 path = "modules/bad/di-manual-constructors-rs/src/example_27.rs"
@@ -1174,8 +1174,8 @@ lines = "2-4"
 split = "markers"
 wrap = "trait-body"
 sha256 = "a663c9017073d30f643f943ac919b3ab953fc6e3b107cf7be1de5fe4b9d6f5a6"
-expected = [{ line = 2, carrier = "AnonymousTuple" }, { line = 3, carrier = "AnonymousTuple" }]
-review = [{ why = "Line 4: receiver return type is unknown; a same-named split_at may return a named Parts type, so this subclaim remains review (phase4-declaration-docs.md)." }]
+expected = [{ line = 2, carrier = "AnonymousTuple" }, { line = 3, carrier = "AnonymousTuple" }, { line = 4, carrier = "AnonymousTuple" }]
+review = []
 [[example.fragment]]
 path = "modules/bad/no-tuples-rs/src/example_46.rs"
 block-lines = "2-2"

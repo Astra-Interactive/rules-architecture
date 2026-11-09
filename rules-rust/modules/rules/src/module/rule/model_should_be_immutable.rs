@@ -10,6 +10,51 @@ use syn::spanned::Spanned;
 pub(crate) struct ModelShouldBeImmutable;
 
 impl ModelShouldBeImmutable {
+    fn assignments(context: &RuleContext, ordinal: usize) -> Vec<RuleFinding> {
+        let index = &context.indexes[ordinal];
+        let mut findings = Vec::new();
+        for item in &index.items {
+            if !item.cfg.is_satisfiable() {
+                continue;
+            }
+            if let syn::Item::Fn(function) = &item.syntax {
+                findings.extend(crate::module::rule::ModelMutationVisitor::inspect(
+                    context,
+                    ordinal,
+                    item.module,
+                    &item.file,
+                    &function.sig,
+                    &function.block,
+                    None,
+                ));
+            }
+        }
+        for implementation in &index.implementations {
+            for member in &implementation.syntax.items {
+                let syn::ImplItem::Fn(method) = member else {
+                    continue;
+                };
+                if !implementation
+                    .cfg
+                    .and(&CfgPredicate::from_attributes(&method.attrs))
+                    .is_satisfiable()
+                {
+                    continue;
+                }
+                findings.extend(crate::module::rule::ModelMutationVisitor::inspect(
+                    context,
+                    ordinal,
+                    implementation.module,
+                    &implementation.file,
+                    &method.sig,
+                    &method.block,
+                    Some(&implementation.syntax.self_ty),
+                ));
+            }
+        }
+        findings
+    }
+
     fn check_impl(
         context: &RuleContext,
         ordinal: usize,
@@ -45,12 +90,14 @@ impl Rule for ModelShouldBeImmutable {
             .iter()
             .enumerate()
             .flat_map(|(ordinal, index)| {
-                index
-                    .implementations
-                    .iter()
-                    .flat_map(move |implementation| {
-                        Self::check_impl(context, ordinal, implementation)
-                    })
+                Self::assignments(context, ordinal).into_iter().chain(
+                    index
+                        .implementations
+                        .iter()
+                        .flat_map(move |implementation| {
+                            Self::check_impl(context, ordinal, implementation)
+                        }),
+                )
             })
             .collect()
     }

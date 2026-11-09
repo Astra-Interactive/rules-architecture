@@ -63,3 +63,49 @@ fn given_declaration_shapes_when_checked_then_exact_wrong_sites_report_and_corre
     let context = read_case_context("UtilFileName", "pass-declaration-shape");
     assert!(UtilFileName.check(&context).is_empty());
 }
+#[test]
+fn given_external_extension_trait_when_checked_then_requires_one_matching_same_file_implementation()
+{
+    for implementation in [
+        "",
+        "impl StringExt for u64 {}",
+        "impl StringExt for String {} impl StringExt for u64 {}",
+        "impl StringExt for String {}",
+    ] {
+        let context = read_shape_context(
+            "mod util { mod string_ext; }",
+            &[(
+                "util/string_ext.rs",
+                &format!("trait StringExt {{}} {implementation}"),
+            )],
+        );
+        assert_eq!(
+            UtilFileName.check(&context).is_empty(),
+            implementation == "impl StringExt for String {}",
+            "{implementation}"
+        );
+    }
+    let context = read_shape_context(
+        "mod util { mod string_ext; mod other; }",
+        &[
+            ("util/string_ext.rs", "pub trait StringExt {}"),
+            (
+                "util/other.rs",
+                "impl super::string_ext::StringExt for String {}",
+            ),
+        ],
+    );
+    assert!(!UtilFileName.check(&context).is_empty());
+}
+#[test]
+fn given_cfg_complementary_extension_implementations_when_checked_then_each_configuration_has_one()
+{
+    let context = read_shape_context(
+        "mod util { mod string_ext; }",
+        &[(
+            "util/string_ext.rs",
+            "trait StringExt {} #[cfg(unix)] impl StringExt for String {} #[cfg(not(unix))] impl StringExt for String {}",
+        )],
+    );
+    assert!(UtilFileName.check(&context).is_empty());
+}

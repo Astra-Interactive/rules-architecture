@@ -92,17 +92,29 @@ impl RolelessTypeName {
         !valid_form || !has_product
     }
 
-    fn misplaced_factory_impl(index: &CrateIndex, implementation: &IndexedImpl) -> bool {
-        if has_kind(index, implementation.module, "di") {
+    fn misplaced_factory_impl(
+        context: &RuleContext,
+        ordinal: usize,
+        implementation: &IndexedImpl,
+    ) -> bool {
+        let module = context
+            .resolve_workspace_type(
+                ordinal,
+                implementation.module,
+                &implementation.syntax.self_ty,
+            )
+            .iter()
+            .any(|target| crate::module::util::resolved_di_type(context, target));
+        if module {
             return false;
         }
         let Some((path, _)) = &implementation.syntax.trait_ else {
             return false;
         };
-        let Resolution::Internal(targets) = index.resolve_path(implementation.module, path) else {
-            return false;
-        };
-        targets.iter().filter_map(|target| target.item.and_then(|identity| index.items.get(identity))).any(|item| {
+        context.resolve_workspace_path(ordinal, implementation.module, path).iter().any(|target| {
+            let Some(identity) = target.path.item else { return false; };
+            let index = &context.indexes[target.index];
+            let item = &index.items[identity];
             item.name.ends_with("Factory") && item.cfg.and(&implementation.cfg).is_satisfiable()
                 && matches!(&item.syntax, syn::Item::Trait(value) if Self::is_runtime_factory(index, item.module, value))
         })
@@ -112,7 +124,7 @@ impl RolelessTypeName {
 impl Rule for RolelessTypeName {
     fn check(&self, context: &RuleContext) -> Vec<RuleFinding> {
         let mut findings = Vec::new();
-        for index in &context.indexes {
+        for (ordinal, index) in context.indexes.iter().enumerate() {
             for (identity, item) in index.items.iter().enumerate() {
                 if !matches!(
                     item.syntax,
@@ -143,7 +155,7 @@ impl Rule for RolelessTypeName {
                 }
             }
             for implementation in &index.implementations {
-                if Self::misplaced_factory_impl(index, implementation) {
+                if Self::misplaced_factory_impl(context, ordinal, implementation) {
                     findings.push(build_node_finding(
                         "RolelessTypeName",
                         &implementation.file,

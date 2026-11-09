@@ -1,3 +1,2 @@
-DiPlacement	instances/runner/src/main.rs:1	case_runner::di	a contracts-and-models-only crate has no dependency wiring module
 KindShape	instances/runner/src/main.rs:1	case_runner::di	a kind block is created with its first file, never empty
 MainShape	instances/runner/src/main.rs:2	case_runner::main	entry main builds a runtime, constructs/enables the root in one block_on, then disables it synchronously

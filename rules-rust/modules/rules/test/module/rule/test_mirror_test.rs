@@ -114,3 +114,13 @@ fn given_proc_macro_expansion_tests_when_checked_then_only_it_tree_is_allowed_an
     module.id.path.push("fake".to_owned());
     assert!(TestMirror.check(&context).is_empty());
 }
+#[test]
+fn given_behavior_covered_through_an_entrypoint_when_checked_then_no_per_type_test_file_is_required()
+ {
+    let context = crate::test::declaration::util::read_code_context(
+        "mod service { struct Worker; impl Worker { fn run(&self) {} } struct Owner { worker: Worker } impl Owner { fn run(&self) { self.worker.run(); } } }",
+    );
+    assert!(TestMirror.check(&context).is_empty());
+    let context = read_case_context("TestMirror", "pass-mirrored");
+    assert!(TestMirror.check(&context).is_empty());
+}

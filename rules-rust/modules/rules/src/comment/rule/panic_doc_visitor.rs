@@ -84,22 +84,33 @@ impl PanicDocVisitor<'_> {
 
 impl<'ast> Visit<'ast> for PanicDocVisitor<'_> {
     fn visit_macro(&mut self, expression: &'ast syn::Macro) {
-        let builtin = expression.path.segments.last().is_some_and(|segment| {
-            ["panic", "assert", "unreachable"]
-                .iter()
-                .any(|name| segment.ident == *name)
-        });
-        let qualified = expression
-            .path
-            .segments
-            .first()
-            .is_some_and(|segment| segment.ident == "std" || segment.ident == "core");
-        let prelude = expression.path.segments.len() == 1
-            && !matches!(
-                self.context.indexes[self.ordinal].resolve_path(self.module, &expression.path),
-                Resolution::Internal(_)
-            );
-        self.found |= builtin && (qualified || prelude);
+        let names = [
+            "panic",
+            "assert",
+            "assert_eq",
+            "assert_ne",
+            "debug_assert",
+            "debug_assert_eq",
+            "debug_assert_ne",
+            "unreachable",
+        ];
+        self.found |=
+            match self.context.indexes[self.ordinal].resolve_path(self.module, &expression.path) {
+                Resolution::External(path) => {
+                    let identity = self.context.resolve_external_identity(self.ordinal, &path);
+                    ["std", "core"].contains(&identity.package.as_str())
+                        && identity.segments.len() == 2
+                        && identity
+                            .segments
+                            .last()
+                            .is_some_and(|name| names.contains(&name.as_str()))
+                }
+                Resolution::Local | Resolution::Unresolved => expression
+                    .path
+                    .get_ident()
+                    .is_some_and(|name| names.iter().any(|builtin| name == builtin)),
+                _ => false,
+            };
         for argument in &crate::source::util::parse_macro_arguments(expression) {
             self.visit_expr(argument);
         }

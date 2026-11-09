@@ -45,7 +45,10 @@ impl CalleeBeforeCaller {
             .collect();
         let calls: Vec<HashSet<String>> = functions
             .iter()
-            .map(|function| CalledFunctionVisitor::new(own_name).collect_calls(function.block))
+            .map(|function| {
+                CalledFunctionVisitor::new(own_name)
+                    .collect_calls(function.signature, function.block)
+            })
             .collect();
         let mut findings = Vec::new();
         for (caller, function) in functions.iter().enumerate() {

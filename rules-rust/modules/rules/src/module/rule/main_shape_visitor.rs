@@ -18,6 +18,8 @@ pub(crate) struct MainShapeVisitor<'context> {
     runtimes: std::collections::BTreeSet<String>,
     builder_calls: usize,
     returned_roots: Vec<crate::source::model::NodeSpan>,
+    shutdown_waited: bool,
+    early_exit: bool,
 }
 
 impl MainShapeVisitor<'_> {
@@ -86,6 +88,8 @@ impl MainShapeVisitor<'_> {
             runtimes: std::collections::BTreeSet::new(),
             builder_calls: 0,
             returned_roots: Vec::new(),
+            shutdown_waited: false,
+            early_exit: false,
         };
         visitor.visit_block(block);
         visitor.runtime
@@ -93,10 +97,67 @@ impl MainShapeVisitor<'_> {
             && visitor.root
             && visitor.enabled
             && visitor.disabled_after
+            && visitor.shutdown_waited
+            && !visitor.early_exit
     }
 }
 
 impl<'ast> Visit<'ast> for MainShapeVisitor<'_> {
+    fn visit_expr_return(&mut self, returned: &'ast syn::ExprReturn) {
+        self.early_exit |= self.enabled && !self.shutdown_waited;
+        syn::visit::visit_expr_return(self, returned);
+    }
+
+    fn visit_expr_await(&mut self, awaited: &'ast syn::ExprAwait) {
+        if self.in_block
+            && self.enabled
+            && let syn::Expr::Call(call) = awaited.base.as_ref()
+            && let syn::Expr::Path(path) = call.func.as_ref()
+        {
+            let signal =
+                match self.context.indexes[self.ordinal].resolve_path(self.module, &path.path) {
+                    Resolution::External(path) => {
+                        let path = self.context.resolve_external_identity(self.ordinal, &path);
+                        path.package == "tokio"
+                            && path
+                                .segments
+                                .ends_with(&["signal".to_owned(), "ctrl_c".to_owned()])
+                    }
+                    _ => false,
+                };
+            self.shutdown_waited |= signal;
+        }
+        syn::visit::visit_expr_await(self, awaited);
+    }
+
+    fn visit_expr_if(&mut self, branch: &'ast syn::ExprIf) {
+        self.visit_expr(&branch.cond);
+        let literal = match branch.cond.as_ref() {
+            syn::Expr::Lit(value) => match &value.lit {
+                syn::Lit::Bool(value) => Some(value.value),
+                _ => None,
+            },
+            _ => None,
+        };
+        if literal == Some(false) {
+            if let Some((_, expression)) = &branch.else_branch {
+                self.visit_expr(expression);
+            }
+            return;
+        }
+        let waited_before = self.shutdown_waited;
+        self.visit_block(&branch.then_branch);
+        if literal == Some(true) {
+            return;
+        }
+        let waited_then = self.shutdown_waited;
+        self.shutdown_waited = waited_before;
+        if let Some((_, expression)) = &branch.else_branch {
+            self.visit_expr(expression);
+        }
+        self.shutdown_waited &= waited_then;
+    }
+
     fn visit_local(&mut self, local: &'ast syn::Local) {
         let builders = self.builder_calls;
         syn::visit::visit_local(self, local);
@@ -124,6 +185,14 @@ impl<'ast> Visit<'ast> for MainShapeVisitor<'_> {
     }
     fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
         if let syn::Expr::Path(callee) = call.func.as_ref() {
+            let drops = matches!(self.context.indexes[self.ordinal].resolve_path(self.module, &callee.path), Resolution::External(path) if path == "std::mem::drop" || path == "core::mem::drop")
+                || callee.path.is_ident("drop");
+            if drops
+                && let Some(syn::Expr::Path(path)) = call.args.first()
+                && let Some(name) = path.path.get_ident()
+            {
+                self.runtimes.remove(&name.to_string());
+            }
             if let Resolution::External(path) =
                 self.context.indexes[self.ordinal].resolve_path(self.module, &callee.path)
             {
@@ -172,6 +241,7 @@ impl<'ast> Visit<'ast> for MainShapeVisitor<'_> {
             self.in_block && self.root_expression(&call.receiver) && call.method == "on_enable";
         self.disabled_after |= !self.in_block
             && self.blocks > 0
+            && !self.runtimes.is_empty()
             && self.root_expression(&call.receiver)
             && call.method == "on_disable";
         syn::visit::visit_expr_method_call(self, call);

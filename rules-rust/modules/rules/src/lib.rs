@@ -627,6 +627,7 @@ pub(crate) mod module {
         pub(crate) use main_shape::MainShape;
         pub(crate) use main_shape_visitor::MainShapeVisitor;
         pub(crate) use model_contains_functions::ModelContainsFunctions;
+        pub(crate) use model_mutation_visitor::ModelMutationVisitor;
         pub(crate) use model_should_be_immutable::ModelShouldBeImmutable;
         pub(crate) use module_visibility::ModuleVisibility;
         pub(crate) use nested_data_struct::NestedDataStruct;
@@ -680,6 +681,7 @@ pub(crate) mod module {
         mod kind_shape;
         mod listener_name;
         mod model_contains_functions;
+        mod model_mutation_visitor;
         mod model_should_be_immutable;
         mod module_visibility;
         mod nested_data_struct;
@@ -1058,7 +1060,7 @@ mod test {
                 assert_placement_findings, assert_placement_fixture, read_placement_context,
             };
             pub(crate) use resolver_case_test::assert_resolution_cases;
-            pub(crate) use shape_inspect_test::read_shape_context;
+            pub(crate) use shape_inspect_test::{read_shape_context, read_workspace_shape_context};
             mod di_inspect_test;
             mod import_case_test;
             mod placement_case_test;
@@ -1094,6 +1096,7 @@ mod test {
             mod listener_name_test;
             mod main_shape_test;
             mod model_contains_functions_test;
+            mod model_mutation_visitor_test;
             mod model_should_be_immutable_test;
             mod module_visibility_test;
             mod package_dependency_cycle_test;
@@ -1166,6 +1169,7 @@ mod test {
     }
     mod tuple {
         mod rule {
+            mod tuple_binding_visitor_test;
             mod tuple_type_visitor_test;
         }
     }
@@ -1186,6 +1190,8 @@ mod test {
     mod comment {
         mod rule {
             mod doc_comment_visitor_test;
+            mod doc_scope_visitor_test;
+            mod forbidden_comment_test;
             mod rustdoc_filler_test;
             mod rustdoc_html_tag_test;
         }

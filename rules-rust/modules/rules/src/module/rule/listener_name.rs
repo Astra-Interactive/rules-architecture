@@ -27,6 +27,11 @@ impl ListenerName {
             .filter_map(|implementation| {
                 external_trait(context, ordinal, implementation).map(|path| (implementation, path))
             })
+            .filter(|(_, path)| {
+                path.rsplit("::")
+                    .next()
+                    .is_some_and(|name| name.ends_with("Listener"))
+            })
             .collect::<Vec<_>>();
         if external.is_empty() {
             return findings;
@@ -36,12 +41,8 @@ impl ListenerName {
         {
             findings.push(build_shape_item_finding(index, item, "ListenerName", "An event listener implementation is named <Subject>Listener, never Event (arch-domain.md)"));
         }
-        for (implementation, path) in external {
-            let listener = path
-                .rsplit("::")
-                .next()
-                .is_some_and(|name| name.ends_with("Listener"));
-            if listener && find_kind_name(context, ordinal, implementation.module) != "event" {
+        for (implementation, _) in external {
+            if find_kind_name(context, ordinal, implementation.module) != "event" {
                 findings.push(build_node_finding(
                     "ListenerName",
                     &implementation.file,

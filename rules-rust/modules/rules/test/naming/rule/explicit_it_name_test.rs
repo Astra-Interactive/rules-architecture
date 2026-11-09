@@ -3,6 +3,22 @@ use crate::naming::rule::ExplicitItName;
 use crate::test::check::usecase::read_case_context;
 
 #[test]
+fn given_item_import_and_generic_names_when_checked_then_reports_project_owned_it_names() {
+    crate::test::syntax::util::assert_syntax_findings(
+        &ExplicitItName,
+        "ExplicitItName",
+        "fn it() {} mod it {} struct it; enum Choice { it } trait it {} type it = u64; const it: u64 = 1; static it: u64 = 1; use external::Value as it; use external::it; fn work<it, const it: usize>() {} macro_rules! it { () => {} }",
+        13,
+    );
+    crate::test::syntax::util::assert_syntax_findings(
+        &ExplicitItName,
+        "ExplicitItName",
+        "struct Value; impl External for Value { fn it(&self) {} const it: usize = 1; type it = usize; } use external::it as descriptive; fn work(_it: usize) {}",
+        0,
+    );
+}
+
+#[test]
 fn given_all_binding_positions_when_checked_then_reports_it() {
     crate::test::syntax::util::assert_syntax_findings(
         &ExplicitItName,

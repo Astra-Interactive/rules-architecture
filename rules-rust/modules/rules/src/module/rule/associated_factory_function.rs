@@ -10,6 +10,38 @@ use syn::spanned::Spanned;
 pub(crate) struct AssociatedFactoryFunction;
 
 impl AssociatedFactoryFunction {
+    fn returns_model(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        value: &syn::Type,
+        depth: usize,
+    ) -> bool {
+        if depth > 8 {
+            return false;
+        }
+        let index = &context.indexes[ordinal];
+        let syn::Type::Path(path) = value else {
+            return false;
+        };
+        match index.resolve_path(module, &path.path) {
+            Resolution::Internal(targets) => targets.iter().filter_map(|target| target.item.map(|identity| &index.items[identity])).any(|item| {
+                is_model_item(context, ordinal, item) || matches!(&item.syntax, syn::Item::Type(alias) if Self::returns_model(context, ordinal, item.module, &alias.ty, depth + 1))
+            }),
+            resolution => {
+                let wrapper = match resolution {
+                    Resolution::External(name) => matches!(name.as_str(), "std::result::Result" | "core::result::Result" | "std::option::Option" | "core::option::Option"),
+                    Resolution::Local => path.path.segments.len() == 1 && matches!(path.path.segments[0].ident.to_string().as_str(), "Result" | "Option"),
+                    _ => false,
+                };
+                wrapper && path.path.segments.last().is_some_and(|segment| {
+                    let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments else { return false; };
+                    arguments.args.iter().find_map(|argument| if let syn::GenericArgument::Type(value) = argument { Some(value) } else { None }).is_some_and(|value| Self::returns_model(context, ordinal, module, value, depth + 1))
+                })
+            }
+        }
+    }
+
     fn returns_result(index: &CrateIndex, module: usize, value: &syn::Type, depth: usize) -> bool {
         if depth > 8 {
             return false;
@@ -78,6 +110,7 @@ impl Rule for AssociatedFactoryFunction {
                     continue;
                 };
                 let invalid = function.sig.ident.to_string().starts_with("create_")
+                    && matches!(&function.sig.output, syn::ReturnType::Type(_, value) if Self::returns_model(context, ordinal, item.module, value, 0))
                     && (find_kind_name(context, ordinal, item.module) != "util"
                         || !matches!(&function.sig.output, syn::ReturnType::Type(_, value) if Self::returns_result(index, item.module, value, 0)));
                 if invalid {

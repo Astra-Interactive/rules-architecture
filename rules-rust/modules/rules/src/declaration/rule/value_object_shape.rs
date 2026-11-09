@@ -9,6 +9,58 @@ use syn::{Expr, ImplItem, Item, Stmt, Visibility};
 pub(crate) struct ValueObjectShape;
 
 impl ValueObjectShape {
+    fn accesses_field(expression: &Expr, member: &syn::Member) -> bool {
+        match expression {
+            Expr::Field(field) => {
+                field.member == *member
+                    && matches!(field.base.as_ref(), Expr::Path(path) if path.path.is_ident("self"))
+            }
+            Expr::Reference(reference) => Self::accesses_field(&reference.expr, member),
+            Expr::Return(returned) => returned
+                .expr
+                .as_deref()
+                .is_some_and(|expression| Self::accesses_field(expression, member)),
+            Expr::Paren(paren) => Self::accesses_field(&paren.expr, member),
+            _ => false,
+        }
+    }
+
+    fn parser_is_invalid(
+        context: &RuleContext,
+        ordinal: usize,
+        parser: &crate::source::model::IndexedItem,
+        identity: usize,
+    ) -> bool {
+        use syn::visit::Visit;
+        let Item::Fn(function) = &parser.syntax else {
+            return false;
+        };
+        let syn::ReturnType::Type(_, typed) = &function.sig.output else {
+            return true;
+        };
+        let result = context
+            .resolve_outer_external_type_paths(ordinal, parser.module, typed)
+            .iter()
+            .any(|path| {
+                ["std", "core"].contains(&path.package.as_str())
+                    && path.segments.last().is_some_and(|name| name == "Result")
+            });
+        let mut visitor = ParserConstructionVisitor {
+            context,
+            ordinal,
+            module: parser.module,
+            identity,
+            constructed: false,
+            checked: false,
+            invalid: false,
+        };
+        visitor.visit_block(&function.block);
+        !result
+            || !Self::parser_returns(context, ordinal, parser, identity)
+            || visitor.invalid
+            || (visitor.constructed && !visitor.checked)
+    }
+
     fn has_invariant(context: &RuleContext, ordinal: usize, identity: usize) -> bool {
         let index = &context.indexes[ordinal];
         is_model_item(context, ordinal, &index.items[identity]) && index.implementations.iter().filter(|implementation| implementation.syntax.trait_.is_none() && owns_implementation(index, identity, implementation)).any(|implementation| implementation.syntax.items.iter().any(|method| matches!(method, ImplItem::Fn(method) if method.sig.ident == "new" && method.block.stmts.iter().any(Self::is_assert))))
@@ -62,15 +114,23 @@ impl ValueObjectShape {
     }
 
     fn invalid_constructor(function: &syn::ImplItemFn, name: &str) -> bool {
-        function.block.stmts.iter().any(|statement| {
-            if Self::is_assert(statement) {
-                return false;
-            }
-            match statement {
-                Stmt::Expr(expression, _) => !Self::is_construction(expression, name),
-                _ => true,
-            }
-        })
+        function
+            .block
+            .stmts
+            .iter()
+            .enumerate()
+            .any(|(position, statement)| {
+                if Self::is_assert(statement) {
+                    return false;
+                }
+                match statement {
+                    Stmt::Expr(expression, _) => {
+                        position + 1 != function.block.stmts.len()
+                            || !Self::is_construction(expression, name)
+                    }
+                    _ => true,
+                }
+            })
     }
 
     fn check_value(context: &RuleContext, ordinal: usize, identity: usize) -> Option<RuleFinding> {
@@ -129,9 +189,10 @@ impl ValueObjectShape {
                     .map(ToString::to_string)
                     .or_else(|| parameters.get(position).cloned().flatten());
                 name.is_some_and(|name| {
+                    let member = field.ident.as_ref().map_or_else(|| syn::Member::Unnamed(syn::Index::from(position)), |name| syn::Member::Named(name.clone()));
                     !methods
                         .iter()
-                        .any(|method| method.sig.ident == name && method.sig.receiver().is_some())
+                        .any(|method| method.sig.ident == name && method.sig.receiver().is_some() && matches!(method.block.stmts.as_slice(), [Stmt::Expr(expression, _)] if Self::accesses_field(expression, &member)))
                 })
             })
     }
@@ -166,14 +227,13 @@ impl Rule for ValueObjectShape {
                     .filter_map(|identity| Self::check_value(context, ordinal, identity)),
             );
             for parser in index.items.iter().filter(|item| {
-                matches!(item.syntax, Item::Fn(_))
-                    && item.name.starts_with("parse_")
-                    && find_kind_name(context, ordinal, item.module) != "util"
+                matches!(item.syntax, Item::Fn(_)) && item.name.starts_with("parse_")
             }) {
                 let matching = index.items.iter().enumerate().any(|(identity, item)| {
                     parser.name == format!("parse_{}", to_snake_case(&item.name))
                         && Self::has_invariant(context, ordinal, identity)
-                        && Self::parser_returns(context, ordinal, parser, identity)
+                        && (find_kind_name(context, ordinal, parser.module) != "util"
+                            || Self::parser_is_invalid(context, ordinal, parser, identity))
                 });
                 if matching {
                     findings.push(build_shape_item_finding(
@@ -187,4 +247,59 @@ impl Rule for ValueObjectShape {
         }
         findings
     }
+}
+
+struct ParserConstructionVisitor<'context> {
+    context: &'context RuleContext,
+    ordinal: usize,
+    module: usize,
+    identity: usize,
+    constructed: bool,
+    checked: bool,
+    invalid: bool,
+}
+
+impl<'ast> syn::visit::Visit<'ast> for ParserConstructionVisitor<'_> {
+    fn visit_expr_if(&mut self, branch: &'ast syn::ExprIf) {
+        let never = matches!(branch.cond.as_ref(), Expr::Lit(value) if matches!(&value.lit, syn::Lit::Bool(value) if !value.value));
+        if never {
+            if let Some((_, expression)) = &branch.else_branch {
+                self.visit_expr(expression);
+            }
+            return;
+        }
+        syn::visit::visit_expr_if(self, branch);
+    }
+
+    fn visit_expr_return(&mut self, returned: &'ast syn::ExprReturn) {
+        self.checked |= matches!(returned.expr.as_deref(), Some(Expr::Call(call)) if matches!(call.func.as_ref(), Expr::Path(path) if path.path.is_ident("Err")));
+        syn::visit::visit_expr_return(self, returned);
+    }
+
+    fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+        if let Expr::Path(path) = call.func.as_ref() {
+            let mut path = path.path.clone();
+            if path
+                .segments
+                .last()
+                .is_some_and(|segment| segment.ident == "new")
+            {
+                path.segments.pop();
+                path.segments.pop_punct();
+                let constructs = self
+                    .context
+                    .resolve_workspace_path(self.ordinal, self.module, &path)
+                    .iter()
+                    .any(|target| {
+                        target.index == self.ordinal && target.path.item == Some(self.identity)
+                    });
+                self.invalid |= constructs && !self.checked;
+                self.constructed |= constructs;
+            }
+        }
+        syn::visit::visit_expr_call(self, call);
+    }
+
+    fn visit_expr_closure(&mut self, _: &'ast syn::ExprClosure) {}
+    fn visit_expr_async(&mut self, _: &'ast syn::ExprAsync) {}
 }

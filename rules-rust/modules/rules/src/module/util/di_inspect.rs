@@ -27,7 +27,12 @@ pub(crate) fn is_construction_use(
     use crate::source::model::WorkspaceUseKind;
     match usage.kind {
         WorkspaceUseKind::Construction => true,
-        WorkspaceUseKind::Call => usage.path.last().is_some_and(|name| name == "new"),
+        WorkspaceUseKind::Call => usage.path.last().is_some_and(|name| {
+            name == "new"
+                || name == "default"
+                || name.starts_with("with_")
+                || name.starts_with("from_")
+        }),
         WorkspaceUseKind::Value => {
             matches!(&context.indexes[usage.target_index].items[usage.target_item].syntax, syn::Item::Struct(value) if matches!(value.fields, syn::Fields::Unit))
         }
@@ -43,9 +48,20 @@ pub(crate) fn workspace_implementation_under(
 ) -> bool {
     let index = &context.indexes[ordinal];
     index.implementations.iter().any(|implementation| {
-        let Some((path, _)) = &implementation.syntax.trait_ else {
-            return false;
-        };
+        if implementation.syntax.trait_.is_none() {
+            let item = &index.items[identity];
+            let service_role = ["Client", "Repository", "Clock", "Gateway", "UseCase"]
+                .iter().any(|suffix| item.name.ends_with(suffix))
+                || ["service", "usecase"].contains(&find_kind_name(context, ordinal, item.module));
+            return crate::module::util::owns_implementation(index, identity, implementation)
+                && service_role
+                && cfg.and(&implementation.cfg).is_satisfiable()
+                && implementation.syntax.items.iter().any(|member| {
+                    matches!(member, syn::ImplItem::Fn(method) if method.sig.receiver().is_some())
+                })
+                && !["model", "di"].contains(&find_kind_name(context, ordinal, index.items[identity].module));
+        }
+        let Some((path, _)) = &implementation.syntax.trait_ else { return false; };
         crate::module::util::owns_implementation(index, identity, implementation)
             && context
                 .resolve_workspace_path(ordinal, implementation.module, path)
@@ -56,10 +72,10 @@ pub(crate) fn workspace_implementation_under(
                         .and(&target.path.cfg.in_scope(target.index))
                         .is_satisfiable()
                         && target.path.item.is_some_and(|item| {
-                            matches!(
-                                context.indexes[target.index].items[item].syntax,
-                                syn::Item::Trait(_)
-                            )
+                            let contract = &context.indexes[target.index].items[item];
+                            matches!(contract.syntax, syn::Item::Trait(_))
+                                && (find_kind_name(context, target.index, contract.module) == "api"
+                                    || ["Repo", "Repository", "Client", "Clock", "Gateway", "Service"].iter().any(|suffix| contract.name.ends_with(suffix)))
                         })
                 })
     })

@@ -186,7 +186,7 @@ fn given_single_model_fields_when_checked_then_tuple_serde_and_nonmodel_types_ar
         &read_code_context(
             "mod model {\nstruct Money { cents: i64 }\nstruct Valid(i64); #[derive(serde::Serialize)] struct Wire { cents: i64 } } mod file { struct Row { value: i64 } }",
         ),
-        &[2],
+        &[2, 3],
     );
 }
 
@@ -406,6 +406,28 @@ fn given_proven_associated_factory_consumer_when_checked_then_returned_data_requ
                 "pub struct Consumer; impl Consumer { fn new() -> Self { let value = super::Owner::make(); Self } }",
             ),
             ("model/payload.rs", "pub struct Payload { pub value: u64 }"),
+        ],
+    );
+    assert_lines(&NestedDataStruct, &context, &[]);
+}
+
+#[test]
+fn given_returned_io_adapter_when_checked_then_does_not_classify_it_as_plain_data() {
+    let context = read_shape_context(
+        "mod file { mod adapter; mod owner; mod consumer; pub use adapter::FileStore; pub use owner::Owner; }",
+        &[
+            (
+                "file/adapter.rs",
+                "pub struct FileStore { path: String } impl FileStore { pub fn read(&self) -> String { std::fs::read_to_string(&self.path).unwrap() } }",
+            ),
+            (
+                "file/owner.rs",
+                "pub struct Owner; impl Owner { pub fn store() -> super::FileStore { todo!() } }",
+            ),
+            (
+                "file/consumer.rs",
+                "pub struct Consumer; impl Consumer { fn new() -> Self { let store = super::Owner::store(); Self } }",
+            ),
         ],
     );
     assert_lines(&NestedDataStruct, &context, &[]);

@@ -5,16 +5,26 @@ use syn::ext::IdentExt;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
 
-pub(crate) struct CallbackVisitor {
+pub(crate) struct CallbackVisitor<'context> {
+    context: &'context crate::check::model::RuleContext,
+    ordinal: usize,
+    module: usize,
     closure_parameters: Vec<String>,
     is_override: bool,
     is_test: bool,
     spans: Vec<proc_macro2::Span>,
 }
 
-impl CallbackVisitor {
-    pub(crate) fn new() -> Self {
+impl<'context> CallbackVisitor<'context> {
+    pub(crate) fn new(
+        context: &'context crate::check::model::RuleContext,
+        ordinal: usize,
+        module: usize,
+    ) -> Self {
         Self {
+            context,
+            ordinal,
+            module,
             closure_parameters: Vec::new(),
             is_override: false,
             is_test: false,
@@ -84,7 +94,7 @@ impl CallbackVisitor {
     }
 }
 
-impl<'ast> Visit<'ast> for CallbackVisitor {
+impl<'ast> Visit<'ast> for CallbackVisitor<'_> {
     fn visit_item_enum(&mut self, _item: &'ast syn::ItemEnum) {}
 
     fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
@@ -100,6 +110,17 @@ impl<'ast> Visit<'ast> for CallbackVisitor {
     }
 
     fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
+        let module = self.module;
+        if let Some(child) = self.context.indexes[self.ordinal]
+            .modules
+            .iter()
+            .find(|child| {
+                child.parent == Some(module)
+                    && child.span == crate::source::util::find_node_span(item.span())
+            })
+        {
+            self.module = child.id;
+        }
         let parent = self.is_test;
         self.is_test |= item.ident == "test" || item.ident == "fixture";
         let production = crate::source::model::CfgPredicate::Not(Box::new(
@@ -113,6 +134,7 @@ impl<'ast> Visit<'ast> for CallbackVisitor {
             .is_satisfiable();
         syn::visit::visit_item_mod(self, item);
         self.is_test = parent;
+        self.module = module;
     }
 
     fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
@@ -155,7 +177,16 @@ impl<'ast> Visit<'ast> for CallbackVisitor {
                     continue;
                 };
                 if name.ident.unraw().to_string().starts_with("on_")
-                    && self.is_closure_type(&parameter.ty)
+                    && (self.is_closure_type(&parameter.ty)
+                        || crate::declaration::util::callback_field_type(
+                            self.context,
+                            self.ordinal,
+                            self.module,
+                            &parameter.ty,
+                            &crate::source::model::CfgPredicate::All(Vec::new()),
+                            &signature.generics,
+                            0,
+                        ))
                 {
                     self.spans.push(parameter.span());
                 }

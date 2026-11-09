@@ -23,6 +23,19 @@ impl AwaitVisitor {
 }
 
 impl<'ast> Visit<'ast> for AwaitVisitor {
+    fn visit_expr_if(&mut self, expression: &'ast syn::ExprIf) {
+        if let syn::Expr::Lit(literal) = &*expression.cond
+            && let syn::Lit::Bool(value) = &literal.lit
+        {
+            if value.value {
+                self.visit_block(&expression.then_branch);
+            } else if let Some((_, otherwise)) = &expression.else_branch {
+                self.visit_expr(otherwise);
+            }
+            return;
+        }
+        syn::visit::visit_expr_if(self, expression);
+    }
     fn visit_expr_await(&mut self, _: &'ast syn::ExprAwait) {
         self.found = true;
     }

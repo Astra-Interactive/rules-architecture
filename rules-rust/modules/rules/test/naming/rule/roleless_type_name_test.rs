@@ -43,3 +43,24 @@ fn given_alias_factory_markers_when_checked_then_accepts_the_runtime_factory_for
         &[2],
     );
 }
+#[test]
+fn given_factory_from_another_workspace_crate_when_implemented_then_actual_di_role_is_required() {
+    use crate::check::api::Rule;
+    for implementor in ["Worker", "ConsumerModule"] {
+        let source = format!(
+            "mod di {{ struct {implementor}; impl provider::api::ProductFactory for {implementor} {{ fn invoke(&self) -> provider::api::Product {{ provider::api::Product }} }} }}"
+        );
+        let context = crate::test::module::util::read_workspace_shape_context(&[
+            (
+                "provider",
+                "",
+                "pub mod api { pub struct Product; pub trait ProductFactory: Send + Sync { fn invoke(&self) -> Product; } }",
+            ),
+            ("consumer", "provider={path=\"../provider\"}", &source),
+        ]);
+        assert_eq!(
+            RolelessTypeName.check(&context).len(),
+            usize::from(implementor == "Worker")
+        );
+    }
+}

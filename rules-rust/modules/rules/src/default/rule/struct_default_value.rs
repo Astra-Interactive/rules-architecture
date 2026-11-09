@@ -12,6 +12,28 @@ use syn::spanned::Spanned;
 pub(crate) struct StructDefaultValue;
 
 impl StructDefaultValue {
+    fn is_default_trait(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        path: &syn::Path,
+    ) -> bool {
+        match context.indexes[ordinal].resolve_path(module, path) {
+            crate::source::model::Resolution::Local => path.is_ident("Default"),
+            crate::source::model::Resolution::External(external) => {
+                let identity = context.resolve_external_identity(ordinal, &external);
+                ["std", "core"].contains(&identity.package.as_str())
+                    && identity
+                        .segments
+                        .iter()
+                        .skip(1)
+                        .map(String::as_str)
+                        .eq(["default", "Default"])
+            }
+            _ => false,
+        }
+    }
+
     fn derives(attributes: &[syn::Attribute], name: &str) -> bool {
         attributes
             .iter()
@@ -99,7 +121,33 @@ impl StructDefaultValue {
         !Self::has_empty_new(items, name)
     }
 
-    fn check_items(items: &[syn::Item], own_types: &HashSet<String>) -> Vec<proc_macro2::Span> {
+    fn accepts_default(items: &[syn::Item], name: &str, implementation: &syn::ItemImpl) -> bool {
+        let deserialized = items.iter().any(|candidate| match candidate {
+            syn::Item::Struct(value) => {
+                value.ident == name && Self::derives(&value.attrs, "Deserialize")
+            }
+            syn::Item::Enum(value) => {
+                value.ident == name && Self::derives(&value.attrs, "Deserialize")
+            }
+            _ => false,
+        });
+        let constructor_default =
+            Self::has_empty_new(items, name) && Self::delegates_to_new(implementation, name);
+        deserialized || constructor_default
+    }
+
+    fn check_items(
+        context: &RuleContext,
+        ordinal: usize,
+        module_path: &[String],
+        items: &[syn::Item],
+        own_types: &HashSet<String>,
+    ) -> Vec<proc_macro2::Span> {
+        let module = context.indexes[ordinal]
+            .modules
+            .iter()
+            .find(|module| module.module.path == module_path)
+            .map_or(0, |module| module.id);
         let mut findings = Vec::new();
         for item in items {
             match item {
@@ -117,9 +165,7 @@ impl StructDefaultValue {
                 }
                 syn::Item::Impl(value)
                     if value.trait_.as_ref().is_some_and(|(path, _)| {
-                        path.segments
-                            .last()
-                            .is_some_and(|segment| segment.ident == "Default")
+                        Self::is_default_trait(context, ordinal, module, path)
                     }) =>
                 {
                     let Some(name) = find_self_name(&value.self_ty) else {
@@ -128,27 +174,21 @@ impl StructDefaultValue {
                     if !own_types.contains(&name) {
                         continue;
                     }
-                    let deserialized = items.iter().any(|candidate| match candidate {
-                        syn::Item::Struct(value) => {
-                            value.ident == name && Self::derives(&value.attrs, "Deserialize")
-                        }
-                        syn::Item::Enum(value) => {
-                            value.ident == name && Self::derives(&value.attrs, "Deserialize")
-                        }
-                        _ => false,
-                    });
-                    let constructor_default = if Self::has_empty_new(items, &name) {
-                        Self::delegates_to_new(value, &name)
-                    } else {
-                        false
-                    };
-                    if !deserialized && !constructor_default {
+                    if !Self::accepts_default(items, &name, value) {
                         findings.push(value.span());
                     }
                 }
                 syn::Item::Mod(module) => {
                     if let Some((_, children)) = &module.content {
-                        findings.extend(Self::check_items(children, own_types));
+                        let mut child_path = module_path.to_vec();
+                        child_path.push(module.ident.to_string());
+                        findings.extend(Self::check_items(
+                            context,
+                            ordinal,
+                            &child_path,
+                            children,
+                            own_types,
+                        ));
                     }
                 }
                 _ => {}
@@ -179,10 +219,10 @@ impl StructDefaultValue {
 
 impl Rule for StructDefaultValue {
     fn check(&self, context: &RuleContext) -> Vec<RuleFinding> {
-        let mut findings: Vec<RuleFinding> = context.crates.iter().flat_map(|sources| {
+        let mut findings: Vec<RuleFinding> = context.crates.iter().enumerate().flat_map(|(ordinal, sources)| {
             let mut own_types = HashSet::new();
             for file in &sources.files { Self::collect_types(&file.syntax.items, &mut own_types); }
-            sources.files.iter().flat_map(|file| Self::check_items(&file.syntax.items, &own_types).into_iter().map(|span| build_node_finding("StructDefaultValue", &file.path, find_node_span(span), format_module_path(&file.module.crate_name, &file.module.path), "Pass struct and enum values explicitly instead of providing Default (struct-default-values.rs.md)".to_owned())).collect::<Vec<_>>()).collect::<Vec<_>>()
+            sources.files.iter().flat_map(|file| Self::check_items(context, ordinal, &file.module.path, &file.syntax.items, &own_types).into_iter().map(|span| build_node_finding("StructDefaultValue", &file.path, find_node_span(span), format_module_path(&file.module.crate_name, &file.module.path), "Pass struct and enum values explicitly instead of providing Default (struct-default-values.rs.md)".to_owned())).collect::<Vec<_>>()).collect::<Vec<_>>()
         }).collect();
         findings.extend(StructUpdateVisitor::check_context(context));
         findings

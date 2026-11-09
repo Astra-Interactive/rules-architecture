@@ -48,7 +48,7 @@ impl DocScopeVisitor<'_> {
         };
         let cleaned = strip_doc_code(&text);
         let labels = cleaned.lines().any(|line| {
-            ["Errors:", "Panics:", "Safety:"]
+            ["Errors:", "Panics:", "Safety:", "Examples:"]
                 .iter()
                 .any(|label| line.trim_start().starts_with(label))
         });

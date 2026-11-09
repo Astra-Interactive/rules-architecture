@@ -4,6 +4,7 @@ pub(crate) struct GuardWrites<'name> {
     name: &'name str,
     collections: &'name [String],
     pub(crate) writes: usize,
+    pub(crate) trailing: bool,
 }
 
 impl GuardWrites<'_> {
@@ -43,13 +44,24 @@ impl GuardWrites<'_> {
             name,
             collections,
             writes: 0,
+            trailing: false,
         };
         visitor.visit_stmt(statement);
-        visitor.writes
+        visitor.writes + usize::from(visitor.trailing)
     }
 }
 
 impl<'ast> Visit<'ast> for GuardWrites<'_> {
+    fn visit_block(&mut self, block: &'ast syn::Block) {
+        let before = self.writes;
+        for statement in &block.stmts {
+            let tail = matches!(statement, syn::Stmt::Expr(syn::Expr::Path(_), None));
+            if self.writes > before && !tail {
+                self.trailing = true;
+            }
+            self.visit_stmt(statement);
+        }
+    }
     fn visit_expr_if(&mut self, expression: &'ast syn::ExprIf) {
         self.visit_expr(&expression.cond);
         let before = self.writes;
@@ -103,7 +115,20 @@ impl<'ast> Visit<'ast> for GuardWrites<'_> {
             .is_some_and(|path| self.collections.contains(&path))
             && matches!(
                 expression.method.to_string().as_str(),
-                "insert" | "remove" | "clear" | "push" | "pop" | "extend"
+                "insert"
+                    | "remove"
+                    | "clear"
+                    | "push"
+                    | "pop"
+                    | "extend"
+                    | "truncate"
+                    | "retain"
+                    | "resize"
+                    | "append"
+                    | "drain"
+                    | "sort"
+                    | "reverse"
+                    | "swap_remove"
             )
         {
             self.writes += 1;

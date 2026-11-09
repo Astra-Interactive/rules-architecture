@@ -37,3 +37,22 @@ fn given_persistent_di_policy_pairs_when_checked_then_exact_nodes_and_subjects_m
         );
     }
 }
+#[test]
+fn given_error_struct_or_foreign_from_type_when_checked_then_requires_enum_and_owned_family_composition()
+ {
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ErrorFamilyShape,
+        "#[derive(Debug, thiserror::Error)] #[error(\"failed\")] struct Failure;",
+        &[1],
+    );
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ErrorFamilyShape,
+        "#[derive(Debug, thiserror::Error)] enum OrderError { #[error(\"failed\")] Failed(#[from] vendor::Failure) }",
+        &[1],
+    );
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ErrorFamilyShape,
+        "struct Failure; #[derive(Debug, thiserror::Error)] enum OrderError { #[error(\"failed\")] Failed(#[from] Failure) }",
+        &[],
+    );
+}

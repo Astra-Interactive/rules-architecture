@@ -27,6 +27,8 @@ pub(crate) fn read_code_context(source: &str) -> RuleContext {
         "parking_lot",
         "tracing",
         "log",
+        "uuid",
+        "vendor",
     ]
     .into_iter()
     .map(str::to_owned)

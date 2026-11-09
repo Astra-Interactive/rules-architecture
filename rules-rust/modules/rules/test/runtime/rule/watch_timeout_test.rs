@@ -3,6 +3,16 @@ use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
 
 #[test]
+fn given_ready_future_or_tautological_predicate_when_checked_then_reports_proven_immediacy() {
+    assert_code_findings(
+        &WatchTimeout,
+        "WatchTimeout",
+        "async fn run(receiver: tokio::sync::watch::Receiver<bool>) {\n tokio::time::timeout(std::time::Duration::ZERO, std::future::ready(1));\n tokio::time::timeout(std::time::Duration::ZERO, receiver.wait_for(|ready| *ready || true));\n}",
+        &[2, 3],
+    );
+}
+
+#[test]
 fn given_runtime_counterexamples_when_checked_then_matches_exact_node_anchors() {
     assert_code_findings(
         &WatchTimeout,

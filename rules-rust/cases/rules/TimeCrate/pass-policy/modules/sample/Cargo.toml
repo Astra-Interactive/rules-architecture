@@ -9,4 +9,4 @@ workspace = true
 clock = { package = "chrono", version = "0.4" }
 
 [dev-dependencies]
-jiff = "0.2"
+clock_dev = { package = "chrono", version = "0.4" }

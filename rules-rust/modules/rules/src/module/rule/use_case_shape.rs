@@ -10,6 +10,50 @@ use syn::{ImplItem, Item, Visibility};
 pub(crate) struct UseCaseShape;
 
 impl UseCaseShape {
+    fn direct_argument(expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Path(_) => true,
+            syn::Expr::Reference(reference) => Self::direct_argument(&reference.expr),
+            syn::Expr::Paren(paren) => Self::direct_argument(&paren.expr),
+            _ => false,
+        }
+    }
+
+    fn delegated_call(expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Return(returned) => {
+                returned.expr.as_deref().is_some_and(Self::delegated_call)
+            }
+            syn::Expr::Await(awaited) => Self::delegated_call(&awaited.base),
+            syn::Expr::Paren(paren) => Self::delegated_call(&paren.expr),
+            syn::Expr::MethodCall(_) => true,
+            _ => false,
+        }
+    }
+
+    fn contract_parameter_invalid(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        typed: &syn::Type,
+    ) -> bool {
+        let contract = context
+            .resolve_workspace_type(ordinal, module, typed)
+            .iter()
+            .any(|target| {
+                target.path.item.is_some_and(|identity| {
+                    let item = &context.indexes[target.index].items[identity];
+                    matches!(item.syntax, Item::Trait(_))
+                        && find_kind_name(context, target.index, item.module) == "api"
+                })
+            });
+        contract && !context.resolve_type_syntax(ordinal, module, typed).iter().any(|resolved| {
+            let syn::Type::Path(path) = &resolved.typed else { return false; };
+            let arc = context.resolve_outer_external_type_paths(ordinal, module, &resolved.typed).iter().any(|path| ["std", "alloc"].contains(&path.package.as_str()) && path.segments.last().is_some_and(|name| name == "Arc"));
+            arc && path.path.segments.last().is_some_and(|segment| matches!(&segment.arguments, syn::PathArguments::AngleBracketed(arguments) if arguments.args.iter().any(|argument| matches!(argument, syn::GenericArgument::Type(syn::Type::TraitObject(_))))))
+        })
+    }
+
     fn has_two_words(name: &str) -> bool {
         name.strip_suffix("UseCase").is_some_and(|stem| {
             to_snake_case(stem)
@@ -32,6 +76,60 @@ impl UseCaseShape {
 }
 
 impl UseCaseShape {
+    fn forwarded_expression(
+        expression: &syn::Expr,
+        bindings: &std::collections::BTreeMap<String, bool>,
+    ) -> bool {
+        match expression {
+            syn::Expr::Return(returned) => returned
+                .expr
+                .as_deref()
+                .is_some_and(|value| Self::forwarded_expression(value, bindings)),
+            syn::Expr::Await(awaited) => Self::forwarded_expression(&awaited.base, bindings),
+            syn::Expr::Paren(paren) => Self::forwarded_expression(&paren.expr, bindings),
+            syn::Expr::Path(path) => path
+                .path
+                .get_ident()
+                .is_some_and(|name| bindings.get(&name.to_string()) == Some(&true)),
+            syn::Expr::MethodCall(call) => {
+                call.args.iter().all(Self::direct_argument)
+                    && matches!(call.receiver.as_ref(), syn::Expr::Field(field) if matches!(field.base.as_ref(), syn::Expr::Path(path) if path.path.is_ident("self")))
+            }
+            _ => false,
+        }
+    }
+
+    fn is_passthrough(block: &syn::Block) -> bool {
+        let mut bindings = std::collections::BTreeMap::new();
+        let mut calls = 0;
+        for (position, statement) in block.stmts.iter().enumerate() {
+            match statement {
+                syn::Stmt::Local(local) => {
+                    let syn::Pat::Ident(binding) = &local.pat else {
+                        return false;
+                    };
+                    if binding.mutability.is_some() {
+                        return false;
+                    }
+                    let Some(initializer) = &local.init else {
+                        return false;
+                    };
+                    if !Self::forwarded_expression(&initializer.expr, &bindings) {
+                        return false;
+                    }
+                    calls += usize::from(Self::delegated_call(&initializer.expr));
+                    bindings.insert(binding.ident.to_string(), true);
+                }
+                syn::Stmt::Expr(expression, _) if position + 1 == block.stmts.len() => {
+                    calls += usize::from(Self::delegated_call(expression));
+                    return calls == 1 && Self::forwarded_expression(expression, &bindings);
+                }
+                _ => return false,
+            }
+        }
+        false
+    }
+
     fn method_is_invalid(index: &CrateIndex, module: usize, method: &syn::ImplItemFn) -> bool {
         let mut visitor = InvokeAwaitVisitor {
             index,
@@ -52,23 +150,7 @@ impl UseCaseShape {
             }
         }
         visitor.visit_block(&method.block);
-        let passthrough = method.sig.ident == "invoke"
-            && match method.block.stmts.as_slice() {
-                [syn::Stmt::Expr(expression, _)] => {
-                    let expression = match expression {
-                        syn::Expr::Return(returned) => {
-                            returned.expr.as_deref().unwrap_or(expression)
-                        }
-                        _ => expression,
-                    };
-                    let expression = match expression {
-                        syn::Expr::Await(awaited) => awaited.base.as_ref(),
-                        _ => expression,
-                    };
-                    matches!(expression, syn::Expr::MethodCall(call) if matches!(call.receiver.as_ref(), syn::Expr::Field(field) if matches!(field.base.as_ref(), syn::Expr::Path(path) if path.path.is_ident("self"))))
-                }
-                _ => false,
-            };
+        let passthrough = method.sig.ident == "invoke" && Self::is_passthrough(&method.block);
         (method.sig.ident == "invoke" && method.sig.asyncness.is_some() && !visitor.has_await)
             || visitor.invokes_usecase
             || passthrough
@@ -100,10 +182,49 @@ impl UseCaseShape {
                 if Self::method_is_invalid(index, implementation.module, method) {
                     return true;
                 }
-                has_invoke |= method.sig.ident == "invoke";
+                has_invoke |= public && method.sig.ident == "invoke";
             }
         }
         !has_invoke
+    }
+
+    fn constructor_contracts_invalid(
+        context: &RuleContext,
+        ordinal: usize,
+        item: &crate::source::model::IndexedItem,
+    ) -> bool {
+        let index = &context.indexes[ordinal];
+        let Some(identity) = index
+            .items
+            .iter()
+            .position(|candidate| std::ptr::eq(candidate, item))
+        else {
+            return false;
+        };
+        for implementation in index.implementations.iter().filter(|implementation| {
+            crate::module::util::owns_implementation(index, identity, implementation)
+        }) {
+            for member in &implementation.syntax.items {
+                let ImplItem::Fn(method) = member else {
+                    continue;
+                };
+                if method.sig.ident != "new" {
+                    continue;
+                }
+                if method.sig.inputs.iter().any(|parameter| match parameter {
+                    syn::FnArg::Typed(parameter) => Self::contract_parameter_invalid(
+                        context,
+                        ordinal,
+                        implementation.module,
+                        &parameter.ty,
+                    ),
+                    _ => false,
+                }) {
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     fn check_item(
@@ -164,6 +285,7 @@ impl UseCaseShape {
             || !Self::has_two_words(&item.name)
             || fields
             || concrete
+            || Self::constructor_contracts_invalid(context, ordinal, item)
             || Self::methods_are_invalid(index, item);
         invalid.then(|| build_shape_item_finding(index, item, "UseCaseShape", "a VerbObjectUseCase lives in usecase, exposes only new/invoke, invokes no other use case and awaits in async invoke"))
     }

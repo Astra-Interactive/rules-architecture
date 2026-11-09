@@ -82,10 +82,9 @@ impl TypedRuntimeVisitor<'_> {
             &self.file.path,
             find_node_span(span),
             format_module_path(&index.crate_name, &index.modules[self.module].module.path),
-            format!(
-                "Follow the {} typed runtime requirement (async.rs.md; time-api.rs.md)",
-                self.rule
-            ),
+            if self.rule == "ResultConsumption" {
+                "The discard expectation requires a proven oneshot::Sender::send, mpsc::UnboundedSender::send, broadcast::Sender::send or mpsc::Sender::try_send; an unresolved receiver cannot establish this exception (error-handling.rs.md)".to_owned()
+            } else { format!("Follow the {} typed runtime requirement (async.rs.md; time-api.rs.md)", self.rule) },
         ));
     }
 
@@ -214,6 +213,108 @@ impl TypedRuntimeVisitor<'_> {
         }
     }
 
+    fn constructor_type(&self, expression: &syn::Expr) -> Option<syn::Type> {
+        if let syn::Expr::Call(call) = expression
+            && let syn::Expr::Path(path) = &*call.func
+            && path.path.segments.last().is_some_and(|method| {
+                ["new", "default", "with_capacity"]
+                    .iter()
+                    .any(|name| method.ident == name)
+            })
+        {
+            let mut owner = path.path.clone();
+            if owner.segments.len() > 1 {
+                owner.segments.pop();
+                owner.segments.pop_punct();
+                let typed = syn::Type::Path(syn::TypePath {
+                    attrs: Vec::new(),
+                    qself: None,
+                    path: owner,
+                });
+                if !self
+                    .context
+                    .resolve_outer_workspace_type(self.ordinal, self.module, &typed)
+                    .is_empty()
+                    || !self
+                        .context
+                        .resolve_outer_external_type_paths(self.ordinal, self.module, &typed)
+                        .is_empty()
+                {
+                    return Some(typed);
+                }
+            }
+        }
+        None
+    }
+
+    fn channel_types(&self, path: &syn::Path) -> Option<(&'static str, &'static str)> {
+        let canonical = self
+            .context
+            .resolve_external_call_paths(self.ordinal, self.module, path);
+        canonical
+            .iter()
+            .find_map(|path| match path.format_path().as_str() {
+                "tokio::sync::oneshot::channel" => Some((
+                    "tokio::sync::oneshot::Sender",
+                    "tokio::sync::oneshot::Receiver",
+                )),
+                "tokio::sync::mpsc::channel" => {
+                    Some(("tokio::sync::mpsc::Sender", "tokio::sync::mpsc::Receiver"))
+                }
+                "tokio::sync::mpsc::unbounded_channel" => Some((
+                    "tokio::sync::mpsc::UnboundedSender",
+                    "tokio::sync::mpsc::UnboundedReceiver",
+                )),
+                "tokio::sync::broadcast::channel" => Some((
+                    "tokio::sync::broadcast::Sender",
+                    "tokio::sync::broadcast::Receiver",
+                )),
+                "tokio::sync::watch::channel" => {
+                    Some(("tokio::sync::watch::Sender", "tokio::sync::watch::Receiver"))
+                }
+                _ => None,
+            })
+    }
+
+    fn bind_channel(&mut self, pattern: &syn::PatTuple, sender: &str, receiver: &str) {
+        for (pattern, typed) in pattern.elems.iter().zip([sender, receiver]) {
+            if let syn::Pat::Ident(name) = pattern
+                && let Ok(typed) = syn::parse_str::<syn::Type>(typed)
+            {
+                self.bindings
+                    .push((name.ident.to_string(), typed, self.module));
+            }
+        }
+    }
+
+    fn bind_initializer(&mut self, local: &syn::Local) {
+        let Some(init) = &local.init else {
+            self.bind_pattern(&local.pat);
+            return;
+        };
+        if let syn::Pat::Ident(name) = &local.pat {
+            let mut types = self.receiver_types(&init.expr);
+            if types.is_empty()
+                && let Some(typed) = self.constructor_type(&init.expr)
+            {
+                types.push((typed, self.module));
+            }
+            if let Some((typed, module)) = types.into_iter().next() {
+                self.bindings.push((name.ident.to_string(), typed, module));
+                return;
+            }
+        }
+        if let syn::Pat::Tuple(pattern) = &local.pat
+            && let syn::Expr::Call(call) = &*init.expr
+            && let syn::Expr::Path(path) = &*call.func
+            && let Some((sender, receiver)) = self.channel_types(&path.path)
+        {
+            self.bind_channel(pattern, sender, receiver);
+            return;
+        }
+        self.bind_pattern(&local.pat);
+    }
+
     fn check_lock_type(&mut self, typed: &syn::Type) {
         let active = node_predicate(
             &self.context.indexes[self.ordinal],
@@ -305,11 +406,15 @@ impl TypedRuntimeVisitor<'_> {
             let impure = atomic && effects.assigns_capture || (watch || atomic) && (
                 effects.methods.iter().any(|call| {
                     let method = call.method.to_string();
-                    let lock = matches!(method.as_str(), "lock" | "blocking_lock")
-                        && self.receiver_has(&call.receiver, &["tokio::sync::Mutex", "parking_lot::Mutex", "std::sync::Mutex"]);
+                    let lock = matches!(method.as_str(), "lock" | "blocking_lock" | "read" | "write" | "blocking_read" | "blocking_write")
+                        && self.receiver_has(&call.receiver, &["tokio::sync::Mutex", "parking_lot::Mutex", "std::sync::Mutex", "tokio::sync::RwLock", "parking_lot::RwLock", "std::sync::RwLock"]);
+                    let mutation = atomic
+                        && effects.captured_methods.iter().any(|captured| captured.span().start() == call.span().start())
+                        && matches!(method.as_str(), "push" | "pop" | "insert" | "remove" | "clear" | "extend" | "truncate" | "retain" | "resize" | "append" | "drain" | "sort" | "reverse" | "swap_remove")
+                        && self.receiver_has(&call.receiver, &["std::vec::Vec", "alloc::vec::Vec", "std::collections::HashMap", "std::collections::HashSet", "std::collections::BTreeMap", "std::collections::BTreeSet", "std::collections::VecDeque"]);
                     let channel = matches!(method.as_str(), "send" | "try_send" | "send_replace" | "send_modify" | "send_if_modified")
                         && self.receiver_has(&call.receiver, &["tokio::sync::watch::Sender", "tokio::sync::mpsc::Sender", "tokio::sync::mpsc::UnboundedSender", "tokio::sync::broadcast::Sender", "tokio::sync::oneshot::Sender", "std::sync::mpsc::Sender", "std::sync::mpsc::SyncSender"]);
-                    lock || channel
+                    lock || channel || mutation
                 }) || effects.calls.iter().any(|call| matches!(&*call.func, syn::Expr::Path(path)
                     if self.context.resolve_external_call_paths(self.ordinal, self.module, &path.path).iter().any(|path|
                         ["std::fs::", "tokio::fs::", "std::net::", "tokio::net::"].iter().any(|prefix| path.format_path().starts_with(prefix))))));
@@ -426,6 +531,15 @@ impl TypedRuntimeVisitor<'_> {
                 .as_ref()
                 .is_some_and(|expression| Self::returns_true(expression)),
             syn::Expr::Paren(paren) => Self::returns_true(&paren.expr),
+            syn::Expr::Binary(binary) if matches!(binary.op, syn::BinOp::Or(_)) => {
+                Self::returns_true(&binary.left) || Self::returns_true(&binary.right)
+            }
+            syn::Expr::Binary(binary) if matches!(binary.op, syn::BinOp::And(_)) => {
+                Self::returns_true(&binary.left) && Self::returns_true(&binary.right)
+            }
+            syn::Expr::Unary(unary) if matches!(unary.op, syn::UnOp::Not(_)) => {
+                matches!(&*unary.expr, syn::Expr::Lit(literal) if matches!(&literal.lit, syn::Lit::Bool(value) if !value.value))
+            }
             _ => false,
         }
     }
@@ -467,6 +581,21 @@ impl TypedRuntimeVisitor<'_> {
         if matches!(future, syn::Expr::Async(_)) {
             return !AwaitVisitor::in_expression(future);
         }
+        if let syn::Expr::Call(call) = future
+            && let syn::Expr::Path(path) = &*call.func
+            && self
+                .context
+                .resolve_external_call_paths(self.ordinal, self.module, &path.path)
+                .iter()
+                .any(|path| {
+                    matches!(
+                        path.format_path().as_str(),
+                        "std::future::ready" | "core::future::ready"
+                    )
+                })
+        {
+            return true;
+        }
         let syn::Expr::MethodCall(call) = future else {
             return false;
         };
@@ -477,9 +606,62 @@ impl TypedRuntimeVisitor<'_> {
         }
         call.args.iter().any(|argument| matches!(argument, syn::Expr::Closure(closure) if Self::returns_true(&closure.body)))
     }
+
+    fn lag_pattern(&self, pattern: &syn::Pat) -> bool {
+        match pattern {
+            syn::Pat::Wild(_) | syn::Pat::Ident(_) => true,
+            syn::Pat::Or(pattern) => pattern.cases.iter().any(|case| self.lag_pattern(case)),
+            syn::Pat::TupleStruct(pattern) => {
+                if crate::runtime::util::is_result_variant(
+                    self.context,
+                    self.ordinal,
+                    self.module,
+                    &pattern.path,
+                    "Err",
+                ) {
+                    return pattern
+                        .elems
+                        .iter()
+                        .any(|pattern| self.lag_pattern(pattern));
+                }
+                self.context
+                    .resolve_external_call_paths(self.ordinal, self.module, &pattern.path)
+                    .iter()
+                    .any(|path| {
+                        path.format_path() == "tokio::sync::broadcast::error::RecvError::Lagged"
+                    })
+            }
+            _ => false,
+        }
+    }
+
+    fn terminates_loop(expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Break(_) | syn::Expr::Return(_) => true,
+            syn::Expr::Block(block) => block.block.stmts.iter().any(|statement| matches!(statement, syn::Stmt::Expr(expression, _) if Self::terminates_loop(expression))),
+            syn::Expr::If(branch) => branch.then_branch.stmts.iter().any(|statement| matches!(statement, syn::Stmt::Expr(expression, _) if Self::terminates_loop(expression))) || branch.else_branch.as_ref().is_some_and(|(_, expression)| Self::terminates_loop(expression)),
+            _ => false,
+        }
+    }
 }
 
 impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
+    fn visit_expr_match(&mut self, expression: &'ast syn::ExprMatch) {
+        if self.rule == "BroadcastLag"
+            && self.loops > 0
+            && let syn::Expr::Await(awaited) = &*expression.expr
+            && let syn::Expr::MethodCall(call) = &*awaited.base
+            && call.method == "recv"
+            && self.receiver_has(&call.receiver, &["tokio::sync::broadcast::Receiver"])
+        {
+            for arm in &expression.arms {
+                if self.lag_pattern(&arm.pat) && Self::terminates_loop(&arm.body) {
+                    self.report(arm.span());
+                }
+            }
+        }
+        syn::visit::visit_expr_match(self, expression);
+    }
     fn visit_expr_closure(&mut self, expression: &'ast syn::ExprClosure) {
         let asynchronous = self.async_context;
         self.async_context = expression.asyncness.is_some();
@@ -689,26 +871,18 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
             && let Some(init) = &local.init
         {
             let allowed = if let syn::Expr::MethodCall(call) = &*init.expr {
-                let unknown_send = matches!(call.method.to_string().as_str(), "send" | "try_send")
-                    && self
-                        .receiver_types(&call.receiver)
-                        .iter()
-                        .all(|(typed, _)| matches!(typed, syn::Type::Infer(_)));
-                unknown_send
-                    || match call.method.to_string().as_str() {
-                        "send" => self.receiver_has(
-                            &call.receiver,
-                            &[
-                                "tokio::sync::oneshot::Sender",
-                                "tokio::sync::mpsc::UnboundedSender",
-                                "tokio::sync::broadcast::Sender",
-                            ],
-                        ),
-                        "try_send" => {
-                            self.receiver_has(&call.receiver, &["tokio::sync::mpsc::Sender"])
-                        }
-                        _ => false,
-                    }
+                match call.method.to_string().as_str() {
+                    "send" => self.receiver_has(
+                        &call.receiver,
+                        &[
+                            "tokio::sync::oneshot::Sender",
+                            "tokio::sync::mpsc::UnboundedSender",
+                            "tokio::sync::broadcast::Sender",
+                        ],
+                    ),
+                    "try_send" => self.receiver_has(&call.receiver, &["tokio::sync::mpsc::Sender"]),
+                    _ => false,
+                }
             } else {
                 false
             };
@@ -717,7 +891,7 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
             }
         }
         syn::visit::visit_local(self, local);
-        self.bind_pattern(&local.pat);
+        self.bind_initializer(local);
         self.thread_expect = expectation;
     }
 

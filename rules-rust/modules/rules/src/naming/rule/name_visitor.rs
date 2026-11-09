@@ -46,6 +46,34 @@ impl<'source> NameVisitor<'source> {
         ));
     }
 
+    fn check_declared_name(&mut self, ident: &syn::Ident) {
+        if self.rule == "ExplicitItName" && ident.unraw() == "it" {
+            self.report_name(
+                ident,
+                "Use a descriptive declaration or import name, never it (closure-naming.rs.md)",
+            );
+        }
+    }
+
+    fn check_import(&mut self, tree: &syn::UseTree, parent: Option<&syn::Ident>) {
+        match tree {
+            syn::UseTree::Path(path) => self.check_import(&path.tree, Some(&path.ident)),
+            syn::UseTree::Name(name) if name.ident == "self" => {
+                if let Some(parent) = parent {
+                    self.check_declared_name(parent);
+                }
+            }
+            syn::UseTree::Name(name) => self.check_declared_name(&name.ident),
+            syn::UseTree::Rename(rename) => self.check_declared_name(&rename.rename),
+            syn::UseTree::Group(group) => {
+                for tree in &group.items {
+                    self.check_import(tree, parent);
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn check_type(&mut self, ident: &syn::Ident, is_trait: bool) {
         let name = ident.unraw().to_string();
         let has_bad_suffix = name.ends_with("Impl") || name.ends_with("Interface");
@@ -132,7 +160,8 @@ impl<'source> NameVisitor<'source> {
         let forbidden = ["get", "map", "make", "do", "handle", "process"]
             .contains(&name.split('_').next().unwrap_or(""));
         let checks_function_verb = self.rule == "FunctionVerb";
-        let is_exempt = is_lookup || is_test || self.is_trait_impl;
+        let lookup_requires_review = is_lookup && signature.receiver().is_some();
+        let is_exempt = lookup_requires_review || is_test || self.is_trait_impl;
         if checks_function_verb && forbidden && !is_exempt {
             self.report_name(&signature.ident, "Use a specific verb instead of get, map, make, do, handle or process (clean-code.rs.md)");
         }
@@ -178,6 +207,84 @@ impl<'source> NameVisitor<'source> {
 }
 
 impl<'ast> Visit<'ast> for NameVisitor<'_> {
+    fn visit_item(&mut self, item: &'ast syn::Item) {
+        let name = match item {
+            syn::Item::Const(item) => Some(&item.ident),
+            syn::Item::Static(item) => Some(&item.ident),
+            syn::Item::Fn(item) => Some(&item.sig.ident),
+            syn::Item::Struct(item) => Some(&item.ident),
+            syn::Item::Enum(item) => Some(&item.ident),
+            syn::Item::Union(item) => Some(&item.ident),
+            syn::Item::Trait(item) => Some(&item.ident),
+            syn::Item::TraitAlias(item) => Some(&item.ident),
+            syn::Item::Type(item) => Some(&item.ident),
+            syn::Item::Mod(item) => Some(&item.ident),
+            syn::Item::ExternCrate(item) => Some(
+                item.rename
+                    .as_ref()
+                    .map_or(&item.ident, |(_, renamed)| renamed),
+            ),
+            syn::Item::Macro(item) => item.ident.as_ref(),
+            _ => None,
+        };
+        if let Some(name) = name {
+            self.check_declared_name(name);
+        }
+        syn::visit::visit_item(self, item);
+    }
+
+    fn visit_item_use(&mut self, item: &'ast syn::ItemUse) {
+        self.check_import(&item.tree, None);
+    }
+
+    fn visit_foreign_item(&mut self, item: &'ast syn::ForeignItem) {
+        match item {
+            syn::ForeignItem::Fn(function) => self.check_declared_name(&function.sig.ident),
+            syn::ForeignItem::Static(value) => self.check_declared_name(&value.ident),
+            syn::ForeignItem::Type(typed) => self.check_declared_name(&typed.ident),
+            _ => {}
+        }
+        syn::visit::visit_foreign_item(self, item);
+    }
+
+    fn visit_variant(&mut self, item: &'ast syn::Variant) {
+        self.check_declared_name(&item.ident);
+        syn::visit::visit_variant(self, item);
+    }
+
+    fn visit_generic_param(&mut self, parameter: &'ast syn::GenericParam) {
+        match parameter {
+            syn::GenericParam::Type(typed) => self.check_declared_name(&typed.ident),
+            syn::GenericParam::Const(value) => self.check_declared_name(&value.ident),
+            syn::GenericParam::Lifetime(lifetime) => {
+                self.check_declared_name(&lifetime.lifetime.ident)
+            }
+        }
+        syn::visit::visit_generic_param(self, parameter);
+    }
+
+    fn visit_trait_item(&mut self, item: &'ast syn::TraitItem) {
+        match item {
+            syn::TraitItem::Fn(function) => self.check_declared_name(&function.sig.ident),
+            syn::TraitItem::Const(value) => self.check_declared_name(&value.ident),
+            syn::TraitItem::Type(typed) => self.check_declared_name(&typed.ident),
+            _ => {}
+        }
+        syn::visit::visit_trait_item(self, item);
+    }
+
+    fn visit_impl_item(&mut self, item: &'ast syn::ImplItem) {
+        if !self.is_trait_impl {
+            match item {
+                syn::ImplItem::Fn(function) => self.check_declared_name(&function.sig.ident),
+                syn::ImplItem::Const(value) => self.check_declared_name(&value.ident),
+                syn::ImplItem::Type(typed) => self.check_declared_name(&typed.ident),
+                _ => {}
+            }
+        }
+        syn::visit::visit_impl_item(self, item);
+    }
+
     fn visit_macro(&mut self, item: &'ast syn::Macro) {
         for argument in &parse_macro_arguments(item) {
             self.visit_expr(argument);
@@ -198,8 +305,11 @@ impl<'ast> Visit<'ast> for NameVisitor<'_> {
     }
 
     fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
+        let previous = self.is_trait_impl;
+        self.is_trait_impl = false;
         self.check_function(&item.sig, &item.attrs);
         syn::visit::visit_item_fn(self, item);
+        self.is_trait_impl = previous;
     }
 
     fn visit_impl_item_fn(&mut self, item: &'ast syn::ImplItemFn) {

@@ -6,6 +6,9 @@ pub(crate) struct ClosureEffects {
     pub(crate) assigns_capture: bool,
     pub(crate) methods: Vec<syn::ExprMethodCall>,
     pub(crate) calls: Vec<syn::ExprCall>,
+    pub(crate) inline_logic: bool,
+    pub(crate) captured_methods: Vec<syn::ExprMethodCall>,
+    pub(crate) macros: Vec<syn::Macro>,
 }
 
 impl ClosureEffects {
@@ -16,6 +19,9 @@ impl ClosureEffects {
             assigns_capture: false,
             methods: Vec::new(),
             calls: Vec::new(),
+            inline_logic: false,
+            captured_methods: Vec::new(),
+            macros: Vec::new(),
         };
         if let syn::Expr::Async(future) = expression {
             visitor.visit_block(&future.block);
@@ -55,6 +61,9 @@ impl ClosureEffects {
 }
 
 impl<'ast> Visit<'ast> for ClosureEffects {
+    fn visit_macro(&mut self, item: &'ast syn::Macro) {
+        self.macros.push(item.clone());
+    }
     fn visit_expr_closure(&mut self, closure: &'ast syn::ExprClosure) {
         if self.closure_depth > 0 {
             return;
@@ -86,11 +95,13 @@ impl<'ast> Visit<'ast> for ClosureEffects {
     }
 
     fn visit_expr_assign(&mut self, expression: &'ast syn::ExprAssign) {
+        self.inline_logic = true;
         self.assignment(&expression.left);
         syn::visit::visit_expr_assign(self, expression);
     }
 
     fn visit_expr_binary(&mut self, expression: &'ast syn::ExprBinary) {
+        self.inline_logic = true;
         if matches!(
             expression.op,
             syn::BinOp::AddAssign(_)
@@ -110,6 +121,10 @@ impl<'ast> Visit<'ast> for ClosureEffects {
     }
 
     fn visit_expr_method_call(&mut self, expression: &'ast syn::ExprMethodCall) {
+        if matches!(&*expression.receiver, syn::Expr::Path(path) if !self.bound.iter().any(|name| path.path.is_ident(name)))
+        {
+            self.captured_methods.push(expression.clone());
+        }
         self.methods.push(expression.clone());
         syn::visit::visit_expr_method_call(self, expression);
     }

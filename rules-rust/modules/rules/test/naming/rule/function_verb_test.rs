@@ -3,12 +3,23 @@ use crate::naming::rule::FunctionVerb;
 use crate::test::check::usecase::read_case_context;
 
 #[test]
+fn given_lookup_names_when_checked_then_free_functions_report_and_collection_methods_keep_review_scope()
+ {
+    crate::test::syntax::util::assert_syntax_findings(
+        &FunctionVerb,
+        "FunctionVerb",
+        "fn get() -> usize { 1 } struct Store { entries: std::collections::HashMap<u64, u64> } impl Store { fn get(&self, key: &u64) -> Option<&u64> { self.entries.get(key) } } struct Collection { values: Vec<u64> } impl Collection { fn get(&self, key: u64) -> Option<&u64> { self.values.iter().find(|value| **value == key) } fn get_user(&self) {} }",
+        2,
+    );
+}
+
+#[test]
 fn given_trait_implementations_tests_and_lookups_when_checked_then_keeps_exempt_names() {
     crate::test::syntax::util::assert_syntax_findings(
         &FunctionVerb,
         "FunctionVerb",
         "fn get() {} fn get_mut() {} fn get_unchecked() {} fn get_unchecked_mut() {} fn forget_value() {} #[test] fn get_value() {} #[tokio::test] async fn map_value() {} impl Reader for Row { fn process_value() {} } trait Reader { fn handle_value(); } fn map_value() {} fn make_value() {} fn do_work() {} fn process_row() {}",
-        5,
+        9,
     );
 }
 

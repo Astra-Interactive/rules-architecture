@@ -4,6 +4,54 @@ use crate::test::declaration::util::assert_code_fixture;
 use crate::test::declaration::util::{assert_code_findings, read_code_context};
 
 #[test]
+fn given_shadowed_callback_capture_when_registered_then_uses_declaration_environment() {
+    assert_code_findings(
+        &CallbackBridgeShape,
+        "CallbackBridgeShape",
+        "fn register(_: impl Fn()) {} fn run() { let callback = || {}; let callback = || register(callback); register(callback); }",
+        &[],
+    );
+    assert_code_findings(
+        &CallbackBridgeShape,
+        "CallbackBridgeShape",
+        "fn register(_: impl Fn()) {} fn run() {\n let callback = || { tokio::spawn(async {}); };\n let callback = || register(callback); register(callback);\n}",
+        &[2],
+    );
+}
+
+#[test]
+fn given_guard_factory_when_discarded_then_uses_its_owned_return_contract() {
+    assert_code_findings(
+        &CallbackBridgeShape,
+        "CallbackBridgeShape",
+        "struct Guard; impl Drop for Guard { fn drop(&mut self) {} } impl Guard { fn register() -> Self { Self } }\nfn run() { let _ = Guard::register(); }",
+        &[2],
+    );
+    assert_code_findings(
+        &CallbackBridgeShape,
+        "CallbackBridgeShape",
+        "struct Guard; impl Drop for Guard { fn drop(&mut self) {} } impl Guard { fn register() -> u32 { 1 } }\nfn run() { let _ = Guard::register(); }",
+        &[],
+    );
+}
+
+#[test]
+fn given_bound_callback_when_registered_then_checks_its_task_creation() {
+    assert_code_findings(
+        &CallbackBridgeShape,
+        "CallbackBridgeShape",
+        "fn register<F: Fn()>(_: F) {} fn run() {\n let callback = || { tokio::spawn(async {}); };\n register(callback);\n}",
+        &[2],
+    );
+    assert_code_findings(
+        &CallbackBridgeShape,
+        "CallbackBridgeShape",
+        "fn register<F: Fn()>(_: F) {} fn run() {\n let callback = || { let value = 1; };\n register(callback);\n}",
+        &[],
+    );
+}
+
+#[test]
 fn given_async_ownership_cases_when_checked_then_matches_exact_node_anchors() {
     assert_code_findings(
         &CallbackBridgeShape,

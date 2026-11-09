@@ -3,6 +3,22 @@ use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
 
 #[test]
+fn given_dropped_guard_or_unreachable_await_when_checked_then_requires_actual_guard_crossing() {
+    assert_code_findings(
+        &LockChoice,
+        "LockChoice",
+        "async fn run(gate: tokio::sync::Mutex<Vec<u32>>) {\n let guard = gate.lock().await; drop(guard); tokio::time::sleep(std::time::Duration::ZERO).await;\n}",
+        &[2],
+    );
+    assert_code_findings(
+        &LockChoice,
+        "LockChoice",
+        "async fn run(gate: tokio::sync::Mutex<Vec<u32>>) {\n let guard = gate.lock().await; if false { tokio::time::sleep(std::time::Duration::ZERO).await; }\n}",
+        &[2],
+    );
+}
+
+#[test]
 fn given_runtime_counterexamples_when_checked_then_matches_exact_node_anchors() {
     assert_code_findings(
         &LockChoice,

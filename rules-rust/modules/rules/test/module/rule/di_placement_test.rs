@@ -43,3 +43,53 @@ fn given_declaration_shapes_when_checked_then_exact_wrong_sites_report_and_corre
     let context = read_case_context("DiPlacement", "pass-declaration-shape");
     assert!(DiPlacement.check(&context).is_empty());
 }
+#[test]
+fn given_entrypoint_or_unknown_mechanisms_when_checked_then_contract_only_inference_is_not_vacuous()
+{
+    for source in [
+        "fn main() {} mod di { struct RootModule; }",
+        "mod legacy { struct Host; } mod di {}",
+        "mod di {}",
+    ] {
+        let context = read_shape_context(source, &[]);
+        assert!(DiPlacement.check(&context).is_empty(), "{source}");
+    }
+}
+
+#[test]
+fn given_dependency_assembly_without_module_when_checked_then_state_and_fakes_are_not_assembly() {
+    let context = read_shape_context(
+        "trait Repo {} struct FileRepo; impl Repo for FileRepo {} impl FileRepo { fn new() -> Self { Self } } fn build_owner() { let repo = FileRepo::new(); }",
+        &[],
+    );
+    assert_eq!(DiPlacement.check(&context).len(), 1);
+    let context = read_shape_context(
+        "struct State; impl State { fn new() -> Self { Self } fn update(&mut self) {} } fn build_owner() { let state = State::new(); }",
+        &[],
+    );
+    assert!(DiPlacement.check(&context).is_empty());
+}
+#[test]
+fn given_owned_resource_lifecycle_when_checked_then_a_module_is_required_and_test_fakes_are_exempt()
+{
+    for (source, count) in [
+        (
+            "trait Lifecycle { fn on_disable(&self); } struct DatabasePool; impl Lifecycle for DatabasePool { fn on_disable(&self) {} }",
+            1,
+        ),
+        (
+            "trait Lifecycle { fn on_disable(&self); } struct DatabasePool; impl Lifecycle for DatabasePool { fn on_disable(&self) {} } mod di { struct DatabaseModule; }",
+            0,
+        ),
+        (
+            "trait Lifecycle { fn on_disable(&self); } #[cfg(test)] mod test { struct FakePool; impl super::Lifecycle for FakePool { fn on_disable(&self) {} } }",
+            0,
+        ),
+    ] {
+        assert_eq!(
+            DiPlacement.check(&read_shape_context(source, &[])).len(),
+            count,
+            "{source}"
+        );
+    }
+}

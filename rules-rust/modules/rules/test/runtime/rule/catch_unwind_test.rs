@@ -3,6 +3,22 @@ use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
 
 #[test]
+fn given_owned_inline_or_method_logic_when_caught_then_reports_local_logic() {
+    assert_code_findings(
+        &CatchUnwind,
+        "CatchUnwind",
+        "fn run(value: u32) {\n let result = std::panic::catch_unwind(|| value + 1);\n}",
+        &[2],
+    );
+    assert_code_findings(
+        &CatchUnwind,
+        "CatchUnwind",
+        "struct Service; impl Service { fn compute(&self) {} fn run(&self) {\n let result = std::panic::catch_unwind(|| self.compute());\n} }",
+        &[2],
+    );
+}
+
+#[test]
 fn given_normative_runtime_counterexamples_when_checked_then_matches_exact_node_anchors() {
     assert_code_findings(
         &CatchUnwind,

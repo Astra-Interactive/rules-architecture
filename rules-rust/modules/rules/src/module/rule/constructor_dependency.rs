@@ -77,6 +77,13 @@ impl Rule for ConstructorDependency {
             })
             .filter(|usage| crate::module::util::is_construction_use(context, usage))
             .filter(|usage| {
+                !is_di_type(
+                    context,
+                    usage.target_index,
+                    &context.indexes[usage.target_index].items[usage.target_item],
+                )
+            })
+            .filter(|usage| {
                 find_kind_name(context, usage.source_index, usage.source_module) != "di"
             })
             .filter(|usage| {

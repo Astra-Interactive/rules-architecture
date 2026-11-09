@@ -25,14 +25,12 @@ impl RootModuleConstruction {
                 .items
                 .iter()
                 .filter_map(|method| match method {
-                    syn::ImplItem::Fn(method) if method.sig.ident == "new" => {
-                        Some(RootConstructionVisitor::collect(
-                            context,
-                            ordinal,
-                            implementation.module,
-                            &method.block,
-                        ))
-                    }
+                    syn::ImplItem::Fn(method) => Some(RootConstructionVisitor::collect(
+                        context,
+                        ordinal,
+                        implementation.module,
+                        &method.block,
+                    )),
                     _ => None,
                 })
                 .flatten();

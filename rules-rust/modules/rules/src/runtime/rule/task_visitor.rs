@@ -21,6 +21,11 @@ pub(crate) struct TaskVisitor<'source> {
     callback_depth: usize,
     discard: bool,
     thread_expect: bool,
+    handles: Vec<(String, proc_macro2::Span, bool)>,
+    local_self: bool,
+    closures: Vec<(String, Option<syn::ExprClosure>, usize)>,
+    bindings: Vec<(String, Option<usize>)>,
+    return_start: usize,
 }
 
 impl TaskVisitor<'_> {
@@ -58,6 +63,11 @@ impl TaskVisitor<'_> {
                     callback_depth: 0,
                     discard: false,
                     thread_expect: expects_lint(&file.syntax.attrs, "disallowed_methods"),
+                    handles: Vec::new(),
+                    local_self: false,
+                    closures: Vec::new(),
+                    bindings: Vec::new(),
+                    return_start: 0,
                 };
                 visitor.visit_file(&file.syntax);
                 findings.extend(visitor.findings);
@@ -73,6 +83,7 @@ impl TaskVisitor<'_> {
         {
             return;
         }
+        if self.findings.iter().any(|finding| matches!(&finding.anchor, crate::check::model::Anchor::Node { span: existing, .. } if *existing == find_node_span(span))) { return; }
         self.findings.push(build_node_finding(self.rule, &self.file.path, find_node_span(span),
             format_module_path(&index.crate_name, &index.modules[self.module].module.path),
             format!("Follow the {} async ownership/context requirement (async.rs.md; no-callbacks.rs.md)", self.rule)));
@@ -107,9 +118,10 @@ impl TaskVisitor<'_> {
         {
             return;
         }
-        let calls_local = expression.args.iter().flat_map(|argument| ClosureEffects::collect(argument).calls).any(|call|
-            matches!(&*call.func, syn::Expr::Path(path)
-                if matches!(self.context.indexes[self.ordinal].resolve_path(self.module, &path.path), Resolution::Internal(_))));
+        let calls_local = expression.args.iter().map(ClosureEffects::collect).any(|effects| effects.inline_logic
+            || self.local_self && effects.methods.iter().any(|call| matches!(&*call.receiver, syn::Expr::Path(path) if path.path.is_ident("self")))
+            || effects.calls.iter().any(|call| matches!(&*call.func, syn::Expr::Path(path)
+                if matches!(self.context.indexes[self.ordinal].resolve_path(self.module, &path.path), Resolution::Internal(_)))));
         if calls_local {
             self.report(expression.span());
         }
@@ -122,12 +134,7 @@ impl TaskVisitor<'_> {
         let syn::Expr::Path(path) = &*call.func else {
             return None;
         };
-        if path
-            .path
-            .segments
-            .last()
-            .is_none_or(|segment| segment.ident != "new")
-        {
+        if path.path.segments.len() < 2 {
             return None;
         }
         let mut owner = path.path.clone();
@@ -152,7 +159,17 @@ impl TaskVisitor<'_> {
                     return false;
                 };
                 let index = &self.context.indexes[target.index];
-                let constructors = self.guard_constructors(target.index, identity);
+                let syn::Expr::Call(call) = expression else {
+                    return false;
+                };
+                let syn::Expr::Path(path) = &*call.func else {
+                    return false;
+                };
+                let Some(method) = path.path.segments.last() else {
+                    return false;
+                };
+                let constructors =
+                    self.guard_constructors(target.index, identity, &method.ident.to_string());
                 if constructors.is_empty() {
                     return false;
                 }
@@ -193,6 +210,7 @@ impl TaskVisitor<'_> {
         &self,
         ordinal: usize,
         identity: usize,
+        name: &str,
     ) -> Vec<crate::source::model::CfgPredicate> {
         let index = &self.context.indexes[ordinal];
         let mut constructors = Vec::new();
@@ -207,7 +225,7 @@ impl TaskVisitor<'_> {
                 let syn::ImplItem::Fn(function) = item else {
                     continue;
                 };
-                if function.sig.ident != "new" || function.sig.receiver().is_some() {
+                if function.sig.receiver().is_some() || function.sig.ident != name {
                     continue;
                 }
                 let syn::ReturnType::Type(_, returned) = &function.sig.output else {
@@ -262,9 +280,308 @@ impl TaskVisitor<'_> {
             })
             .collect()
     }
+
+    fn resolve_handle(&self, expression: &syn::Expr) -> Option<usize> {
+        let syn::Expr::Path(path) = expression else {
+            return None;
+        };
+        self.bindings
+            .iter()
+            .rev()
+            .find(|(name, _)| path.path.is_ident(name))
+            .and_then(|(_, identity)| *identity)
+    }
+
+    fn consume_handle(&mut self, expression: &syn::Expr) {
+        if let Some(identity) = self.resolve_handle(expression) {
+            self.handles[identity].2 = true;
+        }
+    }
+
+    fn shadow_pattern(&mut self, pattern: &syn::Pat) {
+        match pattern {
+            syn::Pat::Ident(name) => {
+                self.bindings.push((name.ident.to_string(), None));
+                let environment = self.closures.len();
+                self.closures
+                    .push((name.ident.to_string(), None, environment));
+                if let Some((_, pattern)) = &name.subpat {
+                    self.shadow_pattern(pattern);
+                }
+            }
+            syn::Pat::Type(pattern) => self.shadow_pattern(&pattern.pat),
+            syn::Pat::Paren(pattern) => self.shadow_pattern(&pattern.pat),
+            syn::Pat::Reference(pattern) => self.shadow_pattern(&pattern.pat),
+            syn::Pat::Tuple(pattern) => {
+                for pattern in &pattern.elems {
+                    self.shadow_pattern(pattern);
+                }
+            }
+            syn::Pat::TupleStruct(pattern) => {
+                for pattern in &pattern.elems {
+                    self.shadow_pattern(pattern);
+                }
+            }
+            syn::Pat::Slice(pattern) => {
+                for pattern in &pattern.elems {
+                    self.shadow_pattern(pattern);
+                }
+            }
+            syn::Pat::Struct(pattern) => {
+                for field in &pattern.fields {
+                    self.shadow_pattern(&field.pat);
+                }
+            }
+            syn::Pat::Or(pattern) => {
+                for pattern in &pattern.cases {
+                    self.shadow_pattern(pattern);
+                }
+            }
+            _ => syn::visit::visit_pat(self, pattern),
+        }
+    }
+
+    fn pattern_name(pattern: &syn::Pat) -> Option<&syn::Ident> {
+        match pattern {
+            syn::Pat::Ident(name) => Some(&name.ident),
+            syn::Pat::Type(pattern) => Self::pattern_name(&pattern.pat),
+            syn::Pat::Paren(pattern) => Self::pattern_name(&pattern.pat),
+            _ => None,
+        }
+    }
+
+    fn bind_local(&mut self, local: &syn::Local) {
+        let alias = local
+            .init
+            .as_ref()
+            .and_then(|init| self.resolve_handle(&init.expr));
+        let handle = if self.rule == "DetachedTask"
+            && Self::pattern_name(&local.pat).is_some()
+            && local
+                .init
+                .as_ref()
+                .is_some_and(|init| self.is_spawn(&init.expr))
+        {
+            let identity = self.handles.len();
+            self.handles.push((String::new(), local.span(), false));
+            Some(identity)
+        } else {
+            alias
+        };
+        self.shadow_pattern(&local.pat);
+        let Some(name) = Self::pattern_name(&local.pat) else {
+            return;
+        };
+        if let Some((_, identity)) = self
+            .bindings
+            .iter_mut()
+            .rev()
+            .find(|(binding, _)| *name == binding)
+        {
+            *identity = handle;
+        }
+        if self.rule == "CallbackBridgeShape" {
+            let closure = local.init.as_ref().and_then(|init| match &*init.expr {
+                syn::Expr::Closure(closure) => Some(closure.clone()),
+                _ => None,
+            });
+            if let Some((_, bound, _)) = self
+                .closures
+                .iter_mut()
+                .rev()
+                .find(|(binding, _, _)| *name == binding)
+            {
+                *bound = closure;
+            }
+        }
+    }
+
+    fn visit_condition(&mut self, condition: &syn::Expr) {
+        match condition {
+            syn::Expr::Let(condition) => {
+                self.visit_expr(&condition.expr);
+                self.shadow_pattern(&condition.pat);
+            }
+            syn::Expr::Binary(binary) if matches!(binary.op, syn::BinOp::And(_)) => {
+                self.visit_condition(&binary.left);
+                self.visit_condition(&binary.right);
+            }
+            _ => self.visit_expr(condition),
+        }
+    }
+
+    fn visit_callback_argument(&mut self, argument: &syn::Expr) {
+        let bound = if let syn::Expr::Path(path) = argument {
+            self.closures
+                .iter()
+                .rev()
+                .find(|(name, _, _)| path.path.is_ident(name))
+                .and_then(|(_, closure, environment)| {
+                    closure.clone().map(|closure| (closure, *environment))
+                })
+        } else {
+            None
+        };
+        if let Some((closure, environment)) = bound {
+            let later_bindings = self.closures.split_off(environment);
+            self.callback_depth += 1;
+            self.visit_expr_closure(&closure);
+            self.callback_depth -= 1;
+            self.closures.truncate(environment);
+            self.closures.extend(later_bindings);
+        }
+    }
+
+    fn consume_argument(&mut self, argument: &syn::Expr, is_drop: bool) {
+        if self.rule != "DetachedTask" {
+            return;
+        }
+        if is_drop {
+            let span = self.resolve_handle(argument).and_then(|identity| {
+                let (_, span, consumed) = self.handles[identity];
+                (!consumed).then_some(span)
+            });
+            if let Some(span) = span {
+                self.report(span);
+            }
+        }
+        self.consume_handle(argument);
+    }
 }
 
 impl<'ast> Visit<'ast> for TaskVisitor<'_> {
+    fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {
+        self.shadow_pattern(&syn::Pat::Ident(pattern.clone()));
+    }
+    fn visit_expr_if(&mut self, expression: &'ast syn::ExprIf) {
+        let bindings = self.bindings.len();
+        let closures = self.closures.len();
+        self.visit_condition(&expression.cond);
+        if let syn::Expr::Lit(literal) = &*expression.cond
+            && let syn::Lit::Bool(value) = &literal.lit
+        {
+            if value.value {
+                self.visit_block(&expression.then_branch);
+            } else if let Some((_, otherwise)) = &expression.else_branch {
+                self.visit_expr(otherwise);
+            }
+            self.bindings.truncate(bindings);
+            self.closures.truncate(closures);
+            return;
+        }
+        let handles = self.handles.clone();
+        self.visit_block(&expression.then_branch);
+        let then_handles = self.handles.clone();
+        self.handles = handles;
+        self.bindings.truncate(bindings);
+        self.closures.truncate(closures);
+        if let Some((_, otherwise)) = &expression.else_branch {
+            self.visit_expr(otherwise);
+        }
+        for (handle, then_handle) in self.handles.iter_mut().zip(then_handles) {
+            handle.2 &= then_handle.2;
+        }
+    }
+    fn visit_block(&mut self, block: &'ast syn::Block) {
+        let closures = self.closures.len();
+        let bindings = self.bindings.len();
+        let length = self.handles.len();
+        syn::visit::visit_block(self, block);
+        if let Some(syn::Stmt::Expr(value, None)) = block.stmts.last() {
+            self.consume_handle(value);
+        }
+        let abandoned = self
+            .handles
+            .drain(length..)
+            .filter_map(|(_, span, consumed)| (!consumed).then_some(span))
+            .collect::<Vec<_>>();
+        if self.rule == "DetachedTask" {
+            for span in abandoned {
+                self.report(span);
+            }
+        }
+        self.closures.truncate(closures);
+        self.bindings.truncate(bindings);
+    }
+
+    fn visit_expr_for_loop(&mut self, expression: &'ast syn::ExprForLoop) {
+        self.visit_expr(&expression.expr);
+        let bindings = self.bindings.len();
+        let closures = self.closures.len();
+        let handles = self.handles.clone();
+        self.shadow_pattern(&expression.pat);
+        self.visit_block(&expression.body);
+        self.bindings.truncate(bindings);
+        self.closures.truncate(closures);
+        self.handles = handles;
+    }
+
+    fn visit_expr_while(&mut self, expression: &'ast syn::ExprWhile) {
+        let bindings = self.bindings.len();
+        let closures = self.closures.len();
+        let handles = self.handles.clone();
+        self.visit_condition(&expression.cond);
+        self.visit_block(&expression.body);
+        self.bindings.truncate(bindings);
+        self.closures.truncate(closures);
+        self.handles = handles;
+    }
+
+    fn visit_expr_match(&mut self, expression: &'ast syn::ExprMatch) {
+        self.visit_expr(&expression.expr);
+        let handles = self.handles.clone();
+        let mut consumed = vec![true; handles.len()];
+        for arm in &expression.arms {
+            self.handles = handles.clone();
+            self.visit_arm(arm);
+            for (consumed, handle) in consumed.iter_mut().zip(&self.handles) {
+                *consumed &= handle.2;
+            }
+        }
+        self.handles = handles;
+        for (handle, consumed) in self.handles.iter_mut().zip(consumed) {
+            handle.2 = consumed;
+        }
+    }
+
+    fn visit_arm(&mut self, arm: &'ast syn::Arm) {
+        let bindings = self.bindings.len();
+        let closures = self.closures.len();
+        self.shadow_pattern(&arm.pat);
+        self.visit_expr(&arm.body);
+        self.bindings.truncate(bindings);
+        self.closures.truncate(closures);
+    }
+
+    fn visit_expr_await(&mut self, expression: &'ast syn::ExprAwait) {
+        self.consume_handle(&expression.base);
+        syn::visit::visit_expr_await(self, expression);
+    }
+
+    fn visit_expr_return(&mut self, expression: &'ast syn::ExprReturn) {
+        if let Some(value) = &expression.expr {
+            self.consume_handle(value);
+        }
+        if self.rule == "DetachedTask" {
+            let pending = self
+                .handles
+                .iter()
+                .skip(self.return_start)
+                .filter_map(|(_, span, consumed)| (!consumed).then_some(*span))
+                .collect::<Vec<_>>();
+            for span in pending {
+                self.report(span);
+            }
+        }
+        syn::visit::visit_expr_return(self, expression);
+    }
+
+    fn visit_expr_struct(&mut self, expression: &'ast syn::ExprStruct) {
+        for field in &expression.fields {
+            self.consume_handle(&field.expr);
+        }
+        syn::visit::visit_expr_struct(self, expression);
+    }
     fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
         let expectation = self.thread_expect;
         self.thread_expect |= expects_lint(&item.attrs, "disallowed_methods");
@@ -284,6 +601,11 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
     }
 
     fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
+        let return_start = self.return_start;
+        self.return_start = 0;
+        let handles = std::mem::take(&mut self.handles);
+        let closures = std::mem::take(&mut self.closures);
+        let bindings = std::mem::take(&mut self.bindings);
         let expectation = self.thread_expect;
         self.thread_expect |= expects_lint(&item.attrs, "disallowed_methods");
         let parent = (self.async_context, self.drop_context, self.callback_depth);
@@ -293,9 +615,17 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
         syn::visit::visit_item_fn(self, item);
         (self.async_context, self.drop_context, self.callback_depth) = parent;
         self.thread_expect = expectation;
+        self.handles = handles;
+        self.closures = closures;
+        self.bindings = bindings;
+        self.return_start = return_start;
     }
 
     fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
+        let local_self = self.local_self;
+        self.local_self = !self.context.indexes[self.ordinal]
+            .resolve_type_items(self.module, &item.self_ty)
+            .is_empty();
         let expectation = self.thread_expect;
         self.thread_expect |= expects_lint(&item.attrs, "disallowed_methods");
         let parent = self.drop_context;
@@ -306,9 +636,15 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
         syn::visit::visit_item_impl(self, item);
         self.drop_context = parent;
         self.thread_expect = expectation;
+        self.local_self = local_self;
     }
 
     fn visit_impl_item_fn(&mut self, item: &'ast syn::ImplItemFn) {
+        let return_start = self.return_start;
+        self.return_start = 0;
+        let handles = std::mem::take(&mut self.handles);
+        let bindings = std::mem::take(&mut self.bindings);
+        let closures = std::mem::take(&mut self.closures);
         let callback = self.callback_depth;
         self.callback_depth = 0;
         let expectation = self.thread_expect;
@@ -322,6 +658,10 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
         self.drop_context = parent_drop;
         self.thread_expect = expectation;
         self.callback_depth = callback;
+        self.handles = handles;
+        self.bindings = bindings;
+        self.closures = closures;
+        self.return_start = return_start;
     }
 
     fn visit_trait_item_fn(&mut self, item: &'ast syn::TraitItemFn) {
@@ -346,16 +686,29 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
 
     fn visit_expr_async(&mut self, expression: &'ast syn::ExprAsync) {
         let parent = self.async_context;
+        let return_start = self.return_start;
+        self.return_start = self.handles.len();
         self.async_context = true;
         syn::visit::visit_expr_async(self, expression);
         self.async_context = parent;
+        self.return_start = return_start;
     }
 
     fn visit_expr_closure(&mut self, expression: &'ast syn::ExprClosure) {
+        let return_start = self.return_start;
+        self.return_start = self.handles.len();
+        let bindings = self.bindings.len();
+        let closures = self.closures.len();
+        for parameter in &expression.inputs {
+            self.shadow_pattern(parameter);
+        }
         let parent = self.async_context;
         self.async_context = expression.asyncness.is_some();
         syn::visit::visit_expr_closure(self, expression);
         self.async_context = parent;
+        self.bindings.truncate(bindings);
+        self.closures.truncate(closures);
+        self.return_start = return_start;
     }
 
     fn visit_stmt(&mut self, statement: &'ast syn::Stmt) {
@@ -384,6 +737,7 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
         }
         self.discard = parent;
         self.thread_expect = expectation;
+        self.bind_local(local);
     }
 
     fn visit_expr_call(&mut self, expression: &'ast syn::ExprCall) {
@@ -425,6 +779,10 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
             .as_deref()
             .is_some_and(|path| matches!(path, "std::mem::drop" | "core::mem::drop"));
         for argument in &expression.args {
+            if self.rule == "CallbackBridgeShape" {
+                self.visit_callback_argument(argument);
+            }
+            self.consume_argument(argument, is_drop);
             if self.rule == "DetachedTask" && is_drop && self.is_spawn(argument) {
                 self.report(argument.span());
                 let parent = self.discard;
@@ -446,10 +804,17 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
     }
 
     fn visit_expr_method_call(&mut self, expression: &'ast syn::ExprMethodCall) {
+        if expression.method == "abort" {
+            self.consume_handle(&expression.receiver);
+        }
         let discard = self.discard;
         self.discard = false;
         self.visit_expr(&expression.receiver);
         for argument in &expression.args {
+            if self.rule == "CallbackBridgeShape" {
+                self.visit_callback_argument(argument);
+            }
+            self.consume_handle(argument);
             let callback = matches!(argument, syn::Expr::Closure(_));
             self.callback_depth += usize::from(callback);
             self.visit_expr(argument);

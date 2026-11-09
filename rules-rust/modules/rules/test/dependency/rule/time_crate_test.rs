@@ -12,8 +12,7 @@ fn given_policy_fixtures_when_checked_then_incorrect_is_detected_and_correct_is_
 }
 
 #[test]
-fn given_time_dependencies_across_members_when_checked_then_only_multiple_non_dev_crates_are_reported()
- {
+fn given_time_dependencies_across_members_when_checked_then_includes_development_crates() {
     let mut context = read_case_context("RootFileShape", "pass-tree");
     context.workspace.members[0].dependencies.clear();
     for (name, kind) in [
@@ -31,7 +30,7 @@ fn given_time_dependencies_across_members_when_checked_then_only_multiple_non_de
             line: Some(4),
         });
     }
-    assert!(TimeCrate.check(&context).is_empty());
+    assert_eq!(1, TimeCrate.check(&context).len());
     let mut second = context.workspace.members[0].clone();
     second.name = "case-other".to_owned();
     second.dependencies = vec![Dependency {
@@ -49,7 +48,12 @@ fn given_time_dependencies_across_members_when_checked_then_only_multiple_non_de
     assert_eq!(findings[0].finding.subject, ".");
     assert_eq!(findings[0].finding.location.path, "Cargo.toml");
     assert_eq!(findings[0].finding.location.line, None);
-    assert!(findings[0].finding.message.contains("chrono, time"));
+    assert!(findings[0].finding.message.contains("chrono, jiff, time"));
     context.workspace.members[1].dependencies[0].kind = DependencyKind::Development;
+    assert_eq!(1, TimeCrate.check(&context).len());
+    context.workspace.members[0]
+        .dependencies
+        .retain(|dependency| dependency.name == "chrono");
+    context.workspace.members[1].dependencies[0].name = "chrono".to_owned();
     assert!(TimeCrate.check(&context).is_empty());
 }

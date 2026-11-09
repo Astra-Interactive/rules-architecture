@@ -66,3 +66,30 @@ fn given_persistent_di_policy_pairs_when_checked_then_exact_nodes_and_subjects_m
         );
     }
 }
+#[test]
+fn given_known_factory_constructors_when_checked_then_dependencies_fail_and_local_state_passes() {
+    for constructor in ["with_config", "from_config", "default"] {
+        crate::test::module::util::assert_di_lines(
+            &crate::module::rule::ConstructorDependency,
+            &format!(
+                "struct RemoteClient; impl RemoteClient {{ fn {constructor}() -> Self {{ Self }} fn send(&self) {{}} }}\nstruct Consumer; impl Consumer {{ fn new() -> Self {{ let client = RemoteClient::{constructor}(); Self }} }}"
+            ),
+            &[2],
+        );
+    }
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::ConstructorDependency,
+        "struct State; impl State { fn new() -> Self { Self } fn update(&mut self) {} } struct Consumer; impl Consumer { fn new() -> Self { let state = State::new(); let values = Vec::<u8>::new(); Self } }",
+        &[],
+    );
+}
+
+#[test]
+fn given_host_composition_root_and_packet_representation_when_checked_then_neither_is_a_service_dependency()
+ {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::ConstructorDependency,
+        "mod di { pub struct RootModule; impl RootModule { pub fn new() -> Self { Self } } } struct Plugin; impl Plugin { fn on_load(&self) { let root = di::RootModule::new(); } } trait ClientboundPacket { fn encode(&self); } struct LoginDisconnect; impl ClientboundPacket for LoginDisconnect { fn encode(&self) {} } impl LoginDisconnect { fn new() -> Self { Self } } struct Session; impl Session { fn send(&self) { let packet = LoginDisconnect::new(); } }",
+        &[],
+    );
+}

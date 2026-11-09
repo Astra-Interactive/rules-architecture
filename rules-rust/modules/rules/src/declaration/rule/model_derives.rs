@@ -10,6 +10,37 @@ use crate::source::util::find_node_span;
 
 pub(crate) struct ModelDerives;
 
+impl ModelDerives {
+    fn supports_copy(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        typed: &syn::Type,
+    ) -> bool {
+        let resolved = context.resolve_type_syntax(ordinal, module, typed);
+        !resolved.is_empty()
+            && resolved.iter().all(|resolved| match &resolved.typed {
+                syn::Type::Reference(reference) => reference.mutability.is_none(),
+                syn::Type::Path(path) => {
+                    let builtin = matches!(
+                        context.indexes[resolved.index].resolve_path(resolved.module, &path.path),
+                        crate::source::model::Resolution::Local
+                    );
+                    builtin
+                        && path.path.get_ident().is_some_and(|name| {
+                            [
+                                "bool", "char", "u8", "u16", "u32", "u64", "u128", "usize", "i8",
+                                "i16", "i32", "i64", "i128", "isize", "f32", "f64",
+                            ]
+                            .iter()
+                            .any(|primitive| name == primitive)
+                        })
+                }
+                _ => false,
+            })
+    }
+}
+
 impl Rule for ModelDerives {
     fn check(&self, context: &RuleContext) -> Vec<RuleFinding> {
         let mut findings = Vec::new();
@@ -24,6 +55,15 @@ impl Rule for ModelDerives {
                     continue;
                 }
                 let mut required = vec!["Debug", "Clone", "PartialEq"];
+                if item.name.ends_with("Id")
+                    && value.fields.len() == 1
+                    && value
+                        .fields
+                        .iter()
+                        .all(|field| Self::supports_copy(context, ordinal, item.module, &field.ty))
+                {
+                    required.push("Copy");
+                }
                 if item.name.ends_with("Id")
                     || value.fields.iter().all(|field| {
                         crate::declaration::util::supports_eq_hash(

@@ -3,6 +3,29 @@ use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
 
 #[test]
+fn given_resolved_rwlock_or_captured_collection_when_updated_then_reports_effects_only_for_known_receivers()
+ {
+    assert_code_findings(
+        &ImpureUpdateClosure,
+        "ImpureUpdateClosure",
+        "fn run(state: tokio::sync::watch::Sender<u32>, gate: parking_lot::RwLock<u32>) {\n state.send_modify(|current| { let guard = gate.read(); *current = *guard; });\n}",
+        &[2],
+    );
+    assert_code_findings(
+        &ImpureUpdateClosure,
+        "ImpureUpdateClosure",
+        "fn run(counter: std::sync::atomic::AtomicUsize, captured: &mut Vec<usize>) {\n counter.fetch_update(std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed, |current| { captured.push(current); Some(current) });\n}",
+        &[2],
+    );
+    assert_code_findings(
+        &ImpureUpdateClosure,
+        "ImpureUpdateClosure",
+        "struct Buffer; impl Buffer { fn push(&self, _: usize) {} } fn run(counter: std::sync::atomic::AtomicUsize, captured: Buffer) {\n counter.fetch_update(std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed, |current| { captured.push(current); Some(current) });\n}",
+        &[],
+    );
+}
+
+#[test]
 fn given_atomic_io_and_watch_capture_when_checked_then_keeps_distinct_purity_contracts() {
     assert_code_findings(
         &ImpureUpdateClosure,

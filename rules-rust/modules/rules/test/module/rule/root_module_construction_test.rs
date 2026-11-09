@@ -22,3 +22,28 @@ fn given_persistent_di_policy_pairs_when_checked_then_exact_nodes_and_subjects_m
         );
     }
 }
+#[test]
+fn given_root_service_creation_forms_when_checked_then_literals_units_defaults_and_helpers_fail() {
+    for expression in [
+        "Service {}",
+        "UnitService",
+        "Service::default()",
+        "build_service()",
+    ] {
+        crate::test::module::util::assert_di_lines(
+            &crate::module::rule::RootModuleConstruction,
+            &format!(
+                "struct Service {{}} struct UnitService; fn build_service() -> Service {{ Service {{}} }} mod di {{ use super::{{Service, UnitService, build_service}}; struct RootModule; impl RootModule {{ fn new() -> Self {{ let service = {expression}; Self }} }} }}"
+            ),
+            &[1],
+        );
+    }
+}
+#[test]
+fn given_resolved_associated_factory_when_root_constructs_a_service_then_it_is_rejected() {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::RootModuleConstruction,
+        "struct Service; impl Service { fn open() -> Self { Self } } mod di { struct RootModule; impl RootModule { fn new() -> Self { let service = super::Service::open(); Self } } }",
+        &[1],
+    );
+}

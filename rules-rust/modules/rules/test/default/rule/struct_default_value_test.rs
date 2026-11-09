@@ -5,6 +5,16 @@ use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
 
 #[test]
+fn given_standard_default_aliases_when_checked_then_reports_only_the_standard_trait() {
+    assert_code_findings(
+        &StructDefaultValue,
+        "StructDefaultValue",
+        "use std::default::Default as Initial;\nstruct Config;\nimpl Initial for Config { fn default() -> Self { Self } }\nmod custom { trait Default {} struct Value; impl Default for Value {} }\nmod nested { use core::default::Default as Start; struct Value; impl Start for Value { fn default() -> Self { Self } } }",
+        &[3, 5],
+    );
+}
+
+#[test]
 fn given_persistent_code_fixtures_when_checked_then_match_exact_anchors() {
     assert_code_fixture(&StructDefaultValue, "StructDefaultValue", "bad");
     assert_code_fixture(&StructDefaultValue, "StructDefaultValue", "good");
