@@ -325,13 +325,13 @@ The floor is 1.93.0; the library declares `rust-version = "1.93"`.
 | `TestFunctionName` | node | a test name outside `given_<state>_when_<action>_then_<outcome>` |
 | `CallbackDeclaration` | node | outside the test and fixture trees, as Kotlin does outside test sources: a function parameter or a struct field named `on_*` whose type, inside `Option` or not, is a closure type (`impl Fn…`, `dyn Fn…` behind any pointer, an `fn(…)` pointer: Kotlin's function type) or a type parameter bounded by `Fn`, `FnMut` or `FnOnce`; a trait the project declares named `*Listener` or `*Callback` |
 | `DeclarationOrder` | node | constants, type families, constructors or trait associated items out of their required order |
-| `CalleeBeforeCaller` | node | same-module or own-type callers above callees, including self-qualified paths and proven local function aliases with lexical scope; constructors and mutual recursion are exempt; arbitrary dynamic call targets remain review |
+| `CalleeBeforeCaller` | node | free-function callers above callees in files without type declarations, and own-type method ordering; includes self-qualified paths and proven local function aliases with lexical scope; constructors and mutual recursion are exempt; arbitrary dynamic call targets remain review |
 | `OneTypeFamilyPerFile` | node, module | a mismatched file name, multiple behavioural types, unrelated secondary types or free functions beside a type; `<Type>Factory` is exempt |
 | `ConstantOutsideImpl` | node | a type's constants outside or before the end of its inherent impl |
 | `NamespaceType` | node | a struct without fields, or an enum without variants, with an inherent impl holding a function and no trait impl |
 | `LocalItem` | node | `struct`, `enum`, `union`, `trait`, `impl` or `mod` inside a function body, closure or `async` block |
 | `StructDefaultValue` | node | project defaults and omitted own-type fields through struct update syntax, with documented deserialization/constructor exceptions |
-| `AnonymousTuple` | node | multi-element tuple types/structs/variants and proven tuple-returning APIs; unknown receiver return types remain review |
+| `AnonymousTuple` | node | stored multi-element tuple types/structs/variants and proven tuple-returning APIs, including supported enumerate elements, scoped local iterator aliases and receiver-specific standard partition/unzip results with workspace extension-override guards; immediate local destructuring, including its type annotation, passes; unknown receiver return types remain review |
 | `WildcardImport` | node | every `use` tree with a glob |
 | `PlatformFileSuffix` | node | a `mod x;` under a single-key target predicate (documented resolution policy) whose name does not end in `_<value>`; a compound target predicate (`all`, `any`, `not`) on a `mod`; platform files whose re-exports differ in name or are not under the same predicate; a target predicate on anything other than such a `mod` and its re-export |
 | `RustdocHtmlTag` | node | an HTML tag `<tag …>` or `</tag>` in a doc comment, outside code spans and fenced blocks |
@@ -339,7 +339,7 @@ The floor is 1.93.0; the library declares `rust-version = "1.93"`.
 | `BooleanOperatorWrapping` | node | an `if`, `while` or match-guard condition spanning several lines with a top-level `&&` or `\|\|` operand that is not a path, `!path` or literal |
 | `ClosureSingleIfGuard` | node | a closure or `async` block whose whole body is one `if` without `else` around two or more statements |
 | `OperatorBeforeTrailingCall` | node | a method call on a parenthesised arithmetic expression (one operator: write the `std::ops` method; two or more: name a `let`), and two chained calls of `add`, `sub`, `mul`, `div` or `rem` |
-| `TrivialClosurePath` | node | chains of at least three path-only adapters that need named semantic steps; single function references remain allowed |
+| `TrivialClosurePath` | node | chains of at least three path-only adapters, and proven str-line trim/trim_start/trim_end adaptation followed by a compatible nongeneric safe workspace function accepting str, which can be two function-path steps; unsafe and target-feature targets are excluded; unknown coercions and effects remain review |
 | `ImportOrdering` | node | use declarations after other items or separated into multiple blocks |
 | `BlockOnOutsideBoundary` | node | `#[tokio::main]`; `block_on`, `Runtime::new` and `Builder::new_*` outside `fn main` of an `entry-point` root, except `block_on` in a technology module |
 | `BlockOnInTest` | node | `block_on`, `Runtime::new`, `Builder::new_*` and `futures::executor::block_on` in the test and fixture trees |
@@ -348,11 +348,11 @@ The floor is 1.93.0; the library declares `rust-version = "1.93"`.
 | `DetachedTask` | node | proven spawned handles discarded directly, explicitly dropped, or abandoned after supported local binding/branch analysis; arbitrary ownership and shutdown flows remain review |
 | `WatchTimeout` | node | supported immediately-ready timeout futures and tautological watch predicates; general readiness and predicate semantics remain review |
 | `ImpureUpdateClosure` | node | captured state assignments and supported captured collection mutations in atomic updates; known locking/I/O is checked where receiver identity is established |
-| `CallbackBridgeShape` | node | spawning inside an argument closure; classifying external closures as asynchronous callbacks remains review |
+| `CallbackBridgeShape` | node | spawning or proven bounded-channel blocking_send inside a callback with source-proven registration/storage; synchronous combinators and unknown callable contracts do not establish callback intent; external registration semantics remain review |
 | `BridgeCleanup` | node | `tokio::spawn` inside `fn drop` of an `impl Drop` |
 | `ThreadPrimitive` | node | an `#[expect(clippy::disallowed_methods)]` covering a thread start outside a technology module |
 | `DurationOverloadCall` | node | `Duration::from_*(<x>.as_millis() \| as_secs() \| as_micros() \| as_nanos() \| as_secs_f64() …)` round trips |
-| `ResultConsumption` | node | discarded-result expectations outside a let-underscore statement or without a proven permitted sender method/type pair; unknown receiver identity does not establish an exception |
+| `ResultConsumption` | node | discarded-result expectations outside a let-underscore statement or without a proven permitted sender method/type pair, and multiple direct question-mark steps in one let initializer; separate lets and deferred bodies are not combined; unknown receiver identity does not establish a discard exception |
 | `DiModuleLifecycle` | node | unsupported lifecycle names/async teardown, supported child forwarding/order checks, borrowed-child ownership and task-scope cancellation; arbitrary external lifecycle semantics remain review |
 | `RootModuleConstruction` | node | non-module construction/factories and supported service-starting work in root assembly or lifecycle methods |
 | `SystemClockOutsideDi` | node | a `SystemClock` constructed outside `di` and the test tree; a `SystemClock` declared outside a `system` module; a trait `Clock` that does not declare exactly `fn now(&self) -> SystemTime` |
@@ -363,9 +363,9 @@ The floor is 1.93.0; the library declares `rust-version = "1.93"`.
 | `ErrorFamilyShape` | node | non-enum error families, missing Debug/thiserror::Error/error messages, non-boxed source fields and proven foreign from/source payloads |
 | `ErrorLogging` | node | supported caught errors logged without an error-chain field, logged repeatedly on the same supported path, or logged before propagation; arbitrary logger adapters and interprocedural exactly-once handling remain review |
 | `CatchUnwind` | node | `catch_unwind` whose closure calls a crate-local item |
-| `DocCommentScope` | node | application docs, inherited trait-method docs, missing published error/safety contracts and proven panic docs; unknown receiver panic behavior remains review |
+| `DocCommentScope` | node | mechanically redundant application/trait-implementation docs, malformed contract headings, missing published error/safety contracts and proven panic docs, including supported caller-controlled indexing and default trait bodies; external reasons, additional contract information and unknown panic behavior remain review |
 | `GlobalState` | node | a `static` typed `OnceLock`, `LazyLock`, `Mutex` or `RwLock`; `lazy_static!`; installing a logging subscriber (`set_global_default`, `.init()` on a subscriber builder) outside `fn main` |
-| `DiModuleShape` | node | non-struct DI, service construction outside new, generic contract parameters, unsupported sharing/deferred storage and contract injection despite an accessible compatible provider module; external semantics remain review |
+| `DiModuleShape` | node | DI declarations outside the permitted struct/trait forms, service construction outside new, generic contract parameters, unsupported sharing/deferred storage and contract injection despite an accessible compatible provider module; a DI trait's contract trigger and external semantics remain review |
 | `ConstructorDependency` | node | supported construction/factory calls of proven replaceable dependencies outside composition boundaries; data containers and host root assembly are preserved |
 | `MainShape` | node | entry main runtime/root enable/disable structure and supported awaited shutdown wait; arbitrary runtime control flow remains review |
 | `BlockingCallInAsync` | node | `std::thread::sleep`, `std::fs::*` or `std::sync::mpsc::*` inside an `async fn` or `async` block |
@@ -389,6 +389,13 @@ replace rustc type checking. Review portions are retained as review rather than 
 name correspondence; arbitrary receiver model mutation and visibility inference; unknown tuple-returning/panicking
 methods; temporal primitive intent; callback intent; and semantic rustdoc paraphrases. Exact parts of each mixed rule
 remain active.
+
+Runtime receiver inference includes supported Result success paths through match, map_err and question marks,
+with resolved type aliases; an error type named Runtime does not establish a runtime success receiver.
+Source traversal respects Cargo-resolved syn/quote literal token grammar while retaining span expressions,
+interpolations and custom macro analysis. This does not expand arbitrary macros.
+The direct question-mark composition check applies the general one-step-per-let clause to both Result and
+Option; discarded-result exceptions remain a separate check.
 
 ## Development
 
