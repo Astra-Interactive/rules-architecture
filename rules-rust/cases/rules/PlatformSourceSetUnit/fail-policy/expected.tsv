@@ -1,0 +1,3 @@
+PlatformSourceSetUnit	modules/linux/Cargo.toml	case-linux	platform code belongs under target cfgs in its owning crate, never in a target-named crate
+KindShape	modules/linux/src/lib.rs:1	case_linux::model	a kind block is created with its first file, never empty
+PlatformFileSuffix	modules/linux/src/lib.rs:1	modules/linux/src/lib.rs	Put platform code in single-target suffixed file modules with matching conditional re-exports (arch-package.rs.md)

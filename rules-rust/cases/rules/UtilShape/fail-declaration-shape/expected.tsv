@@ -1,0 +1,4 @@
+OneTypeFamilyPerFile	modules/sample/src/lib.rs:2	case_sample::util::values	Name the file after its primary type family (arch-package.rs.md)
+ReExportShape	modules/sample/src/util/values.rs:1	RuleValues	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+UtilShape	modules/sample/src/util/values.rs:1	case_sample::util::RuleValues	util holds functions and extension implementations, never data declarations
+VisibilityTier	modules/sample/src/util/values.rs:1	RuleValues	visibility follows the actual workspace users of the item

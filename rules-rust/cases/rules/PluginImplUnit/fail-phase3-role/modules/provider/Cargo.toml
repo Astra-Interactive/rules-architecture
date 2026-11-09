@@ -1,0 +1,9 @@
+[package]
+name = "case-provider"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[package.metadata.klibs-rules]
+role = "api"

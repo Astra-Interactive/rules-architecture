@@ -1,3 +1,4 @@
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct PredictionInput {
     pub(crate) symbol: String,
     pub(crate) window: u16,

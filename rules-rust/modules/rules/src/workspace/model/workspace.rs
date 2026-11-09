@@ -12,6 +12,7 @@ pub(crate) struct Workspace {
     pub(crate) rustfmt_files: Vec<TomlFile>,
     pub(crate) toolchain_file: Option<ToolchainFile>,
     pub(crate) cargo_config: Option<TomlFile>,
+    pub(crate) lock_file: Option<TomlFile>,
     pub(crate) files: Vec<String>,
     pub(crate) directories: Vec<String>,
 }

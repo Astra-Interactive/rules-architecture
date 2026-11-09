@@ -1,0 +1,12 @@
+[package]
+name = "case-billing-consumer"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[package.metadata.klibs-rules]
+role = "proc-macro"
+
+[dependencies]
+serde = "1"

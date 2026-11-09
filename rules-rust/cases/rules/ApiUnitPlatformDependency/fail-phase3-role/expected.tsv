@@ -1,0 +1,1 @@
+ApiUnitPlatformDependency	modules/sample/Cargo.toml:12	case-sample -> bukkit-api	platform-free units declare no platform dependency; an app api allows one only in target cfg dependencies

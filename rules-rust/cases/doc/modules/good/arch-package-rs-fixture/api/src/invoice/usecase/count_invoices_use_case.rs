@@ -1,4 +1,5 @@
 use crate::invoice::api::InvoiceRepository;
+use crate::invoice::model::InvoiceSummary;
 use std::sync::Arc;
 
 pub struct CountInvoicesUseCase {
@@ -11,6 +12,10 @@ impl CountInvoicesUseCase {
     }
 
     pub fn invoke(&self) -> usize {
-        self.invoice_repository.count_invoices()
+        self.invoice_repository
+            .invoices()
+            .into_iter()
+            .filter(InvoiceSummary::is_countable)
+            .count()
     }
 }

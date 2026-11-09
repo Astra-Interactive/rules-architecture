@@ -14,6 +14,7 @@ members = [
   "modules/bad/no-tuples-rs",
   "modules/bad/region",
   "modules/bad/rustdoc-rs",
+  "modules/bad/rustdoc-app-rs",
   "modules/bad/struct-default-values-rs",
   "modules/bad/testing-no-useless-rs",
   "modules/bad/testing-rs",
@@ -48,6 +49,8 @@ members = [
 
 [workspace.metadata.klibs-rules]
 product-kind = "app"
+technology-words = ["acme"]
+entry-point-words = ["component"]
 
 [workspace.package]
 edition = "2024"

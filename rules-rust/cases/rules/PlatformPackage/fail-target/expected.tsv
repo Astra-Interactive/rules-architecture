@@ -1,1 +1,3 @@
+PlatformFileSuffix	modules/sample/src/lib.rs:1	modules/sample/src/lib.rs	Put platform code in single-target suffixed file modules with matching conditional re-exports (arch-package.rs.md)
 PlatformPackage	modules/sample/src/lib.rs:1	case_sample::arm	platform code uses a target cfg at the same module path, never a platform module (arch-package.rs.md, Modules and directories)
+KindShape	modules/sample/src/lib.rs:3	case_sample::arm::model	a kind block is created with its first file, never empty

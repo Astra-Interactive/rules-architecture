@@ -1,0 +1,2 @@
+KindShape	modules/aarch64/src/lib.rs:1	case_aarch64::model	a kind block is created with its first file, never empty
+PlatformFileSuffix	modules/aarch64/src/lib.rs:1	modules/aarch64/src/lib.rs	Put platform code in single-target suffixed file modules with matching conditional re-exports (arch-package.rs.md)

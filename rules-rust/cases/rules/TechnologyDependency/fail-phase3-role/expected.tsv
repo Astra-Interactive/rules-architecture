@@ -1,0 +1,1 @@
+TechnologyDependency	modules/sample/Cargo.toml:12	case-sample -> sqlx	an external technology owned by a workspace technology unit is used only there or by entry points

@@ -1,6 +1,30 @@
 use crate::check::api::Rule;
 use crate::naming::rule::KindNameInPackage;
 use crate::test::check::usecase::read_case_context;
+use crate::test::declaration::util::assert_code_findings;
+use crate::test::declaration::util::assert_code_fixture;
+
+#[test]
+fn given_persistent_code_fixtures_when_checked_then_match_exact_anchors() {
+    assert_code_fixture(&KindNameInPackage, "KindNameInPackage", "bad");
+    assert_code_fixture(&KindNameInPackage, "KindNameInPackage", "good");
+}
+
+#[test]
+fn given_service_and_api_suffixes_when_checked_then_reports_only_misplaced_type_names() {
+    assert_code_findings(
+        &KindNameInPackage,
+        "KindNameInPackage",
+        "mod model { struct UserService; }\nmod api { trait UserApi {} trait UserDao {} trait UserKrate {} trait UserStorage {} }",
+        &[1, 2, 2, 2, 2],
+    );
+    assert_code_findings(
+        &KindNameInPackage,
+        "KindNameInPackage",
+        "mod service { struct UserService; }\nmod api { trait UserRepository {} }\nmod file { struct UserStorage; }",
+        &[],
+    );
+}
 
 #[test]
 fn given_technology_before_model_when_checked_then_keeps_representation_names() {

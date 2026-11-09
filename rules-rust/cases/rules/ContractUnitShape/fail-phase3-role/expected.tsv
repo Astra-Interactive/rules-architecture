@@ -1,0 +1,8 @@
+ContractUnitShape	modules/sample/src/model/invoice.rs:1	case_sample::model::Invoice	contract units hold Serialize + Deserialize wire types and route constants, without function bodies
+ModelDerives	modules/sample/src/model/invoice.rs:1	case_sample::model::invoice::Invoice	Derive Debug, Clone, PartialEq, Eq, Hash on this model struct (arch-domain.rs.md)
+ReExportShape	modules/sample/src/model/invoice.rs:1	Invoice	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/model/invoice.rs:1	Invoice	visibility follows the actual workspace users of the item
+ContractUnitShape	modules/sample/src/model/invoice.rs:2	case_sample::model::compute_value	contract units hold Serialize + Deserialize wire types and route constants, without function bodies
+OneTypeFamilyPerFile	modules/sample/src/model/invoice.rs:2	case_sample::model::invoice::compute_value	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+ReExportShape	modules/sample/src/model/invoice.rs:2	compute_value	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/model/invoice.rs:2	compute_value	visibility follows the actual workspace users of the item

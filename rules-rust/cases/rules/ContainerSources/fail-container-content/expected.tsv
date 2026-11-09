@@ -1,3 +1,4 @@
+RootPackagePath	Cargo.toml	.	set `[workspace.metadata.klibs-rules] prefix`: member names give no unique prefix
 ContainerSources	modules/loose	modules/loose	a container holds crate directories only: move Cargo.toml and sources into a member
 ContainerSources	modules/manifest	modules/manifest	a container holds crate directories only: move Cargo.toml and sources into a member
 ContainerSources	modules/source	modules/source	a container holds crate directories only: move Cargo.toml and sources into a member

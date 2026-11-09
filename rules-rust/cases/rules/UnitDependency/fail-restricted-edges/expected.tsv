@@ -1,0 +1,8 @@
+UnitDependency	modules/consumer/Cargo.toml:9	case-consumer -> case-owner	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+UnitDependency	modules/consumer/Cargo.toml:10	case-consumer -> xtask	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+UnitDependency	modules/consumer/Cargo.toml:13	case-consumer -> case-owner	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+RootBuildSubprojects	modules/macros/Cargo.toml:12	case-macros dev-dependencies.case-owner	declare dev-dependencies.case-owner in the workspace root and inherit shared settings with workspace = true
+UnitDependency	modules/macros/Cargo.toml:12	case-macros -> case-owner	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+FakePlacement	modules/owner/Cargo.toml:9	case-owner features.fake	The fixture block and an empty fake = [] feature must be declared together (arch-package.rs.md)
+RootBuildSubprojects	xtask/Cargo.toml:9	xtask build-dependencies.case-owner	declare build-dependencies.case-owner in the workspace root and inherit shared settings with workspace = true
+UnitDependency	xtask/Cargo.toml:9	xtask -> case-owner	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary

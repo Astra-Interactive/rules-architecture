@@ -1,0 +1,6 @@
+[workspace]
+resolver = "3"
+members = ["modules/provider", "modules/consumer"]
+
+[workspace.metadata.klibs-rules]
+product-kind = "app"

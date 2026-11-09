@@ -1,9 +1,12 @@
+KindShape	modules/sample/src/lib.rs:2	case_sample::sample::kinds	a concept holds kind blocks; files live in a named kind
 OneTypeFamilyPerFile	modules/sample/src/lib.rs:2	case_sample::sample::kinds	Name the file after its primary type family (arch-package.rs.md)
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:1	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:3	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:5	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
+ReExportShape	modules/sample/src/sample/kinds.rs:7	Bits	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:7	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:9	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
+ReExportShape	modules/sample/src/sample/kinds.rs:12	Alias	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:12	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 ImportOrdering	modules/sample/src/sample/kinds.rs:14	case_sample::sample::kinds	Keep use declarations first and file imports in one contiguous block (imports.rs.md; code-ordering.rs.md)
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:14	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
@@ -13,10 +16,13 @@ UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:20	AnonymousTuple	no `
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:22	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:24	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:27	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
+ContractPlacement	modules/sample/src/sample/kinds.rs:31	case_sample::sample::Shape	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ReExportShape	modules/sample/src/sample/kinds.rs:31	Shape	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:32	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:34	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:36	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:38	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
+ReExportShape	modules/sample/src/sample/kinds.rs:41	Square	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:43	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 DeclarationOrder	modules/sample/src/sample/kinds.rs:45	case_sample::sample::kinds	Declare constants, complete type families and functions in dependency order (code-ordering.rs.md)
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:45	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
@@ -24,6 +30,7 @@ UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:46	AnonymousTuple	no `
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:49	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:53	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 OneTypeFamilyPerFile	modules/sample/src/sample/kinds.rs:60	case_sample::sample::kinds::statements	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+ReExportShape	modules/sample/src/sample/kinds.rs:60	statements	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:61	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:63	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:65	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
@@ -35,9 +42,11 @@ UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:77	AnonymousTuple	no `
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:81	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:83	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:85	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
+UnsafePlacement	modules/sample/src/sample/kinds.rs:85	modules/sample/src/sample/kinds.rs	Keep unsafe code behind a safe technology implementation (arch-package.rs.md)
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:87	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:89	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:91	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:93	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 OneTypeFamilyPerFile	modules/sample/src/sample/kinds.rs:96	case_sample::sample::kinds::tail	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+ReExportShape	modules/sample/src/sample/kinds.rs:96	tail	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:97	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception

@@ -2,4 +2,5 @@
 pub(crate) enum Suppressor {
     Attribute(usize),
     Manifest(usize),
+    Dependency(usize),
 }

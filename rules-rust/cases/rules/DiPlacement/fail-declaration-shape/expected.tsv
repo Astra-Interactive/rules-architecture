@@ -1,0 +1,4 @@
+DiPlacement	modules/sample/src/util/invoice_module.rs:1	case_sample::util::InvoiceModule	dependency wiring structs live in di
+ReExportShape	modules/sample/src/util/invoice_module.rs:1	InvoiceModule	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+UtilShape	modules/sample/src/util/invoice_module.rs:1	case_sample::util::InvoiceModule	util holds functions and extension implementations, never data declarations
+VisibilityTier	modules/sample/src/util/invoice_module.rs:1	InvoiceModule	visibility follows the actual workspace users of the item

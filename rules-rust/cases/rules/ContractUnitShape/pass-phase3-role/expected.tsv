@@ -1,0 +1,5 @@
+ReExportShape	modules/sample/src/model/invoice.rs:1	Invoice	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/model/invoice.rs:1	Invoice	visibility follows the actual workspace users of the item
+ModelDerives	modules/sample/src/model/invoice.rs:2	case_sample::model::invoice::Invoice	Derive Debug, Clone, PartialEq, Eq, Hash on this model struct (arch-domain.rs.md)
+ConstantOutsideImpl	modules/sample/src/model/invoice.rs:3	case_sample::model::invoice	Keep a type's constants at the end of its inherent impl (code-ordering.rs.md)
+DeclarationOrder	modules/sample/src/model/invoice.rs:3	case_sample::model::invoice	Declare constants, complete type families and functions in dependency order (code-ordering.rs.md)

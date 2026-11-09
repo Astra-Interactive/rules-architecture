@@ -1,0 +1,4 @@
+ContractShape	modules/sample/src/api/clock.rs:1	case_sample::api::clock::Clock	Declare contracts as non-generic Send + Sync traits, with async_trait for async methods (arch-domain.rs.md)
+ReExportShape	modules/sample/src/api/clock.rs:1	Clock	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/sample/src/api/clock.rs:1	case_sample::api::Clock	SystemClock lives in system and Clock declares exactly fn now(&self) -> SystemTime
+VisibilityTier	modules/sample/src/api/clock.rs:1	Clock	visibility follows the actual workspace users of the item

@@ -1,0 +1,12 @@
+[package]
+name = "case-consumer"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+case-owner = { path = "../owner" }
+
+[dev-dependencies]
+case-owner.workspace = true

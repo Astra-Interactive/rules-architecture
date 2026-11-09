@@ -281,7 +281,7 @@ impl ModuleTreeWalker {
             }
         };
         let child = ModuleFrame {
-            directory: Self::find_child_directory(&file, false),
+            directory: Self::find_child_directory(&file, path_attribute.is_some()),
             file,
             is_root_file: false,
             ..child
@@ -300,7 +300,7 @@ impl ModuleTreeWalker {
         }
         let is_crate_root = frame.path.is_empty() && frame.is_root_file;
         let tree = Self::select_child_tree(frame.tree, is_crate_root, &name);
-        let path_attribute = find_path_attribute(&item.attrs).filter(|_| tree != frame.tree);
+        let path_attribute = find_path_attribute(&item.attrs);
         let mut path = frame.path.clone();
         path.push(name.clone());
         let Some((_, items)) = &item.content else {

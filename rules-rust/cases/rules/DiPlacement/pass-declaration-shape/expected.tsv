@@ -1,0 +1,4 @@
+ReExportShape	modules/sample/src/di/invoice_module.rs:1	InvoiceModule	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/di/invoice_module.rs:1	InvoiceModule	visibility follows the actual workspace users of the item
+ReExportShape	modules/sample/src/file/read_invoice.rs:1	read_invoice	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/file/read_invoice.rs:1	read_invoice	visibility follows the actual workspace users of the item

@@ -1,0 +1,1 @@
+RootPackagePath	Cargo.toml	.	set `[workspace.metadata.klibs-rules] prefix`: member names give no unique prefix

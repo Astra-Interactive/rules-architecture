@@ -117,6 +117,18 @@ fn find_suppressor(
             })
             .map(Suppressor::Attribute),
         Anchor::Crate(name) => manifest(ManifestScope::Package(name.clone())),
+        Anchor::Edge {
+            from_crate,
+            to_crate,
+        } => manifest(ManifestScope::Package(from_crate.clone())).or_else(|| {
+            config
+                .allowed_dependencies
+                .iter()
+                .position(|dependency| {
+                    dependency.from_crate == *from_crate && dependency.to_crate == *to_crate
+                })
+                .map(Suppressor::Dependency)
+        }),
         Anchor::Workspace => manifest(ManifestScope::Workspace),
         Anchor::Unexpectable => None,
     }
@@ -141,6 +153,14 @@ fn build_accepted(
                 exception.reason.clone(),
             )
         }
+        Suppressor::Dependency(index) => {
+            let dependency = config.allowed_dependencies.get(index)?;
+            (
+                dependency.path.clone(),
+                dependency.line,
+                dependency.reason.clone(),
+            )
+        }
     };
     Some(AcceptedException {
         rule_id: finding.finding.rule_id.clone(),
@@ -157,6 +177,9 @@ fn describe_unfulfilled(rule_id: &str, activity: &RuleActivity) -> String {
     let reads_platform_crates =
         find_catalogue_entry(rule_id).is_some_and(|entry| entry.reads_platform_crates);
     if reads_platform_crates && activity.is_platform_words_empty {
+        if rule_id == "PlatformImport" {
+            return "`PlatformImport` has no configured platform words: its platform checks are inactive, and no technology-path finding is anchored in this scope".to_owned();
+        }
         return format!(
             "`{rule_id}` reads platform crates and `platform-words` is empty, so it reports nothing"
         );
@@ -207,7 +230,10 @@ fn report_unfulfilled(
         );
         outcome.violations.push(finding);
     }
-    for dependency in &config.allowed_dependencies {
+    for (index, dependency) in config.allowed_dependencies.iter().enumerate() {
+        if used.contains(&Suppressor::Dependency(index)) {
+            continue;
+        }
         let message = describe_unfulfilled("UnitDependency", activity);
         let subject = format!("{} -> {}", dependency.from_crate, dependency.to_crate);
         let finding = build_meta_finding(

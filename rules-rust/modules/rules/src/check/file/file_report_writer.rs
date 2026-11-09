@@ -16,6 +16,20 @@ impl FileReportWriter {
 }
 
 impl ReportWriter for FileReportWriter {
+    fn write_with_ownership(
+        &self,
+        checked: &crate::check::model::CheckedWorkspace,
+    ) -> Result<(), CheckError> {
+        self.write(&checked.report)?;
+        Self::write_file(
+            &checked
+                .report
+                .target_directory
+                .join("klibs-rules/api-ownership.txt"),
+            checked.api_ownership.as_text(),
+        )
+    }
+
     fn write(&self, report: &Report) -> Result<(), CheckError> {
         let directory = report.target_directory.join("klibs-rules");
         fs::create_dir_all(&directory).map_err(|error| CheckError::Io {

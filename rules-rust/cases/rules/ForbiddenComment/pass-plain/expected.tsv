@@ -1,0 +1,2 @@
+DocCommentScope	modules/sample/src/sample/util/total_build.rs:1	modules/sample/src/sample/util/total_build.rs	docs add failure/safety contracts or external reasons; impl methods inherit trait docs and published panic contracts use headed sections
+ReExportShape	modules/sample/src/sample/util/total_build.rs:1	build_total	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block

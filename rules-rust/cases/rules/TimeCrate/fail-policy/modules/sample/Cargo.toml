@@ -1,0 +1,12 @@
+[package]
+name = "case-sample"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+clock = { package = "chrono", version = "0.4" }
+
+[target.'cfg(unix)'.build-dependencies]
+time = "0.3"

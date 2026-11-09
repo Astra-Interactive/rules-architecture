@@ -1,0 +1,3 @@
+ReExportShape	modules/sample/src/command/invoice_command.rs:1	InvoiceCommand	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/command/invoice_command.rs:1	InvoiceCommand	visibility follows the actual workspace users of the item
+KindShape	modules/sample/src/lib.rs:1	case_sample::command	the crate role does not permit this kind; technology helpers use table/entity/model/util/database/di and app api contains only its public-contract kinds

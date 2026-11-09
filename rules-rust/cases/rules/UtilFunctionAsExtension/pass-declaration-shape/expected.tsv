@@ -1,0 +1,3 @@
+ModelDerives	modules/sample/src/model/invoice.rs:1	case_sample::model::invoice::Invoice	Derive Debug, Clone, PartialEq, Eq, Hash on this model struct (arch-domain.rs.md)
+ReExportShape	modules/sample/src/util/invoice_total.rs:2	compute_total	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/util/invoice_total.rs:2	compute_total	visibility follows the actual workspace users of the item

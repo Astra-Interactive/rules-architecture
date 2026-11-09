@@ -1,0 +1,11 @@
+[package]
+name = "identity-owner"
+version = "0.1.0"
+edition = "2024"
+publish = false
+[features]
+extra = []
+[lib]
+name = "shared_runtime"
+[dependencies]
+digest-package = { path = "../provider", features = ["extra"] }

@@ -1,0 +1,206 @@
+use crate::check::model::RuleContext;
+use crate::check::model::RuleFinding;
+use crate::check::util::build_node_finding;
+use crate::check::util::format_module_path;
+use crate::config::model::Role;
+use crate::source::model::CrateIndex;
+use crate::source::model::Resolution;
+use crate::source::model::SourceFile;
+use crate::source::model::SourceTree;
+use crate::source::util::find_node_span;
+use crate::source::util::parse_macro_arguments;
+use syn::spanned::Spanned;
+use syn::visit::Visit;
+
+pub(crate) struct RuntimeVisitor<'source> {
+    context: &'source RuleContext,
+    index: &'source CrateIndex,
+    file: &'source SourceFile,
+    module: usize,
+    rule: &'static str,
+    is_main: bool,
+    findings: Vec<RuleFinding>,
+}
+
+impl RuntimeVisitor<'_> {
+    fn report(&mut self, span: proc_macro2::Span, message: &str) {
+        self.findings.push(build_node_finding(
+            self.rule,
+            &self.file.path,
+            find_node_span(span),
+            format_module_path(
+                &self.index.crate_name,
+                &self.index.modules[self.module].module.path,
+            ),
+            message.to_owned(),
+        ));
+    }
+
+    fn is_test(&self) -> bool {
+        self.index.modules[self.module].tree != SourceTree::Src
+    }
+
+    fn is_technology(&self) -> bool {
+        self.context
+            .project_config
+            .crates
+            .iter()
+            .find(|config| config.name == self.index.crate_name)
+            .is_some_and(|config| {
+                config.role == Some(Role::Technology)
+                    || self.index.modules[self.module]
+                        .module
+                        .path
+                        .iter()
+                        .any(|segment| config.technology_words.contains(segment))
+            })
+    }
+
+    fn check_runtime_call(&mut self, span: proc_macro2::Span, is_block_on: bool) {
+        if self.rule == "BlockOnInTest" && self.is_test() {
+            self.report(span, "Run async tests with tokio::test instead of building or blocking a runtime (testing.rs.md)");
+        }
+        if self.rule != "BlockOnOutsideBoundary" || self.is_main {
+            return;
+        }
+        if !is_block_on || !self.is_technology() {
+            self.report(span, "Build and block a runtime only in entry-point root main; technology boundaries may block_on (di-manual.rs.md)");
+        }
+    }
+
+    fn resolved_call(&self, module: usize, path: &syn::Path, depth: usize) -> Option<String> {
+        if depth > 8 {
+            return None;
+        }
+        match self.index.resolve_path(module, path) {
+            Resolution::External(path) => Some(path),
+            Resolution::Internal(targets) => targets.iter().find_map(|target| {
+                let item = target
+                    .item
+                    .and_then(|identity| self.index.items.get(identity))?;
+                let syn::Item::Type(alias) = &item.syntax else {
+                    return None;
+                };
+                let syn::Type::Path(aliased) = &*alias.ty else {
+                    return None;
+                };
+                let mut aliased_path = aliased.path.clone();
+                if path.segments.len() > 1 {
+                    aliased_path.segments.push(path.segments.last()?.clone());
+                }
+                self.resolved_call(item.module, &aliased_path, depth + 1)
+            }),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn check_context(context: &RuleContext, rule: &'static str) -> Vec<RuleFinding> {
+        let mut findings = Vec::new();
+        for sources in &context.crates {
+            for file in &sources.files {
+                let Some(index) = context.indexes.iter().find(|index| {
+                    index.crate_name == file.module.crate_name && index.target == file.module.target
+                }) else {
+                    continue;
+                };
+                let Some(module) = index
+                    .modules
+                    .iter()
+                    .find(|module| module.module == file.module)
+                else {
+                    continue;
+                };
+                let mut visitor = RuntimeVisitor {
+                    context,
+                    index,
+                    file,
+                    module: module.id,
+                    rule,
+                    is_main: false,
+                    findings: Vec::new(),
+                };
+                visitor.visit_file(&file.syntax);
+                findings.extend(visitor.findings);
+            }
+        }
+        findings
+    }
+}
+
+impl<'ast> Visit<'ast> for RuntimeVisitor<'_> {
+    fn visit_macro(&mut self, item: &'ast syn::Macro) {
+        for argument in &parse_macro_arguments(item) {
+            self.visit_expr(argument);
+        }
+    }
+
+    fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
+        let parent = self.module;
+        if let Some(module) = self.index.modules.iter().find(|module| {
+            module.parent == Some(parent)
+                && module.span == find_node_span(item.span())
+                && module
+                    .module
+                    .path
+                    .last()
+                    .is_some_and(|name| item.ident == name)
+        }) {
+            self.module = module.id;
+        }
+        syn::visit::visit_item_mod(self, item);
+        self.module = parent;
+    }
+
+    fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
+        let parent = self.is_main;
+        let is_entry = self.context.project_config.crates.iter().any(|config| {
+            config.name == self.index.crate_name && config.role == Some(Role::EntryPoint)
+        });
+        self.is_main = is_entry
+            && self.index.modules[self.module].module.path.is_empty()
+            && item.sig.ident == "main";
+        syn::visit::visit_item_fn(self, item);
+        self.is_main = parent;
+    }
+
+    fn visit_attribute(&mut self, attribute: &'ast syn::Attribute) {
+        if self.rule == "IgnoredTest" && attribute.path().is_ident("ignore") {
+            self.report(attribute.span(), "Keep tests enabled (no-workarounds.md)");
+        }
+        let tokio_main = self
+            .resolved_call(self.module, attribute.path(), 0)
+            .as_deref()
+            == Some("tokio::main")
+            || attribute.path().segments.len() == 2
+                && attribute.path().segments[0].ident == "tokio"
+                && attribute.path().segments[1].ident == "main";
+        if self.rule == "BlockOnOutsideBoundary" && tokio_main {
+            self.report(attribute.span(), "Build the async runtime in entry-point main instead of tokio::main (di-manual.rs.md)");
+        }
+        syn::visit::visit_attribute(self, attribute);
+    }
+
+    fn visit_expr_method_call(&mut self, expression: &'ast syn::ExprMethodCall) {
+        if expression.method == "block_on" {
+            self.check_runtime_call(expression.span(), true);
+        }
+        syn::visit::visit_expr_method_call(self, expression);
+    }
+
+    fn visit_expr_call(&mut self, expression: &'ast syn::ExprCall) {
+        if let syn::Expr::Path(path) = &*expression.func
+            && let Some(resolved) = self.resolved_call(self.module, &path.path, 0)
+        {
+            let is_block_on = resolved == "futures::executor::block_on"
+                || resolved == "futures_executor::block_on"
+                || resolved.ends_with("::runtime::Runtime::block_on")
+                || resolved.ends_with("::runtime::Handle::block_on");
+            let is_runtime_new = resolved == "tokio::runtime::Runtime::new";
+            let is_builder_new = resolved.starts_with("tokio::runtime::Builder::new_");
+            if is_block_on || is_runtime_new || is_builder_new {
+                self.check_runtime_call(expression.span(), is_block_on);
+            }
+        }
+        syn::visit::visit_expr_call(self, expression);
+    }
+}

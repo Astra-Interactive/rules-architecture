@@ -1,0 +1,4 @@
+ContractShape	modules/sample/src/api/invoice_repository.rs:1	case_sample::api::invoice_repository::InvoiceRepository	Declare contracts as non-generic Send + Sync traits, with async_trait for async methods (arch-domain.rs.md)
+ImplementationVisibility	modules/sample/src/file/file_invoice_repository.rs:2	case_sample::file::FileInvoiceRepository	a technology implementation of a crate contract is pub(crate)
+ReExportShape	modules/sample/src/file/file_invoice_repository.rs:2	FileInvoiceRepository	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/file/file_invoice_repository.rs:2	FileInvoiceRepository	visibility follows the actual workspace users of the item

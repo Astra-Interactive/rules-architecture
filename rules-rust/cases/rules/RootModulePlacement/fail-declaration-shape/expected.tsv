@@ -1,0 +1,5 @@
+EntryPointShape	instances/runner/src/lib.rs:1	case_runner::model	an entry-point root holds only di and its fixture/test blocks
+DiPlacement	instances/runner/src/model/root_module.rs:1	case_runner::model::RootModule	dependency wiring structs live in di
+ModelDerives	instances/runner/src/model/root_module.rs:1	case_runner::model::root_module::RootModule	Derive Debug, Clone, PartialEq, Eq, Hash on this model struct (arch-domain.rs.md)
+ReExportShape	instances/runner/src/model/root_module.rs:1	RootModule	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+RootModulePlacement	instances/runner/src/model/root_module.rs:1	case_runner::model::RootModule	one composition root lives at src/di/root_module.rs of an entry-point crate

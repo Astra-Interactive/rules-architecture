@@ -1,0 +1,4 @@
+ContractPlacement	modules/sample/src/usecase/compute_invoice_use_case.rs:1	case_sample::usecase::ComputeInvoiceUseCase	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ReExportShape	modules/sample/src/usecase/compute_invoice_use_case.rs:1	ComputeInvoiceUseCase	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+UseCaseAbstraction	modules/sample/src/usecase/compute_invoice_use_case.rs:1	case_sample::usecase::ComputeInvoiceUseCase	a use-case abstraction lives in usecase of its owner's app api unit
+VisibilityTier	modules/sample/src/usecase/compute_invoice_use_case.rs:1	ComputeInvoiceUseCase	visibility follows the actual workspace users of the item

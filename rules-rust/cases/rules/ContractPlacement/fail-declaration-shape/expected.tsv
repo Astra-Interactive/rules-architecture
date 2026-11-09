@@ -1,0 +1,3 @@
+ContractPlacement	modules/sample/src/model/invoice_repository.rs:1	case_sample::model::InvoiceRepository	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ReExportShape	modules/sample/src/model/invoice_repository.rs:1	InvoiceRepository	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/model/invoice_repository.rs:1	InvoiceRepository	visibility follows the actual workspace users of the item

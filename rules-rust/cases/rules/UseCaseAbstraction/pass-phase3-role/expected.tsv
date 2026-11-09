@@ -1,0 +1,2 @@
+ReExportShape	modules/sample/src/usecase/compute_invoice_use_case.rs:1	ComputeInvoiceUseCase	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/usecase/compute_invoice_use_case.rs:1	ComputeInvoiceUseCase	visibility follows the actual workspace users of the item

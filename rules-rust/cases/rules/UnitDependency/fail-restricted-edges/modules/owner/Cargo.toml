@@ -1,0 +1,12 @@
+[package]
+name = "case-owner"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[features]
+fake = []
+
+[package.metadata.klibs-rules]
+role = "api"

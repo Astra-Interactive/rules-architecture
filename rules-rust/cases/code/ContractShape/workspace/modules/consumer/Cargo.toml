@@ -1,0 +1,10 @@
+[package]
+name = "case-consumer"
+edition = "2024"
+
+[features]
+default = ["native"]
+native = []
+
+[dependencies]
+renamed-provider = { package = "case-provider", path = "../provider" }

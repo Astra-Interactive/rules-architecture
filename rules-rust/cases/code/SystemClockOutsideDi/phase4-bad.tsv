@@ -1,0 +1,2 @@
+SystemClockOutsideDi	src/lib.rs:1	Node	case_sample::SystemClock
+SystemClockOutsideDi	src/lib.rs:2	Node	case_sample::Clock

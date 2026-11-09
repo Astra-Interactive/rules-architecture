@@ -20,8 +20,10 @@ fn given_development_cycles_when_checked_then_each_strong_component_is_reported_
     assert!(UnitDependencyCycle.check(&context).is_empty());
     context.workspace.members[0].dependencies.push(Dependency {
         name: "beta".to_owned(),
+        code_name: "beta".to_owned(),
         path: None,
         kind: DependencyKind::Development,
+        features: Vec::new(),
         is_target_specific: false,
         line: None,
     });
@@ -33,8 +35,10 @@ fn given_acyclic_and_external_edges_when_checked_then_no_cycle_is_reported() {
     let mut context = read_case_context("UnitDependencyCycle", "pass-acyclic-development");
     context.workspace.members[0].dependencies.push(Dependency {
         name: "external".to_owned(),
+        code_name: "external".to_owned(),
         path: None,
         kind: DependencyKind::Development,
+        features: Vec::new(),
         is_target_specific: true,
         line: None,
     });

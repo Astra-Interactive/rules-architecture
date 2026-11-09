@@ -1,3 +1,6 @@
+ModelDerives	modules/sample/src/invoice/model/invoice.rs:1	case_sample::invoice::model::invoice::Invoice	Derive Debug, Clone, PartialEq, Eq, Hash on this model struct (arch-domain.rs.md)
+VisibilityTier	modules/sample/src/invoice/model/invoice.rs:1	Invoice	visibility follows the actual workspace users of the item
 ModuleVisibility	modules/sample/src/lib.rs:1	case_sample::invoice	module visibility must be Public (arch-package.rs.md, Modules and directories)
 ModuleVisibility	modules/sample/src/lib.rs:2	case_sample::invoice::model	module visibility must be Public (arch-package.rs.md, Modules and directories)
+ReExportShape	modules/sample/src/lib.rs:3	Invoice	re-export visibility follows whether another workspace crate names its target
 ModuleVisibility	modules/sample/src/lib.rs:4	case_sample::invoice::model::invoice	module visibility must be Private (arch-package.rs.md, Modules and directories)

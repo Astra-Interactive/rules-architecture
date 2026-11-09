@@ -1,0 +1,1 @@
+UnitPath	modules/sample	case-sample	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared

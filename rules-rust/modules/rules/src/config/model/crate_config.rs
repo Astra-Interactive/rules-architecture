@@ -6,4 +6,6 @@ pub(crate) struct CrateConfig {
     pub(crate) role: Option<Role>,
     pub(crate) host_items: Vec<String>,
     pub(crate) technology_words: Vec<String>,
+    pub(crate) composition: String,
+    pub(crate) implementation_access: String,
 }

@@ -1,0 +1,2 @@
+FakePlacement	modules/sample/Cargo.toml	case-sample features.fake	The fixture block and an empty fake = [] feature must be declared together (arch-package.rs.md)
+KindShape	modules/sample/src/lib.rs:2	case_sample::invoice::model	a kind block is created with its first file, never empty

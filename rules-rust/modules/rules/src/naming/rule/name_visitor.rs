@@ -78,7 +78,13 @@ impl<'source> NameVisitor<'source> {
             .any(|suffix| name.ends_with(suffix));
         let repeats_model_kind =
             is_domain_model && (name.ends_with("Model") || name.ends_with("Entity"));
-        if is_roleless || repeats_model_kind {
+        let misplaced_service = name.ends_with("Service") && !segments.contains(&"service");
+        let vague_contract = is_trait
+            && segments.contains(&"api")
+            && ["Api", "Dao", "Krate", "Storage"]
+                .iter()
+                .any(|suffix| name.ends_with(suffix));
+        if is_roleless || repeats_model_kind || misplaced_service || vague_contract {
             self.report_name(ident, "Name a type by its role without a utility suffix or a repeated domain model kind (clean-code.rs.md; arch-package.md)");
         }
     }

@@ -1,0 +1,2 @@
+modules/sample/src/api/invoice_repository.rs:1 case_sample::api::InvoiceRepository
+modules/sample/src/lib.rs:1 case_sample::usecase

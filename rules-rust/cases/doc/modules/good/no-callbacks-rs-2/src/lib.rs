@@ -1,7 +1,7 @@
 pub(crate) mod timer {
     pub(crate) mod api {
-        pub(crate) use timer_publisher::TimerPublisher;
-        mod timer_publisher;
+        pub(crate) use timer::Timer;
+        mod timer;
     }
     pub(crate) mod memory {
         pub(crate) use in_memory_timer::InMemoryTimer;

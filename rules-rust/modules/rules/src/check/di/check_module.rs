@@ -15,6 +15,7 @@ use std::sync::Arc;
 pub struct CheckModule {
     pub check_workspace_use_case: Arc<CheckWorkspaceUseCase>,
     pub report_writer: Arc<dyn ReportWriter>,
+    _rule_module: RuleModule,
 }
 
 impl CheckModule {
@@ -29,12 +30,13 @@ impl CheckModule {
             workspace_reader,
             source_reader,
             rustfmt_reader,
-            rule_module.rules,
-            rule_module.active_rule_ids,
+            rule_module.rules(),
+            rule_module.active_rule_ids(),
         ));
         CheckModule {
             check_workspace_use_case,
             report_writer: Arc::new(FileReportWriter),
+            _rule_module: rule_module,
         }
     }
 }

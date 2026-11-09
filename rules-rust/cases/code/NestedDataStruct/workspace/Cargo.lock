@@ -1,0 +1,10 @@
+version = 4
+
+[[package]]
+name = "case-consumer"
+version = "0.1.0"
+dependencies = ["case-provider"]
+
+[[package]]
+name = "case-provider"
+version = "0.1.0"

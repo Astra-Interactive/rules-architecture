@@ -1,2 +1,6 @@
+ModelDerives	modules/sample/src/sample/model/subject.rs:1	case_sample::sample::model::subject::Subject	Derive Debug, Clone, PartialEq, Eq, Hash on this model struct (arch-domain.rs.md)
+NamespaceType	modules/sample/src/sample/model/subject.rs:1	case_sample::sample::model::subject::Subject	Use module functions instead of a fieldless namespace type (arch-package.rs.md)
 DeclarationOrder	modules/sample/src/sample/model/subject.rs:4	case_sample::sample::model::subject	Declare constants, complete type families and functions in dependency order (code-ordering.rs.md)
+ModelContainsFunctions	modules/sample/src/sample/model/subject.rs:4	Subject	A model's own file holds constants and invariant construction/accessors; rules live in util (arch-domain.rs.md)
 DeclarationOrder	modules/sample/src/sample/model/subject.rs:5	case_sample::sample::model::subject	Declare constants, complete type families and functions in dependency order (code-ordering.rs.md)
+ModelContainsFunctions	modules/sample/src/sample/model/subject.rs:5	Subject	A model's own file holds constants and invariant construction/accessors; rules live in util (arch-domain.rs.md)

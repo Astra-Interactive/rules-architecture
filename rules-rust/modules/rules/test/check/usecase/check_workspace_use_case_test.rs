@@ -4,6 +4,7 @@ use crate::check::model::Report;
 use crate::check::model::RuleContext;
 use crate::config::util::parse_project_config;
 use crate::source::api::SourceReader;
+use crate::source::syn::CrateIndexBuilder;
 use crate::source::syn::SynSourceReader;
 use crate::workspace::api::WorkspaceReader;
 use crate::workspace::cargo::CargoWorkspaceReader;
@@ -28,10 +29,13 @@ pub(crate) fn read_case_context(rule: &str, case: &str) -> RuleContext {
     let project_config =
         parse_project_config(&workspace).expect("the rule case has valid configuration");
     let crates = SynSourceReader.read_sources(&workspace);
+    let indexes = CrateIndexBuilder::build_all(&crates, &workspace);
     RuleContext {
         workspace,
         project_config,
         crates,
+        indexes,
+        names: std::sync::OnceLock::new(),
         rustfmt: RustfmtFacts::NotQueried,
     }
 }
@@ -323,4 +327,12 @@ fn given_missing_rule_carrier_when_compared_then_failure_identifies_its_example_
     assert_eq!(failures.len(), 1);
     assert!(failures[0].contains("case bad"));
     assert!(failures[0].contains("src/value.rs:5"));
+}
+
+#[test]
+fn given_v4_module_worked_example_when_checked_then_matches_its_complete_report() {
+    let directory = find_rules_rust_root().join("cases/worked/module-kinds");
+    let mismatches = compare_case(&directory);
+
+    assert!(mismatches.is_empty(), "{}", mismatches.join("\n"));
 }

@@ -1,24 +1,59 @@
+KindShape	modules/sample/src/lib.rs:2	case_sample::sample::checks	a concept holds kind blocks; files live in a named kind
 MalformedExpectation	modules/sample/src/sample/checks.rs:1		the expectation names no rule id
+ReExportShape	modules/sample/src/sample/checks.rs:1	no_id	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/sample/checks.rs:1	no_id	visibility follows the actual workspace users of the item
 MalformedExpectation	modules/sample/src/sample/checks.rs:3		the rule id `clippy::unwrap_used` is a path, not one identifier
+ReExportShape	modules/sample/src/sample/checks.rs:3	path_id	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/sample/checks.rs:3	path_id	visibility follows the actual workspace users of the item
 MalformedExpectation	modules/sample/src/sample/checks.rs:5	AnonymousTuple	the expectation has no reason
+ReExportShape	modules/sample/src/sample/checks.rs:5	no_reason	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/sample/checks.rs:5	no_reason	visibility follows the actual workspace users of the item
 AnonymousTuple	modules/sample/src/sample/checks.rs:6	case_sample::sample::checks	a tuple of 2 elements as a type: use a struct with named fields (no-tuples.rs.md)
 MalformedExpectation	modules/sample/src/sample/checks.rs:7	AnonymousTuple	the reason is not a string literal
+ReExportShape	modules/sample/src/sample/checks.rs:7	number_reason	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/sample/checks.rs:7	number_reason	visibility follows the actual workspace users of the item
 AnonymousTuple	modules/sample/src/sample/checks.rs:8	case_sample::sample::checks	a tuple of 2 elements as a type: use a struct with named fields (no-tuples.rs.md)
 MalformedExpectation	modules/sample/src/sample/checks.rs:9	AnonymousTuple	the reason is blank
+ReExportShape	modules/sample/src/sample/checks.rs:9	blank_reason	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/sample/checks.rs:9	blank_reason	visibility follows the actual workspace users of the item
 AnonymousTuple	modules/sample/src/sample/checks.rs:10	case_sample::sample::checks	a tuple of 2 elements as a type: use a struct with named fields (no-tuples.rs.md)
 ExpectScope	modules/sample/src/sample/checks.rs:11	case_sample::sample::checks	Expect only a prescribed lint on the smallest item, never an inner attribute or module (notes.rs.md)
 MalformedExpectation	modules/sample/src/sample/checks.rs:11		the predicate must be the bare `klibs_rules`
+ReExportShape	modules/sample/src/sample/checks.rs:11	other_predicate	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/sample/checks.rs:11	other_predicate	visibility follows the actual workspace users of the item
 MalformedExpectation	modules/sample/src/sample/checks.rs:13		only `cfg_attr(klibs_rules, expect(…))` is recognised
+ReExportShape	modules/sample/src/sample/checks.rs:13	not_expect	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/sample/checks.rs:13	not_expect	visibility follows the actual workspace users of the item
+ReExportShape	modules/sample/src/sample/checks.rs:15	twice	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/sample/checks.rs:15	twice	visibility follows the actual workspace users of the item
 MalformedExpectation	modules/sample/src/sample/checks.rs:16	AnonymousTuple	a second expectation of `AnonymousTuple` on the same node fulfils nothing
 MalformedExpectation	modules/sample/src/sample/checks.rs:18	AnonymousTuple	a second expectation of `AnonymousTuple` on the same node fulfils nothing
+ReExportShape	modules/sample/src/sample/checks.rs:18	id_twice	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/sample/checks.rs:18	id_twice	visibility follows the actual workspace users of the item
+ReExportShape	modules/sample/src/sample/checks.rs:20	unknown	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 UnknownRule	modules/sample/src/sample/checks.rs:20	NoSuchRule	klibs-rules 0.1.0 knows no rule `NoSuchRule`
+VisibilityTier	modules/sample/src/sample/checks.rs:20	unknown	visibility follows the actual workspace users of the item
+ReExportShape	modules/sample/src/sample/checks.rs:22	retired	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 RetiredRule	modules/sample/src/sample/checks.rs:22	KDocFiller	`KDocFiller` is retired in klibs-rules: use `RustdocFiller`
+VisibilityTier	modules/sample/src/sample/checks.rs:22	retired	visibility follows the actual workspace users of the item
+ReExportShape	modules/sample/src/sample/checks.rs:24	unfulfilled	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 UnfulfilledExpectation	modules/sample/src/sample/checks.rs:24	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
+VisibilityTier	modules/sample/src/sample/checks.rs:24	unfulfilled	visibility follows the actual workspace users of the item
 RootFileShape	modules/sample/src/sample/checks.rs:26	case_sample::sample::checks	only the crate root declares modules
-UnfulfilledExpectation	modules/sample/src/sample/checks.rs:26	KindShape	`KindShape` is not active in klibs-rules 0.1.0: it ships in phase 2
-UnfulfilledExpectation	modules/sample/src/sample/checks.rs:28	PlatformImport	`PlatformImport` reads platform crates and `platform-words` is empty, so it reports nothing
+UnfulfilledExpectation	modules/sample/src/sample/checks.rs:26	KindShape	no `KindShape` finding is anchored in the scope of this exception
+ReExportShape	modules/sample/src/sample/checks.rs:28	platform_words_empty	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+UnfulfilledExpectation	modules/sample/src/sample/checks.rs:28	PlatformImport	`PlatformImport` has no configured platform words: its platform checks are inactive, and no technology-path finding is anchored in this scope
+VisibilityTier	modules/sample/src/sample/checks.rs:28	platform_words_empty	visibility follows the actual workspace users of the item
 MalformedExpectation	modules/sample/src/sample/checks.rs:30	ForbiddenComment	an expectation at this position cannot hold any finding of `ForbiddenComment`
+ReExportShape	modules/sample/src/sample/checks.rs:30	not_expectable	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/sample/checks.rs:30	not_expectable	visibility follows the actual workspace users of the item
 MalformedExpectation	modules/sample/src/sample/checks.rs:32	AnonymousTuple	`note = "an unknown argument"` is not a rule id or a reason
+ReExportShape	modules/sample/src/sample/checks.rs:32	unknown_argument	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/sample/checks.rs:32	unknown_argument	visibility follows the actual workspace users of the item
 MalformedExpectation	modules/sample/src/sample/checks.rs:34		the arguments of `expect` do not parse
+ReExportShape	modules/sample/src/sample/checks.rs:34	unparsed_expect	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/sample/checks.rs:34	unparsed_expect	visibility follows the actual workspace users of the item
 MalformedExpectation	modules/sample/src/sample/checks.rs:36		the `cfg_attr` arguments do not parse
+ReExportShape	modules/sample/src/sample/checks.rs:36	unparsed_cfg_attr	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/sample/checks.rs:36	unparsed_cfg_attr	visibility follows the actual workspace users of the item
 RootFileShape	modules/sample/src/stray_broken.rs	modules/sample/src/stray_broken.rs	no module tree declares this Rust source file

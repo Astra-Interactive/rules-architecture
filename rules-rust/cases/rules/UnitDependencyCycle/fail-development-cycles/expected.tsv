@@ -1,2 +1,5 @@
+RootPackagePath	Cargo.toml	.	set `[workspace.metadata.klibs-rules] prefix`: member names give no unique prefix
 UnitDependencyCycle	Cargo.toml	alpha, beta, gamma	a development dependency closes a cycle between these crates: each compilation's graph must remain acyclic
 UnitDependencyCycle	Cargo.toml	delta, epsilon	a development dependency closes a cycle between these crates: each compilation's graph must remain acyclic
+UnitDependency	modules/alpha/Cargo.toml:6	alpha -> beta	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+UnitDependency	modules/beta/Cargo.toml:6	beta -> gamma	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary

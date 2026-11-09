@@ -1,0 +1,6 @@
+ReExportShape	modules/sample/src/invoice/loose.rs:1	Invoice	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/invoice/loose.rs:1	Invoice	visibility follows the actual workspace users of the item
+KindShape	modules/sample/src/lib.rs:1	case_sample::invoice	a block does not mix file modules and inline blocks
+KindShape	modules/sample/src/lib.rs:2	case_sample::invoice::loose	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/sample/src/lib.rs:2	case_sample::invoice::loose	Name the file after its primary type family (arch-package.rs.md)
+KindShape	modules/sample/src/lib.rs:3	case_sample::invoice::model	a kind block is created with its first file, never empty

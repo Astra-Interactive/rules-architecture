@@ -55,7 +55,11 @@ pub(crate) fn list_role_names() -> &'static [&'static str] {
     &ROLE_NAMES
 }
 
-pub(crate) fn detect_role(member: &Member) -> Option<Role> {
+pub(crate) fn detect_role(
+    member: &Member,
+    platform_words: &[String],
+    technology_words: &[String],
+) -> Option<Role> {
     if member.name == "xtask" {
         return Some(Role::Tooling);
     }
@@ -66,5 +70,30 @@ pub(crate) fn detect_role(member: &Member) -> Option<Role> {
     if is_under_instances || !member.has_rust_library() {
         return Some(Role::EntryPoint);
     }
-    None
+    let segments: Vec<&str> = member.directory.split('/').collect();
+    if segments.starts_with(&["modules", "core", "ui"]) {
+        return Some(Role::CoreUi);
+    }
+    if segments.starts_with(&["modules", "core"]) {
+        if segments.len() == 3
+            && segments
+                .get(2)
+                .is_some_and(|word| platform_words.iter().any(|platform| platform == word))
+        {
+            return Some(Role::CorePlatform);
+        }
+        return Some(Role::CoreApi);
+    }
+    let suffix = segments.last().copied().unwrap_or("");
+    match suffix {
+        "contract" => Some(Role::Contract),
+        "dao" => Some(Role::StorageContract),
+        "api" => Some(Role::Api),
+        "impl" => Some(Role::Impl),
+        word if platform_words.iter().any(|platform| platform == word) => Some(Role::Platform),
+        word if technology_words.iter().any(|technology| technology == word) => {
+            Some(Role::Technology)
+        }
+        _ => Some(Role::Context),
+    }
 }

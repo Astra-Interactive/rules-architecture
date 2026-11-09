@@ -1,6 +1,24 @@
 use crate::check::api::Rule;
 use crate::default::rule::StructDefaultValue;
 use crate::test::check::usecase::read_case_context;
+use crate::test::declaration::util::assert_code_findings;
+use crate::test::declaration::util::assert_code_fixture;
+
+#[test]
+fn given_persistent_code_fixtures_when_checked_then_match_exact_anchors() {
+    assert_code_fixture(&StructDefaultValue, "StructDefaultValue", "bad");
+    assert_code_fixture(&StructDefaultValue, "StructDefaultValue", "good");
+}
+
+#[test]
+fn given_resolved_own_struct_updates_when_checked_then_reports_only_default_calls() {
+    assert_code_findings(
+        &StructDefaultValue,
+        "StructDefaultValue",
+        "mod model { pub struct Input { value: u64 } pub use Input as Alias; }\nfn build() {\n    let input = model::Alias { value: 2, ..Default::default() };\n    let input = model::Input { value: 2, ..model::Input::default() };\n    let input = external::Input { value: 2, ..Default::default() };\n    let input = model::Input { value: 2, ..previous };\n}",
+        &[3, 4],
+    );
+}
 
 #[test]
 fn given_same_named_types_in_different_files_when_checked_then_constructor_exemption_stays_local() {

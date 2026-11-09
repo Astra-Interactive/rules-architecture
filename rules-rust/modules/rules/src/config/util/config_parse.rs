@@ -57,10 +57,7 @@ const GENERIC_WORDS: [&str; 16] = [
 ];
 
 fn list_technology_words(member: &Member, members: &[Member]) -> Vec<String> {
-    let mut words: Vec<String> = ["file", "memory", "system"]
-        .iter()
-        .map(|word| (*word).to_owned())
-        .collect();
+    let mut words = Vec::new();
     for dependency in &member.dependencies {
         let is_member = dependency.find_member(members).is_some();
         if dependency.kind == DependencyKind::Development || is_member {
@@ -170,21 +167,38 @@ fn parse_crate_config(
     member: &Member,
     members: &[Member],
     workspace_technology_words: &[String],
+    platform_words: &[String],
 ) -> Result<CrateConfig, CheckError> {
     let path = member.manifest.path.as_str();
     let table = member.manifest.root.find(&PACKAGE_TABLE);
     if let Some(table) = table {
         check_known_keys(table, &PACKAGE_KEYS, path, "[package.metadata.klibs-rules]")?;
     }
-    let role = parse_declared_role(table, path)?.or_else(|| detect_role(member));
+    let dependency_words = list_technology_words(member, members);
+    let role = parse_declared_role(table, path)?
+        .or_else(|| detect_role(member, platform_words, &dependency_words));
     check_role_key(table, "composition", role, Role::ImplUi, path)?;
     check_role_key(table, "implementation-access", role, Role::ImplUi, path)?;
     check_role_key(table, "host-items", role, Role::EntryPoint, path)?;
     check_choice(table, "composition", &["local", "host"], path)?;
     check_choice(table, "implementation-access", &["siblings", "none"], path)?;
     let host_items = parse_optional_list(table, "host-items", path)?;
+    let composition = table
+        .and_then(|table| table.find(&["composition"]))
+        .and_then(TomlValue::as_str)
+        .unwrap_or("local")
+        .to_owned();
+    let implementation_access = table
+        .and_then(|table| table.find(&["implementation-access"]))
+        .and_then(TomlValue::as_str)
+        .unwrap_or("siblings")
+        .to_owned();
     check_word_lists(table, path)?;
-    let mut technology_words = list_technology_words(member, members);
+    let mut technology_words: Vec<String> = ["file", "memory", "system"]
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+    technology_words.extend(dependency_words);
     technology_words.extend_from_slice(workspace_technology_words);
     technology_words.extend(parse_optional_list(table, "technology-words", path)?);
     technology_words
@@ -196,6 +210,8 @@ fn parse_crate_config(
         role,
         host_items,
         technology_words,
+        composition,
+        implementation_access,
     })
 }
 
@@ -257,6 +273,7 @@ pub(crate) fn parse_project_config(workspace: &Workspace) -> Result<ProjectConfi
         None => Vec::new(),
     };
     let technology_words = parse_optional_list(Some(table), "technology-words", path)?;
+    let platform_words = parse_optional_list(Some(table), "platform-words", path)?;
     let mut allowed_dependencies = Vec::new();
     let mut crates = Vec::new();
     for member in &workspace.members {
@@ -264,12 +281,13 @@ pub(crate) fn parse_project_config(workspace: &Workspace) -> Result<ProjectConfi
             member,
             &workspace.members,
             &technology_words,
+            &platform_words,
         )?);
         manifest_exceptions.extend(parse_package_exceptions(member)?);
         allowed_dependencies.extend(parse_package_allowed_dependencies(member)?);
     }
     Ok(ProjectConfig {
-        platform_words: parse_optional_list(Some(table), "platform-words", path)?,
+        platform_words,
         crates,
         manifest_exceptions,
         allowed_dependencies,

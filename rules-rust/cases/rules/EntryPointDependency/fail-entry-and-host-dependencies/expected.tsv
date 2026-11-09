@@ -1,4 +1,9 @@
+RootPackagePath	Cargo.toml	.	set `[workspace.metadata.klibs-rules] prefix`: member names give no unique prefix
+MainShape	instances/runner/src/main.rs:1	runner::main	entry main builds a runtime, constructs/enables the root in one block_on, then disables it synchronously
 EntryPointDependency	modules/consumer/Cargo.toml:6	consumer -> runner	nothing depends on an entry-point crate or a crate without a Rust library target
+UnitDependency	modules/consumer/Cargo.toml:6	consumer -> runner	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
 EntryPointDependency	modules/consumer/Cargo.toml:7	consumer -> host	nothing depends on an entry-point crate or a crate without a Rust library target
+UnitDependency	modules/consumer/Cargo.toml:7	consumer -> host	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
 EntryPointDependency	modules/consumer/Cargo.toml:9	consumer -> static-host	nothing depends on an entry-point crate or a crate without a Rust library target
+UnitDependency	modules/consumer/Cargo.toml:9	consumer -> static-host	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
 EntryPointDependency	modules/consumer/Cargo.toml:11	consumer -> entry-lib	nothing depends on an entry-point crate or a crate without a Rust library target

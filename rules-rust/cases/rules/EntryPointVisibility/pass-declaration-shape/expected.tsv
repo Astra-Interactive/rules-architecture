@@ -1,0 +1,2 @@
+ReExportShape	modules/sample/src/command/invoice_command.rs:1	InvoiceCommand	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/command/invoice_command.rs:1	InvoiceCommand	visibility follows the actual workspace users of the item

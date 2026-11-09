@@ -40,8 +40,10 @@ fn given_rust_libraries_and_external_edges_when_checked_then_no_entry_point_depe
     let mut context = read_case_context("EntryPointDependency", "pass-library-dependencies");
     context.workspace.members[0].dependencies.push(Dependency {
         name: "external".to_owned(),
+        code_name: "external".to_owned(),
         path: None,
         kind: DependencyKind::Normal,
+        features: Vec::new(),
         is_target_specific: false,
         line: None,
     });

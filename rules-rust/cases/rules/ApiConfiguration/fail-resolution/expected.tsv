@@ -1,0 +1,4 @@
+LintConfig	clippy.toml	clippy.toml	the required clippy.toml is missing at the workspace root
+KindShape	modules/sample/src/lib.rs:1	case_sample::model	a kind block is created with its first file, never empty
+ModuleVisibility	modules/sample/src/lib.rs:1	case_sample::model	module visibility must be Crate (arch-package.rs.md, Modules and directories)
+ApiConfiguration	modules/sample/src/lib.rs:2	std::time::Duration	A dependency is private to its crate; do not re-export external crate items (arch-package.rs.md, Units and Cargo)

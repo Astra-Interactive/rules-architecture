@@ -1,1 +1,1 @@
-Holds the invoices of the shop.
+Provides the published invoice model API of the sample workspace.

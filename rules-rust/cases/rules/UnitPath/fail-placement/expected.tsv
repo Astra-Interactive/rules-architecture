@@ -1,7 +1,11 @@
 UnitPath	feature	outside	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
 UnitPath	modules/a/b/c/d	deep	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
+RootPackagePath	modules/a/b/c/d/Cargo.toml:2	deep	name this crate `wrong-a-b-c-d` to match its unit path
 UnitPath	modules/entry	wrong-entry	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
 UnitPath	modules/runner	runner	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
+RootPackagePath	modules/runner/Cargo.toml:2	runner	name this crate `wrong-runner` to match its unit path
+MainShape	modules/runner/src/main.rs:1	runner::main	entry main builds a runtime, constructs/enables the root in one block_on, then disables it synchronously
 UnitPath	modules/shared	shared	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
+RootPackagePath	modules/shared/Cargo.toml:2	shared	name this crate `wrong-shared` to match its unit path
 UnitPath	tools	tools	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
 UnitPath	xtask	xtask	add xtask to workspace.members: tooling is a workspace member

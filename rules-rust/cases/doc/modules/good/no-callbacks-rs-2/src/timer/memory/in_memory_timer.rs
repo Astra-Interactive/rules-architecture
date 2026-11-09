@@ -1,5 +1,5 @@
 // timer/memory/in_memory_timer.rs: the stream behind the contract
-use crate::timer::api::TimerPublisher;
+use crate::timer::api::Timer;
 use crate::timer::model::TimerEvent;
 use futures::stream::{self, BoxStream, StreamExt};
 use tokio::sync::broadcast;
@@ -16,7 +16,7 @@ impl InMemoryTimer {
     }
 }
 
-impl TimerPublisher for InMemoryTimer {
+impl Timer for InMemoryTimer {
     fn events(&self) -> BoxStream<'static, TimerEvent> {
         stream::unfold(self.events.subscribe(), |mut receiver| async move {
             loop {

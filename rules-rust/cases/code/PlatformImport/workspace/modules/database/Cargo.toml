@@ -1,0 +1,3 @@
+[package]
+name = "sqlx"
+edition = "2024"

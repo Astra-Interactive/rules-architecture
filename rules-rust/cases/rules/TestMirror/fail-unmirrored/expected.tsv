@@ -1,1 +1,6 @@
+BareIdentifier	modules/sample/src/invoice/model/invoice.rs:1	case_sample::invoice::model::invoice::Invoice	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
+ModelDerives	modules/sample/src/invoice/model/invoice.rs:1	case_sample::invoice::model::invoice::Invoice	Derive Debug, Clone, PartialEq, Eq, Hash on this model struct (arch-domain.rs.md)
+ReExportShape	modules/sample/src/invoice/model/invoice.rs:1	Invoice	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/invoice/model/invoice.rs:1	Invoice	visibility follows the actual workspace users of the item
+BareIdentifier	modules/sample/src/invoice/model/invoice.rs:2	case_sample::invoice::model::invoice::Invoice	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
 TestMirror	modules/sample/src/lib.rs:12	case_sample::test::invoice::model::missing_test	the test file has no source file at its mirrored src path

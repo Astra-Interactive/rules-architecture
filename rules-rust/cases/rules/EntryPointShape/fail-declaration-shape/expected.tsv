@@ -1,0 +1,4 @@
+EntryPointShape	instances/runner/src/main.rs:1	case_runner::model	an entry-point root holds only di and its fixture/test blocks
+KindShape	instances/runner/src/main.rs:1	case_runner::model	a kind block is created with its first file, never empty
+EntryPointShape	instances/runner/src/main.rs:2	case_runner::main	main is private; a cdylib's configured host items are public
+MainShape	instances/runner/src/main.rs:2	case_runner::main	entry main builds a runtime, constructs/enables the root in one block_on, then disables it synchronously

@@ -1,0 +1,6 @@
+[package]
+name = "adapter-api"
+edition = "2024"
+
+[dependencies]
+engine = { package = "framework-host", path = "../host" }

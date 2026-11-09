@@ -1,3 +1,4 @@
+RootPackagePath	Cargo.toml	.	set `[workspace.metadata.klibs-rules] prefix`: member names give no unique prefix
 RootBuildSubprojects	modules/leaf/Cargo.toml:5	leaf replace	declare replace in the workspace root and inherit shared settings with workspace = true
 RootBuildSubprojects	modules/sample/Cargo.toml:3	sample package.edition	declare package.edition in the workspace root and inherit shared settings with workspace = true
 RootBuildSubprojects	modules/sample/Cargo.toml:4	sample package.rust-version	declare package.rust-version in the workspace root and inherit shared settings with workspace = true
@@ -7,6 +8,9 @@ RootBuildSubprojects	modules/sample/Cargo.toml:7	sample package.repository	decla
 RootBuildSubprojects	modules/sample/Cargo.toml:9	sample profile	declare profile in the workspace root and inherit shared settings with workspace = true
 RootBuildSubprojects	modules/sample/Cargo.toml:11	sample patch	declare patch in the workspace root and inherit shared settings with workspace = true
 RootBuildSubprojects	modules/sample/Cargo.toml:13	sample dependencies.leaf	declare dependencies.leaf in the workspace root and inherit shared settings with workspace = true
+UnitDependency	modules/sample/Cargo.toml:13	sample -> leaf	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
 RootBuildSubprojects	modules/sample/Cargo.toml:15	sample dev-dependencies.leaf	declare dev-dependencies.leaf in the workspace root and inherit shared settings with workspace = true
 RootBuildSubprojects	modules/sample/Cargo.toml:17	sample build-dependencies.leaf	declare build-dependencies.leaf in the workspace root and inherit shared settings with workspace = true
+UnitDependency	modules/sample/Cargo.toml:17	sample -> leaf	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
 RootBuildSubprojects	modules/sample/Cargo.toml:19	sample target.cfg(windows).dependencies.leaf	declare target.cfg(windows).dependencies.leaf in the workspace root and inherit shared settings with workspace = true
+UnitDependency	modules/sample/Cargo.toml:19	sample -> leaf	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary

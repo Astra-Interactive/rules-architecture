@@ -1,0 +1,2 @@
+RootPackagePath	Cargo.toml	.	set `[workspace.metadata.klibs-rules] prefix`: member names give no unique prefix
+UnitDependency	modules/beta/Cargo.toml:6	beta -> gamma	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary

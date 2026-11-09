@@ -1,0 +1,2 @@
+RootPackagePath	modules/sample/Cargo.toml:2	case-wrong	name this crate `case-sample` to match its unit path
+RootPackagePath	modules/sample/Cargo.toml:9	case-wrong	do not set `[lib] name`; the crate import name follows its package name

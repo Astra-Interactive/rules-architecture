@@ -45,9 +45,25 @@ impl ForbiddenPackageName {
         None
     }
 
-    fn check_module(module: &SourceModule) -> Option<RuleFinding> {
+    fn check_module(context: &RuleContext, module: &SourceModule) -> Option<RuleFinding> {
         let declaration = module.declaration.as_ref()?;
-        let reason = Self::find_reason(module, declaration)?;
+        let role = context
+            .find_role_config(&module.id.crate_name)
+            .and_then(|config| config.role);
+        let technology_only = module
+            .id
+            .path
+            .last()
+            .is_some_and(|name| ["table", "entity", "database"].contains(&name.as_str()))
+            && !matches!(
+                role,
+                Some(
+                    crate::config::model::Role::Technology
+                        | crate::config::model::Role::Platform
+                        | crate::config::model::Role::CorePlatform
+                )
+            );
+        let reason = Self::find_reason(module, declaration).or_else(|| technology_only.then(|| "table, entity and database belong only to a technology, platform or core-platform crate (arch-package.md)".to_owned()))?;
         Some(RuleFinding {
             finding: Finding {
                 rule_id: RuleId(Self::RULE.to_owned()),
@@ -109,7 +125,7 @@ impl Rule for ForbiddenPackageName {
             .crates
             .iter()
             .flat_map(|sources| &sources.modules)
-            .filter_map(Self::check_module)
+            .filter_map(|module| Self::check_module(context, module))
             .collect()
     }
 }

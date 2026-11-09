@@ -3,6 +3,7 @@ use crate::check::model::RuleContext;
 use crate::check::model::RuleFinding;
 use crate::check::util::build_node_finding;
 use crate::check::util::format_module_path;
+use crate::default::rule::StructUpdateVisitor;
 use crate::source::util::find_node_span;
 use crate::syntax::util::find_self_name;
 use std::collections::HashSet;
@@ -178,10 +179,12 @@ impl StructDefaultValue {
 
 impl Rule for StructDefaultValue {
     fn check(&self, context: &RuleContext) -> Vec<RuleFinding> {
-        context.crates.iter().flat_map(|sources| {
+        let mut findings: Vec<RuleFinding> = context.crates.iter().flat_map(|sources| {
             let mut own_types = HashSet::new();
             for file in &sources.files { Self::collect_types(&file.syntax.items, &mut own_types); }
             sources.files.iter().flat_map(|file| Self::check_items(&file.syntax.items, &own_types).into_iter().map(|span| build_node_finding("StructDefaultValue", &file.path, find_node_span(span), format_module_path(&file.module.crate_name, &file.module.path), "Pass struct and enum values explicitly instead of providing Default (struct-default-values.rs.md)".to_owned())).collect::<Vec<_>>()).collect::<Vec<_>>()
-        }).collect()
+        }).collect();
+        findings.extend(StructUpdateVisitor::check_context(context));
+        findings
     }
 }

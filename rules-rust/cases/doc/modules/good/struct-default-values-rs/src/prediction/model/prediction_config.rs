@@ -1,6 +1,7 @@
 // a config read from a file; the defaults keep old files readable
 use serde::Deserialize;
 
+#[derive(Debug, Clone, PartialEq)]
 #[derive(Deserialize)]
 #[serde(default)]
 pub(crate) struct PredictionConfig {

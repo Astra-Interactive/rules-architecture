@@ -1,0 +1,13 @@
+[package]
+name = "case-consumer"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+renamed-owner = { package = "case-owner", path = "../owner", features = ["fake"] }
+xtask = { path = "../../xtask" }
+
+[target.'cfg(unix)'.build-dependencies]
+case-owner.workspace = true

@@ -1,0 +1,2 @@
+modules/sample/src/model/invoice.rs:1 case_sample::model::Invoice
+modules/sample/src/model/invoice.rs:2 case_sample::model::compute_value

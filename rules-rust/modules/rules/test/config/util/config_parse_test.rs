@@ -11,20 +11,24 @@ fn given_dependencies_when_configuration_is_read_then_only_external_non_developm
     for dependency in ["aws-sdk-s3", "async-trait", "network", "local", &name] {
         dependencies.push(Dependency {
             name: dependency.to_owned(),
+            code_name: dependency.replace('-', "_"),
             path: if dependency == name {
                 Some("modules/sample".to_owned())
             } else {
                 None
             },
             kind: DependencyKind::Normal,
+            features: Vec::new(),
             is_target_specific: false,
             line: None,
         });
     }
     dependencies.push(Dependency {
         name: "test-double".to_owned(),
+        code_name: "test_double".to_owned(),
         path: None,
         kind: DependencyKind::Development,
+        features: Vec::new(),
         is_target_specific: false,
         line: None,
     });

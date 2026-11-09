@@ -1,3 +1,5 @@
+use crate::invoice::model::InvoiceSummary;
+
 pub trait InvoiceRepository: Send + Sync {
-    fn count_invoices(&self) -> usize;
+    fn invoices(&self) -> Vec<InvoiceSummary>;
 }

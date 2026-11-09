@@ -82,6 +82,10 @@ name = "bad-region"
 version = "0.0.0"
 
 [[package]]
+name = "bad-rustdoc-app-rs"
+version = "0.0.0"
+
+[[package]]
 name = "bad-rustdoc-rs"
 version = "0.1.0"
 

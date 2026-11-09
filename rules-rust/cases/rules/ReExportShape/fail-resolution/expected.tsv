@@ -1,0 +1,5 @@
+LintConfig	clippy.toml	clippy.toml	the required clippy.toml is missing at the workspace root
+ModuleVisibility	modules/sample/src/lib.rs:1	case_sample::model	module visibility must be Crate (arch-package.rs.md, Modules and directories)
+ReExportShape	modules/sample/src/model/value.rs:1	Value	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/model/value.rs:1	Value	visibility follows the actual workspace users of the item
+BareIdentifier	modules/sample/src/model/value.rs:2	case_sample::model::value::Value	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)

@@ -15,6 +15,10 @@ pub(crate) enum Anchor {
     },
     File(String),
     Crate(String),
+    Edge {
+        from_crate: String,
+        to_crate: String,
+    },
     Workspace,
     Unexpectable,
 }

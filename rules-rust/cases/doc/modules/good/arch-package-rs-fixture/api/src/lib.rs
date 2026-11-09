@@ -3,9 +3,16 @@ pub mod invoice {
         pub use invoice_repository::InvoiceRepository;
         mod invoice_repository;
     }
+    pub mod model {
+        pub use invoice_summary::InvoiceSummary;
+        mod invoice_summary;
+    }
     pub mod usecase {
         pub use count_invoices_use_case::CountInvoicesUseCase;
         mod count_invoices_use_case;
+    }
+    pub(crate) mod util {
+        mod invoice_summary_ext;
     }
 }
 
@@ -26,6 +33,9 @@ mod test {
     mod invoice {
         mod usecase {
             mod count_invoices_use_case_test;
+        }
+        mod util {
+            mod invoice_summary_ext_test;
         }
     }
 }

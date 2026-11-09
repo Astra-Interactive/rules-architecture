@@ -51,7 +51,7 @@ fn build_workspace_entries() -> Vec<CatalogueEntry> {
         build_entry("CrateTargets", 1, CRATE, false),
         build_entry("UnitDependencyCycle", 1, NONE, false),
         build_entry("EntryPointDependency", 1, NONE, false),
-        build_entry("RootPackagePath", 2, CRATE, false),
+        build_entry("RootPackagePath", 2, CRATE | WORKSPACE, false),
         build_entry("PublishedVersion", 2, CRATE, false),
         build_entry("XtaskAlias", 2, WORKSPACE, false),
         build_entry("ShellAutomation", 2, WORKSPACE, false),

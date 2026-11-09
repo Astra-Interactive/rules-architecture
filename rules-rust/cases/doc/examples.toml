@@ -78,7 +78,7 @@ review = []
 [[example.fragment]]
 path = "modules/good/arch-package-rs-fixture/api/src/lib.rs"
 block-lines = "1-10"
-fixture-lines = "12-21"
+fixture-lines = "19-28"
 
 [[example]]
 claim = "arch-package.rs:block:4"
@@ -118,7 +118,7 @@ fixture-lines = "1-1"
 [[example.fragment]]
 path = "modules/good/arch-domain-rs/src/invoice/model/invoice.rs"
 block-lines = "2-8"
-fixture-lines = "5-11"
+fixture-lines = "6-12"
 [[example.fragment]]
 path = "modules/good/arch-domain-rs/src/invoice/util/invoice_ext.rs"
 block-lines = "10-10"
@@ -209,8 +209,8 @@ lines = "2-2"
 split = "markers"
 wrap = "fn-body"
 sha256 = "6092c137c1fccbd9381bc4eb4686d66136c12a45499c8338c397ba4d1608fcf0"
-expected = []
-review = [{ why = "WatchTimeout, phase 4" }]
+expected = [{ line = 2, carrier = "WatchTimeout" }]
+review = []
 [[example.fragment]]
 path = "modules/bad/async-rs/src/example_9.rs"
 block-lines = "2-2"
@@ -343,8 +343,8 @@ lines = "2-2"
 split = "markers"
 wrap = "fn-body"
 sha256 = "75ee211c9902917cc6c24c5c8f6b55caa3db0db96225d98290167dc5a12c0e99"
-expected = []
-review = [{ why = "DetachedTask, phase 4" }]
+expected = [{ line = 2, carrier = "DetachedTask" }]
+review = []
 [[example.fragment]]
 path = "modules/bad/async-rs/src/example_13.rs"
 block-lines = "2-2"
@@ -401,8 +401,8 @@ lines = "2-4"
 split = "markers"
 wrap = "fn-body"
 sha256 = "dc08c1a8ab097587342761d6b9197ec69607a137d2f4d26ba8e3e20b1ad9ef91"
-expected = [{ line = 2, carrier = "clippy::disallowed_types" }]
-review = [{ why = "CriticalSectionWrite, phase 4 (approx)" }]
+expected = [{ line = 2, carrier = "clippy::disallowed_types" }, { line = 2, carrier = "CriticalSectionWrite" }]
+review = []
 [[example.fragment]]
 path = "modules/bad/async-rs/src/example_15.rs"
 block-lines = "2-4"
@@ -437,8 +437,8 @@ lines = "2-7"
 split = "markers"
 wrap = "fn-body"
 sha256 = "319c1cfabd64d5dd5205c95d9a6e38165ad1d1e39c71b128ac3fd650c927f83c"
-expected = []
-review = [{ why = "ClosureSingleIfGuard, phase 2" }]
+expected = [{ line = 3, carrier = "ClosureSingleIfGuard" }]
+review = []
 [[example.fragment]]
 path = "modules/bad/clean-code-rs/src/example_16.rs"
 block-lines = "2-7"
@@ -473,8 +473,8 @@ lines = "2-2"
 split = "markers"
 wrap = "fn-body"
 sha256 = "bd21158b28bd72d2cda2287a209c244f9a4a0c9dcd3389366947711b24babf31"
-expected = []
-review = [{ why = "OperatorBeforeTrailingCall, phase 2" }]
+expected = [{ line = 2, carrier = "OperatorBeforeTrailingCall" }]
+review = []
 [[example.fragment]]
 path = "modules/bad/clean-code-rs/src/example_17.rs"
 block-lines = "2-2"
@@ -509,8 +509,8 @@ lines = "2-12"
 split = "markers"
 wrap = "fn-body"
 sha256 = "c366d1eca33c63c49935d4103144fd60e95a1c6b939b0298cfb3bdcba55dac8d"
-expected = []
-review = [{ why = "BooleanOperatorWrapping, phase 2" }]
+expected = [{ line = 2, carrier = "BooleanOperatorWrapping" }]
+review = []
 [[example.fragment]]
 path = "modules/bad/clean-code-rs/src/example_18.rs"
 block-lines = "2-12"
@@ -599,7 +599,7 @@ lines = "2-22"
 split = "markers"
 wrap = "items"
 sha256 = "0df0c64637878df2b16a3225611999341b0efdb0465492ff5ee06e784b51b195"
-expected = [{ line = 2, carrier = "ConstantOutsideImpl" }]
+expected = [{ line = 2, carrier = "ConstantOutsideImpl" }, { line = 8, carrier = "DiPlacement" }, { line = 8, carrier = "ReExportShape" }]
 review = []
 [[example.fragment]]
 path = "modules/bad/code-ordering-rs/src/example_22.rs"
@@ -711,8 +711,8 @@ lines = "1-10"
 split = "none"
 wrap = "items"
 sha256 = "1abbeae319a110f7e620cd041f83f590106b444bf45554bef0936214206be6a1"
-expected = []
-review = [{ why = "ConstructorDependency, phase 4 (approx)" }]
+expected = [{ line = 3, carrier = "ConstructorDependency" }, { line = 3, carrier = "SystemClockOutsideDi" }]
+review = []
 [[example.fragment]]
 path = "modules/bad/di-manual-constructors-rs/src/example_27.rs"
 block-lines = "1-10"
@@ -940,8 +940,8 @@ lines = "2-4"
 split = "markers"
 wrap = "trait-body"
 sha256 = "2f51d7d14a7e97560d81653eaa0c999d37622d3c937063d5a2d67570e23f2937"
-expected = []
-review = [{ why = "CallbackDeclaration, phase 2; the field, phase 4 (approx)" }]
+expected = [{ line = 2, carrier = "CallbackDeclaration" }, { line = 3, carrier = "CallbackDeclaration" }, { line = 4, carrier = "CallbackDeclaration" }]
+review = []
 [[example.fragment]]
 path = "modules/bad/no-callbacks-rs/src/example_38.rs"
 block-lines = "2-3"
@@ -1006,8 +1006,8 @@ lines = "2-6"
 split = "markers"
 wrap = "trait-body"
 sha256 = "2643d94bd013888c9247849553df24f4a46008528c1de5a9bf8d9e8bf1a1e1b3"
-expected = []
-review = [{ why = "CallbackDeclaration, phase 2" }]
+expected = [{ line = 2, carrier = "CallbackDeclaration" }, { line = 2, carrier = "ContractPlacement" }, { line = 2, carrier = "ReExportShape" }]
+review = []
 [[example.fragment]]
 path = "modules/bad/no-callbacks-rs/src/example_40.rs"
 block-lines = "2-5"
@@ -1050,7 +1050,7 @@ lines = "2-5"
 split = "markers"
 wrap = "impl-body"
 sha256 = "71eb572b01bfe83db478799b0612b2b664ce7a75139e40b430cee480d4d822c9"
-expected = []
+expected = [{ line = 2, carrier = "ReExportShape" }]
 review = [{ why = "review (no-callbacks.rs Stream:12)" }]
 [[example.fragment]]
 path = "modules/bad/no-callbacks-rs/src/example_41.rs"
@@ -1175,7 +1175,7 @@ split = "markers"
 wrap = "trait-body"
 sha256 = "a663c9017073d30f643f943ac919b3ab953fc6e3b107cf7be1de5fe4b9d6f5a6"
 expected = [{ line = 2, carrier = "AnonymousTuple" }, { line = 3, carrier = "AnonymousTuple" }]
-review = [{ why = "line 4: AnonymousTuple approx, phase 4" }]
+review = [{ why = "Line 4: receiver return type is unknown; a same-named split_at may return a named Parts type, so this subclaim remains review (phase4-declaration-docs.md)." }]
 [[example.fragment]]
 path = "modules/bad/no-tuples-rs/src/example_46.rs"
 block-lines = "2-2"
@@ -1207,11 +1207,11 @@ review = []
 [[example.fragment]]
 path = "modules/good/no-tuples-rs/src/shape/model/point.rs"
 block-lines = "7-10"
-fixture-lines = "1-4"
+fixture-lines = "2-5"
 [[example.fragment]]
 path = "modules/good/no-tuples-rs/src/shape/model/line_item.rs"
 block-lines = "12-15"
-fixture-lines = "3-6"
+fixture-lines = "4-7"
 [[example.fragment]]
 path = "modules/good/no-tuples-rs/src/shape/api/shape.rs"
 block-lines = "17-17"
@@ -1239,7 +1239,7 @@ split = "none"
 wrap = "manifest"
 sha256 = "f1cb8ab3d995ebdd3b1baa866e09e71d291371b804c77456995c028a38296c8b"
 expected = []
-review = [{ why = "a suppression fixture: the UnitReadme entry is accepted, the allowed-dependencies entry stays an UnfulfilledExpectation until UnitDependency ships in phase 2 (cases/suppression/notes-manifest)" }]
+review = [{ why = "A suppression fixture: UnitReadme is accepted; allowed-dependencies produces an UnfulfilledExpectation because this declared dependency is already permitted (cases/suppression/notes-manifest)." }]
 [[example.fragment]]
 path = "../suppression/notes-manifest/modules/billing/sqlx/Cargo.toml"
 block-lines = "1-6"
@@ -1256,10 +1256,10 @@ lines = "2-6"
 split = "markers"
 wrap = "trait-body"
 sha256 = "49df52bc3f23b5ad7dd3ad282fb9e03f690a9a6b5dcd579bacb9e4766c6fee56"
-expected = []
-review = [{ why = "DocCommentScope, phase 4 (approx)" }]
+expected = [{ line = 2, carrier = "DiPlacement" }, { line = 2, carrier = "DocCommentScope" }, { line = 2, carrier = "ReExportShape" }]
+review = []
 [[example.fragment]]
-path = "modules/bad/rustdoc-rs/src/auth_module.rs"
+path = "modules/bad/rustdoc-app-rs/src/auth_module.rs"
 block-lines = "2-6"
 fixture-lines = "1-5"
 
@@ -1292,8 +1292,8 @@ lines = "1-7"
 split = "none"
 wrap = "impl-body"
 sha256 = "38a8f30fecc8e8a70160bef65bb60592ae691e7db3121f932bba931ac6029453"
-expected = []
-review = [{ why = "RustdocFiller, phase 2; line 4 phase 4 (approx)" }]
+expected = [{ line = 1, carrier = "RustdocFiller" }]
+review = [{ why = "Line 4 paraphrases user_id as identifier of the user; semantic restatement beyond lexical matching remains review (phase4-declaration-docs.md)." }]
 [[example.fragment]]
 path = "modules/bad/rustdoc-rs/src/example_48.rs"
 block-lines = "1-7"
@@ -1330,8 +1330,8 @@ lines = "1-2"
 split = "none"
 wrap = "items"
 sha256 = "892112cc829927c292f3eff33dabb6fe4118f5870bbdf6217d7753c2efafc470"
-expected = []
-review = [{ why = "review: no fixed phrase" }]
+expected = [{ line = 1, carrier = "ReExportShape" }]
+review = [{ why = "Semantic restatement of the function's calculation has no fixed filler phrase or lexical parameter description; prose meaning remains review." }]
 [[example.fragment]]
 path = "modules/bad/rustdoc-rs/src/example_50.rs"
 block-lines = "1-2"
@@ -1405,8 +1405,8 @@ lines = "1-11"
 split = "none"
 wrap = "items"
 sha256 = "adb333585baf0ab9efa69b455a26cb5c155ce9f430b07f3ffd11072cacb13ce0"
-expected = [{ line = 1, carrier = "StructDefaultValue" }]
-review = [{ why = "line 10: StructDefaultValue struct update, phase 2" }]
+expected = [{ line = 1, carrier = "ReExportShape" }, { line = 1, carrier = "StructDefaultValue" }, { line = 8, carrier = "StructDefaultValue" }]
+review = []
 [[example.fragment]]
 path = "modules/bad/struct-default-values-rs/src/prediction_input.rs"
 block-lines = "1-6"
@@ -1432,7 +1432,7 @@ review = []
 [[example.fragment]]
 path = "modules/good/struct-default-values-rs/src/prediction/model/prediction_input.rs"
 block-lines = "1-5"
-fixture-lines = "1-5"
+fixture-lines = "2-6"
 [[example.fragment]]
 path = "modules/good/struct-default-values-rs/src/prediction/util/input_build.rs"
 block-lines = "7-11"
@@ -1458,7 +1458,7 @@ fixture-lines = "1-1"
 [[example.fragment]]
 path = "modules/good/struct-default-values-rs/src/prediction/model/prediction_config.rs"
 block-lines = "2-18"
-fixture-lines = "4-20"
+fixture-lines = "5-21"
 
 [[example]]
 claim = "testing.rs:Rule:18"
@@ -1604,7 +1604,7 @@ split = "none"
 wrap = "fields"
 sha256 = "c4feca723e209c96491f823dd805f2e552bbd2b907a53f43042905f19432d1d2"
 expected = []
-review = [{ why = "TimePrimitive, phase 4 (approx)" }]
+review = [{ why = "Primitive temporal intent and valid external-boundary conversions require review; exact Instant/constant checks remain active (phase4-async-syntax.md)." }]
 [[example.fragment]]
 path = "modules/bad/time-api-rs/src/example_64.rs"
 block-lines = "1-3"

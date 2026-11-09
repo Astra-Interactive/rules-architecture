@@ -12,9 +12,12 @@ use crate::workspace::util::is_member_source_directory;
 use crate::workspace::util::is_skipped_directory_name;
 use crate::workspace::util::parse_toml_file;
 use crate::workspace::util::resolve_patched_dependency;
+use cargo_metadata::Dependency as MetadataDependency;
 use cargo_metadata::DependencyKind as MetadataDependencyKind;
 use cargo_metadata::MetadataCommand;
 use cargo_metadata::Package;
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::Component;
@@ -104,19 +107,50 @@ impl CargoWorkspaceReader {
         manifest: &TomlFile,
         key: &str,
         kind: DependencyKind,
-        is_target_specific: bool,
+        target: Option<&str>,
     ) -> Option<u32> {
         let table = Self::select_dependency_table(kind);
-        if !is_target_specific {
+        let Some(target) = target else {
             return manifest.root.find(&[table, key]).map(|value| value.line);
-        }
+        };
         manifest
             .root
-            .find(&["target"])?
-            .entries()
-            .iter()
-            .find_map(|platform| platform.value.find(&[table, key]))
+            .find(&["target", target, table, key])
             .map(|value| value.line)
+    }
+
+    fn expand_dependency_features(
+        root: &Path,
+        dependency: &MetadataDependency,
+        path: Option<&str>,
+        packages: &[&Package],
+    ) -> Vec<String> {
+        let Some(provider) = packages.iter().find(|provider| {
+            provider.manifest_path.parent().is_some_and(|directory| {
+                path == Some(Self::to_relative(root, directory.as_std_path()).as_str())
+            })
+        }) else {
+            return dependency.features.clone();
+        };
+        let mut pending = dependency.features.clone();
+        if dependency.uses_default_features {
+            pending.push("default".to_owned());
+        }
+        let mut enabled = BTreeSet::new();
+        while let Some(feature) = pending.pop() {
+            if !enabled.insert(feature.clone()) {
+                continue;
+            }
+            if let Some(children) = provider.features.get(&feature) {
+                pending.extend(
+                    children
+                        .iter()
+                        .filter(|child| !child.contains('/') && !child.starts_with("dep:"))
+                        .cloned(),
+                );
+            }
+        }
+        enabled.into_iter().collect()
     }
 
     fn read_dependencies(
@@ -140,6 +174,7 @@ impl CargoWorkspaceReader {
                     }
                 };
                 let is_target_specific = dependency.target.is_some();
+                let target = dependency.target.as_ref().map(ToString::to_string);
                 let key = dependency.rename.as_deref().unwrap_or(&dependency.name);
                 let path = match &dependency.path {
                     Some(path) => Some(Self::to_relative(root, path.as_std_path())),
@@ -153,12 +188,16 @@ impl CargoWorkspaceReader {
                         lock,
                     )?,
                 };
+                let features =
+                    Self::expand_dependency_features(root, dependency, path.as_deref(), packages);
                 Ok(Dependency {
                     name: dependency.name.clone(),
+                    code_name: key.replace('-', "_"),
                     path,
                     kind,
+                    features,
                     is_target_specific,
-                    line: Self::find_dependency_line(manifest, key, kind, is_target_specific),
+                    line: Self::find_dependency_line(manifest, key, kind, target.as_deref()),
                 })
             })
             .collect()
@@ -332,6 +371,81 @@ impl CargoWorkspaceReader {
     }
 }
 
+impl CargoWorkspaceReader {
+    fn apply_dependency_names(
+        mut member: Member,
+        package: &Package,
+        names: &BTreeMap<(String, String), String>,
+    ) -> Member {
+        for dependency in &mut member.dependencies {
+            let renamed = package
+                .dependencies
+                .iter()
+                .any(|declared| declared.name == dependency.name && declared.rename.is_some());
+            if !renamed
+                && let Some(name) = names.get(&(package.id.to_string(), dependency.name.clone()))
+            {
+                dependency.code_name = name.replace('-', "_");
+            }
+        }
+        member
+    }
+
+    fn read_dependency_names(
+        &self,
+        dir: &Path,
+        packages: &[&Package],
+    ) -> BTreeMap<(String, String), String> {
+        let options = vec!["--offline".to_owned(), "--locked".to_owned()];
+        let resolved = MetadataCommand::new()
+            .cargo_path(&self.cargo)
+            .current_dir(dir)
+            .other_options(options)
+            .exec()
+            .ok();
+        let mut dependency_names = BTreeMap::new();
+        for package in packages {
+            for dependency in &package.dependencies {
+                if let Some(provider) = packages.iter().find(|provider| {
+                    provider.name.as_str() == dependency.name
+                        && dependency.req.matches(&provider.version)
+                }) && let Some(target) = provider.targets.iter().find(|target| {
+                    target
+                        .kind
+                        .iter()
+                        .any(|kind| kind.to_string() == "lib" || kind.to_string() == "rlib")
+                }) {
+                    dependency_names.insert(
+                        (package.id.to_string(), dependency.name.clone()),
+                        target.name.clone(),
+                    );
+                }
+            }
+        }
+        let Some(resolved) = resolved else {
+            return dependency_names;
+        };
+        let Some(graph) = &resolved.resolve else {
+            return dependency_names;
+        };
+        for node in &graph.nodes {
+            for dependency in &node.deps {
+                if let Some(package) = resolved
+                    .packages
+                    .iter()
+                    .find(|package| package.id == dependency.pkg)
+                {
+                    dependency_names.insert(
+                        (node.id.to_string(), package.name.to_string()),
+                        dependency.name.clone(),
+                    );
+                }
+            }
+        }
+        dependency_names
+    }
+}
+
 impl WorkspaceReader for CargoWorkspaceReader {
     fn read_workspace(&self, dir: &Path) -> Result<Workspace, CheckError> {
         let metadata = MetadataCommand::new()
@@ -348,6 +462,7 @@ impl WorkspaceReader for CargoWorkspaceReader {
         let lock = Self::read_toml(&root, "Cargo.lock")?;
         let cargo_config = Self::read_cargo_config(&root)?;
         let packages = metadata.workspace_packages();
+        let dependency_names = self.read_dependency_names(dir, &packages);
         let mut members = packages
             .iter()
             .map(|package| {
@@ -359,6 +474,7 @@ impl WorkspaceReader for CargoWorkspaceReader {
                     lock.as_ref(),
                     cargo_config.as_ref(),
                 )
+                .map(|member| Self::apply_dependency_names(member, package, &dependency_names))
             })
             .collect::<Result<Vec<Member>, CheckError>>()?;
         members.sort_by(|left, right| left.directory.cmp(&right.directory));
@@ -375,6 +491,7 @@ impl WorkspaceReader for CargoWorkspaceReader {
             rustfmt_files: Self::read_rustfmt_files(&root)?,
             toolchain_file: Self::read_toolchain_file(&root)?,
             cargo_config,
+            lock_file: lock,
             root,
             target_directory,
             root_manifest,

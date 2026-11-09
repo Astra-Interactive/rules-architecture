@@ -1,0 +1,2 @@
+RootBuildSubprojects	modules/consumer/Cargo.toml:9	case-consumer dependencies.case-owner	declare dependencies.case-owner in the workspace root and inherit shared settings with workspace = true
+FakePlacement	modules/owner/Cargo.toml:9	case-owner features.fake	The fixture block and an empty fake = [] feature must be declared together (arch-package.rs.md)

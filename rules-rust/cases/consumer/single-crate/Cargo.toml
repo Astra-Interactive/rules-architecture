@@ -11,6 +11,7 @@ members = [".", "xtask"]
 
 [workspace.metadata.klibs-rules]
 product-kind = "app"
+prefix = "shop"
 
 [workspace.lints.rust]
 unreachable_pub = "warn"
