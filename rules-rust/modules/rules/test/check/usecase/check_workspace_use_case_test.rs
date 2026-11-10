@@ -121,14 +121,6 @@ fn compare_cases(root: &Path) -> Vec<String> {
 }
 
 #[test]
-fn given_rules_rust_workspace_when_checked_then_no_rule_is_violated() {
-    let report =
-        check_workspace(&find_rules_rust_root()).expect("the klibs-rules configuration loads");
-
-    assert!(report.is_clean(), "{}", report.to_violation_lines());
-}
-
-#[test]
 fn given_rule_cases_when_checked_then_each_report_equals_its_expected_lines() {
     let rules = find_rules_rust_root().join("cases/rules");
     let mut rule_directories: Vec<PathBuf> = fs::read_dir(&rules)

@@ -41,7 +41,7 @@ jobs:
         run: cargo fmt --check
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
-      - name: Tests (self-check, rule and suppression cases, both gate halves, the toolchain assertion)
+      - name: Tests (rule and suppression cases, both gate halves, the toolchain assertion)
         run: cargo test --workspace
       - name: Check out the documents
         if: matrix.leg == 'pinned'

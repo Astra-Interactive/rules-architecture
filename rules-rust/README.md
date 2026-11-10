@@ -402,7 +402,7 @@ Option; discarded-result exceptions remain a separate check.
 ```text
 rules-rust/
   Cargo.toml, clippy.toml, rust-toolchain.toml, .cargo/config.toml
-  modules/rules/   the published crate `klibs-rules`: src/, test/ (self-check, case workspaces, both gate halves)
+  modules/rules/   the published crate `klibs-rules`: src/, test/ (case workspaces, both gate halves)
   xtask/           `cargo xtask gate-sync --docs <dir> [--check]`
   cases/           standalone workspaces, excluded from this one
     rules/<RuleId>/<fail|pass>-<case>/        expected.tsv

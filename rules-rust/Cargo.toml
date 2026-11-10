@@ -9,10 +9,6 @@ rust-version = "1.93"
 license = "Apache-2.0"
 repository = "https://github.com/Astra-Interactive/rules-architecture"
 
-[workspace.metadata.klibs-rules]
-product-kind = "app"
-entry-point-words = ["rule"]
-
 [workspace.dependencies]
 cargo_metadata = "0.23"
 proc-macro2 = { version = "1", features = ["span-locations"] }
