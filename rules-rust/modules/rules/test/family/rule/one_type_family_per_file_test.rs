@@ -239,6 +239,47 @@ fn given_error_enum_declared_beside_the_struct_using_it_when_checked_then_report
 }
 
 #[test]
+fn given_error_struct_declared_beside_the_struct_using_it_when_checked_then_reports_only_the_error()
+{
+    let mut context = read_case_context("OneTypeFamilyPerFile", "pass-syntax");
+    let file = context.crates[0]
+        .files
+        .iter_mut()
+        .find(|file| !file.module.path.is_empty())
+        .expect("source file");
+    file.syntax = syn::parse_file(
+        "struct Subject { failure: SubjectError, kind: Kind }\nstruct Kind { name: String }\nstruct SubjectError { message: String }",
+    )
+    .expect("valid source");
+    let lines: Vec<_> = OneTypeFamilyPerFile
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect();
+    assert_eq!(vec![Some(3)], lines);
+}
+
+#[test]
+fn given_recursive_secondary_type_used_only_by_itself_when_checked_then_reports_only_that_type() {
+    let mut context = read_case_context("OneTypeFamilyPerFile", "pass-syntax");
+    let file = context.crates[0]
+        .files
+        .iter_mut()
+        .find(|file| !file.module.path.is_empty())
+        .expect("source file");
+    file.syntax = syn::parse_file(
+        "struct Subject { id: u32, root: Branch }\nstruct Branch { child: Option<Box<Branch>> }\nstruct TreeNode { child: Option<Box<TreeNode>> }",
+    )
+    .expect("valid source");
+    let lines: Vec<_> = OneTypeFamilyPerFile
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect();
+    assert_eq!(vec![Some(3)], lines);
+}
+
+#[test]
 fn given_plain_function_files_when_checked_then_requires_no_primary_type() {
     crate::test::syntax::util::assert_syntax_findings(
         &OneTypeFamilyPerFile,

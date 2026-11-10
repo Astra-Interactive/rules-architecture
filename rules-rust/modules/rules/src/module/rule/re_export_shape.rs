@@ -104,22 +104,12 @@ impl ReExportShape {
         matches!(visibility, syn::Visibility::Inherited)
     }
 
-    fn is_module_or_ancestor(index: &CrateIndex, ancestor: usize, module: usize) -> bool {
-        let mut current = Some(module);
-        while let Some(candidate) = current {
-            if candidate == ancestor {
-                return true;
-            }
-            current = index.modules[candidate].parent;
-        }
-        false
-    }
-
     fn find_cross_block_exports<'a>(
         index: &'a CrateIndex,
         ordinal: usize,
         item: &IndexedItem,
     ) -> Vec<&'a ImportBinding> {
+        let kind_block = index.modules[item.module].parent;
         index
             .imports
             .iter()
@@ -127,7 +117,8 @@ impl ReExportShape {
                 binding.is_public
                     && !binding.is_glob
                     && index.modules[binding.module].tree == crate::source::model::SourceTree::Src
-                    && !Self::is_module_or_ancestor(index, binding.module, item.module)
+                    && binding.module != item.module
+                    && Some(binding.module) != kind_block
                     && item.cfg.and(&binding.cfg).is_satisfiable()
                     && matches!(index.resolve_segments(binding.module, &binding.path, 0), Resolution::Internal(targets) if targets.iter().any(|target| target.item == Some(ordinal)))
             })

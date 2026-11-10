@@ -56,12 +56,13 @@ fn candidates_in_line(line: &str, number: usize, candidates: &mut Vec<(usize, St
                 continue;
             }
             let code = line[content..close].trim();
-            let valid_characters = !code.is_empty()
-                && code.chars().all(|character| {
+            let name = code.strip_suffix("()").unwrap_or(code);
+            let valid_characters = !name.is_empty()
+                && name.chars().all(|character| {
                     character.is_alphanumeric() || ['_', ':', '#'].contains(&character)
                 });
             let path = valid_characters
-                .then(|| syn::parse_str::<syn::Path>(code).ok())
+                .then(|| syn::parse_str::<syn::Path>(name).ok())
                 .flatten();
             if path.is_some() && !linked(line, start, cursor) {
                 candidates.push((number, code.to_owned()));

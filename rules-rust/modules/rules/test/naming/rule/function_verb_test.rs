@@ -24,6 +24,16 @@ fn given_trait_implementations_tests_and_lookups_when_checked_then_keeps_exempt_
 }
 
 #[test]
+fn given_inherent_lookup_names_without_a_key_when_checked_then_reports_only_the_keyless_ones() {
+    crate::test::declaration::util::assert_code_findings(
+        &FunctionVerb,
+        "FunctionVerb",
+        "struct Account { balance: u64 }\nimpl Account {\n    fn get(&self) -> u64 { self.balance }\n    fn get_mut(&mut self) -> &mut u64 { &mut self.balance }\n    fn get_unchecked(&self) -> u64 { self.balance }\n    fn get_unchecked_mut(&mut self) -> &mut u64 { &mut self.balance }\n}\nstruct Store { entries: Vec<u64> }\nimpl Store {\n    fn get(&self, key: usize) -> Option<&u64> { self.entries.get(key) }\n    fn get_mut(&mut self, key: usize) -> Option<&mut u64> { self.entries.get_mut(key) }\n}\nimpl Reader for Account { fn get(&self) -> u64 { 0 } }\n#[test]\nfn get() {}",
+        &[3, 4, 5, 6],
+    );
+}
+
+#[test]
 fn given_forbidden_syntax_when_checked_then_reports_the_rule() {
     let context = read_case_context("FunctionVerb", "fail-syntax");
     assert!(!FunctionVerb.check(&context).is_empty());

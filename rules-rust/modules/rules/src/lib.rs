@@ -346,6 +346,10 @@ pub(crate) mod comment {
         mod rustdoc_html_tag;
         mod rustdoc_parameter_visitor;
     }
+    pub(crate) mod model {
+        pub(crate) use doc_owner::DocOwner;
+        mod doc_owner;
+    }
     pub(crate) mod util {
         pub(crate) use comment_shape::find_forbidden_shape;
         pub(crate) use doc_attributes::{
@@ -405,6 +409,14 @@ pub(crate) mod naming {
         mod name_visitor;
         mod roleless_type_name;
         mod test_function_name;
+    }
+    pub(crate) mod model {
+        pub(crate) use select_part::SelectPart;
+        mod select_part;
+    }
+    pub(crate) mod util {
+        pub(crate) use select_arguments::parse_select_arguments;
+        mod select_arguments;
     }
 
     pub(crate) mod di {
@@ -552,14 +564,18 @@ pub(crate) mod module {
     pub(crate) mod model {
         pub(crate) use cycle_component::CycleComponent;
         pub(crate) use cycle_search_step::CycleSearchStep;
+        pub(crate) use hidden_member::HiddenMember;
         pub(crate) use lifecycle_facts::LifecycleFacts;
         pub(crate) use module_dependency_path::ModuleDependencyPath;
         pub(crate) use module_identity::ModuleIdentity;
+        pub(crate) use visibility_member::VisibilityMember;
         mod cycle_component;
         mod cycle_search_step;
+        mod hidden_member;
         mod lifecycle_facts;
         mod module_dependency_path;
         mod module_identity;
+        mod visibility_member;
     }
     pub(crate) mod util {
         pub(crate) use di_inspect::{
@@ -763,10 +779,12 @@ pub(crate) mod expression {
 
 pub(crate) mod runtime {
     pub(crate) mod util {
+        pub(crate) use format_placeholder::names_format_argument;
         pub(crate) use guard_type::guard_collection_fields;
         pub(crate) use lint_expectation::expects_lint;
         pub(crate) use node_predicate::node_predicate;
         pub(crate) use result_variant::is_result_variant;
+        mod format_placeholder;
         mod guard_type;
         mod lint_expectation;
         mod node_predicate;
@@ -1204,6 +1222,7 @@ mod test {
             mod doc_comment_visitor_test;
             mod doc_scope_visitor_test;
             mod forbidden_comment_test;
+            mod intra_doc_link_test;
             mod rustdoc_filler_test;
             mod rustdoc_html_tag_test;
         }

@@ -50,7 +50,8 @@ impl ImplementationName {
             let vague_prefix = {
                 ["Database", "Network", "Local", "Remote"]
                     .iter()
-                    .any(|word| item.name.starts_with(word))
+                    .filter_map(|word| item.name.strip_prefix(word))
+                    .any(|rest| rest.chars().next().is_none_or(|next| !next.is_lowercase()))
             };
             if vague_prefix {
                 findings.push(Self::build_item_finding(

@@ -39,6 +39,26 @@ impl GuardWrites<'_> {
         }
     }
 
+    fn exchanges_guard(&self, call: &syn::ExprCall) -> bool {
+        let syn::Expr::Path(function) = &*call.func else {
+            return false;
+        };
+        let segments = &function.path.segments;
+        let Some(name) = segments.last() else {
+            return false;
+        };
+        let in_mem = segments.len() == 1
+            || segments
+                .iter()
+                .rev()
+                .nth(1)
+                .is_some_and(|owner| owner.ident == "mem");
+        in_mem
+            && matches!(name.ident.to_string().as_str(), "take" | "replace" | "swap")
+            && matches!(call.args.first(), Some(syn::Expr::Reference(reference))
+                if reference.mutability.is_some() && self.rooted(&reference.expr))
+    }
+
     pub(crate) fn count(statement: &syn::Stmt, name: &str, collections: &[String]) -> usize {
         let mut visitor = GuardWrites {
             name,
@@ -124,6 +144,10 @@ impl<'ast> Visit<'ast> for GuardWrites<'_> {
                     | "clear"
                     | "push"
                     | "pop"
+                    | "push_back"
+                    | "push_front"
+                    | "pop_back"
+                    | "pop_front"
                     | "extend"
                     | "truncate"
                     | "retain"
@@ -131,6 +155,12 @@ impl<'ast> Visit<'ast> for GuardWrites<'_> {
                     | "append"
                     | "drain"
                     | "sort"
+                    | "sort_by"
+                    | "sort_by_key"
+                    | "sort_by_cached_key"
+                    | "sort_unstable"
+                    | "sort_unstable_by"
+                    | "sort_unstable_by_key"
                     | "reverse"
                     | "swap_remove"
             )
@@ -138,6 +168,11 @@ impl<'ast> Visit<'ast> for GuardWrites<'_> {
             self.writes += 1;
         }
         syn::visit::visit_expr_method_call(self, expression);
+    }
+
+    fn visit_expr_call(&mut self, expression: &'ast syn::ExprCall) {
+        self.writes += usize::from(self.exchanges_guard(expression));
+        syn::visit::visit_expr_call(self, expression);
     }
 
     fn visit_expr_closure(&mut self, _: &'ast syn::ExprClosure) {}

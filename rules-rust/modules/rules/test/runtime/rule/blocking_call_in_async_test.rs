@@ -80,3 +80,23 @@ fn given_blocking_call_in_iterator_closure_when_async_then_reports_call_outside_
         &[4],
     );
 }
+
+#[test]
+fn given_std_file_write_and_sync_methods_when_async_then_reports_each_call() {
+    assert_code_findings(
+        &BlockingCallInAsync,
+        "BlockingCallInAsync",
+        "use std::io::Write;\nstruct Journal { file: std::fs::File }\nimpl Journal { async fn append(&mut self, line: &[u8]) {\n    self.file.write_all(line).unwrap();\n    self.file.sync_all().unwrap();\n} }\nstruct Pump { file: tokio::fs::File }\nimpl Pump { async fn flush(&self) {\n    self.file.sync_all().await.unwrap();\n} }",
+        &[4, 5],
+    );
+}
+
+#[test]
+fn given_std_file_flush_seek_and_read_to_string_when_async_then_reports_outside_spawn_blocking() {
+    assert_code_findings(
+        &BlockingCallInAsync,
+        "BlockingCallInAsync",
+        "use std::io::{Read, Seek, Write};\nasync fn flush(mut file: std::fs::File) {\n    file.flush().unwrap();\n}\nasync fn rewind(mut file: std::fs::File) {\n    file.seek(std::io::SeekFrom::Start(0)).unwrap();\n}\nasync fn load(mut file: std::fs::File) -> String {\n    let mut text = String::new();\n    file.read_to_string(&mut text).unwrap();\n    text\n}\nasync fn offloaded(mut file: std::fs::File) {\n    let _done = tokio::task::spawn_blocking(move || { file.flush().unwrap(); file.seek(std::io::SeekFrom::Start(0)).unwrap(); }).await;\n}",
+        &[3, 6, 10],
+    );
+}

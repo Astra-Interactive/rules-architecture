@@ -1,6 +1,7 @@
 use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
 use crate::check::util::build_node_finding;
+use crate::module::model::VisibilityMember;
 use crate::module::util::{find_shape_visibility, reference_types};
 use crate::source::model::{
     CrateIndex, DeclaredVisibility, IndexedImpl, IndexedItem, NodeSpan, Resolution,
@@ -9,6 +10,7 @@ use crate::source::util::find_node_span;
 use crate::workspace::model::Target;
 use proc_macro2::{Delimiter, TokenStream, TokenTree};
 use quote::ToTokens;
+use std::cell::OnceCell;
 use std::collections::{BTreeMap, BTreeSet};
 use syn::spanned::Spanned;
 
@@ -90,6 +92,11 @@ impl VisibilityTier {
         matches!(visibility, syn::Visibility::Restricted(restriction) if restriction.path.is_ident("crate"))
     }
 
+    fn is_non_tier(visibility: &syn::Visibility) -> bool {
+        matches!(visibility, syn::Visibility::Restricted(restriction)
+            if restriction.in_token.is_some() || !restriction.path.is_ident("crate"))
+    }
+
     fn declared_fields(item: &IndexedItem) -> Vec<&syn::Field> {
         match &item.syntax {
             syn::Item::Struct(value) => value.fields.iter().collect(),
@@ -168,6 +175,105 @@ impl VisibilityTier {
         findings
     }
 
+    pub(crate) fn collect_foreign_member_names(
+        context: &RuleContext,
+        crate_name: &str,
+    ) -> BTreeSet<String> {
+        context
+            .indexes
+            .iter()
+            .filter(|index| index.crate_name != crate_name)
+            .flat_map(|index| {
+                Self::collect_file_member_names(index)
+                    .into_values()
+                    .flatten()
+            })
+            .collect()
+    }
+
+    fn collect_members<'a>(
+        index: &'a CrateIndex,
+        identity: usize,
+        item: &'a IndexedItem,
+    ) -> Vec<VisibilityMember<'a>> {
+        let fields = Self::declared_fields(item)
+            .into_iter()
+            .map(move |field| VisibilityMember {
+                file: &item.file,
+                span: find_node_span(field.span()),
+                name: field
+                    .ident
+                    .as_ref()
+                    .map(ToString::to_string)
+                    .unwrap_or_default(),
+                visibility: &field.vis,
+            });
+        let methods = index
+            .implementations
+            .iter()
+            .filter(|implementation| {
+                crate::module::util::owns_implementation(index, identity, implementation)
+            })
+            .flat_map(|implementation| {
+                implementation.syntax.items.iter().filter_map(move |child| {
+                    let syn::ImplItem::Fn(method) = child else {
+                        return None;
+                    };
+                    Some(VisibilityMember {
+                        file: &implementation.file,
+                        span: find_node_span(method.span()),
+                        name: method.sig.ident.to_string(),
+                        visibility: &method.vis,
+                    })
+                })
+            });
+        fields.chain(methods).collect()
+    }
+
+    fn check_tier_members(
+        context: &RuleContext,
+        ordinal: usize,
+        identity: usize,
+        foreign_names: &OnceCell<BTreeSet<String>>,
+    ) -> Vec<RuleFinding> {
+        let index = &context.indexes[ordinal];
+        let item = &index.items[identity];
+        let is_reachable = matches!(
+            Self::visibility(&item.syntax),
+            Some(syn::Visibility::Public(_))
+        ) && context.has_external_name_user(ordinal, identity);
+        Self::collect_members(index, identity, item)
+            .into_iter()
+            .filter_map(|member| {
+                let is_unused_public = is_reachable
+                    && matches!(member.visibility, syn::Visibility::Public(_))
+                    && !member.name.is_empty()
+                    && !foreign_names
+                        .get_or_init(|| {
+                            Self::collect_foreign_member_names(
+                                context,
+                                &context.indexes[ordinal].crate_name,
+                            )
+                        })
+                        .contains(&member.name);
+                let message = if Self::is_non_tier(member.visibility) {
+                    Self::NON_TIER_MESSAGE
+                } else if is_unused_public {
+                    Self::UNUSED_PUBLIC_MEMBER_MESSAGE
+                } else {
+                    return None;
+                };
+                Some(build_node_finding(
+                    "VisibilityTier",
+                    member.file,
+                    member.span,
+                    item.name.clone(),
+                    message.to_owned(),
+                ))
+            })
+            .collect()
+    }
+
     fn check_workspace_item(
         context: &RuleContext,
         ordinal: usize,
@@ -175,15 +281,13 @@ impl VisibilityTier {
         item: &IndexedItem,
     ) -> Option<RuleFinding> {
         let visibility = Self::visibility(&item.syntax)?;
-        let path_restricted = matches!(visibility, syn::Visibility::Restricted(restriction) if restriction.in_token.is_some());
-        if path_restricted {
+        if Self::is_non_tier(visibility) {
             return Some(build_node_finding(
                 "VisibilityTier",
                 &item.file,
                 item.span,
                 item.name.clone(),
-                "visibility is one of pub, pub(crate) or private; `pub(in path)` is not a tier"
-                    .to_owned(),
+                Self::NON_TIER_MESSAGE.to_owned(),
             ));
         }
         let too_public = matches!(visibility, syn::Visibility::Public(_))
@@ -222,12 +326,19 @@ impl VisibilityTier {
                 continue;
             }
             let names = Self::collect_file_member_names(index);
+            let foreign_names = OnceCell::new();
             for (identity, item) in index.items.iter().enumerate().filter(|(_, item)| {
                 item.cfg.is_satisfiable()
                     && index.modules[item.module].tree == crate::source::model::SourceTree::Src
             }) {
                 findings.extend(Self::check_workspace_item(context, ordinal, identity, item));
                 findings.extend(Self::crate_visible_members(index, identity, item, &names));
+                findings.extend(Self::check_tier_members(
+                    context,
+                    ordinal,
+                    identity,
+                    &foreign_names,
+                ));
             }
         }
         findings
@@ -508,6 +619,10 @@ impl VisibilityTier {
         }
         findings
     }
+
+    const NON_TIER_MESSAGE: &'static str = "visibility is one of pub, pub(crate) or private; `pub(super)`, `pub(self)` and `pub(in path)` are not tiers";
+    const UNUSED_PUBLIC_MEMBER_MESSAGE: &'static str =
+        "A public field or method that no other workspace crate uses is pub(crate) or private";
 }
 
 impl Rule for VisibilityTier {

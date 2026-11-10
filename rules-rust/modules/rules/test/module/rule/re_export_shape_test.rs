@@ -96,3 +96,19 @@ fn given_item_re_exported_by_another_kind_block_when_checked_then_the_second_pat
     assert_eq!(findings[0].finding.location.path, "lib.rs");
     assert_eq!(findings[0].finding.location.line, Some(5));
 }
+
+#[test]
+fn given_item_re_exported_by_the_concept_block_above_its_kind_block_when_checked_then_the_second_path_is_reported()
+ {
+    let mut context = read_case_context("ImportOrdering", "pass-syntax");
+    context.indexes = vec![build_index_files(
+        "mod billing {\n    pub(crate) use model::Invoice;\n    mod model { pub(crate) use invoice::Invoice; mod invoice; }\n}",
+        BTreeMap::from([("billing/model/invoice.rs", "pub(crate) struct Invoice;")]),
+    )];
+    let findings = ReExportShape.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].finding.rule_id.0, "ReExportShape");
+    assert_eq!(findings[0].finding.subject, "Invoice");
+    assert_eq!(findings[0].finding.location.path, "lib.rs");
+    assert_eq!(findings[0].finding.location.line, Some(2));
+}

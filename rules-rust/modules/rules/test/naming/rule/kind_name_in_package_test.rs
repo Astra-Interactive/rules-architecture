@@ -3,6 +3,7 @@ use crate::naming::rule::KindNameInPackage;
 use crate::test::check::usecase::read_case_context;
 use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
+use crate::test::declaration::util::read_code_context;
 
 #[test]
 fn given_persistent_code_fixtures_when_checked_then_match_exact_anchors() {
@@ -34,6 +35,62 @@ fn given_service_word_inside_model_type_name_when_checked_then_reports_it() {
         "mod model { struct InvoiceServiceState { first: u32, second: u32 } }\nmod service { struct InvoiceServiceState; }",
         &[1],
     );
+}
+
+#[test]
+fn given_service_word_inside_non_model_type_name_when_checked_then_reports_only_whole_word() {
+    assert_code_findings(
+        &KindNameInPackage,
+        "KindNameInPackage",
+        "mod api { trait ServiceClient {} }\nmod service { struct ServiceClient; }\nmod util { struct ServiceableClient; }",
+        &[1],
+    );
+}
+
+#[test]
+fn given_type_aliases_with_forbidden_names_when_checked_then_reports_them_like_declared_types() {
+    let mut context = read_code_context(
+        "mod model {\npub struct Jail { pub name: String }\npub type JailModel = Jail;\npub type JailEntity = Jail;\npub type InvoiceIndex = std::collections::HashMap<u32, Jail>;\n}\nmod file {\npub type RowHelper = u32;\npub type RowUtil = u32;\npub type RowUtils = u32;\npub type RowManager = u32;\npub type JailEntity = u32;\n}\npub type UserService = u32;\nmod service { pub type BillingService = u32; }\ntrait Source { type Item; }\nstruct Reader; impl Source for Reader { type RowHelper = u8; }\nmod sqlx {\n    pub mod model {\n        pub type JailEntity = u32;\n    }\n}",
+    );
+    context.project_config.crates[0]
+        .technology_words
+        .push("sqlx".to_owned());
+    let mut lines = KindNameInPackage
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect::<Vec<_>>();
+    lines.sort_unstable();
+    assert_eq!(
+        vec![
+            Some(3),
+            Some(4),
+            Some(8),
+            Some(9),
+            Some(10),
+            Some(11),
+            Some(14)
+        ],
+        lines
+    );
+}
+
+#[test]
+fn given_service_type_in_a_crate_named_service_when_checked_then_the_crate_name_grants_no_exemption()
+ {
+    let mut context = read_code_context(
+        "mod payment {\n    mod usecase { pub(crate) struct PaymentService; }\n}\nmod service { pub(crate) struct ReminderService; }",
+    );
+    context.crates[0].crate_name = "billing-service".to_owned();
+    for file in &mut context.crates[0].files {
+        file.module.crate_name = "billing-service".to_owned();
+    }
+    let lines = KindNameInPackage
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect::<Vec<_>>();
+    assert_eq!(vec![Some(2)], lines);
 }
 
 #[test]

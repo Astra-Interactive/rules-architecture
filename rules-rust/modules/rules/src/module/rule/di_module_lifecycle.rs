@@ -400,10 +400,38 @@ impl DiModuleLifecycle {
             .collect()
     }
 
+    fn list_lifecycle_fields(
+        context: &RuleContext,
+        ordinal: usize,
+        identity: usize,
+    ) -> Vec<String> {
+        let item = &context.indexes[ordinal].items[identity];
+        let Item::Struct(structure) = &item.syntax else {
+            return Vec::new();
+        };
+        structure
+            .fields
+            .iter()
+            .filter_map(|field| {
+                let name = field.ident.as_ref()?;
+                let has_lifecycle = context
+                    .resolve_workspace_type(ordinal, item.module, &field.ty)
+                    .iter()
+                    .any(|target| {
+                        target.path.item.is_some_and(|identity| {
+                            lifecycle_implementation(context, target.index, identity)
+                        })
+                    });
+                has_lifecycle.then(|| name.to_string())
+            })
+            .collect()
+    }
+
     fn methods(context: &RuleContext, ordinal: usize, identity: usize, facts: &mut LifecycleFacts) {
         let index = &context.indexes[ordinal];
         let shared = Self::list_shared_fields(context, ordinal, identity);
         let task_scopes = Self::list_task_scope_fields(context, ordinal, identity);
+        let lifecycle_children = Self::list_lifecycle_fields(context, ordinal, identity);
         for implementation in index
             .implementations
             .iter()
@@ -448,10 +476,9 @@ impl DiModuleLifecycle {
                     },
                 );
                 facts.invalid |= body.invalid;
-                facts.invalid |= facts
-                    .owned
-                    .iter()
-                    .any(|child| !body.forwarded.contains(child));
+                facts.invalid |= facts.owned.iter().any(|child| {
+                    lifecycle_children.contains(child) && !body.forwarded.contains(child)
+                });
                 facts.invalid |=
                     Self::invalid_order(context, ordinal, identity, &name, &body.paths);
                 facts.needs_lifecycle |= body.child_lifecycle;

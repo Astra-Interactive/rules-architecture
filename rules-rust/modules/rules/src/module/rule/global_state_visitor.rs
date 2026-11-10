@@ -42,6 +42,95 @@ impl GlobalStateVisitor<'_> {
         )
     }
 
+    fn is_thread_local_macro(&self, path: &syn::Path) -> bool {
+        if path
+            .segments
+            .last()
+            .is_none_or(|segment| segment.ident != "thread_local")
+        {
+            return false;
+        }
+        match self.context.indexes[self.ordinal].resolve_path(self.module, path) {
+            Resolution::External(path) => {
+                self.context
+                    .resolve_external_identity(self.ordinal, &path)
+                    .package
+                    == "std"
+            }
+            Resolution::Unresolved => true,
+            _ => false,
+        }
+    }
+
+    fn parse_thread_local_statics(item: &syn::Macro) -> Vec<syn::ItemStatic> {
+        let mut tokens = item.tokens.clone();
+        let ends_with_semicolon =
+            tokens
+                .clone()
+                .into_iter()
+                .last()
+                .is_some_and(|token| match token {
+                    proc_macro2::TokenTree::Punct(punct) => punct.as_char() == ';',
+                    _ => false,
+                });
+        if !ends_with_semicolon {
+            tokens.extend([proc_macro2::TokenTree::Punct(proc_macro2::Punct::new(
+                ';',
+                proc_macro2::Spacing::Alone,
+            ))]);
+        }
+        let parser = |stream: syn::parse::ParseStream| {
+            let mut statics = Vec::new();
+            while !stream.is_empty() {
+                statics.push(stream.parse::<syn::ItemStatic>()?);
+            }
+            Ok(statics)
+        };
+        syn::parse::Parser::parse2(parser, tokens).unwrap_or_default()
+    }
+
+    fn report_thread_local_statics(&mut self, item: &syn::Macro) {
+        let cfg = crate::source::model::CfgPredicate::All(Vec::new());
+        for shared in Self::parse_thread_local_statics(item) {
+            if Self::invalid_static(self.context, self.ordinal, self.module, &shared, &cfg) {
+                self.report(
+                    shared.span(),
+                    "shared state is passed from DI, never stored in a global static",
+                );
+            }
+        }
+    }
+
+    fn report_module_thread_locals(&mut self, items: &[syn::Item], module: usize) {
+        self.module = module;
+        for item in items {
+            match item {
+                syn::Item::Macro(call) if call.ident.is_none() => {
+                    if self.is_thread_local_macro(&call.mac.path) {
+                        self.report_thread_local_statics(&call.mac);
+                    }
+                }
+                syn::Item::Mod(child) => {
+                    let name = child.ident.to_string();
+                    let child_module = self.context.indexes[self.ordinal]
+                        .modules
+                        .iter()
+                        .find(|candidate| {
+                            candidate.parent == Some(module)
+                                && candidate.module.path.last() == Some(&name)
+                        })
+                        .map(|candidate| candidate.id);
+                    if let (Some((_, nested)), Some(child_module)) = (&child.content, child_module)
+                    {
+                        self.report_module_thread_locals(nested, child_module);
+                        self.module = module;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
     fn is_subscriber_builder(&self, expression: &syn::Expr) -> bool {
         match expression {
             syn::Expr::MethodCall(call) => self.is_subscriber_builder(&call.receiver),
@@ -124,6 +213,21 @@ impl GlobalStateVisitor<'_> {
             visitor.is_main = false;
             visitor.visit_item_impl(&implementation.syntax);
         }
+        visitor.is_main = false;
+        for sources in context.crates.iter().filter(|sources| {
+            sources.crate_name == index.crate_name && sources.target == index.target
+        }) {
+            for file in &sources.files {
+                let root = index
+                    .modules
+                    .iter()
+                    .position(|module| module.module.path == file.module.path);
+                if let Some(root) = root {
+                    visitor.file = file.path.clone();
+                    visitor.report_module_thread_locals(&file.syntax.items, root);
+                }
+            }
+        }
         visitor.findings
     }
 }
@@ -156,6 +260,10 @@ impl<'ast> Visit<'ast> for GlobalStateVisitor<'_> {
                 expression.span(),
                 "lazy_static state is owned by DI instead of a singleton",
             );
+        }
+        if self.is_thread_local_macro(&expression.path) {
+            self.report_thread_local_statics(expression);
+            return;
         }
         for argument in &crate::source::util::parse_macro_arguments(expression) {
             self.visit_expr(argument);

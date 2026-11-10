@@ -49,6 +49,16 @@ fn given_it_binding_inside_macro_pattern_with_guard_when_checked_then_reports_it
 }
 
 #[test]
+fn given_it_names_inside_tokio_select_when_checked_then_reports_each_position_but_not_futures() {
+    crate::test::declaration::util::assert_code_findings(
+        &ExplicitItName,
+        "ExplicitItName",
+        "pub(crate) async fn forward(mut receiver: tokio::sync::mpsc::Receiver<String>, mut other: tokio::sync::mpsc::Receiver<String>) -> Option<String> {\n    tokio::select! {\n        biased;\n        message = receiver.recv() => {\n            let it = message;\n            it\n        }\n        it = other.recv() => it,\n        Some(value) = other.recv(), if [1].iter().any(|it| *it > 0) => value,\n        _ = std::future::ready([1].iter().map(|it| *it)) => None,\n        else => { let it = 0; None }\n    }\n}\npub(crate) async fn other_select() {\n    futures::select! { message = first() => { let it = message; } }\n}",
+        &[5, 8, 9, 10, 11],
+    );
+}
+
+#[test]
 fn given_forbidden_syntax_when_checked_then_reports_the_rule() {
     let context = read_case_context("ExplicitItName", "fail-syntax");
     assert!(!ExplicitItName.check(&context).is_empty());

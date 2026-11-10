@@ -162,11 +162,12 @@ impl RootFileShape {
             .collect();
         let has_cfg = attributes.contains(&"cfg(test)".to_owned());
         let has_path = attributes.contains(&"path=\"../test\"".to_owned());
-        if !has_cfg || !has_path {
+        let is_private = matches!(module.vis, Visibility::Inherited);
+        if !has_cfg || !has_path || !is_private {
             Self::report(
                 file,
                 item,
-                "test is cfg(test) with path = \"../test\"",
+                "test is private, cfg(test) with path = \"../test\"",
                 findings,
             );
         }

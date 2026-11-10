@@ -1,7 +1,9 @@
 use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
 use crate::check::util::{build_node_finding, format_module_path};
+use crate::runtime::util::names_format_argument;
 use crate::runtime::util::node_predicate;
+use crate::source::model::Resolution;
 use crate::source::util::find_node_span;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
@@ -13,7 +15,13 @@ struct TimeVisitor<'context> {
     ordinal: usize,
     module: usize,
     spans: Vec<proc_macro2::Span>,
-    bindings: Vec<(String, bool, bool)>,
+    bindings: Vec<LocalBinding>,
+}
+
+struct LocalBinding {
+    name: String,
+    is_instant: bool,
+    is_sender: bool,
 }
 
 impl TimeVisitor<'_> {
@@ -52,11 +60,11 @@ impl TimeVisitor<'_> {
     fn bind_pattern(&mut self, pattern: &syn::Pat, typed: Option<&syn::Type>, instant: bool) {
         match pattern {
             syn::Pat::Ident(name) => {
-                self.bindings.push((
-                    name.ident.to_string(),
-                    instant || typed.is_some_and(|typed| self.instant(typed)),
-                    typed.is_some_and(|typed| self.sender_type(typed)),
-                ));
+                self.bindings.push(LocalBinding {
+                    name: name.ident.to_string(),
+                    is_instant: instant || typed.is_some_and(|typed| self.instant(typed)),
+                    is_sender: typed.is_some_and(|typed| self.sender_type(typed)),
+                });
                 if let Some((_, pattern)) = &name.subpat {
                     self.bind_pattern(pattern, None, false);
                 }
@@ -164,8 +172,8 @@ impl TimeVisitor<'_> {
                 .bindings
                 .iter()
                 .rev()
-                .find(|(name, _, _)| path.path.is_ident(name))
-                .is_some_and(|(_, instant, _)| *instant),
+                .find(|binding| path.path.is_ident(&binding.name))
+                .is_some_and(|binding| binding.is_instant),
             syn::Expr::Reference(reference) => self.local_instant(&reference.expr),
             syn::Expr::Paren(paren) => self.local_instant(&paren.expr),
             syn::Expr::Cast(cast) => self.local_instant(&cast.expr),
@@ -198,15 +206,86 @@ impl TimeVisitor<'_> {
         let syn::Lit::Str(message) = literal.lit else {
             return false;
         };
-        self.bindings.iter().any(|(name, _, _)| {
+        self.bindings.iter().any(|candidate| {
             self.bindings
                 .iter()
                 .rev()
-                .find(|(binding, _, _)| binding == name)
-                .is_some_and(|(_, instant, _)| *instant)
-                && (message.value().contains(&format!("{{{name}}}"))
-                    || message.value().contains(&format!("{{{name}:")))
+                .find(|binding| binding.name == candidate.name)
+                .is_some_and(|binding| binding.is_instant)
+                && names_format_argument(&message.value(), &candidate.name)
         })
+    }
+
+    fn is_channel_constructor(&self, expression: &syn::Expr) -> bool {
+        let syn::Expr::Call(call) = expression else {
+            return false;
+        };
+        let syn::Expr::Path(path) = &*call.func else {
+            return false;
+        };
+        self.context
+            .resolve_external_call_paths(self.ordinal, self.module, &path.path)
+            .iter()
+            .any(|path| {
+                [
+                    "tokio::sync::mpsc::channel",
+                    "tokio::sync::mpsc::unbounded_channel",
+                    "tokio::sync::oneshot::channel",
+                    "tokio::sync::broadcast::channel",
+                    "tokio::sync::watch::channel",
+                    "std::sync::mpsc::channel",
+                    "std::sync::mpsc::sync_channel",
+                ]
+                .contains(&path.format_path().as_str())
+            })
+    }
+
+    fn mark_channel_sender(&mut self, local: &syn::Local) {
+        let syn::Pat::Tuple(pattern) = &local.pat else {
+            return;
+        };
+        let Some(syn::Pat::Ident(sender)) = pattern.elems.first() else {
+            return;
+        };
+        if !local
+            .init
+            .as_ref()
+            .is_some_and(|init| self.is_channel_constructor(&init.expr))
+        {
+            return;
+        }
+        let name = sender.ident.to_string();
+        if let Some(binding) = self
+            .bindings
+            .iter_mut()
+            .rev()
+            .find(|binding| binding.name == name)
+        {
+            binding.is_sender = true;
+        }
+    }
+
+    fn is_formatting_macro(&self, path: &syn::Path) -> bool {
+        const NAMES: [&str; 4] = ["format", "format_args", "write", "writeln"];
+        let prelude = path
+            .get_ident()
+            .is_some_and(|name| NAMES.iter().any(|candidate| name == candidate))
+            && matches!(
+                self.context.indexes[self.ordinal].resolve_path(self.module, path),
+                Resolution::Local | Resolution::Unresolved
+            );
+        prelude
+            || self
+                .context
+                .resolve_external_call_paths(self.ordinal, self.module, path)
+                .iter()
+                .any(|path| {
+                    matches!(path.package.as_str(), "std" | "core" | "alloc")
+                        && path
+                            .segments
+                            .last()
+                            .is_some_and(|name| NAMES.contains(&name.as_str()))
+                })
     }
 
     fn logs_instant(&self, tokens: proc_macro2::TokenStream) -> bool {
@@ -310,6 +389,7 @@ impl<'ast> Visit<'ast> for TimeVisitor<'_> {
             .as_ref()
             .is_some_and(|init| self.local_instant(&init.expr));
         self.bind_pattern(&local.pat, None, instant);
+        self.mark_channel_sender(local);
     }
 
     fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
@@ -320,7 +400,7 @@ impl<'ast> Visit<'ast> for TimeVisitor<'_> {
         let send = matches!(
             call.method.to_string().as_str(),
             "send" | "try_send" | "send_replace"
-        ) && matches!(&*call.receiver, syn::Expr::Path(path) if self.bindings.iter().rev().find(|(name, _, _)| path.path.is_ident(name)).is_some_and(|(_, _, sender)| *sender));
+        ) && matches!(&*call.receiver, syn::Expr::Path(path) if self.bindings.iter().rev().find(|binding| path.path.is_ident(&binding.name)).is_some_and(|binding| binding.is_sender));
         if !elapsed_operation
             && send
             && call
@@ -348,7 +428,9 @@ impl<'ast> Visit<'ast> for TimeVisitor<'_> {
             .resolve_external_call_paths(self.ordinal, self.module, &item.path)
             .iter()
             .any(|path| matches!(path.package.as_str(), "tracing" | "log"));
-        if logging && self.logs_instant(item.tokens.clone()) {
+        if (logging || self.is_formatting_macro(&item.path))
+            && self.logs_instant(item.tokens.clone())
+        {
             self.spans.push(item.span());
         }
     }

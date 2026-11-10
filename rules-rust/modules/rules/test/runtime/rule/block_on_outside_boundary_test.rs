@@ -111,6 +111,16 @@ fn given_conditional_tokio_main_attribute_when_checked_then_reports_the_attribut
 }
 
 #[test]
+fn given_dependency_block_on_function_or_local_set_method_when_checked_then_reports_the_call() {
+    assert_code_findings(
+        &BlockOnOutsideBoundary,
+        "BlockOnOutsideBoundary",
+        "mod usecase {\n    pub(crate) fn load_blocking(client: &Client) -> Offer {\n        vendor::block_on(client.load_offer())\n    }\n    pub(crate) fn run_local(set: tokio::task::LocalSet) {\n        set.block_on(work());\n    }\n}\nstruct Queue;\nimpl Queue { fn block_on(&self, _: u32) {} }\nfn drain(queue: Queue) { queue.block_on(1); }",
+        &[3, 6],
+    );
+}
+
+#[test]
 fn given_cross_module_result_aliases_when_checked_then_uses_the_alias_owner_type() {
     assert_code_findings(
         &BlockOnOutsideBoundary,

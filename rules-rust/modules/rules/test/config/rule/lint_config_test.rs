@@ -304,3 +304,79 @@ fn given_target_rustflags_setting_the_klibs_cfg_when_checked_then_reports_the_fl
     assert_eq!(1, flags.len(), "findings: {findings:?}");
     assert_eq!("LintConfig", flags[0].finding.rule_id.0);
 }
+
+#[test]
+fn given_rustc_bootstrap_in_cargo_env_when_checked_then_reports_every_value_but_minus_one() {
+    for entry in [
+        "RUSTC_BOOTSTRAP = \"1\"",
+        "RUSTC_BOOTSTRAP = { value = \"1\", force = true }",
+    ] {
+        let mut context = read_case_context("LintConfig", "pass-dot-clippy-toml");
+        context.workspace.cargo_config = Some(
+            parse_toml_file(".cargo/config.toml", &format!("[env]\n{entry}\n"))
+                .expect("cargo environment"),
+        );
+        let findings = LintConfig::new(render_required_configuration()).check(&context);
+        let bootstrap = list_findings_at(&findings, ".cargo/config.toml", 2);
+        assert_eq!(1, bootstrap.len(), "{entry}: {findings:?}");
+        assert_eq!("LintConfig", bootstrap[0].finding.rule_id.0);
+    }
+    let mut context = read_case_context("LintConfig", "pass-dot-clippy-toml");
+    context.workspace.cargo_config = Some(
+        parse_toml_file(
+            ".cargo/config.toml",
+            "[env]\nRUSTC_BOOTSTRAP = \"-1\"\nRUST_LOG = \"info\"\n",
+        )
+        .expect("cargo environment"),
+    );
+    let findings = LintConfig::new(render_required_configuration()).check(&context);
+    assert!(
+        findings
+            .iter()
+            .all(|finding| finding.finding.location.path != ".cargo/config.toml"),
+        "findings: {findings:?}"
+    );
+}
+
+#[test]
+fn given_std_lock_disallowed_types_without_reason_when_checked_then_reports_each_entry_line() {
+    let mut context = read_case_context("LintConfig", "pass-dot-clippy-toml");
+    let required = render_required_configuration();
+    let reason = "reason = \"async.rs.md, Shared state and locks: std locks poison\"";
+    let actual_clippy = required
+        .clippy_toml
+        .replace(
+            &format!("{{ path = \"std::sync::Mutex\", {reason} }},"),
+            "\"std::sync::Mutex\",",
+        )
+        .replace(
+            &format!("{{ path = \"std::sync::RwLock\", {reason} }},"),
+            "{ path = \"std::sync::RwLock\", reason = \" \" },",
+        )
+        .replace(
+            &format!("{{ path = \"std::sync::PoisonError\", {reason} }},"),
+            "{ path = \"std::sync::PoisonError\" },",
+        );
+    assert_ne!(actual_clippy, required.clippy_toml);
+    context.workspace.clippy_files =
+        vec![parse_toml_file(".clippy.toml", &actual_clippy).expect("Clippy configuration")];
+    let findings = LintConfig::new(required).check(&context);
+    let mut lines: Vec<u32> = findings
+        .iter()
+        .map(|finding| {
+            assert_eq!("LintConfig", finding.finding.rule_id.0);
+            assert_eq!(".clippy.toml", finding.finding.location.path);
+            finding.finding.location.line.expect("entry line")
+        })
+        .collect();
+    lines.sort_unstable();
+    assert_eq!(vec![10, 11, 12], lines, "findings: {findings:?}");
+    let required = render_required_configuration();
+    let reworded = required
+        .clippy_toml
+        .replace(reason, "reason = \"poisoning is not wanted\"");
+    assert_ne!(reworded, required.clippy_toml);
+    context.workspace.clippy_files =
+        vec![parse_toml_file(".clippy.toml", &reworded).expect("Clippy configuration")];
+    assert_eq!(LintConfig::new(required).check(&context), Vec::new());
+}

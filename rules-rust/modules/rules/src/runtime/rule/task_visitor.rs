@@ -30,6 +30,7 @@ pub(crate) struct TaskVisitor<'source> {
     self_type: Option<syn::Type>,
     loop_prefix: Option<LoopPrefix>,
     inherit_async: bool,
+    test_function: bool,
 }
 
 impl TaskVisitor<'_> {
@@ -135,6 +136,7 @@ impl TaskVisitor<'_> {
                     self_type: None,
                     loop_prefix: None,
                     inherit_async: false,
+                    test_function: false,
                 };
                 visitor.visit_file(&file.syntax);
                 findings.extend(visitor.findings);
@@ -175,6 +177,18 @@ impl TaskVisitor<'_> {
 
     fn is_blocking_spawn_path(path: &str) -> bool {
         path == "tokio::task::spawn_blocking"
+    }
+
+    fn is_local_spawn_path(path: &str) -> bool {
+        path == "tokio::task::spawn_local"
+    }
+
+    fn is_test_attribute(attribute: &syn::Attribute) -> bool {
+        attribute
+            .path()
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == "test")
     }
 
     pub(crate) fn runs_off_async(path: &str) -> bool {
@@ -274,19 +288,134 @@ impl TaskVisitor<'_> {
             })
     }
 
-    fn is_runtime_spawn(&self, call: &syn::ExprMethodCall) -> bool {
-        matches!(call.method.to_string().as_str(), "spawn" | "spawn_blocking")
-            && self.receiver_type(&call.receiver).is_some_and(|typed| {
+    fn has_external_type(&self, typed: &syn::Type, names: &[&str]) -> bool {
+        self.context
+            .resolve_outer_external_type_paths(self.ordinal, self.module, typed)
+            .iter()
+            .any(|path| names.contains(&path.format_path().as_str()))
+    }
+
+    fn is_runtime_handle_call(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Paren(paren) => self.is_runtime_handle_call(&paren.expr),
+            syn::Expr::Group(group) => self.is_runtime_handle_call(&group.expr),
+            syn::Expr::Call(call) => {
+                let syn::Expr::Path(path) = &*call.func else {
+                    return false;
+                };
                 self.context
-                    .resolve_outer_external_type_paths(self.ordinal, self.module, &typed)
+                    .resolve_external_call_paths(self.ordinal, self.module, &path.path)
                     .iter()
-                    .any(|path| {
-                        matches!(
-                            path.format_path().as_str(),
-                            "tokio::runtime::Handle" | "tokio::runtime::Runtime"
-                        )
+                    .any(|path| path.format_path() == "tokio::runtime::Handle::current")
+            }
+            syn::Expr::MethodCall(call) => {
+                call.method == "handle"
+                    && self.receiver_type(&call.receiver).is_some_and(|typed| {
+                        self.has_external_type(&typed, &["tokio::runtime::Runtime"])
                     })
-            })
+            }
+            _ => false,
+        }
+    }
+
+    fn is_runtime_spawn(&self, call: &syn::ExprMethodCall) -> bool {
+        let receiver_has = |names: &[&str]| {
+            self.receiver_type(&call.receiver)
+                .is_some_and(|typed| self.has_external_type(&typed, names))
+        };
+        match call.method.to_string().as_str() {
+            "spawn" | "spawn_blocking" => {
+                receiver_has(&["tokio::runtime::Handle", "tokio::runtime::Runtime"])
+                    || self.is_runtime_handle_call(&call.receiver)
+            }
+            "spawn_local" => receiver_has(&["tokio::task::LocalSet"]),
+            _ => false,
+        }
+    }
+
+    fn constructed_type(expression: &syn::Expr) -> Option<syn::Type> {
+        let syn::Expr::Call(call) = expression else {
+            return None;
+        };
+        let syn::Expr::Path(path) = &*call.func else {
+            return None;
+        };
+        if path.path.segments.len() < 2 {
+            return None;
+        }
+        let mut owner = path.path.clone();
+        owner.segments.pop();
+        owner.segments.pop_punct();
+        Some(syn::Type::Path(syn::TypePath {
+            attrs: Vec::new(),
+            qself: path.qself.clone(),
+            path: owner,
+        }))
+    }
+
+    fn is_thread_builder_spawn(&self, call: &syn::ExprMethodCall) -> bool {
+        if call.method != "spawn" {
+            return false;
+        }
+        let mut receiver = &*call.receiver;
+        while let syn::Expr::MethodCall(inner) = receiver
+            && matches!(inner.method.to_string().as_str(), "name" | "stack_size")
+        {
+            receiver = &inner.receiver;
+        }
+        Self::constructed_type(receiver)
+            .or_else(|| self.receiver_type(receiver))
+            .is_some_and(|typed| self.has_external_type(&typed, &["std::thread::Builder"]))
+    }
+
+    fn is_thread_spawn(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Paren(paren) => self.is_thread_spawn(&paren.expr),
+            syn::Expr::Group(group) => self.is_thread_spawn(&group.expr),
+            syn::Expr::Try(attempt) => self.is_thread_spawn(&attempt.expr),
+            syn::Expr::MethodCall(call)
+                if matches!(call.method.to_string().as_str(), "unwrap" | "expect") =>
+            {
+                self.is_thread_spawn(&call.receiver)
+            }
+            syn::Expr::MethodCall(call) => self.is_thread_builder_spawn(call),
+            syn::Expr::Call(call) => matches!(&*call.func, syn::Expr::Path(path)
+                if self.external(&path.path).as_deref() == Some("std::thread::spawn")),
+            _ => false,
+        }
+    }
+
+    fn is_technology_module(&self) -> bool {
+        is_technology(
+            self.context,
+            &self.context.indexes[self.ordinal],
+            self.module,
+        )
+    }
+
+    fn is_discard_transparent(expression: &syn::Expr) -> bool {
+        matches!(
+            expression,
+            syn::Expr::Call(_)
+                | syn::Expr::MethodCall(_)
+                | syn::Expr::Try(_)
+                | syn::Expr::Paren(_)
+                | syn::Expr::Group(_)
+        )
+    }
+
+    fn is_dropped_thread_spawn(&self, is_drop: bool, argument: &syn::Expr) -> bool {
+        if self.rule != "ThreadPrimitive" || !is_drop {
+            return false;
+        }
+        self.is_technology_module() && self.is_thread_spawn(argument)
+    }
+
+    fn is_discarded_builder_spawn(&self, call: &syn::ExprMethodCall) -> bool {
+        if self.rule != "ThreadPrimitive" || !self.discard {
+            return false;
+        }
+        self.is_thread_builder_spawn(call) && self.is_technology_module()
     }
 
     fn is_spawn(&self, expression: &syn::Expr) -> bool {
@@ -294,7 +423,7 @@ impl TaskVisitor<'_> {
             syn::Expr::Paren(paren) => self.is_spawn(&paren.expr),
             syn::Expr::Group(group) => self.is_spawn(&group.expr),
             syn::Expr::Call(call) => matches!(&*call.func, syn::Expr::Path(path)
-                if self.external(&path.path).is_some_and(|path| Self::is_spawn_path(&path) || Self::is_blocking_spawn_path(&path))),
+                if self.external(&path.path).is_some_and(|path| Self::is_spawn_path(&path) || Self::is_blocking_spawn_path(&path) || Self::is_local_spawn_path(&path))),
             syn::Expr::MethodCall(call) => self.is_runtime_spawn(call),
             _ => false,
         }
@@ -320,6 +449,41 @@ impl TaskVisitor<'_> {
                 if matches!(self.context.indexes[self.ordinal].resolve_path(self.module, &path.path), Resolution::Internal(_))))
     }
 
+    fn is_workspace_function_reference(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Paren(paren) => self.is_workspace_function_reference(&paren.expr),
+            syn::Expr::Group(group) => self.is_workspace_function_reference(&group.expr),
+            syn::Expr::Path(path) => {
+                let index = &self.context.indexes[self.ordinal];
+                let Resolution::Internal(targets) = index.resolve_path(self.module, &path.path)
+                else {
+                    return false;
+                };
+                targets.iter().any(|target| {
+                    target
+                        .item
+                        .and_then(|identity| index.items.get(identity))
+                        .is_some_and(|item| matches!(item.syntax, syn::Item::Fn(_)))
+                })
+            }
+            syn::Expr::Call(call) => {
+                let syn::Expr::Path(path) = &*call.func else {
+                    return false;
+                };
+                self.external(&path.path).is_some_and(|path| {
+                    matches!(
+                        path.as_str(),
+                        "std::panic::AssertUnwindSafe" | "core::panic::AssertUnwindSafe"
+                    )
+                }) && call
+                    .args
+                    .iter()
+                    .any(|argument| self.is_workspace_function_reference(argument))
+            }
+            _ => false,
+        }
+    }
+
     fn check_unwind(&mut self, expression: &syn::ExprCall, canonical: Option<&str>) {
         if self.rule != "CatchUnwind"
             || !canonical.is_some_and(|path| {
@@ -331,34 +495,13 @@ impl TaskVisitor<'_> {
         {
             return;
         }
-        let calls_local = expression
-            .args
-            .iter()
-            .map(ClosureEffects::collect)
-            .any(|effects| self.runs_local_logic(&effects));
+        let calls_local = expression.args.iter().any(|argument| {
+            self.is_workspace_function_reference(argument)
+                || self.runs_local_logic(&ClosureEffects::collect(argument))
+        });
         if calls_local {
             self.report(expression.span());
         }
-    }
-
-    fn constructed_type(expression: &syn::Expr) -> Option<syn::Type> {
-        let syn::Expr::Call(call) = expression else {
-            return None;
-        };
-        let syn::Expr::Path(path) = &*call.func else {
-            return None;
-        };
-        if path.path.segments.len() < 2 {
-            return None;
-        }
-        let mut owner = path.path.clone();
-        owner.segments.pop();
-        owner.segments.pop_punct();
-        Some(syn::Type::Path(syn::TypePath {
-            attrs: Vec::new(),
-            qself: path.qself.clone(),
-            path: owner,
-        }))
     }
 
     fn discarded_guard(&self, expression: &syn::Expr) -> bool {
@@ -1160,16 +1303,14 @@ impl TaskVisitor<'_> {
 
     fn call_violation(&self, canonical: Option<&str>) -> bool {
         let spawn = canonical.is_some_and(Self::is_spawn_path);
-        let detached = spawn || canonical.is_some_and(Self::is_blocking_spawn_path);
+        let detached = spawn
+            || canonical.is_some_and(Self::is_blocking_spawn_path)
+            || canonical.is_some_and(Self::is_local_spawn_path);
         match self.rule {
             "ThreadPrimitive" => {
-                self.thread_expect
-                    && canonical == Some("std::thread::spawn")
-                    && !is_technology(
-                        self.context,
-                        &self.context.indexes[self.ordinal],
-                        self.module,
-                    )
+                canonical == Some("std::thread::spawn")
+                    && (self.discard && self.is_technology_module()
+                        || self.thread_expect && !self.is_technology_module())
             }
             "DetachedTask" => detached && self.discard,
             "BridgeCleanup" => spawn && self.drop_context,
@@ -1391,10 +1532,13 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
         let expectation = self.thread_expect;
         self.thread_expect |= expects_lint(&item.attrs, "disallowed_methods");
         let parent = (self.async_context, self.drop_context, self.callback_depth);
+        let test_function = self.test_function;
+        self.test_function = item.attrs.iter().any(Self::is_test_attribute);
         self.async_context = item.sig.asyncness.is_some();
         self.drop_context = false;
         self.callback_depth = 0;
         syn::visit::visit_item_fn(self, item);
+        self.test_function = test_function;
         (self.async_context, self.drop_context, self.callback_depth) = parent;
         self.thread_expect = expectation;
         self.handles = handles;
@@ -1496,6 +1640,15 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
         self.return_start = return_start;
     }
 
+    fn visit_expr(&mut self, expression: &'ast syn::Expr) {
+        let discard = self.discard;
+        if self.rule == "ThreadPrimitive" && !Self::is_discard_transparent(expression) {
+            self.discard = false;
+        }
+        syn::visit::visit_expr(self, expression);
+        self.discard = discard;
+    }
+
     fn visit_stmt(&mut self, statement: &'ast syn::Stmt) {
         let parent = self.discard;
         self.discard = matches!(statement, syn::Stmt::Expr(_, Some(_)));
@@ -1525,6 +1678,13 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
         self.bind_local(local);
     }
 
+    fn visit_expr_assign(&mut self, expression: &'ast syn::ExprAssign) {
+        let discard = self.discard;
+        self.discard = self.discard && self.rule != "ThreadPrimitive";
+        syn::visit::visit_expr_assign(self, expression);
+        self.discard = discard;
+    }
+
     fn visit_expr_call(&mut self, expression: &'ast syn::ExprCall) {
         let expectation = self.thread_expect;
         self.thread_expect |= expects_lint(&expression.attrs, "disallowed_methods");
@@ -1550,6 +1710,9 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
             }
             if self.rule != "DetachedTask" || !self.is_owning_call(expression) {
                 self.consume_argument(argument, is_drop);
+            }
+            if self.is_dropped_thread_spawn(is_drop, argument) {
+                self.report(argument.span());
             }
             if self.rule == "DetachedTask" && is_drop && self.is_spawn(argument) {
                 self.report(argument.span());
@@ -1593,12 +1756,18 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
         if self.rule == "DetachedTask" && self.discard && self.is_runtime_spawn(expression) {
             self.report(expression.span());
         }
-        if expression.method == "abort" {
+        if self.is_discarded_builder_spawn(expression) {
+            self.report(expression.span());
+        }
+        if expression.method == "abort" && !self.test_function {
             self.consume_handle(&expression.receiver);
         }
         let discard = self.discard;
-        self.discard = false;
+        self.discard = self.rule == "ThreadPrimitive"
+            && discard
+            && matches!(expression.method.to_string().as_str(), "unwrap" | "expect");
         self.visit_expr(&expression.receiver);
+        self.discard = false;
         let inherit_async = self.async_context
             && !matches!(
                 expression.method.to_string().as_str(),

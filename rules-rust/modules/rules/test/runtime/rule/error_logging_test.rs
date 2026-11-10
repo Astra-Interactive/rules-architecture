@@ -236,3 +236,13 @@ fn given_tdd_error_logging_parsed_error_with_fallback_when_matched_then_requires
         &[2],
     );
 }
+
+#[test]
+fn given_map_err_on_standard_library_call_when_error_is_logged_in_message_then_reports_log() {
+    assert_code_findings(
+        &ErrorLogging,
+        "ErrorLogging",
+        "pub(crate) fn open_config(path: &std::path::Path) -> Option<std::fs::File> {\n    std::fs::File::open(path)\n        .map_err(|error| tracing::warn!(\"Could not open config: {error}\"))\n        .ok()\n}\npub(crate) fn open_checked(path: &std::path::Path) -> Option<std::fs::File> {\n    std::fs::File::open(path)\n        .map_err(|error| tracing::warn!(error = &error as &dyn std::error::Error, \"Could not open config\"))\n        .ok()\n}",
+        &[3],
+    );
+}

@@ -49,3 +49,13 @@ fn given_persistent_runtime_cases_when_checked_then_matches_exact_finding_anchor
     assert_code_fixture(&CatchUnwind, "CatchUnwind", "bad");
     assert_code_fixture(&CatchUnwind, "CatchUnwind", "good");
 }
+
+#[test]
+fn given_workspace_function_path_when_caught_then_reports_local_logic() {
+    assert_code_findings(
+        &CatchUnwind,
+        "CatchUnwind",
+        "fn run_batch() -> u32 { 1 }\npub(crate) fn load_named() -> bool {\n    std::panic::catch_unwind(run_batch).is_err()\n}\npub(crate) fn load_wrapped() -> bool {\n    std::panic::catch_unwind(std::panic::AssertUnwindSafe(run_batch)).is_err()\n}\npub(crate) fn load_foreign() -> bool {\n    std::panic::catch_unwind(std::env::current_dir).is_err()\n}",
+        &[3, 6],
+    );
+}

@@ -126,6 +126,16 @@ fn given_contract_of_another_workspace_crate_when_checked_then_reports_only_vagu
 }
 
 #[test]
+fn given_locale_prefixed_implementations_when_checked_then_reports_only_the_local_prefix() {
+    assert_code_findings(
+        &ImplementationName,
+        "ImplementationName",
+        "mod api { trait MessageRepository {} }\nmod file {\n    struct LocalizedMessageRepository;\n    impl crate::api::MessageRepository for LocalizedMessageRepository {}\n    struct LocaleCatalogRepository;\n    impl crate::api::MessageRepository for LocaleCatalogRepository {}\n    struct LocalMessageRepository;\n    impl crate::api::MessageRepository for LocalMessageRepository {}\n}",
+        &[7],
+    );
+}
+
+#[test]
 fn given_interface_prefixed_struct_when_checked_then_reports_only_that_struct() {
     assert_code_findings(
         &ImplementationName,
@@ -142,6 +152,16 @@ fn given_type_kinds_when_checked_then_reports_only_forbidden_names() {
         "ImplementationName",
         "struct RowImpl; enum RowInterface {} union RowImplUnion { value: u8 } trait IReader {} trait IO {} trait Invoice {} union ValueImpl { value: u8 }",
         4,
+    );
+}
+
+#[test]
+fn given_type_aliases_with_impl_or_interface_suffix_when_checked_then_reports_only_those() {
+    assert_code_findings(
+        &ImplementationName,
+        "ImplementationName",
+        "pub(crate) struct Jail { pub(crate) name: String }\npub(crate) type JailImpl = Jail;\npub(crate) type JailInterface = Jail;\npub(crate) type JailIndex = Jail;\ntrait Source { type Item; }\nstruct Reader; impl Source for Reader { type Item = JailImpl; }",
+        &[2, 3],
     );
 }
 

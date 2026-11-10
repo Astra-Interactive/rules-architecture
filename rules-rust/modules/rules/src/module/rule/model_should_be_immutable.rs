@@ -55,6 +55,23 @@ impl ModelShouldBeImmutable {
         findings
     }
 
+    fn is_mutable_receiver_type(receiver_type: &syn::Type) -> bool {
+        match receiver_type {
+            syn::Type::Reference(reference) => reference.mutability.is_some(),
+            syn::Type::Path(path) => path.path.segments.last().is_some_and(|segment| {
+                let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments else {
+                    return false;
+                };
+                segment.ident == "Pin"
+                    && arguments.args.iter().any(|argument| match argument {
+                        syn::GenericArgument::Type(inner) => Self::is_mutable_receiver_type(inner),
+                        _ => false,
+                    })
+            }),
+            _ => false,
+        }
+    }
+
     fn check_impl(
         context: &RuleContext,
         ordinal: usize,
@@ -87,7 +104,7 @@ impl ModelShouldBeImmutable {
             let syn::ImplItem::Fn(method) = item else { return None; };
             let method_cfg = CfgPredicate::from_attributes(&method.attrs).in_scope(ordinal);
             if !models.iter().any(|model| model.and(&method_cfg).is_satisfiable()) { return None; }
-            let mutable_receiver = method.sig.inputs.iter().any(|argument| matches!(argument, syn::FnArg::Receiver(receiver) if matches!(receiver.kind, syn::ReceiverKind::Reference(_, _, Some(_))) || matches!(&receiver.kind, syn::ReceiverKind::Typed(_, value) if matches!(value.as_ref(), syn::Type::Reference(reference) if reference.mutability.is_some()))));
+            let mutable_receiver = method.sig.inputs.iter().any(|argument| matches!(argument, syn::FnArg::Receiver(receiver) if matches!(receiver.kind, syn::ReceiverKind::Reference(_, _, Some(_))) || matches!(&receiver.kind, syn::ReceiverKind::Typed(_, value) if Self::is_mutable_receiver_type(value))));
             mutable_receiver.then(|| build_node_finding("ModelShouldBeImmutable", &implementation.file, find_node_span(method.span()), method.sig.ident.to_string(), "A model transition returns a new value instead of taking &mut self (arch-domain.rs.md)".to_owned()))
         }).collect()
     }

@@ -54,6 +54,15 @@ fn given_workspace_contract_generics_when_di_shape_checked_then_trait_objects_an
 }
 
 #[test]
+fn given_contract_bound_on_di_module_impl_when_checked_then_the_struct_is_reported() {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::DiModuleShape,
+        "mod api { pub trait Repo {} }\nmod di {\nstruct InvoiceModule<R> { repo: R }\nimpl<R: crate::api::Repo> InvoiceModule<R> { fn new(repo: R) -> Self { Self { repo } } }\nstruct OtherModule<T> { value: T }\nimpl<T: Clone> OtherModule<T> { fn new(value: T) -> Self { Self { value } } }\n}",
+        &[3],
+    );
+}
+
+#[test]
 fn given_persistent_di_policy_pairs_when_checked_then_exact_nodes_and_subjects_match() {
     for half in ["bad", "good"] {
         crate::test::module::util::assert_di_fixture(
@@ -186,4 +195,36 @@ fn given_accessor_constructing_service_in_get_or_init_when_checked_then_only_oth
         "mod api { pub trait Repo {} }\nmod file { pub struct FileRepo; impl crate::api::Repo for FileRepo {} impl FileRepo { pub fn new() -> Self { Self } } }\nmod di {\nstruct DeferredModule { repo: std::sync::OnceLock<std::sync::Arc<dyn crate::api::Repo>> }\nimpl DeferredModule { fn new() -> Self { Self { repo: std::sync::OnceLock::new() } } fn repo(&self) -> &std::sync::Arc<dyn crate::api::Repo> { self.repo.get_or_init(|| std::sync::Arc::new(crate::file::FileRepo::new())) } }\nstruct WrongModule { repo: Option<std::sync::Arc<dyn crate::api::Repo>> }\n}",
         &[6],
     );
+}
+
+#[test]
+fn given_contract_bound_on_di_module_function_when_checked_then_reports_the_struct() {
+    for (signature, expected) in [
+        (
+            "<R: crate::api::InvoiceRepository + 'static>(repository: R) -> Self",
+            3,
+        ),
+        (
+            "<R>(repository: R) -> Self where R: crate::api::InvoiceRepository",
+            3,
+        ),
+        (
+            "(repository: impl crate::api::InvoiceRepository) -> Self",
+            3,
+        ),
+        (
+            "(repository: std::sync::Arc<dyn crate::api::InvoiceRepository>) -> Self",
+            0,
+        ),
+        ("(folder: impl Into<std::path::PathBuf>) -> Self", 0),
+    ] {
+        let source = format!(
+            "mod api {{ pub trait InvoiceRepository {{}} }}\nmod di {{\npub struct InvoiceModule;\nimpl InvoiceModule {{\npub fn new{signature} {{ Self }}\n}}\n}}"
+        );
+        crate::test::module::util::assert_di_lines(
+            &crate::module::rule::DiModuleShape,
+            &source,
+            if expected == 0 { &[] } else { &[3] },
+        );
+    }
 }

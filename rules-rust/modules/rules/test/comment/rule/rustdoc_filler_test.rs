@@ -29,6 +29,16 @@ fn given_prescribed_code_when_checked_then_passes() {
 }
 
 #[test]
+fn given_this_item_kind_is_responsible_for_when_checked_then_reports_each_kind_but_not_prose() {
+    assert_code_findings(
+        &RustdocFiller,
+        "RustdocFiller",
+        "/// This struct is responsible for loading users.\npub struct UserLoader;\n/// This enum is responsible for naming states.\npub enum State { Ready }\n/// This trait is responsible for reading users.\npub trait UserReader {}\n/// This type is responsible for keeping an index.\npub type Index = u32;\n/// The struct owns the connection.\npub struct Connection;\n/// This trait is implemented by every store.\npub trait Store {}\n/// This struct allows you to hold the connection.\npub struct Holder;\n/// This trait is intended for stores.\npub trait Intended {}",
+        &[1, 3, 5, 7],
+    );
+}
+
+#[test]
 fn given_one_doc_line_for_every_parameter_when_checked_then_reports_the_comment() {
     assert_code_findings(
         &RustdocFiller,

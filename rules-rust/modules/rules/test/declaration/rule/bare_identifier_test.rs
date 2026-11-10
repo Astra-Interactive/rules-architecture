@@ -53,3 +53,13 @@ fn given_prescribed_code_when_checked_then_passes() {
         &[],
     );
 }
+
+#[test]
+fn given_standard_library_string_and_integer_wrappers_when_checked_then_requires_typed_ids() {
+    assert_code_findings(
+        &BareIdentifier,
+        "BareIdentifier",
+        "mod model {\nstruct Jail { jail_id: std::num::NonZeroU64 }\nstruct Plot { id: std::borrow::Cow<'static, str> }\nstruct Room { id: std::rc::Rc<str> }\nstruct Gate { id: std::sync::Arc<String> }\nstruct Wing { id: Option<std::rc::Rc<String>> }\nstruct Hall { id: Option<Box<String>> }\nstruct Tag { id: Option<std::num::NonZero<u32>> }\nstruct JailId(u64); struct Fine { id: JailId, name: std::rc::Rc<str> }\n}\nmod file { struct Row { id: std::num::NonZeroU64 } }",
+        &[2, 3, 4, 5, 6, 7, 8],
+    );
+}

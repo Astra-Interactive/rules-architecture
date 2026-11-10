@@ -43,3 +43,13 @@ fn given_watch_timeout_receiver_from_subscribe_when_linted_then_reports_the_time
         &[5],
     );
 }
+
+#[test]
+fn given_timeout_at_or_async_block_around_tautological_wait_when_checked_then_reports_both() {
+    assert_code_findings(
+        &WatchTimeout,
+        "WatchTimeout",
+        "async fn read(mut receiver: tokio::sync::watch::Receiver<bool>, deadline: tokio::time::Instant) {\n    let first = tokio::time::timeout(std::time::Duration::from_secs(1), async { receiver.wait_for(|_| true).await }).await;\n    let second = tokio::time::timeout_at(deadline, receiver.wait_for(|_| true)).await;\n    let third = tokio::time::timeout(std::time::Duration::from_secs(1), async { receiver.wait_for(|ready| *ready).await }).await;\n    let fourth = tokio::time::timeout(std::time::Duration::from_secs(1), async { let marker = 1; receiver.wait_for(|_| true).await }).await;\n}",
+        &[2, 3],
+    );
+}

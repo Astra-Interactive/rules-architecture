@@ -33,6 +33,20 @@ fn given_technology_module_named_after_dependency_when_checked_then_only_the_plu
 }
 
 #[test]
+fn given_concept_names_ending_in_as_when_checked_then_reports_only_the_real_plural() {
+    let context = read_shape_context(
+        "mod alias {} mod canvas {} mod atlas {} mod bias {} mod jails {}",
+        &[],
+    );
+    let subjects: Vec<_> = PluralPackageName
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.subject.clone())
+        .collect();
+    assert_eq!(subjects, ["case_sample::jails"]);
+}
+
+#[test]
 fn given_declaration_shapes_when_checked_then_exact_wrong_sites_report_and_correct_shapes_pass() {
     let context = read_case_context("PluralPackageName", "fail-declaration-shape");
     let mut actual: Vec<String> = PluralPackageName

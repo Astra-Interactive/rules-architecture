@@ -31,24 +31,35 @@ impl<'source> ImportOrderVisitor<'source> {
         })
     }
 
-    fn check_items(&mut self, items: &[syn::Item], is_file: bool) {
+    fn has_trailing_comment(&self, end: TextPosition) -> bool {
+        self.comments
+            .iter()
+            .any(|comment| comment.start.line == end.line && comment.start.column >= end.column)
+    }
+
+    fn check_items(&mut self, items: &[syn::Item], is_ordered: bool) {
         let mut has_item = false;
-        let mut previous_end: Option<TextPosition> = None;
+        let mut last_use: Option<&syn::ItemUse> = None;
         for item in items {
             if let syn::Item::Use(value) = item {
                 let span = find_node_span(value.span());
-                let has_gap = is_file
-                    && previous_end.is_some_and(|previous| {
-                        span.start.line > previous.line + 1
-                            || self.has_comment_between(previous, span.start)
-                    });
-                if has_item || has_gap {
+                let has_gap = last_use.is_some_and(|last| {
+                    let previous = find_node_span(last.span()).end;
+                    span.start.line > previous.line + 1
+                        || self.has_comment_between(previous, span.start)
+                });
+                if (is_ordered && has_item) || has_gap {
                     self.findings.push(value.span());
                 }
-                previous_end = Some(span.end);
+                last_use = Some(value);
             } else {
                 has_item = true;
             }
+        }
+        if let Some(last) = last_use
+            && self.has_trailing_comment(find_node_span(last.span()).end)
+        {
+            self.findings.push(last.span());
         }
     }
 
@@ -67,10 +78,8 @@ impl<'ast> Visit<'ast> for ImportOrderVisitor<'_> {
     }
 
     fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
-        if self.check_modules
-            && let Some((_, items)) = &item.content
-        {
-            self.check_items(items, false);
+        if let Some((_, items)) = &item.content {
+            self.check_items(items, self.check_modules);
         }
         syn::visit::visit_item_mod(self, item);
     }

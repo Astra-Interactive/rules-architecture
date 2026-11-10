@@ -1,6 +1,7 @@
 use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
 use crate::config::model::Role;
+use crate::declaration::rule::ErrorFamilyShape;
 use crate::declaration::util::derives;
 use crate::module::rule::PlacementTypeVisitor;
 use crate::module::util::{build_shape_item_finding, find_kind_name};
@@ -10,7 +11,13 @@ use crate::source::model::WorkspaceResolvedPath;
 pub(crate) struct ErrorPlacement;
 
 impl ErrorPlacement {
-    fn is_error(item: &IndexedItem) -> bool {
+    fn is_error(context: &RuleContext, ordinal: usize, identity: usize) -> bool {
+        let item = &context.indexes[ordinal].items[identity];
+        if matches!(item.syntax, syn::Item::Struct(_) | syn::Item::Enum(_))
+            && ErrorFamilyShape::implements_error(context, ordinal, identity)
+        {
+            return true;
+        }
         match &item.syntax {
             syn::Item::Struct(value) => {
                 item.name.ends_with("Error") || derives(&value.attrs, "Error")
@@ -34,7 +41,7 @@ impl ErrorPlacement {
         let target_index = &context.indexes[target.index];
         let target_item = &target_index.items[identity];
         if !matches!(target_item.syntax, syn::Item::Enum(_))
-            || !Self::is_error(target_item)
+            || !Self::is_error(context, target.index, identity)
             || !target_item
                 .cfg
                 .and(&item.cfg)
@@ -122,7 +129,19 @@ impl Rule for ErrorPlacement {
     fn check(&self, context: &RuleContext) -> Vec<RuleFinding> {
         let mut findings = Vec::new();
         for (ordinal, index) in context.indexes.iter().enumerate() {
-            findings.extend(index.items.iter().filter(|item| Self::is_error(item) && find_kind_name(context, ordinal, item.module) != "model").map(|item| build_shape_item_finding(index, item, "ErrorPlacement", "Error families and result enums live in model, including replacements for old error modules (error-handling.rs.md)")));
+            findings.extend(
+                index
+                    .items
+                    .iter()
+                    .enumerate()
+                    .filter(|(identity, item)| {
+                        Self::is_error(context, ordinal, *identity)
+                            && find_kind_name(context, ordinal, item.module) != "model"
+                    })
+                    .map(|(_, item)| {
+                        build_shape_item_finding(index, item, "ErrorPlacement", "Error families and result enums live in model, including replacements for old error modules (error-handling.rs.md)")
+                    }),
+            );
             findings.extend(Self::route_errors(context, ordinal));
         }
         findings.sort_by(|left, right| {

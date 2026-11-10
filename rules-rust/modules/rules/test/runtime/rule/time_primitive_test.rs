@@ -109,7 +109,47 @@ fn given_static_and_trait_constants_with_unit_suffix_when_checked_then_reports_b
 }
 
 #[test]
+fn given_instant_sent_through_local_channel_when_checked_then_reports_the_send() {
+    assert_code_findings(
+        &TimePrimitive,
+        "TimePrimitive",
+        "use std::time::Instant;\nuse tokio::sync::mpsc;\nasync fn pump_ticks() {\n    let (ticks, mut received) = mpsc::channel::<Instant>(8);\n    if ticks.send(Instant::now()).await.is_err() {\n        return;\n    }\n    let _first = received.recv().await;\n}",
+        &[5],
+    );
+}
+
+#[test]
 fn given_persistent_runtime_cases_when_checked_then_matches_exact_finding_anchors() {
     assert_code_fixture(&TimePrimitive, "TimePrimitive", "bad");
     assert_code_fixture(&TimePrimitive, "TimePrimitive", "good");
+}
+
+#[test]
+fn given_instant_formatted_through_std_macros_when_checked_then_reports_only_the_instant() {
+    for macro_call in [
+        "format!(\"started {started:?}\")",
+        "format!(\"started {:?}\", started)",
+        "std::format_args!(\"started {started:?}\").to_string()",
+        "{ use std::fmt::Write; let mut output = String::new(); let _ = write!(output, \"started {started:?}\"); output }",
+        "{ use std::fmt::Write; let mut output = String::new(); let _ = writeln!(output, \"started {:?}\", started); output }",
+    ] {
+        assert_code_findings(
+            &TimePrimitive,
+            "TimePrimitive",
+            &format!(
+                "fn label() -> String {{\n    let started = std::time::Instant::now();\n    let shown = {macro_call};\n    let elapsed = format!(\"{{:?}}\", started.elapsed());\n    format!(\"{{shown}} {{elapsed}}\")\n}}"
+            ),
+            &[3],
+        );
+    }
+}
+
+#[test]
+fn given_escaped_braces_naming_an_instant_binding_when_formatted_then_reports_only_the_real_use() {
+    assert_code_findings(
+        &TimePrimitive,
+        "TimePrimitive",
+        "fn label() -> String {\n    let started = std::time::Instant::now();\n    let text = format!(\"{{started}} {}\", 1);\n    let shown = format!(\"{started:?}\");\n    format!(\"{text} {shown}\")\n}",
+        &[4],
+    );
 }

@@ -52,19 +52,24 @@ impl RuleContext {
     }
 
     pub(crate) fn can_prove_workspace_only(&self, ordinal: usize) -> bool {
+        self.can_prove_name_users(ordinal)
+            && self
+                .workspace
+                .members
+                .iter()
+                .find(|member| member.name == self.indexes[ordinal].crate_name)
+                .is_some_and(|member| !member.is_published(&self.workspace))
+    }
+
+    pub(crate) fn can_prove_name_users(&self, ordinal: usize) -> bool {
         if self.name_index().has_blind_spots {
             return false;
         }
         let index = &self.indexes[ordinal];
-        let Some(member) = self
-            .workspace
+        self.workspace
             .members
             .iter()
-            .find(|member| member.name == index.crate_name)
-        else {
-            return false;
-        };
-        !member.is_published(&self.workspace)
+            .any(|member| member.name == index.crate_name)
             && self.indexes.iter().all(|index| {
                 index.unanalysable.is_empty()
                     && !index.imports.iter().any(|import| {

@@ -21,7 +21,7 @@ impl ErrorFamilyShape {
         let path = context.resolve_external_identity(ordinal, &path);
         path.package == "thiserror" && path.segments.last().is_some_and(|name| name == "Error")
     }
-    fn implements_error(context: &RuleContext, ordinal: usize, identity: usize) -> bool {
+    pub(crate) fn implements_error(context: &RuleContext, ordinal: usize, identity: usize) -> bool {
         let index = &context.indexes[ordinal];
         index.implementations.iter().any(|implementation| {
             let Some((path, _)) = &implementation.syntax.trait_ else {

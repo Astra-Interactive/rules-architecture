@@ -116,3 +116,54 @@ fn given_critical_section_write_writes_in_match_guard_when_linted_then_reports_t
         &[3],
     );
 }
+
+#[test]
+fn given_deque_ends_sorts_and_mem_swaps_under_guard_when_checked_then_counts_each_as_a_write() {
+    for write in ["push_back(1)", "push_front(1)", "pop_back()", "pop_front()"] {
+        assert_code_findings(
+            &CriticalSectionWrite,
+            "CriticalSectionWrite",
+            &format!(
+                "fn run(gate: parking_lot::Mutex<std::collections::VecDeque<u32>>) {{\n    let mut guard = gate.lock();\n    guard.{write};\n    guard.{write};\n}}"
+            ),
+            &[2],
+        );
+    }
+    for sort in [
+        "sort_by(|left, right| left.cmp(right))",
+        "sort_by_key(|row| *row)",
+        "sort_by_cached_key(|row| *row)",
+        "sort_unstable()",
+        "sort_unstable_by(|left, right| left.cmp(right))",
+        "sort_unstable_by_key(|row| *row)",
+    ] {
+        assert_code_findings(
+            &CriticalSectionWrite,
+            "CriticalSectionWrite",
+            &format!(
+                "fn run(gate: parking_lot::Mutex<Vec<u32>>) {{\n    let mut guard = gate.lock();\n    guard.{sort};\n    guard.{sort};\n}}"
+            ),
+            &[2],
+        );
+    }
+    for exchange in [
+        "std::mem::take(&mut *guard)",
+        "std::mem::replace(&mut *guard, Vec::new())",
+        "std::mem::swap(&mut *guard, &mut spare)",
+    ] {
+        assert_code_findings(
+            &CriticalSectionWrite,
+            "CriticalSectionWrite",
+            &format!(
+                "fn run(gate: parking_lot::Mutex<Vec<u32>>, mut spare: Vec<u32>) {{\n    let mut guard = gate.lock();\n    {exchange};\n    {exchange};\n}}"
+            ),
+            &[2],
+        );
+    }
+    assert_code_findings(
+        &CriticalSectionWrite,
+        "CriticalSectionWrite",
+        "fn run(gate: parking_lot::Mutex<std::collections::VecDeque<u32>>) {\n    let mut guard = gate.lock();\n    guard.push_back(1);\n}",
+        &[],
+    );
+}

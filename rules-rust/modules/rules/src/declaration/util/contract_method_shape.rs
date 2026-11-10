@@ -42,6 +42,78 @@ fn event_stream(
     })
 }
 
+fn is_non_static_box_stream(
+    context: &RuleContext,
+    ordinal: usize,
+    module: usize,
+    typed: &syn::Type,
+    cfg: &crate::source::model::CfgPredicate,
+) -> bool {
+    context
+        .resolve_type_syntax(ordinal, module, typed)
+        .iter()
+        .filter(|resolved| cfg.and(&resolved.cfg).is_satisfiable())
+        .any(|resolved| {
+            if resolved.has_unsubstituted_parameters {
+                return false;
+            }
+            let stream = context
+                .resolve_outer_external_type_paths_under(
+                    resolved.index,
+                    resolved.module,
+                    &resolved.typed,
+                    cfg,
+                )
+                .iter()
+                .any(|path| {
+                    ["futures", "futures_util", "futures_core"].contains(&path.package.as_str())
+                        && path.segments.last().is_some_and(|name| name == "BoxStream")
+                });
+            let syn::Type::Path(path) = &resolved.typed else {
+                return false;
+            };
+            let Some(segment) = path.path.segments.last() else {
+                return false;
+            };
+            stream
+                && matches!(
+                    &segment.arguments,
+                    syn::PathArguments::AngleBracketed(arguments)
+                        if matches!(
+                            arguments.args.first(),
+                            Some(syn::GenericArgument::Lifetime(lifetime))
+                                if lifetime.ident != "static"
+                        )
+                )
+        })
+}
+
+fn is_tokio_channel(path: &crate::source::model::ExternalPath, channels: &[&str]) -> bool {
+    path.package == "tokio"
+        && channels.iter().any(|channel| {
+            let names: Vec<_> = channel.split("::").map(str::to_owned).collect();
+            path.segments.ends_with(&names)
+        })
+}
+
+fn is_channel_sender(
+    context: &RuleContext,
+    ordinal: usize,
+    module: usize,
+    typed: &syn::Type,
+    cfg: &crate::source::model::CfgPredicate,
+) -> bool {
+    context
+        .resolve_external_type_paths_under(ordinal, module, typed, cfg)
+        .iter()
+        .any(|path| {
+            is_tokio_channel(
+                path,
+                &["broadcast::Sender", "mpsc::Sender", "mpsc::UnboundedSender"],
+            )
+        })
+}
+
 fn invalid_return(
     context: &RuleContext,
     ordinal: usize,
@@ -62,17 +134,14 @@ fn invalid_return(
                 || path
                     .segments
                     .ends_with(&["oneshot".to_owned(), "Receiver".to_owned()])
-                || (path.package == "tokio"
-                    && [
+                || is_tokio_channel(
+                    path,
+                    &[
                         "broadcast::Receiver",
                         "mpsc::Receiver",
                         "mpsc::UnboundedReceiver",
-                    ]
-                    .iter()
-                    .any(|channel| {
-                        let names: Vec<_> = channel.split("::").map(str::to_owned).collect();
-                        path.segments.ends_with(&names)
-                    })))
+                    ],
+                ))
     });
     let stream = paths.iter().any(|path| {
         ["futures", "futures_core", "futures_util"].contains(&path.package.as_str())
@@ -98,7 +167,10 @@ fn invalid_return(
                                 && path.segments.last().is_some_and(|name| name == "Pin")
                         })
             });
-    handle || raw_stream || external_result_error(context, ordinal, module, typed, cfg)
+    handle
+        || raw_stream
+        || is_non_static_box_stream(context, ordinal, module, typed, cfg)
+        || external_result_error(context, ordinal, module, typed, cfg)
 }
 
 fn external_result_error(
@@ -116,18 +188,12 @@ fn external_result_error(
             if resolved.has_unsubstituted_parameters {
                 return false;
             }
-            let result = context
-                .resolve_outer_external_type_paths_under(
-                    resolved.index,
-                    resolved.module,
-                    &resolved.typed,
-                    cfg,
-                )
-                .iter()
-                .any(|path| {
-                    ["std", "core"].contains(&path.package.as_str())
-                        && path.segments.last().is_some_and(|name| name == "Result")
-                });
+            let outer = context.resolve_outer_external_type_paths_under(
+                resolved.index,
+                resolved.module,
+                &resolved.typed,
+                cfg,
+            );
             let syn::Type::Path(path) = &resolved.typed else {
                 return false;
             };
@@ -137,10 +203,18 @@ fn external_result_error(
             let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments else {
                 return false;
             };
+            let named_result = |path: &crate::source::model::ExternalPath| {
+                path.segments.last().is_some_and(|name| name == "Result")
+            };
+            if arguments.args.len() == 1 {
+                return outer.iter().any(named_result);
+            }
             let Some(syn::GenericArgument::Type(error)) = arguments.args.iter().nth(1) else {
                 return false;
             };
-            result
+            outer
+                .iter()
+                .any(|path| ["std", "core"].contains(&path.package.as_str()) && named_result(path))
                 && !context
                     .resolve_outer_external_type_paths_under(
                         resolved.index,
@@ -225,9 +299,14 @@ pub(crate) fn invalid_contract_method(
         syn::ReturnType::Type(_, typed) => Some(typed.as_ref()),
         _ => None,
     };
+    let sender = method.sig.inputs.iter().any(|input| {
+        matches!(input, syn::FnArg::Typed(parameter)
+            if is_channel_sender(context, ordinal, item.module, &parameter.ty, cfg))
+    });
     let events = method.sig.ident == "events"
         && output.is_none_or(|typed| !event_stream(context, ordinal, item.module, typed, cfg));
     callback
+        || sender
         || events
         || output.is_some_and(|typed| invalid_return(context, ordinal, item.module, typed, cfg))
 }

@@ -147,3 +147,34 @@ fn given_host_composition_root_and_packet_representation_when_checked_then_neith
         &[],
     );
 }
+
+#[test]
+fn given_entry_main_constructing_workspace_implementation_when_checked_then_reports_only_it() {
+    let mut context = crate::test::module::util::read_di_context(
+        "mod mail {\n    pub(crate) mod api { pub(crate) trait MailSender: Send + Sync {} }\n    pub(crate) mod smtp { pub(crate) struct SmtpMailSender; impl crate::mail::api::MailSender for SmtpMailSender {} impl SmtpMailSender { pub(crate) fn new() -> Self { Self } } }\n}\nmod di { pub struct RootModule; impl RootModule { pub fn new() -> Self { Self } } }\nfn main() -> std::process::ExitCode {\n    let root = di::RootModule::new();\n    let mail_sender: std::sync::Arc<dyn mail::api::MailSender> = std::sync::Arc::new(mail::smtp::SmtpMailSender::new());\n    std::process::ExitCode::SUCCESS\n}",
+    );
+    context.project_config.crates[0].role = Some(crate::config::model::Role::EntryPoint);
+    let findings =
+        crate::check::api::Rule::check(&crate::module::rule::ConstructorDependency, &context);
+    let lines: Vec<u32> = findings
+        .iter()
+        .filter_map(|finding| finding.finding.location.line)
+        .collect();
+    assert_eq!(vec![8], lines, "{findings:?}");
+}
+
+#[test]
+fn given_entry_root_functions_constructing_implementation_when_checked_then_reports_roots() {
+    let mut context = crate::test::module::util::read_di_context(
+        "mod mail {\n    pub(crate) mod api { pub(crate) trait MailSender: Send + Sync {} }\n    pub(crate) mod smtp { pub(crate) struct SmtpMailSender; impl crate::mail::api::MailSender for SmtpMailSender {} impl SmtpMailSender { pub(crate) fn new() -> Self { Self } } }\n}\nmod di { pub struct RootModule; impl RootModule { pub fn new() -> Self { Self } } }\nfn main() {\n    let mail_sender = mail::smtp::SmtpMailSender::new();\n}\nfn start_host() {\n    let mail_sender = mail::smtp::SmtpMailSender::new();\n}\nmod host { pub(crate) fn assemble() { let mail_sender = crate::mail::smtp::SmtpMailSender::new(); } }",
+    );
+    context.project_config.crates[0].role = Some(crate::config::model::Role::EntryPoint);
+    let findings =
+        crate::check::api::Rule::check(&crate::module::rule::ConstructorDependency, &context);
+    let mut lines: Vec<u32> = findings
+        .iter()
+        .filter_map(|finding| finding.finding.location.line)
+        .collect();
+    lines.sort_unstable();
+    assert_eq!(vec![7, 10], lines, "{findings:?}");
+}

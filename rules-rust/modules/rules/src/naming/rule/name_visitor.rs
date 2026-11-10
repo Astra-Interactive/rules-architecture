@@ -2,39 +2,86 @@ use crate::check::model::RuleContext;
 use crate::check::model::RuleFinding;
 use crate::check::util::build_node_finding;
 use crate::check::util::format_module_path;
+use crate::naming::model::SelectPart;
+use crate::naming::util::parse_select_arguments;
 use crate::source::model::SourceFile;
 use crate::source::util::find_node_span;
 use crate::source::util::parse_macro_arguments;
 use syn::ext::IdentExt;
 use syn::parse::ParseStream;
 use syn::parse::Parser;
+use syn::spanned::Spanned;
 use syn::visit::Visit;
 
 pub(crate) struct NameVisitor<'source> {
+    context: &'source RuleContext,
     file: &'source SourceFile,
     rule: &'static str,
     technology_words: &'source [String],
     module_path: Vec<String>,
+    scope: Option<ModuleScope>,
     is_trait_impl: bool,
     is_closure_parameter: bool,
     findings: Vec<RuleFinding>,
 }
 
 impl<'source> NameVisitor<'source> {
+    fn find_scope(context: &RuleContext, file: &SourceFile) -> Option<ModuleScope> {
+        let (ordinal, index) = context.indexes.iter().enumerate().find(|(_, index)| {
+            index.crate_name == file.module.crate_name && index.target == file.module.target
+        })?;
+        let module = index
+            .modules
+            .iter()
+            .find(|module| module.module == file.module)?;
+        Some(ModuleScope {
+            ordinal,
+            module: module.id,
+        })
+    }
+
     fn new(
+        context: &'source RuleContext,
         file: &'source SourceFile,
         rule: &'static str,
         technology_words: &'source [String],
     ) -> Self {
         Self {
+            context,
             file,
             rule,
             technology_words,
             module_path: file.module.path.clone(),
+            scope: Self::find_scope(context, file),
             is_trait_impl: false,
             is_closure_parameter: false,
             findings: Vec::new(),
         }
+    }
+
+    fn find_child_scope(&self, parent: ModuleScope, item: &syn::ItemMod) -> ModuleScope {
+        let span = find_node_span(item.span());
+        self.context.indexes[parent.ordinal]
+            .modules
+            .iter()
+            .find(|module| module.parent == Some(parent.module) && module.span == span)
+            .map_or(parent, |module| ModuleScope {
+                ordinal: parent.ordinal,
+                module: module.id,
+            })
+    }
+
+    fn is_tokio_item(&self, path: &syn::Path, name: &str) -> bool {
+        let is_written_out = path.segments.len() == 2
+            && path.segments[0].ident == "tokio"
+            && path.segments[1].ident == name;
+        is_written_out
+            || self.scope.is_some_and(|scope| {
+                self.context
+                    .resolve_external_call_paths(scope.ordinal, scope.module, path)
+                    .iter()
+                    .any(|resolved| resolved.format_path() == format!("tokio::{name}"))
+            })
     }
 
     fn report_name(&mut self, ident: &syn::Ident, message: &str) {
@@ -120,9 +167,8 @@ impl<'source> NameVisitor<'source> {
             .any(|suffix| name.ends_with(suffix));
         let repeats_model_kind =
             is_domain_model && (name.ends_with("Model") || name.ends_with("Entity"));
-        let misplaced_service = !segments.contains(&"service")
-            && (name.ends_with("Service")
-                || (segments.contains(&"model") && Self::has_service_word(&name)));
+        let misplaced_service = !self.module_path.iter().any(|segment| segment == "service")
+            && Self::has_service_word(&name);
         let vague_contract = is_trait
             && segments.contains(&"api")
             && ["Api", "Dao", "Krate", "Storage"]
@@ -160,10 +206,7 @@ impl<'source> NameVisitor<'source> {
         let name = signature.ident.unraw().to_string();
         let is_test = attributes.iter().any(|attribute| {
             let path = attribute.path();
-            path.is_ident("test")
-                || (path.segments.len() == 2
-                    && path.segments[0].ident == "tokio"
-                    && path.segments[1].ident == "test")
+            path.is_ident("test") || self.is_tokio_item(path, "test")
         });
         if self.rule == "TestFunctionName" && is_test && !Self::is_test_name(&name) {
             self.report_name(
@@ -176,8 +219,9 @@ impl<'source> NameVisitor<'source> {
         let forbidden = ["get", "map", "make", "do", "handle", "process"]
             .contains(&name.split('_').next().unwrap_or(""));
         let checks_function_verb = self.rule == "FunctionVerb";
-        let lookup_requires_review = is_lookup && signature.receiver().is_some();
-        let is_exempt = lookup_requires_review || is_test || self.is_trait_impl;
+        let is_keyed_lookup =
+            is_lookup && signature.receiver().is_some() && signature.inputs.len() > 1;
+        let is_exempt = is_keyed_lookup || is_test || self.is_trait_impl;
         if checks_function_verb && forbidden && !is_exempt {
             self.report_name(&signature.ident, "Use a specific verb instead of get, map, make, do, handle or process (clean-code.rs.md)");
         }
@@ -193,6 +237,22 @@ impl<'source> NameVisitor<'source> {
                 "Name the field after what it holds, never it (closure-naming.rs.md)",
             );
         }
+    }
+
+    fn try_visit_select(&mut self, item: &syn::Macro) -> bool {
+        if !self.is_tokio_item(&item.path, "select") {
+            return false;
+        }
+        let Ok(parts) = parse_select_arguments.parse2(item.tokens.clone()) else {
+            return false;
+        };
+        for part in &parts {
+            match part {
+                SelectPart::Pattern(pattern) => self.visit_pat(pattern),
+                SelectPart::Expression(expression) => self.visit_expr(expression),
+            }
+        }
+        true
     }
 
     fn collect_findings(mut self) -> Vec<RuleFinding> {
@@ -216,7 +276,7 @@ impl<'source> NameVisitor<'source> {
                     .find(|config| config.name == file.module.crate_name)
                     .map(|config| config.technology_words.as_slice())
                     .unwrap_or(&[]);
-                Self::new(file, rule, words).collect_findings()
+                Self::new(context, file, rule, words).collect_findings()
             })
             .collect()
     }
@@ -317,15 +377,26 @@ impl<'ast> Visit<'ast> for NameVisitor<'_> {
             }
             return;
         }
+        if self.try_visit_select(item) {
+            return;
+        }
         for argument in &parse_macro_arguments(item) {
             self.visit_expr(argument);
         }
     }
 
     fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
+        let parent_scope = self.scope;
+        self.scope = parent_scope.map(|scope| self.find_child_scope(scope, item));
         self.module_path.push(item.ident.unraw().to_string());
         syn::visit::visit_item_mod(self, item);
         self.module_path.pop();
+        self.scope = parent_scope;
+    }
+
+    fn visit_item_type(&mut self, item: &'ast syn::ItemType) {
+        self.check_type(&item.ident, false);
+        syn::visit::visit_item_type(self, item);
     }
 
     fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
@@ -416,6 +487,12 @@ impl<'ast> Visit<'ast> for NameVisitor<'_> {
             );
         }
     }
+}
+
+#[derive(Clone, Copy)]
+struct ModuleScope {
+    ordinal: usize,
+    module: usize,
 }
 
 struct MatchesArguments {

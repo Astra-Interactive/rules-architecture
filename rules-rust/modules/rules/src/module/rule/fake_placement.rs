@@ -56,7 +56,7 @@ impl FakePlacement {
                         matches!(contract.syntax, syn::Item::Trait(_))
                             && target.path.cfg.and(&implementation.cfg).is_satisfiable()
                             && (concept != item_concept(context, target.index, contract.module)
-                                || (tree == SourceTree::Fixture && target.index != ordinal))
+                                || target.index != ordinal)
                     })
             });
         let duplicate = index.items.iter().any(|other| {
@@ -98,6 +98,31 @@ impl FakePlacement {
             anchor: Anchor::Crate(member.name.clone()),
         })
     }
+
+    fn build_default_finding(context: &RuleContext, crate_name: &str) -> Option<RuleFinding> {
+        let member = context
+            .workspace
+            .members
+            .iter()
+            .find(|member| member.name == crate_name)?;
+        let default = member.manifest.root.find(&["features", "default"])?;
+        let enables_fake = default
+            .as_array()?
+            .iter()
+            .any(|entry| entry.as_str() == Some("fake"));
+        enables_fake.then(|| RuleFinding {
+            finding: Finding {
+                rule_id: RuleId("FakePlacement".to_owned()),
+                location: Location {
+                    path: member.manifest.path.clone(),
+                    line: Some(default.line),
+                },
+                subject: format!("{crate_name} features.default"),
+                message: "A default feature must not enable fake: a release build compiles no fixture tree (arch-package.rs.md)".to_owned(),
+            },
+            anchor: Anchor::Crate(member.name.clone()),
+        })
+    }
 }
 
 impl Rule for FakePlacement {
@@ -132,6 +157,13 @@ impl Rule for FakePlacement {
                 .members
                 .iter()
                 .filter_map(|member| Self::feature_finding(context, &member.name)),
+        );
+        findings.extend(
+            context
+                .workspace
+                .members
+                .iter()
+                .filter_map(|member| Self::build_default_finding(context, &member.name)),
         );
         findings
     }

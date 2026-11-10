@@ -123,6 +123,26 @@ fn given_for_loop_over_zip_when_item_is_bound_to_a_name_then_requires_destructur
 }
 
 #[test]
+fn given_char_indices_and_map_iteration_when_item_is_bound_then_requires_destructuring() {
+    assert_code_findings(
+        &AnonymousTuple,
+        "AnonymousTuple",
+        "use std::collections::{BTreeMap, HashMap};\nfn run(text: &str, scores: &HashMap<String, u32>, ranks: &BTreeMap<String, u32>) {\nfor pair in text.char_indices() { let _ = pair.0; }\nfor entry in scores.iter() {}\nfor entry in ranks.iter() {}\nfor (index, character) in text.char_indices() {}\nfor (name, score) in scores.iter() {}\n}",
+        &[3, 4, 5],
+    );
+}
+
+#[test]
+fn given_tuple_bound_through_branch_initializer_when_checked_then_requires_destructuring() {
+    assert_code_findings(
+        &AnonymousTuple,
+        "AnonymousTuple",
+        "fn run(wide: bool) {\nlet range = if wide { (0_u32, 100_u32) } else { (0_u32, 10_u32) };\nlet chosen = match wide { true => (0_u32, 100_u32), false => (0_u32, 10_u32) };\nlet block = { (0_u32, 10_u32) };\nlet (low, high) = if wide { (0, 100) } else { (0, 10) };\n}",
+        &[2, 3, 4],
+    );
+}
+
+#[test]
 fn given_tdd_anonymous_tuple_size_hint_when_linted_then_reports_named_tuple_binding() {
     assert_code_findings(
         &AnonymousTuple,

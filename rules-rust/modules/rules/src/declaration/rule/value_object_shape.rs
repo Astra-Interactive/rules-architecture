@@ -26,6 +26,56 @@ impl ValueObjectShape {
         }
     }
 
+    fn is_enum_error_result(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        typed: &syn::Type,
+    ) -> bool {
+        let syn::Type::Path(path) = typed else {
+            return false;
+        };
+        let Some(segment) = path.path.segments.last() else {
+            return false;
+        };
+        let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments else {
+            return false;
+        };
+        let Some(syn::GenericArgument::Type(error)) = arguments.args.iter().nth(1) else {
+            return false;
+        };
+        context
+            .resolve_workspace_type(ordinal, module, error)
+            .iter()
+            .any(|target| {
+                target.path.item.is_some_and(|item| {
+                    matches!(
+                        context.indexes[target.index].items[item].syntax,
+                        Item::Enum(_)
+                    )
+                })
+            })
+    }
+
+    fn has_enum_error(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        typed: &syn::Type,
+    ) -> bool {
+        context
+            .resolve_type_syntax(ordinal, module, typed)
+            .iter()
+            .any(|resolved| {
+                Self::is_enum_error_result(
+                    context,
+                    resolved.index,
+                    resolved.module,
+                    &resolved.typed,
+                )
+            })
+    }
+
     fn parser_is_invalid(
         context: &RuleContext,
         ordinal: usize,
@@ -58,6 +108,7 @@ impl ValueObjectShape {
         visitor.visit_block(&function.block);
         !result
             || !Self::parser_returns(context, ordinal, parser, identity)
+            || !Self::has_enum_error(context, ordinal, parser.module, typed)
             || visitor.invalid
             || (visitor.constructed && !visitor.checked)
     }

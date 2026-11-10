@@ -233,7 +233,7 @@ fn given_external_consumers_or_restricted_visibility_when_checked_then_absent_wo
         "[package]\nname=\"case-sample\"\nversion=\"1.0.0\"\n",
     )
     .unwrap();
-    assert!(DocHiddenUse.check(&context).is_empty());
+    assert_doc_hidden_lines(&context, &[1]);
     assert!(DiModuleVisibility.check(&context).is_empty());
     let mut context =
         read_code_context("pub mod di { #[doc(hidden)] pub(crate) struct FeatureModule; }");
@@ -299,7 +299,7 @@ fn assert_doc_hidden_lines(context: &crate::check::model::RuleContext, expected:
 fn given_doc_hidden_on_private_impl_method_when_published_then_reports_the_attribute() {
     assert_published_doc_hidden_lines(
         "pub struct Entry;\nimpl Entry {\n    #[doc(hidden)]\n    fn helper() {}\n    #[doc(hidden)]\n    pub fn bridge() {}\n    pub fn run() { Self::helper(); }\n}",
-        &[3],
+        &[3, 5],
     );
 }
 
@@ -308,7 +308,7 @@ fn given_conditional_doc_hidden_on_crate_private_function_when_published_then_re
  {
     assert_published_doc_hidden_lines(
         "#[cfg_attr(all(), doc(hidden))] pub(crate) fn compute(value: u32) -> u32 { value + 1 }\n#[cfg_attr(all(), doc(hidden))] pub fn bridge() {}",
-        &[1],
+        &[1, 2],
     );
 }
 
@@ -319,4 +319,87 @@ fn given_doc_hidden_with_alias_on_unused_public_function_when_workspace_only_the
         "#[doc(hidden, alias = \"invoice-hint\")]\npub fn compute_hint(total: u64) -> u64 { total }\n#[doc(alias = \"invoice-total\")]\npub fn visible_total(total: u64) -> u64 { total }",
     );
     assert_doc_hidden_lines(&context, &[1]);
+}
+
+#[test]
+fn given_unused_public_hidden_constant_and_method_when_workspace_only_then_reports_each() {
+    let context = read_private_context(
+        "pub struct Counter;\nimpl Counter {\n    #[doc(hidden)] pub fn reset_for_bridge(&self) {}\n    pub fn visible(&self) {}\n}\n#[doc(hidden)] pub const BRIDGE_LIMIT: u32 = 3;",
+    );
+    assert_doc_hidden_lines(&context, &[3, 6]);
+}
+
+#[test]
+fn given_unused_public_hidden_function_when_published_then_reports_the_item() {
+    assert_published_doc_hidden_lines(
+        "#[doc(hidden)]\npub fn compute_total(subtotal: u32, tax: u32) -> u32 { subtotal + tax }\npub fn visible_total(subtotal: u32, tax: u32) -> u32 { subtotal + tax }",
+        &[1],
+    );
+}
+
+#[test]
+fn given_hidden_public_function_named_by_another_workspace_crate_when_published_then_reports_nothing()
+ {
+    let mut context = crate::test::module::util::read_workspace_shape_context(&[
+        (
+            "shop_total_api",
+            "",
+            "#[doc(hidden)]\npub fn compute_total(subtotal: u32, tax: u32) -> u32 { subtotal + tax }",
+        ),
+        (
+            "shop_total_user",
+            "shop_total_api={path=\"../shop_total_api\"}",
+            "fn total() -> u32 { shop_total_api::compute_total(1, 2) }",
+        ),
+    ]);
+    let api = context
+        .workspace
+        .members
+        .iter_mut()
+        .find(|member| member.name == "shop_total_api")
+        .expect("shop_total_api member");
+    api.manifest = crate::workspace::util::parse_toml_file(
+        "Cargo.toml",
+        "[package]\nname=\"shop_total_api\"\nversion=\"0.1.0\"",
+    )
+    .expect("published library manifest");
+    assert_doc_hidden_lines(&context, &[]);
+}
+
+#[test]
+fn given_hidden_public_union_when_workspace_only_then_reports_it_unless_another_crate_names_it() {
+    let context =
+        read_private_context("#[doc(hidden)]\npub union Bits { pub raw: u32, pub parts: [u8; 4] }");
+    assert_doc_hidden_lines(&context, &[1]);
+    let context = crate::test::module::util::read_workspace_shape_context(&[
+        (
+            "shop_bits_api",
+            "",
+            "#[doc(hidden)]\npub union Bits { pub raw: u32, pub parts: [u8; 4] }",
+        ),
+        (
+            "shop_bits_user",
+            "shop_bits_api={path=\"../shop_bits_api\"}",
+            "fn read(bits: shop_bits_api::Bits) -> u32 { 0 }",
+        ),
+    ]);
+    assert_doc_hidden_lines(&context, &[]);
+}
+
+#[test]
+fn given_hidden_trait_member_when_another_crate_implements_it_then_the_implementation_is_a_use() {
+    let api = "pub trait Plugin {\n    #[doc(hidden)]\n    fn register(&self);\n}";
+    let user =
+        "pub struct Audit;\nimpl shop_plugin_api::Plugin for Audit {\n    fn register(&self) {}\n}";
+    let dependency = "shop_plugin_api={path=\"../shop_plugin_api\"}";
+    let context = crate::test::module::util::read_workspace_shape_context(&[
+        ("shop_plugin_api", "", api),
+        ("shop_plugin_user", dependency, user),
+    ]);
+    assert_doc_hidden_lines(&context, &[]);
+    let context = crate::test::module::util::read_workspace_shape_context(&[
+        ("shop_plugin_api", "", api),
+        ("shop_plugin_user", dependency, "fn unrelated() {}"),
+    ]);
+    assert_doc_hidden_lines(&context, &[2]);
 }

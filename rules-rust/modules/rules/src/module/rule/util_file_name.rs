@@ -73,6 +73,33 @@ impl UtilFileName {
         )
     }
 
+    fn describe_owner_name(
+        index: &crate::source::model::CrateIndex,
+        module: usize,
+        ty: &syn::Type,
+    ) -> Option<String> {
+        match ty {
+            syn::Type::Path(path) => match index.resolve_path(module, &path.path) {
+                Resolution::External(path) => path.rsplit("::").next().map(str::to_owned),
+                _ => path
+                    .path
+                    .segments
+                    .last()
+                    .map(|segment| segment.ident.to_string()),
+            },
+            syn::Type::Slice(_) => Some("slice".to_owned()),
+            syn::Type::Array(_) => Some("array".to_owned()),
+            syn::Type::Reference(reference) => {
+                Self::describe_owner_name(index, module, &reference.elem)
+            }
+            syn::Type::Paren(parenthesized) => {
+                Self::describe_owner_name(index, module, &parenthesized.elem)
+            }
+            syn::Type::Group(group) => Self::describe_owner_name(index, module, &group.elem),
+            _ => None,
+        }
+    }
+
     fn wrong_implementation(
         index: &crate::source::model::CrateIndex,
         item: &crate::source::model::IndexedItem,
@@ -120,20 +147,13 @@ impl UtilFileName {
         missing
             || duplicate
             || implementations.iter().any(|implementation| {
-                let target = match implementation.syntax.self_ty.as_ref() {
-                    syn::Type::Path(path) => match index
-                        .resolve_path(implementation.module, &path.path)
-                    {
-                        Resolution::External(path) => path.rsplit("::").next().map(str::to_owned),
-                        _ => path
-                            .path
-                            .segments
-                            .last()
-                            .map(|segment| segment.ident.to_string()),
-                    },
-                    _ => None,
-                };
-                implementation.file != item.file || target.as_deref() != Some(owner)
+                let target = Self::describe_owner_name(
+                    index,
+                    implementation.module,
+                    &implementation.syntax.self_ty,
+                );
+                implementation.file != item.file
+                    || !target.is_some_and(|name| name == owner || name == owner.to_lowercase())
             })
     }
 

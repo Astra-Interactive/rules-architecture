@@ -1,6 +1,7 @@
 use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
 use crate::check::util::build_node_finding;
+use crate::config::model::Role;
 use crate::module::util::find_kind_name;
 use crate::module::util::{is_di_type, workspace_implementation_under};
 use crate::source::model::WorkspaceUse;
@@ -8,6 +9,22 @@ use crate::source::model::WorkspaceUse;
 pub(crate) struct ConstructorDependency;
 
 impl ConstructorDependency {
+    fn is_entry_point_crate(context: &RuleContext, ordinal: usize) -> bool {
+        context.project_config.crates.iter().any(|config| {
+            config.name == context.indexes[ordinal].crate_name
+                && config.role == Some(Role::EntryPoint)
+        })
+    }
+
+    fn is_entry_root_function(context: &RuleContext, usage: &WorkspaceUse) -> bool {
+        let index = &context.indexes[usage.source_index];
+        usage.source_module == 0
+            && Self::is_entry_point_crate(context, usage.source_index)
+            && !index.implementations.iter().any(|implementation| {
+                implementation.file == usage.file && implementation.span.contains(&usage.span)
+            })
+    }
+
     fn inside_constructor(context: &RuleContext, usage: &WorkspaceUse) -> bool {
         let Some(function) = usage.function.as_deref() else {
             return false;
@@ -54,8 +71,11 @@ impl ConstructorDependency {
                     })
                 })
         });
+        let entry_root_function =
+            implementations.is_empty() && Self::is_entry_root_function(context, usage);
         !root
             && (!implementations.is_empty()
+                || entry_root_function
                 || function == "new"
                 || function.starts_with("with_")
                 || function.starts_with("from_")

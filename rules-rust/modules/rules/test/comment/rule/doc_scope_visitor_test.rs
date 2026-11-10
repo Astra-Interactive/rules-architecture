@@ -262,6 +262,15 @@ fn given_assertion_inside_closure_argument_when_published_then_requires_panic_co
 }
 
 #[test]
+fn given_unwrap_err_and_panicking_fallback_closure_on_parameters_when_published_then_requires_panic_contract()
+ {
+    assert_published_scope_lines(
+        "pub fn failure_of(result: Result<u32, String>) -> String { result.unwrap_err() }\npub fn rate_of(rate: Option<f64>) -> f64 { rate.unwrap_or_else(|| panic!(\"rate is required\")) }\npub fn expected_failure(result: Result<u32, String>) -> String { result.expect_err(\"must fail\") }\npub fn fallback(rate: Option<f64>) -> f64 { rate.unwrap_or_else(|| 0.0) }\npub fn local() -> String { let result: Result<u32, String> = Ok(1); result.unwrap_err() }",
+        &[1, 2, 3],
+    );
+}
+
+#[test]
 fn given_assertion_inside_called_nested_function_when_published_then_requires_panic_contract() {
     assert_published_scope_lines(
         "pub fn guarded(value: u32) {\n    fn guard(value: u32) { assert!(value > 0); }\n    guard(value)\n}\npub fn unused(value: u32) {\n    fn guard(value: u32) { assert!(value > 0); }\n}",

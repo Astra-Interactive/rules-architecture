@@ -1,4 +1,5 @@
 use crate::check::model::RuleContext;
+use crate::comment::model::DocOwner;
 use crate::module::util::owns_implementation;
 
 fn item_member(context: &RuleContext, ordinal: usize, identity: usize, name: &str) -> bool {
@@ -37,7 +38,7 @@ fn item_member(context: &RuleContext, ordinal: usize, identity: usize, name: &st
         })
 }
 
-pub(crate) fn doc_resolves(
+fn path_resolves(
     context: &RuleContext,
     ordinal: usize,
     module: usize,
@@ -151,4 +152,90 @@ fn prelude_resolves(
                     .contains(&name.as_str())
                 })
         })
+}
+
+fn has_function_member(context: &RuleContext, owner: &DocOwner, name: &str) -> bool {
+    let index = &context.indexes[owner.ordinal];
+    let identity = owner.identity;
+    let in_trait = matches!(
+        &index.items[identity].syntax,
+        syn::Item::Trait(value) if value.items.iter().any(|item| {
+            matches!(item, syn::TraitItem::Fn(function) if function.sig.ident == name)
+        })
+    );
+    in_trait
+        || index
+            .implementations
+            .iter()
+            .filter(|implementation| owns_implementation(index, identity, implementation))
+            .any(|implementation| {
+                implementation.syntax.items.iter().any(|item| {
+                    matches!(item, syn::ImplItem::Fn(function) if function.sig.ident == name)
+                })
+            })
+}
+
+fn function_resolves(
+    context: &RuleContext,
+    ordinal: usize,
+    module: usize,
+    owner: Option<DocOwner>,
+    name: &str,
+    cfg: &crate::source::model::CfgPredicate,
+) -> bool {
+    let Ok(path) = syn::parse_str::<syn::Path>(name) else {
+        return false;
+    };
+    let Some(last) = path.segments.last() else {
+        return false;
+    };
+    let is_function = |target: &crate::source::model::WorkspaceResolvedPath| {
+        cfg.and(&target.path.cfg).is_satisfiable()
+            && target.path.item.is_some_and(|identity| {
+                let item = &context.indexes[target.index].items[identity];
+                matches!(item.syntax, syn::Item::Fn(_))
+                    && (path.segments.len() == 1 || last.ident == item.name)
+            })
+    };
+    if context
+        .resolve_workspace_path(ordinal, module, &path)
+        .iter()
+        .any(is_function)
+    {
+        return true;
+    }
+    if path.segments.len() != 2 {
+        return false;
+    }
+    let mut parent = path.clone();
+    parent.segments.pop();
+    parent.segments.pop_punct();
+    let owners: Vec<DocOwner> = if parent.is_ident("Self") {
+        owner.into_iter().collect()
+    } else {
+        parent_types(context, ordinal, module, &parent, cfg)
+            .into_iter()
+            .map(|(ordinal, identity)| DocOwner { ordinal, identity })
+            .collect()
+    };
+    owners
+        .iter()
+        .any(|owner| has_function_member(context, owner, &last.ident.to_string()))
+}
+
+pub(crate) fn doc_resolves(
+    context: &RuleContext,
+    ordinal: usize,
+    module: usize,
+    owner: Option<(usize, usize)>,
+    candidate: &str,
+    cfg: &crate::source::model::CfgPredicate,
+) -> bool {
+    match candidate.strip_suffix("()") {
+        Some(name) => {
+            let owner = owner.map(|(ordinal, identity)| DocOwner { ordinal, identity });
+            function_resolves(context, ordinal, module, owner, name, cfg)
+        }
+        None => path_resolves(context, ordinal, module, owner, candidate, cfg),
+    }
 }

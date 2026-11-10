@@ -69,6 +69,23 @@ fn given_logging_install_spellings_outside_main_when_checked_then_each_is_report
 }
 
 #[test]
+fn given_thread_local_state_when_checked_then_reports_the_static_and_not_constant_data() {
+    let context = crate::test::module::util::read_placement_context(&[
+        ("src/lib.rs", "mod state;"),
+        (
+            "src/state.rs",
+            "thread_local! {\n    static CURRENT_USER: std::cell::RefCell<Option<u32>> = const { std::cell::RefCell::new(None) };\n}\nthread_local! {\n    static DEPTH: u32 = 0;\n}",
+        ),
+    ]);
+    crate::test::module::util::assert_placement_findings(
+        &crate::module::rule::GlobalState,
+        "GlobalState",
+        &context,
+        &[("src/state.rs", 2, "Node")],
+    );
+}
+
+#[test]
 fn given_persistent_di_policy_pairs_when_checked_then_exact_nodes_and_subjects_match() {
     for half in ["bad", "good"] {
         crate::test::module::util::assert_di_fixture(

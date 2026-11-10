@@ -196,3 +196,24 @@ fn given_model_whose_other_field_is_cfg_disabled_when_checked_then_requires_eq_a
         &[2],
     );
 }
+
+#[test]
+fn given_model_error_structs_when_checked_then_reports_only_structs_that_are_not_errors() {
+    assert_code_findings(
+        &ModelDerives,
+        "ModelDerives",
+        "mod model {\n#[derive(Debug, thiserror::Error)] #[error(\"could not load invoice\")] pub(crate) struct LoadInvoiceError { #[source] source: Box<dyn std::error::Error + Send + Sync> }\npub(crate) struct SaveInvoiceError { name: String }\nstruct Plain { name: String }\nstruct ManualError;\nimpl std::error::Error for ManualError {}\n}",
+        &[3, 4],
+    );
+}
+
+#[test]
+fn given_error_struct_deriving_through_a_renamed_import_when_checked_then_skips_it_like_the_direct_form()
+ {
+    assert_code_findings(
+        &ModelDerives,
+        "ModelDerives",
+        "mod model {\nuse vendor::Error as ThisError;\n#[derive(Debug, ThisError)] #[error(\"failed\")] pub struct LoadFailure { #[source] source: Box<dyn std::error::Error + Send + Sync> }\nstruct Plain { name: String }\n}",
+        &[4],
+    );
+}

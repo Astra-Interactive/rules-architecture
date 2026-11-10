@@ -51,6 +51,27 @@ fn given_fixture_without_feature_and_feature_without_fixture_when_checked_then_r
 }
 
 #[test]
+fn given_default_feature_enabling_fake_when_checked_then_reports_the_default_key() {
+    let mut context = read_placement_context(&[(
+        "src/lib.rs",
+        "#[cfg(any(test, feature = \"fake\"))] mod fixture {}",
+    )]);
+    let path = context.workspace.members[0].manifest.path.clone();
+    let manifest = "[features]\ndefault = [\"fake\"]\nfake = []\n";
+    context.workspace.members[0].manifest =
+        parse_toml_file(&path, manifest).expect("default feature enabling fake");
+    assert_placement_findings(
+        &FakePlacement,
+        "FakePlacement",
+        &context,
+        &[(path.as_str(), 2, "Crate")],
+    );
+    context.workspace.members[0].manifest =
+        parse_toml_file(&path, "[features]\ndefault = []\nfake = []\n").expect("empty default");
+    assert_placement_findings(&FakePlacement, "FakePlacement", &context, &[]);
+}
+
+#[test]
 fn given_fake_outside_its_trait_concept_or_wrong_visibility_when_checked_then_reports_the_type() {
     for visibility in ["", "pub"] {
         let source = format!(
@@ -133,4 +154,26 @@ fn given_phase_one_fake_crate_cases_when_checked_then_preserves_the_crate_rule()
 fn given_persistent_placement_cases_when_checked_then_match_exact_node_anchors() {
     assert_code_fixture(&FakePlacement, "FakePlacement", "bad");
     assert_code_fixture(&FakePlacement, "FakePlacement", "good");
+}
+
+#[test]
+fn given_test_fake_of_another_crates_trait_when_checked_then_reports_it() {
+    let context = read_workspace_shape_context(&[
+        (
+            "shop_billing_api",
+            "",
+            "pub mod invoice { pub mod api { pub trait InvoiceRepository {} } }",
+        ),
+        (
+            "shop_ledger",
+            "shop_billing_api={path=\"../shop_billing_api\"}",
+            "mod ledger { pub(crate) mod api { pub(crate) trait LedgerReader {} } }\n#[cfg(test)] mod test {\nmod invoice { mod fake { pub(crate) struct FakeInvoiceRepository; impl shop_billing_api::invoice::api::InvoiceRepository for FakeInvoiceRepository {} } }\nmod ledger { mod fake { pub(crate) struct FakeLedgerReader; impl crate::ledger::api::LedgerReader for FakeLedgerReader {} } }\n}",
+        ),
+    ]);
+    assert_placement_findings(
+        &FakePlacement,
+        "FakePlacement",
+        &context,
+        &[("shop_ledger/src/lib.rs", 3, "Node")],
+    );
 }

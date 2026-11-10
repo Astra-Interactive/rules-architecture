@@ -67,6 +67,16 @@ fn given_lock_choice_typed_guard_binding_when_linted_then_reports_the_local() {
 }
 
 #[test]
+fn given_lock_choice_tokio_rwlock_guards_without_crossing_await_when_linted_then_reports_both() {
+    assert_code_findings(
+        &LockChoice,
+        "LockChoice",
+        "struct Cache { entries: tokio::sync::RwLock<std::collections::HashMap<u32, String>> }\nimpl Cache {\n    async fn put(&self, id: u32, value: String) {\n        let mut entries = self.entries.write().await;\n        entries.insert(id, value);\n    }\n    async fn get(&self, id: u32) -> Option<String> {\n        let entries = self.entries.read().await;\n        entries.get(&id).cloned()\n    }\n}",
+        &[4, 8],
+    );
+}
+
+#[test]
 fn given_lock_choice_temporary_tokio_guard_when_linted_then_reports_the_statement() {
     assert_code_findings(
         &LockChoice,

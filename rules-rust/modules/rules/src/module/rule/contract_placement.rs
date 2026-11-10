@@ -244,11 +244,12 @@ impl ContractPlacement {
         let entry = context.is_entry_kind(&index.crate_name, kind);
         let state_holder = (entry && Self::has_default_beside(context, ordinal, item))
             || Self::is_app_api_state_holder(context, ordinal, item);
-        let mixed_core = context
-            .project_config
-            .crates
-            .iter()
-            .any(|config| config.name == index.crate_name && config.role == Some(Role::Core));
+        let is_explicit_kind = ["model", "usecase", "util"].contains(&kind);
+        let mixed_core =
+            !is_explicit_kind
+                && context.project_config.crates.iter().any(|config| {
+                    config.name == index.crate_name && config.role == Some(Role::Core)
+                });
         factory
             || extension
             || usecase

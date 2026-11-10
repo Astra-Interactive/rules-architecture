@@ -84,3 +84,13 @@ fn given_one_shot_closure_in_enum_variant_fields_when_checked_then_reports_each_
         &[2, 3],
     );
 }
+
+#[test]
+fn given_one_closure_behind_a_cell_or_lock_when_checked_then_reports_it_and_keeps_containers() {
+    assert_code_findings(
+        &CallbackDeclaration,
+        "CallbackDeclaration",
+        "struct Banner {\n    close: parking_lot::Mutex<Option<Box<dyn FnOnce() + Send>>>,\n    done: std::sync::RwLock<Box<dyn Fn()>>,\n    once: std::sync::OnceLock<Box<dyn Fn() + Send>>,\n    cell: std::cell::RefCell<Option<Box<dyn FnMut()>>>,\n    many: std::sync::Mutex<Vec<Box<dyn Fn()>>>,\n    table: Vec<Box<dyn Fn()>>,\n}",
+        &[2, 3, 4, 5],
+    );
+}

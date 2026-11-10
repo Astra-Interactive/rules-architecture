@@ -45,3 +45,19 @@ fn given_persistent_runtime_cases_when_checked_then_matches_exact_finding_anchor
     assert_code_fixture(&BlockingLockInSync, "BlockingLockInSync", "bad");
     assert_code_fixture(&BlockingLockInSync, "BlockingLockInSync", "good");
 }
+
+#[test]
+fn given_blocking_calls_in_on_enable_and_rwlock_forms_when_checked_then_reports_each_call() {
+    assert_code_findings(
+        &BlockingLockInSync,
+        "BlockingLockInSync",
+        "struct Owner { gate: tokio::sync::Mutex<u32>, entries: tokio::sync::RwLock<u32> }\nimpl Owner {\n    fn on_enable(&self) { self.gate.blocking_lock(); }\n}\nimpl Drop for Owner {\n    fn drop(&mut self) { self.entries.blocking_read(); }\n}",
+        &[3, 6],
+    );
+    assert_code_findings(
+        &BlockingLockInSync,
+        "BlockingLockInSync",
+        "struct Owner { entries: tokio::sync::RwLock<u32> }\nimpl Owner {\n    fn on_enable(&self) { self.entries.blocking_write(); }\n    fn on_disable(&self) { self.entries.blocking_read(); }\n    fn on_reload(&self) { self.entries.blocking_write(); }\n}",
+        &[3, 4],
+    );
+}

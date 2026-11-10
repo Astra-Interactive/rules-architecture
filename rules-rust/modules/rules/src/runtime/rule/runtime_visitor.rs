@@ -72,6 +72,15 @@ impl RuntimeVisitor<'_> {
         }
     }
 
+    fn is_dependency_block_on(resolved: &str) -> bool {
+        let mut segments = resolved.rsplit("::");
+        segments.next() == Some("block_on")
+            && segments
+                .next()
+                .and_then(|owner| owner.chars().next())
+                .is_some_and(char::is_lowercase)
+    }
+
     fn resolved_call(&self, module: usize, path: &syn::Path, depth: usize) -> Option<String> {
         if depth > 8 {
             return None;
@@ -254,8 +263,7 @@ impl<'ast> Visit<'ast> for RuntimeVisitor<'_> {
         if let syn::Expr::Path(path) = &*expression.func
             && let Some(resolved) = self.resolved_call(self.module, &path.path, 0)
         {
-            let is_block_on = resolved == "futures::executor::block_on"
-                || resolved == "futures_executor::block_on"
+            let is_block_on = Self::is_dependency_block_on(&resolved)
                 || resolved.ends_with("::runtime::Runtime::block_on")
                 || resolved.ends_with("::runtime::Handle::block_on");
             let is_runtime_new = resolved == "tokio::runtime::Runtime::new";

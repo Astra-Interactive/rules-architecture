@@ -16,23 +16,33 @@ impl RustdocFiller {
             .collect::<Vec<_>>()
             .join(" ")
             .to_lowercase();
-        let phrases = [
-            "this function is responsible for",
-            "this method is responsible for",
-            "this function allows you to",
-            "this method allows you to",
-            "this function is intended for",
-            "this method is intended for",
-            "returns the result of the operation",
-            "returns the returned value",
-        ];
-        if phrases.iter().any(|phrase| normalized.contains(phrase)) {
+        let is_function_filler = Self::FUNCTION_KINDS.iter().any(|kind| {
+            Self::FUNCTION_PREDICATES
+                .iter()
+                .any(|predicate| normalized.contains(&format!("this {kind} {predicate}")))
+        });
+        let is_item_filler = Self::ITEM_KINDS
+            .iter()
+            .any(|kind| normalized.contains(&format!("this {kind} is responsible for")));
+        let is_result_filler = Self::RESULT_PHRASES
+            .iter()
+            .any(|phrase| normalized.contains(phrase));
+        if is_function_filler || is_item_filler || is_result_filler {
             return true;
         }
         normalized
             .split(['.', '!', '?'])
             .any(|sentence| sentence.trim() == "returns the result")
     }
+
+    const FUNCTION_KINDS: [&str; 2] = ["function", "method"];
+    const FUNCTION_PREDICATES: [&str; 3] =
+        ["is responsible for", "allows you to", "is intended for"];
+    const ITEM_KINDS: [&str; 4] = ["struct", "enum", "trait", "type"];
+    const RESULT_PHRASES: [&str; 2] = [
+        "returns the result of the operation",
+        "returns the returned value",
+    ];
 }
 
 impl Rule for RustdocFiller {

@@ -6,10 +6,12 @@ use crate::runtime::rule::GuardWrites;
 use crate::runtime::rule::SelectBranches;
 use crate::runtime::rule::TaskVisitor;
 use crate::runtime::util::expects_lint;
+use crate::runtime::util::names_format_argument;
 use crate::runtime::util::node_predicate;
 use crate::source::model::ResolvedTypeSyntax;
 use crate::source::model::SourceFile;
 use crate::source::util::find_node_span;
+use quote::ToTokens;
 use std::rc::Rc;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
@@ -73,6 +75,7 @@ pub(crate) struct TypedRuntimeVisitor<'source> {
     async_context: bool,
     runtime_main: bool,
     inherit_async: bool,
+    closure_state: Option<Rc<ResolvedTypeSyntax>>,
 }
 
 impl TypedRuntimeVisitor<'_> {
@@ -113,6 +116,7 @@ impl TypedRuntimeVisitor<'_> {
                     async_context: false,
                     runtime_main: false,
                     inherit_async: false,
+                    closure_state: None,
                 };
                 visitor.visit_file(&file.syntax);
                 findings.extend(visitor.findings);
@@ -121,7 +125,7 @@ impl TypedRuntimeVisitor<'_> {
         findings
     }
 
-    fn report(&mut self, span: proc_macro2::Span) {
+    fn report_message(&mut self, span: proc_macro2::Span, message: String) {
         let index = &self.context.indexes[self.ordinal];
         if !node_predicate(index, self.module, &self.file.path, find_node_span(span))
             .is_satisfiable()
@@ -133,10 +137,27 @@ impl TypedRuntimeVisitor<'_> {
             &self.file.path,
             find_node_span(span),
             format_module_path(&index.crate_name, &index.modules[self.module].module.path),
-            if self.rule == "ResultConsumption" {
-                "The discard expectation requires a proven oneshot::Sender::send, mpsc::UnboundedSender::send, broadcast::Sender::send or mpsc::Sender::try_send; an unresolved receiver cannot establish this exception (error-handling.rs.md)".to_owned()
-            } else { format!("Follow the {} typed runtime requirement (async.rs.md; time-api.rs.md)", self.rule) },
+            message,
         ));
+    }
+
+    fn report_discarded_result(&mut self, span: proc_macro2::Span) {
+        self.report_message(
+            span,
+            "Handle or propagate the Result instead of dropping it through `_ =`, `.ok()` or an unread `_name` binding (error-handling.rs.md)".to_owned(),
+        );
+    }
+
+    fn report(&mut self, span: proc_macro2::Span) {
+        let message = if self.rule == "ResultConsumption" {
+            "The discard expectation requires a proven oneshot::Sender::send, mpsc::UnboundedSender::send, broadcast::Sender::send or mpsc::Sender::try_send; an unresolved receiver cannot establish this exception (error-handling.rs.md)".to_owned()
+        } else {
+            format!(
+                "Follow the {} typed runtime requirement (async.rs.md; time-api.rs.md)",
+                self.rule
+            )
+        };
+        self.report_message(span, message);
     }
 
     fn build_receiver_type(&self, typed: syn::Type, module: usize) -> Rc<ResolvedTypeSyntax> {
@@ -247,6 +268,11 @@ impl TypedRuntimeVisitor<'_> {
                 self.module,
             )];
         }
+        if matches!(call.method.to_string().as_str(), "name" | "stack_size")
+            && self.receiver_has(&call.receiver, &["std::thread::Builder"])
+        {
+            return self.receiver_types(&call.receiver);
+        }
         if matches!(
             call.method.to_string().as_str(),
             "enable_all"
@@ -323,12 +349,14 @@ impl TypedRuntimeVisitor<'_> {
         if returns_success { success } else { Vec::new() }
     }
 
-    fn self_field_receiver_types(&self, field: &syn::ExprField) -> Vec<Rc<ResolvedTypeSyntax>> {
-        let Some(typed) = &self.self_type else {
-            return Vec::new();
-        };
+    fn find_struct_field_types(
+        &self,
+        module: usize,
+        typed: &syn::Type,
+        member: &syn::Member,
+    ) -> Vec<Rc<ResolvedTypeSyntax>> {
         self.context.indexes[self.ordinal]
-            .resolve_type_items(self.module, typed)
+            .resolve_type_items(module, typed)
             .iter()
             .flat_map(|identity| {
                 let declaration = &self.context.indexes[self.ordinal].items[*identity];
@@ -339,7 +367,7 @@ impl TypedRuntimeVisitor<'_> {
                     .iter()
                     .enumerate()
                     .filter_map(|(position, entry)| {
-                        let matching = match &field.member {
+                        let matching = match member {
                             syn::Member::Named(name) => entry.ident.as_ref() == Some(name),
                             syn::Member::Unnamed(index) => position == index.index as usize,
                         };
@@ -348,6 +376,19 @@ impl TypedRuntimeVisitor<'_> {
                     })
                     .collect::<Vec<_>>()
             })
+            .collect()
+    }
+
+    fn resolve_field_receiver_types(&self, field: &syn::ExprField) -> Vec<Rc<ResolvedTypeSyntax>> {
+        if matches!(&*field.base, syn::Expr::Path(path) if path.path.is_ident("self")) {
+            let Some(typed) = &self.self_type else {
+                return Vec::new();
+            };
+            return self.find_struct_field_types(self.module, typed, &field.member);
+        }
+        self.receiver_types(&field.base)
+            .iter()
+            .flat_map(|base| self.find_struct_field_types(base.module, &base.typed, &field.member))
             .collect()
     }
 
@@ -366,6 +407,61 @@ impl TypedRuntimeVisitor<'_> {
         )]
     }
 
+    fn build_owner_type(function: &syn::Path) -> syn::Type {
+        let mut owner = function.clone();
+        owner.segments.pop();
+        owner.segments.pop_punct();
+        syn::Type::Path(syn::TypePath {
+            attrs: Vec::new(),
+            qself: None,
+            path: owner,
+        })
+    }
+
+    fn resolve_awaited_connection_types(
+        &self,
+        awaited: &syn::ExprAwait,
+    ) -> Vec<Rc<ResolvedTypeSyntax>> {
+        let syn::Expr::Call(call) = &*awaited.base else {
+            return Vec::new();
+        };
+        let syn::Expr::Path(path) = &*call.func else {
+            return Vec::new();
+        };
+        let connects = self
+            .context
+            .resolve_external_call_paths(self.ordinal, self.module, &path.path)
+            .iter()
+            .any(|path| {
+                matches!(
+                    path.format_path().as_str(),
+                    "tokio::net::TcpStream::connect"
+                        | "tokio::net::UnixStream::connect"
+                        | "tokio::fs::File::open"
+                        | "tokio::fs::File::create"
+                )
+            });
+        if !connects {
+            return Vec::new();
+        }
+        let typed = Self::build_owner_type(&path.path);
+        vec![self.build_receiver_type(
+            syn::parse_quote!(::std::result::Result<#typed, _>),
+            self.module,
+        )]
+    }
+
+    fn resolve_awaited_receiver_types(
+        &self,
+        awaited: &syn::ExprAwait,
+    ) -> Vec<Rc<ResolvedTypeSyntax>> {
+        let received = self.awaited_types(awaited);
+        if received.is_empty() {
+            return self.resolve_awaited_connection_types(awaited);
+        }
+        received
+    }
+
     fn receiver_types(&self, expression: &syn::Expr) -> Vec<Rc<ResolvedTypeSyntax>> {
         match expression {
             syn::Expr::Reference(reference) => self.receiver_types(&reference.expr),
@@ -378,7 +474,7 @@ impl TypedRuntimeVisitor<'_> {
                 .map(|typed| vec![self.build_receiver_type(typed, self.module)])
                 .unwrap_or_default(),
             syn::Expr::MethodCall(call) => self.runtime_method_type(call),
-            syn::Expr::Await(awaited) => self.awaited_types(awaited),
+            syn::Expr::Await(awaited) => self.resolve_awaited_receiver_types(awaited),
             syn::Expr::Path(path) => self
                 .bindings
                 .iter()
@@ -386,9 +482,7 @@ impl TypedRuntimeVisitor<'_> {
                 .find(|(name, _)| path.path.is_ident(name))
                 .map(|(_, typed)| vec![Rc::clone(typed)])
                 .unwrap_or_default(),
-            syn::Expr::Field(field) if matches!(&*field.base, syn::Expr::Path(path) if path.path.is_ident("self")) => {
-                self.self_field_receiver_types(field)
-            }
+            syn::Expr::Field(field) => self.resolve_field_receiver_types(field),
             _ => Vec::new(),
         }
     }
@@ -415,6 +509,14 @@ impl TypedRuntimeVisitor<'_> {
                     0,
                 )
         })
+    }
+
+    fn is_block_on_receiver(&self, expression: &syn::Expr) -> bool {
+        self.receiver_has(
+            expression,
+            &["tokio::runtime::Runtime", "tokio::runtime::Handle"],
+        ) || self.rule == "BlockOnOutsideBoundary"
+            && self.receiver_has(expression, &["tokio::task::LocalSet"])
     }
 
     fn receiver_identity(
@@ -451,6 +553,15 @@ impl TypedRuntimeVisitor<'_> {
         })
     }
 
+    fn is_blocking_lock_call(&self, call: &syn::ExprMethodCall) -> bool {
+        let owner = match call.method.to_string().as_str() {
+            "blocking_lock" => "tokio::sync::Mutex",
+            "blocking_read" | "blocking_write" => "tokio::sync::RwLock",
+            _ => return false,
+        };
+        self.receiver_has(&call.receiver, &[owner])
+    }
+
     fn is_blocking_method(&self, expression: &syn::ExprMethodCall) -> bool {
         let blocking_channel = self.receiver_has(
             &expression.receiver,
@@ -460,11 +571,10 @@ impl TypedRuntimeVisitor<'_> {
                 "std::sync::mpsc::SyncSender",
             ],
         );
-        let blocking_file_read = matches!(
-            expression.method.to_string().as_str(),
-            "read_to_end" | "read_to_string" | "read_exact"
-        ) && self.receiver_has(&expression.receiver, &["std::fs::File"]);
-        blocking_channel || blocking_file_read
+        let blocking_file_call = Self::FILE_BLOCKING_METHODS
+            .contains(&expression.method.to_string().as_str())
+            && self.receiver_has(&expression.receiver, &["std::fs::File"]);
+        blocking_channel || blocking_file_call
     }
 
     fn bind_signature(&mut self, signature: &syn::Signature) {
@@ -537,14 +647,7 @@ impl TypedRuntimeVisitor<'_> {
         if !constructor || path.path.segments.len() <= 1 {
             return None;
         }
-        let mut owner = path.path.clone();
-        owner.segments.pop();
-        owner.segments.pop_punct();
-        let typed = syn::Type::Path(syn::TypePath {
-            attrs: Vec::new(),
-            qself: None,
-            path: owner,
-        });
+        let typed = Self::build_owner_type(&path.path);
         let workspace =
             self.context
                 .resolve_outer_workspace_type(self.ordinal, self.module, &typed);
@@ -742,7 +845,8 @@ impl TypedRuntimeVisitor<'_> {
                 continue;
             }
             let effects = ClosureEffects::collect_nested(argument);
-            let impure = atomic && effects.assigns_capture || (watch || atomic) && (
+            let impure = atomic && (effects.assigns_capture || effects.borrows_capture_mutably)
+                || (watch || atomic) && (
                 effects.methods.iter().any(|call| {
                     let method = call.method.to_string();
                     let captured = effects.captured_methods.iter().any(|captured| captured.span().start() == call.span().start());
@@ -755,9 +859,13 @@ impl TypedRuntimeVisitor<'_> {
                         && captured
                         && matches!(method.as_str(), "push" | "pop" | "insert" | "remove" | "clear" | "extend" | "truncate" | "retain" | "resize" | "append" | "drain" | "sort" | "reverse" | "swap_remove")
                         && self.receiver_has(&call.receiver, &["std::vec::Vec", "alloc::vec::Vec", "std::collections::HashMap", "std::collections::HashSet", "std::collections::BTreeMap", "std::collections::BTreeSet", "std::collections::VecDeque"]);
+                    let option_write = atomic
+                        && captured
+                        && matches!(method.as_str(), "take" | "replace" | "insert" | "get_or_insert" | "get_or_insert_with")
+                        && self.receiver_has(&call.receiver, OPTION_TYPES);
                     let channel = matches!(method.as_str(), "send" | "try_send" | "send_replace" | "send_modify" | "send_if_modified")
                         && self.receiver_has(&call.receiver, &["tokio::sync::watch::Sender", "tokio::sync::mpsc::Sender", "tokio::sync::mpsc::UnboundedSender", "tokio::sync::broadcast::Sender", "tokio::sync::oneshot::Sender", "std::sync::mpsc::Sender", "std::sync::mpsc::SyncSender"]);
-                    lock || channel || mutation || atomic_write
+                    lock || channel || mutation || option_write || atomic_write
                 }) || effects.calls.iter().any(|call| matches!(&*call.func, syn::Expr::Path(path)
                     if self.context.resolve_external_call_paths(self.ordinal, self.module, &path.path).iter().any(|path|
                         ["std::fs::", "tokio::fs::", "std::net::", "tokio::net::"].iter().any(|prefix| path.format_path().starts_with(prefix))))));
@@ -768,12 +876,19 @@ impl TypedRuntimeVisitor<'_> {
     }
 
     fn unsafe_select_call(&self, call: &syn::ExprMethodCall) -> bool {
-        if call.method == "lock" {
-            return self.receiver_has(&call.receiver, &["tokio::sync::Mutex"]);
+        let queued = match call.method.to_string().as_str() {
+            "lock" => Some(&["tokio::sync::Mutex"][..]),
+            "read" | "write" => Some(&["tokio::sync::RwLock"][..]),
+            "acquire" => Some(&["tokio::sync::Semaphore"][..]),
+            "notified" => Some(&["tokio::sync::Notify"][..]),
+            _ => None,
+        };
+        if let Some(names) = queued {
+            return self.receiver_has(&call.receiver, names);
         }
         if !matches!(
             call.method.to_string().as_str(),
-            "read_exact" | "read_to_end" | "write_all"
+            "read_exact" | "read_to_end" | "read_to_string" | "write_all"
         ) {
             return false;
         }
@@ -793,6 +908,10 @@ impl TypedRuntimeVisitor<'_> {
                         .iter()
                         .any(|segment| matches!(segment.as_str(), "io" | "fs" | "net"))
             })
+    }
+
+    fn has_async_lock_type(&self, receiver: &syn::Expr) -> bool {
+        self.receiver_has(receiver, &["tokio::sync::Mutex", "tokio::sync::RwLock"])
     }
 
     fn check_guard_tail(
@@ -835,7 +954,7 @@ impl TypedRuntimeVisitor<'_> {
             if count > 1 || trailing {
                 self.report(local.span());
             }
-        } else if self.receiver_has(&call.receiver, &["tokio::sync::Mutex"])
+        } else if self.has_async_lock_type(&call.receiver)
             && !following
                 .iter()
                 .take_while(|statement| !self.drops_guard(statement, name))
@@ -843,6 +962,11 @@ impl TypedRuntimeVisitor<'_> {
         {
             self.report(local.span());
         }
+    }
+
+    fn is_guard_method(&self, call: &syn::ExprMethodCall) -> bool {
+        matches!(call.method.to_string().as_str(), "lock" | "write")
+            || self.rule == "LockChoice" && call.method == "read"
     }
 
     fn guard_binding(pattern: &syn::Pat) -> Option<&syn::Ident> {
@@ -888,6 +1012,161 @@ impl TypedRuntimeVisitor<'_> {
             "try_send" => self.receiver_has(&call.receiver, &["tokio::sync::mpsc::Sender"]),
             _ => false,
         }
+    }
+
+    fn is_workspace_result_call(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Paren(paren) => self.is_workspace_result_call(&paren.expr),
+            syn::Expr::Group(group) => self.is_workspace_result_call(&group.expr),
+            syn::Expr::Call(call) => {
+                let syn::Expr::Path(path) = &*call.func else {
+                    return false;
+                };
+                self.context
+                    .resolve_workspace_path(self.ordinal, self.module, &path.path)
+                    .iter()
+                    .any(|target| {
+                        let Some(identity) = target.path.item else {
+                            return false;
+                        };
+                        let item = &self.context.indexes[target.index].items[identity];
+                        let syn::Item::Fn(function) = &item.syntax else {
+                            return false;
+                        };
+                        let syn::ReturnType::Type(_, returned) = &function.sig.output else {
+                            return false;
+                        };
+                        function.sig.asyncness.is_none()
+                            && self
+                                .context
+                                .resolve_outer_external_type_paths(
+                                    target.index,
+                                    item.module,
+                                    returned,
+                                )
+                                .iter()
+                                .any(|path| RESULT_TYPES.contains(&path.format_path().as_str()))
+                    })
+            }
+            _ => false,
+        }
+    }
+
+    fn is_ok_of_workspace_result(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Paren(paren) => self.is_ok_of_workspace_result(&paren.expr),
+            syn::Expr::Group(group) => self.is_ok_of_workspace_result(&group.expr),
+            syn::Expr::MethodCall(call) => {
+                call.method == "ok"
+                    && call.args.is_empty()
+                    && self.is_workspace_result_call(&call.receiver)
+            }
+            _ => false,
+        }
+    }
+
+    fn stream_mentions(tokens: proc_macro2::TokenStream, name: &str) -> bool {
+        tokens.into_iter().any(|tree| match tree {
+            proc_macro2::TokenTree::Ident(ident) => ident == name,
+            proc_macro2::TokenTree::Group(group) => Self::stream_mentions(group.stream(), name),
+            proc_macro2::TokenTree::Literal(literal) => {
+                syn::parse_str::<syn::LitStr>(&literal.to_string())
+                    .is_ok_and(|text| names_format_argument(&text.value(), name))
+            }
+            _ => false,
+        })
+    }
+
+    fn is_read_later(following: &[syn::Stmt], name: &str) -> bool {
+        let mut tokens = proc_macro2::TokenStream::new();
+        for statement in following {
+            statement.to_tokens(&mut tokens);
+        }
+        Self::stream_mentions(tokens, name)
+    }
+
+    fn check_unread_binding(&mut self, statement: &syn::Stmt, following: &[syn::Stmt]) {
+        if self.rule != "ResultConsumption" {
+            return;
+        }
+        let syn::Stmt::Local(local) = statement else {
+            return;
+        };
+        let syn::Pat::Ident(binding) = &local.pat else {
+            return;
+        };
+        let name = binding.ident.to_string();
+        if name.len() < 2 || !name.starts_with('_') || binding.subpat.is_some() {
+            return;
+        }
+        let Some(init) = &local.init else {
+            return;
+        };
+        if init.diverge.is_some() || !self.is_workspace_result_call(&init.expr) {
+            return;
+        }
+        if !Self::is_read_later(following, &name) {
+            self.report_discarded_result(local.span());
+        }
+    }
+
+    fn check_discarded_ok(&mut self, local: &syn::Local) {
+        if self.rule != "ResultConsumption" || !matches!(local.pat, syn::Pat::Wild(_)) {
+            return;
+        }
+        if expects_lint(&local.attrs, "let_underscore_must_use") {
+            return;
+        }
+        let Some(init) = &local.init else {
+            return;
+        };
+        if self.is_ok_of_workspace_result(&init.expr) {
+            self.report_discarded_result(local.span());
+        }
+    }
+
+    fn check_discarded_ok_statement(&mut self, statement: &syn::Stmt) {
+        if self.rule != "ResultConsumption" {
+            return;
+        }
+        let syn::Stmt::Expr(expression, Some(_)) = statement else {
+            return;
+        };
+        if self.is_ok_of_workspace_result(expression) {
+            self.report_discarded_result(expression.span());
+        }
+    }
+
+    fn check_discarded_assignment(&mut self, expression: &syn::ExprAssign) {
+        if self.rule != "ResultConsumption" || !matches!(&*expression.left, syn::Expr::Infer(_)) {
+            return;
+        }
+        if self.is_workspace_result_call(&expression.right) {
+            self.report_discarded_result(expression.span());
+        }
+    }
+
+    fn is_lag_stopping_if(&self, expression: &syn::ExprIf) -> bool {
+        if self.rule != "BroadcastLag" || self.loops == 0 {
+            return false;
+        }
+        let syn::Expr::Let(condition) = &*expression.cond else {
+            return false;
+        };
+        let Some((_, otherwise)) = &expression.else_branch else {
+            return false;
+        };
+        self.lag_stopping_let(&condition.pat, &condition.expr) && Self::terminates_loop(otherwise)
+    }
+
+    fn bind_closure_state(&mut self, expression: &syn::ExprClosure) {
+        let Some(state) = self.closure_state.take() else {
+            return;
+        };
+        let Some(syn::Pat::Ident(name)) = expression.inputs.first() else {
+            return;
+        };
+        self.bindings.push((name.ident.to_string(), state));
     }
 
     fn drops_guard(&self, statement: &syn::Stmt, name: &str) -> bool {
@@ -965,23 +1244,14 @@ impl TypedRuntimeVisitor<'_> {
         }
     }
 
-    fn invalid_timeout(&self, expression: &syn::ExprCall) -> bool {
-        let syn::Expr::Path(path) = &*expression.func else {
-            return false;
-        };
-        if !self
-            .context
-            .resolve_external_call_paths(self.ordinal, self.module, &path.path)
-            .iter()
-            .any(|path| path.format_path() == "tokio::time::timeout")
-        {
-            return false;
-        }
-        let Some(future) = expression.args.iter().nth(1) else {
-            return false;
-        };
-        if matches!(future, syn::Expr::Async(_)) {
-            return !AwaitVisitor::in_expression(future);
+    fn is_immediate_future(&self, future: &syn::Expr) -> bool {
+        if let syn::Expr::Async(block) = future {
+            return match block.block.stmts.as_slice() {
+                [syn::Stmt::Expr(syn::Expr::Await(awaited), None)] => {
+                    self.is_immediate_future(&awaited.base)
+                }
+                _ => !AwaitVisitor::in_expression(future),
+            };
         }
         if let syn::Expr::Call(call) = future
             && let syn::Expr::Path(path) = &*call.func
@@ -1007,6 +1277,30 @@ impl TypedRuntimeVisitor<'_> {
             return false;
         }
         call.args.iter().any(|argument| matches!(argument, syn::Expr::Closure(closure) if Self::returns_true(&closure.body)))
+    }
+
+    fn invalid_timeout(&self, expression: &syn::ExprCall) -> bool {
+        let syn::Expr::Path(path) = &*expression.func else {
+            return false;
+        };
+        if !self
+            .context
+            .resolve_external_call_paths(self.ordinal, self.module, &path.path)
+            .iter()
+            .any(|path| {
+                matches!(
+                    path.format_path().as_str(),
+                    "tokio::time::timeout" | "tokio::time::timeout_at"
+                )
+            })
+        {
+            return false;
+        }
+        expression
+            .args
+            .iter()
+            .nth(1)
+            .is_some_and(|future| self.is_immediate_future(future))
     }
 
     fn lag_pattern(&self, pattern: &syn::Pat) -> bool {
@@ -1111,10 +1405,32 @@ impl TypedRuntimeVisitor<'_> {
             .any(|path| TaskVisitor::runs_off_async(&path.format_path()))
     }
 
+    fn find_unfold_state_type(&self, call: &syn::ExprCall) -> Option<Rc<ResolvedTypeSyntax>> {
+        let syn::Expr::Path(path) = &*call.func else {
+            return None;
+        };
+        let unfolds = self
+            .context
+            .resolve_external_call_paths(self.ordinal, self.module, &path.path)
+            .iter()
+            .any(|path| {
+                matches!(path.package.as_str(), "futures" | "futures_util")
+                    && path.segments.last().is_some_and(|name| name == "unfold")
+            });
+        if !unfolds {
+            return None;
+        }
+        self.receiver_types(call.args.first()?).into_iter().next()
+    }
+
     fn visit_closure_argument(&mut self, argument: &syn::Expr, inherit: bool) {
         self.inherit_async = inherit && matches!(argument, syn::Expr::Closure(_));
         self.visit_expr(argument);
         self.inherit_async = false;
+    }
+
+    fn is_runtime_thread_hook(name: &syn::Ident) -> bool {
+        name == "on_enable" || name == "on_disable"
     }
 
     fn terminates_loop(expression: &syn::Expr) -> bool {
@@ -1129,6 +1445,31 @@ impl TypedRuntimeVisitor<'_> {
             _ => false,
         }
     }
+
+    const FILE_BLOCKING_METHODS: &'static [&'static str] = &[
+        "read",
+        "read_to_end",
+        "read_to_string",
+        "read_exact",
+        "read_vectored",
+        "read_buf",
+        "bytes",
+        "write",
+        "write_all",
+        "write_vectored",
+        "write_fmt",
+        "flush",
+        "seek",
+        "rewind",
+        "stream_position",
+        "seek_relative",
+        "sync_all",
+        "sync_data",
+        "set_len",
+        "metadata",
+        "try_clone",
+        "set_permissions",
+    ];
 }
 
 impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
@@ -1174,6 +1515,7 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
         for pattern in &expression.inputs {
             self.bind_pattern(pattern);
         }
+        self.bind_closure_state(expression);
         syn::visit::visit_expr_closure(self, expression);
         self.bindings.truncate(length);
         (self.synchronous_boundary, self.loops) = parent;
@@ -1282,7 +1624,8 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
         self.thread_expect |= expects_lint(&item.attrs, "disallowed_methods");
         let parent = std::mem::take(&mut self.bindings);
         let boundary = self.synchronous_boundary;
-        self.synchronous_boundary = item.sig.asyncness.is_none() && item.sig.ident == "on_disable";
+        self.synchronous_boundary =
+            item.sig.asyncness.is_none() && Self::is_runtime_thread_hook(&item.sig.ident);
         self.bind_signature(&item.sig);
         syn::visit::visit_item_fn(self, item);
         self.bindings = parent;
@@ -1300,7 +1643,7 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
         let parent = std::mem::take(&mut self.bindings);
         let boundary = self.synchronous_boundary;
         self.synchronous_boundary = item.sig.asyncness.is_none()
-            && (item.sig.ident == "drop" || item.sig.ident == "on_disable");
+            && (item.sig.ident == "drop" || Self::is_runtime_thread_hook(&item.sig.ident));
         self.bind_signature(&item.sig);
         syn::visit::visit_impl_item_fn(self, item);
         self.bindings = parent;
@@ -1312,7 +1655,8 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
     fn visit_trait_item_fn(&mut self, item: &'ast syn::TraitItemFn) {
         let bindings = std::mem::take(&mut self.bindings);
         let parent = (self.synchronous_boundary, self.async_context);
-        self.synchronous_boundary = item.sig.asyncness.is_none() && item.sig.ident == "on_disable";
+        self.synchronous_boundary =
+            item.sig.asyncness.is_none() && Self::is_runtime_thread_hook(&item.sig.ident);
         self.async_context = item.sig.asyncness.is_some();
         self.bind_signature(&item.sig);
         syn::visit::visit_trait_item_fn(self, item);
@@ -1324,6 +1668,7 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
         let length = self.bindings.len();
         for (position, statement) in block.stmts.iter().enumerate() {
             self.visit_stmt(statement);
+            self.check_unread_binding(statement, &block.stmts[position + 1..]);
             if !matches!(self.rule, "CriticalSectionWrite" | "LockChoice") {
                 continue;
             }
@@ -1360,7 +1705,7 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
             } else {
                 call
             };
-            if !matches!(call.method.to_string().as_str(), "lock" | "write")
+            if !self.is_guard_method(call)
                 || !self.receiver_has(
                     &call.receiver,
                     &[
@@ -1400,6 +1745,7 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
         {
             self.report(local.span());
         }
+        self.check_discarded_ok(local);
         if self.rule == "BroadcastLag"
             && self.loops > 0
             && let Some(init) = &local.init
@@ -1414,15 +1760,20 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
         self.thread_expect = expectation;
     }
 
+    fn visit_stmt(&mut self, statement: &'ast syn::Stmt) {
+        self.check_discarded_ok_statement(statement);
+        syn::visit::visit_stmt(self, statement);
+    }
+
+    fn visit_expr_assign(&mut self, expression: &'ast syn::ExprAssign) {
+        self.check_discarded_assignment(expression);
+        syn::visit::visit_expr_assign(self, expression);
+    }
+
     fn visit_expr_method_call(&mut self, expression: &'ast syn::ExprMethodCall) {
         let expectation = self.thread_expect;
         self.thread_expect |= expects_lint(&expression.attrs, "disallowed_methods");
-        if expression.method == "block_on"
-            && self.receiver_has(
-                &expression.receiver,
-                &["tokio::runtime::Runtime", "tokio::runtime::Handle"],
-            )
-        {
+        if expression.method == "block_on" && self.is_block_on_receiver(&expression.receiver) {
             let index = &self.context.indexes[self.ordinal];
             let in_test = index.modules[self.module].tree != crate::source::model::SourceTree::Src;
             let outside_boundary = !self.runtime_main
@@ -1454,8 +1805,7 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
         }
         if self.rule == "BlockingLockInSync"
             && self.synchronous_boundary
-            && expression.method == "blocking_lock"
-            && self.receiver_has(&expression.receiver, &["tokio::sync::Mutex"])
+            && self.is_blocking_lock_call(expression)
         {
             self.report(expression.span());
         }
@@ -1489,6 +1839,9 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
     }
 
     fn visit_expr_if(&mut self, expression: &'ast syn::ExprIf) {
+        if self.is_lag_stopping_if(expression) {
+            self.report(expression.span());
+        }
         let length = self.bindings.len();
         self.visit_expr(&expression.cond);
         self.visit_block(&expression.then_branch);
@@ -1533,8 +1886,13 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
         }
         self.visit_expr(&expression.func);
         let inherit = self.async_context && !self.runs_off_async_call(expression);
-        for argument in &expression.args {
+        let state = self.find_unfold_state_type(expression);
+        for (position, argument) in expression.args.iter().enumerate() {
+            if position == 1 && matches!(argument, syn::Expr::Closure(_)) {
+                self.closure_state.clone_from(&state);
+            }
             self.visit_closure_argument(argument, inherit);
         }
+        self.closure_state = None;
     }
 }

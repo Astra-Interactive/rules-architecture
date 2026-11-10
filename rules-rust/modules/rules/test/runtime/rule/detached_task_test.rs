@@ -265,3 +265,37 @@ fn given_runtime_handle_spawn_when_handle_is_dropped_then_reports_spawn() {
         &[6],
     );
 }
+
+#[test]
+fn given_aborted_only_handle_in_test_function_when_checked_then_reports_the_spawn() {
+    for statement in ["handle.abort();", "let _finished = handle.is_finished();"] {
+        assert_code_findings(
+            &DetachedTask,
+            "DetachedTask",
+            &format!(
+                "#[tokio::test]\nasync fn given_failing_job_when_started_then_failure_is_visible() {{\n    let handle = tokio::spawn(async {{ panic!(\"job failed\") }});\n    {statement}\n}}\n#[tokio::test]\nasync fn given_aborted_job_when_awaited_then_joins_it() {{\n    let handle = tokio::spawn(async {{}});\n    handle.abort();\n    let joined = handle.await;\n}}\nfn stop() {{\n    let handle = tokio::spawn(async {{}});\n    handle.abort();\n}}"
+            ),
+            &[3],
+        );
+    }
+}
+
+#[test]
+fn given_spawn_local_when_handle_is_dropped_then_reports_spawn() {
+    assert_code_findings(
+        &DetachedTask,
+        "DetachedTask",
+        "fn start() {\n    tokio::task::spawn_local(async {});\n}\nfn start_in_set(set: tokio::task::LocalSet) {\n    set.spawn_local(async {});\n}\nasync fn joined() {\n    let handle = tokio::task::spawn_local(async {});\n    let _ = handle.await;\n}",
+        &[2, 5],
+    );
+}
+
+#[test]
+fn given_spawn_through_runtime_handle_call_when_handle_is_dropped_then_reports_spawn() {
+    assert_code_findings(
+        &DetachedTask,
+        "DetachedTask",
+        "struct Runner;\nimpl Runner { fn spawn<F>(&self, _: F) {} }\nfn start() {\n    tokio::runtime::Handle::current().spawn(async {});\n    tokio::runtime::Handle::current().spawn_blocking(|| {});\n}\nfn start_owned(runtime: tokio::runtime::Runtime) {\n    runtime.handle().spawn(async {});\n}\nfn keep() -> tokio::task::JoinHandle<()> {\n    tokio::runtime::Handle::current().spawn(async {})\n}\nfn unknown(runner: Runner) {\n    runner.spawn(async {});\n}",
+        &[4, 5, 8],
+    );
+}

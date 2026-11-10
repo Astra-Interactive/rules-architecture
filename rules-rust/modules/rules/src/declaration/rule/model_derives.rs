@@ -3,6 +3,7 @@ use crate::check::model::RuleContext;
 use crate::check::model::RuleFinding;
 use crate::check::util::build_node_finding;
 use crate::check::util::format_module_path;
+use crate::declaration::rule::ErrorFamilyShape;
 use crate::declaration::util::derives;
 use crate::declaration::util::has_kind;
 use crate::declaration::util::is_technology;
@@ -198,6 +199,57 @@ impl ModelDerives {
         )
     }
 
+    fn is_error_derive(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        path: &syn::Path,
+    ) -> bool {
+        let name = match context.indexes[ordinal].resolve_path(module, path) {
+            crate::source::model::Resolution::External(external) => context
+                .resolve_external_identity(ordinal, &external)
+                .segments
+                .last()
+                .cloned(),
+            _ => path
+                .segments
+                .last()
+                .map(|segment| segment.ident.to_string()),
+        };
+        name.is_some_and(|name| name == "Error")
+    }
+
+    fn derives_error(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        attributes: &[syn::Attribute],
+    ) -> bool {
+        attributes
+            .iter()
+            .filter(|attribute| attribute.path().is_ident("derive"))
+            .any(|attribute| {
+                attribute
+                    .parse_args_with(
+                        syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated,
+                    )
+                    .is_ok_and(|paths| {
+                        paths
+                            .iter()
+                            .any(|path| Self::is_error_derive(context, ordinal, module, path))
+                    })
+            })
+    }
+
+    fn is_error_struct(context: &RuleContext, ordinal: usize, identity: usize) -> bool {
+        let item = &context.indexes[ordinal].items[identity];
+        let syn::Item::Struct(value) = &item.syntax else {
+            return false;
+        };
+        Self::derives_error(context, ordinal, item.module, &value.attrs)
+            || ErrorFamilyShape::implements_error(context, ordinal, identity)
+    }
+
     fn is_eq_hash_field(
         context: &RuleContext,
         ordinal: usize,
@@ -230,12 +282,13 @@ impl Rule for ModelDerives {
     fn check(&self, context: &RuleContext) -> Vec<RuleFinding> {
         let mut findings = Vec::new();
         for (ordinal, index) in context.indexes.iter().enumerate() {
-            for item in &index.items {
+            for (identity, item) in index.items.iter().enumerate() {
                 let syn::Item::Struct(value) = &item.syntax else {
                     continue;
                 };
                 if !has_kind(index, item.module, "model")
                     || is_technology(context, index, item.module)
+                    || Self::is_error_struct(context, ordinal, identity)
                 {
                     continue;
                 }

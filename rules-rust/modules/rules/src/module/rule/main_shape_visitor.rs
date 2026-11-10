@@ -22,9 +22,32 @@ pub(crate) struct MainShapeVisitor<'context> {
     returned_roots: Vec<crate::source::model::NodeSpan>,
     shutdown_waited: bool,
     early_exit: bool,
+    follows_helpers: bool,
 }
 
 impl MainShapeVisitor<'_> {
+    fn new(context: &RuleContext, ordinal: usize, module: usize) -> MainShapeVisitor<'_> {
+        MainShapeVisitor {
+            context,
+            ordinal,
+            module,
+            runtime: false,
+            blocks: 0,
+            in_block: false,
+            root: false,
+            enabled: false,
+            disabled_after: false,
+            roots: std::collections::BTreeSet::new(),
+            runtimes: std::collections::BTreeSet::new(),
+            signals: std::collections::BTreeSet::new(),
+            builder_calls: 0,
+            returned_roots: Vec::new(),
+            shutdown_waited: false,
+            early_exit: false,
+            follows_helpers: true,
+        }
+    }
+
     fn build_flow(&self) -> Flow {
         Flow {
             enabled: self.enabled,
@@ -132,30 +155,46 @@ impl MainShapeVisitor<'_> {
         }
     }
 
+    fn is_signal_helper(&self, expression: &syn::Expr) -> bool {
+        let syn::Expr::Call(call) = expression else {
+            return false;
+        };
+        let syn::Expr::Path(callee) = call.func.as_ref() else {
+            return false;
+        };
+        if !self.follows_helpers {
+            return false;
+        }
+        self.context
+            .resolve_workspace_path(self.ordinal, self.module, &callee.path)
+            .iter()
+            .any(|target| {
+                let Some(identity) = target.path.item else {
+                    return false;
+                };
+                let item = &self.context.indexes[target.index].items[identity];
+                let syn::Item::Fn(function) = &item.syntax else {
+                    return false;
+                };
+                if function.sig.asyncness.is_none() {
+                    return false;
+                }
+                let mut helper = Self::new(self.context, target.index, item.module);
+                helper.follows_helpers = false;
+                helper.in_block = true;
+                helper.enabled = true;
+                helper.visit_block(&function.block);
+                helper.shutdown_waited
+            })
+    }
+
     pub(crate) fn valid(
         context: &RuleContext,
         ordinal: usize,
         module: usize,
         block: &syn::Block,
     ) -> bool {
-        let mut visitor = MainShapeVisitor {
-            context,
-            ordinal,
-            module,
-            runtime: false,
-            blocks: 0,
-            in_block: false,
-            root: false,
-            enabled: false,
-            disabled_after: false,
-            roots: std::collections::BTreeSet::new(),
-            runtimes: std::collections::BTreeSet::new(),
-            signals: std::collections::BTreeSet::new(),
-            builder_calls: 0,
-            returned_roots: Vec::new(),
-            shutdown_waited: false,
-            early_exit: false,
-        };
+        let mut visitor = Self::new(context, ordinal, module);
         visitor.visit_block(block);
         visitor.runtime
             && visitor.blocks == 1
@@ -174,7 +213,13 @@ impl<'ast> Visit<'ast> for MainShapeVisitor<'_> {
     }
 
     fn visit_expr_await(&mut self, awaited: &'ast syn::ExprAwait) {
-        if self.in_block && self.enabled && self.is_signal_wait(&awaited.base) {
+        if !(self.in_block && self.enabled) {
+            syn::visit::visit_expr_await(self, awaited);
+            return;
+        }
+        let waits_for_signal =
+            self.is_signal_wait(&awaited.base) || self.is_signal_helper(&awaited.base);
+        if waits_for_signal {
             self.shutdown_waited = true;
         }
         syn::visit::visit_expr_await(self, awaited);

@@ -149,6 +149,23 @@ impl LogVisitor<'_> {
         })
     }
 
+    fn is_standard_call(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Paren(paren) => self.is_standard_call(&paren.expr),
+            syn::Expr::Group(group) => self.is_standard_call(&group.expr),
+            syn::Expr::Call(call) => {
+                let syn::Expr::Path(path) = &*call.func else {
+                    return false;
+                };
+                self.context
+                    .resolve_external_call_paths(self.ordinal, self.module, &path.path)
+                    .iter()
+                    .any(|path| matches!(path.package.as_str(), "std" | "core" | "alloc"))
+            }
+            _ => false,
+        }
+    }
+
     fn result_expression(&self, expression: &syn::Expr) -> bool {
         match expression {
             syn::Expr::Paren(paren) => self.result_expression(&paren.expr),
@@ -559,7 +576,8 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
     }
 
     fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
-        let result = self.result_expression(&call.receiver);
+        let result = self.result_expression(&call.receiver)
+            || call.method == "map_err" && self.is_standard_call(&call.receiver);
         if result
             && matches!(
                 call.method.to_string().as_str(),

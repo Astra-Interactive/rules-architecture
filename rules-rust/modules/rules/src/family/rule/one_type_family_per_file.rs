@@ -177,10 +177,12 @@ impl OneTypeFamilyPerFile {
     }
 
     fn is_error_family(item: &syn::Item) -> bool {
-        let syn::Item::Enum(family) = item else {
-            return false;
+        let (name, attributes) = match item {
+            syn::Item::Enum(family) => (&family.ident, &family.attrs),
+            syn::Item::Struct(value) => (&value.ident, &value.attrs),
+            _ => return false,
         };
-        family.ident.to_string().ends_with("Error") || derives(&family.attrs, "Error")
+        name.to_string().ends_with("Error") || derives(attributes, "Error")
     }
 
     fn check_file(
@@ -219,9 +221,9 @@ impl OneTypeFamilyPerFile {
             if is_factory {
                 continue;
             }
-            let user = types
-                .iter()
-                .position(|candidate| uses_type(candidate.item, &name));
+            let user = types.iter().enumerate().position(|(position, candidate)| {
+                position != index && uses_type(candidate.item, &name)
+            });
             let invalid = behaviour.contains(&name)
                 || matches!(item.item, syn::Item::Trait(_))
                 || Self::is_error_family(item.item)

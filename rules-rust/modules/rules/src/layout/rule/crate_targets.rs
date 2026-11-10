@@ -34,6 +34,9 @@ impl CrateTargets {
                 reasons.push("several binaries are separate entry-point crates");
             }
         }
+        if target.kinds.iter().any(|kind| kind == "test") && !path.starts_with("tests/") {
+            reasons.push("a test target stays in the tests/ directory that TestMirror checks");
+        }
         if path.starts_with("src/bin/") {
             reasons.push("src/bin/ is not used");
         }

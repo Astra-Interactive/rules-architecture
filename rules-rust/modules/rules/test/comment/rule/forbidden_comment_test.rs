@@ -57,6 +57,14 @@ fn given_one_sided_header_run_when_checked_then_reports_each_line() {
 }
 
 #[test]
+fn given_headers_framed_in_other_delimiters_when_checked_then_reports_each_header_not_prose() {
+    let lines = read_finding_lines(
+        "// ~~~ Helpers ~~~\n// ___ Helpers ___\n// +++ Helpers +++\n// offsets are in bytes (start + length)\nfn work() {}\n",
+    );
+    assert_eq!(vec![Some(1), Some(2), Some(3)], lines);
+}
+
+#[test]
 fn given_star_guttered_block_header_when_checked_then_reports_its_line() {
     let lines = read_finding_lines(
         "/*\n * === Helpers ===\n */\nfn trim_name(raw: &str) -> &str {\n    raw.trim()\n}\n// === Other ===\n",

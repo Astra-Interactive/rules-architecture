@@ -284,3 +284,22 @@ fn given_ext_trait_on_foreign_crate_model_when_checked_then_reports_mutable_meth
         .collect();
     assert_eq!(vec![Some(8)], lines);
 }
+
+#[test]
+fn given_pinned_mutable_self_receiver_on_model_when_checked_then_reports_only_that_method() {
+    assert_code_findings(
+        &ModelShouldBeImmutable,
+        "ModelShouldBeImmutable",
+        "mod model { pub struct Pending(u8); }\n\
+         mod util {\n\
+         impl crate::model::Pending {\n\
+         fn advance(self: std::pin::Pin<&mut Self>) {}\n\
+         fn peek(self: std::pin::Pin<&Self>) {}\n\
+         fn finish(self: Box<Self>) {}\n\
+         fn consume(mut self) -> Self { self }\n\
+         fn read(&self) {}\n\
+         }\n\
+         }",
+        &[4],
+    );
+}

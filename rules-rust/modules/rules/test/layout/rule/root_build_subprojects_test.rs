@@ -99,3 +99,30 @@ fn given_undeclared_root_dependency_when_two_members_repeat_the_requirement_then
     );
     assert_eq!(findings[0].finding.location.line, Some(4));
 }
+
+#[test]
+fn given_string_and_version_only_table_when_members_repeat_the_requirement_then_the_second_is_reported()
+ {
+    let mut context = read_case_context("RootBuildSubprojects", "pass-inherited-settings");
+    replace_root_manifest(&mut context, "[workspace]\n");
+    let first = context.workspace.members[0].name.clone();
+    let second = context.workspace.members[1].name.clone();
+    replace_member_manifest(
+        &mut context,
+        &first,
+        "[package]\nname = \"first\"\n[dependencies]\nfoo = \"1\"\nbar = \"1\"\nbaz = \"1\"\n",
+    );
+    replace_member_manifest(
+        &mut context,
+        &second,
+        "[package]\nname = \"second\"\n[dependencies]\nfoo = { version = \"1\" }\nbar = { version = \"1\", features = [\"a\"] }\nbaz = { version = \"2\" }\n",
+    );
+    let findings = RootBuildSubprojects.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].finding.rule_id.0, "RootBuildSubprojects");
+    assert_eq!(
+        findings[0].finding.subject,
+        format!("{second} dependencies.foo")
+    );
+    assert_eq!(findings[0].finding.location.line, Some(4));
+}

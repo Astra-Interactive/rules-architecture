@@ -237,6 +237,58 @@ fn given_result_consumption_underscore_named_send_result_when_linted_then_report
 }
 
 #[test]
+fn given_result_consumption_underscore_assignment_of_workspace_result_when_linted_then_reports_the_statement()
+ {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "fn call() -> Result<u8, ()> { Ok(1) }\nfn run() -> Result<(), ()> {\n    _ = call();\n    let saved = call()?;\n    Ok(())\n}",
+        &[3],
+    );
+}
+
+#[test]
+fn given_result_consumption_sender_through_nested_field_when_linted_then_reports_only_the_real_discard()
+ {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "struct Channels { events: tokio::sync::mpsc::Sender<u32> }\nstruct Holder { channels: Channels }\nimpl Holder {\n    fn on_paid(&self) {\n        #[expect(clippy::let_underscore_must_use, reason = \"a full buffer drops the event\")] let _ = self.channels.events.try_send(1);\n    }\n    fn load(&self) {\n        #[expect(clippy::let_underscore_must_use, reason = \"too broad\")] let _ = std::fs::read(\"file\");\n    }\n}",
+        &[8],
+    );
+}
+
+#[test]
+fn given_workspace_result_dropped_through_ok_when_checked_then_reports_statement_and_let() {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "fn save_order() -> Result<(), ()> { Ok(()) }\nfn persist() {\n    save_order().ok();\n    let _ = save_order().ok();\n    let saved = save_order().ok();\n    drop(saved);\n}",
+        &[3, 4],
+    );
+}
+
+#[test]
+fn given_underscore_named_binding_of_workspace_result_when_checked_then_reports_unread_binding() {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "fn call() -> Result<u8, ()> { Ok(1) }\nstruct Guard;\nimpl Guard { fn new() -> Self { Self } }\nfn run() -> Result<(), ()> {\n    let _ignored = call();\n    let _registration = Guard::new();\n    let _saved = call()?;\n    let _kept = call();\n    drop(_kept);\n    Ok(())\n}",
+        &[5],
+    );
+}
+
+#[test]
+fn given_underscore_binding_read_through_format_argument_when_checked_then_reports_only_unread() {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "fn load_config() -> Result<u8, ()> { Ok(1) }\nfn inline() {\n    let _error = load_config();\n    tracing::warn!(\"config result: {_error:?}\");\n}\nfn positional() {\n    let _error = load_config();\n    tracing::warn!(\"config result: {:?}\", _error);\n}\nfn never_read() {\n    let _ignored = load_config();\n    tracing::warn!(\"config loaded\");\n}",
+        &[11],
+    );
+}
+
+#[test]
 fn given_tdd_result_consumption_match_guard_and_arm_when_linted_then_reports_let() {
     assert_code_findings(
         &ResultConsumption,

@@ -58,6 +58,24 @@ fn given_test_block_without_cfg_test_when_checked_then_only_that_block_reports()
 }
 
 #[test]
+fn given_public_test_block_when_checked_then_only_that_block_reports() {
+    let mut context = read_case_context("RootFileShape", "pass-tree");
+    context.crates[0].files[0].syntax = syn::parse_file(
+        "pub(crate) mod invoice { mod record; }\n#[cfg(test)] #[path = \"../test\"] pub mod test { mod order { mod usecase { mod create_order_use_case_test; } } }",
+    )
+    .expect("valid syntax");
+    let findings = RootFileShape.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!("RootFileShape", findings[0].finding.rule_id.0);
+    assert_eq!(Some(2), findings[0].finding.location.line);
+    context.crates[0].files[0].syntax = syn::parse_file(
+        "pub(crate) mod invoice { mod record; }\n#[cfg(test)] #[path = \"../test\"] mod test { mod order { mod usecase { mod create_order_use_case_test; } } }",
+    )
+    .expect("valid syntax");
+    assert!(RootFileShape.check(&context).is_empty());
+}
+
+#[test]
 fn given_proc_macros_and_binary_roots_when_checked_then_required_exports_are_allowed() {
     let mut context = read_case_context("RootFileShape", "pass-tree");
     context.project_config.crates[0].role = Some(Role::ProcMacro);

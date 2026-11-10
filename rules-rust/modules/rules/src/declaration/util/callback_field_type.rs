@@ -78,6 +78,15 @@ fn generic_closure(
         })
 }
 
+fn is_single_value_wrapper(path: &crate::source::model::ExternalPath) -> bool {
+    let name = path.segments.last().map_or("", String::as_str);
+    let standard = ["std", "core", "alloc"].contains(&path.package.as_str());
+    let library = ["tokio", "parking_lot", "once_cell"].contains(&path.package.as_str());
+    let pointer = ["Option", "Box", "Arc", "Rc", "Pin"].contains(&name);
+    let cell = ["Mutex", "RwLock", "OnceLock", "Cell", "RefCell", "OnceCell"].contains(&name);
+    (standard && pointer) || ((standard || library) && cell)
+}
+
 fn syntax_callback(
     context: &RuleContext,
     ordinal: usize,
@@ -94,7 +103,7 @@ fn syntax_callback(
         syn::Type::TraitObject(object) => object.bounds.iter().any(|bound| matches!(bound, syn::TypeParamBound::Trait(bound) if listener_bound(context, ordinal, module, &bound.path, cfg))),
         syn::Type::Path(path) => {
             if path.path.get_ident().is_some_and(|name| generic_closure(context, ordinal, module, generics, name, cfg)) { return true; }
-            let pointer = context.resolve_outer_external_type_paths_under(ordinal, module, typed, cfg).iter().any(|path| ["std", "core", "alloc"].contains(&path.package.as_str()) && path.segments.last().is_some_and(|name| ["Option", "Box", "Arc", "Rc", "Pin"].contains(&name.as_str())));
+            let pointer = context.resolve_outer_external_type_paths_under(ordinal, module, typed, cfg).iter().any(is_single_value_wrapper);
             let Some(segment) = path.path.segments.last() else { return false; };
             let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments else { return false; };
             pointer && arguments.args.iter().any(|argument| matches!(argument, syn::GenericArgument::Type(typed) if callback_field_type(context, ordinal, module, typed, cfg, generics, depth + 1)))

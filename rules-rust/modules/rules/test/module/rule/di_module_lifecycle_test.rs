@@ -28,6 +28,16 @@ fn given_owned_children_and_received_module_when_lifecycle_checked_then_only_own
 }
 
 #[test]
+fn given_parent_owning_a_child_without_lifecycle_when_checked_then_only_the_unforwarded_lifecycle_child_reports()
+ {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::DiModuleLifecycle,
+        "mod di {\n trait Lifecycle { fn on_enable(&self); fn on_disable(&self); }\n struct ConfigModule;\n struct InvoiceModule;\n impl Lifecycle for InvoiceModule { fn on_enable(&self) {} fn on_disable(&self) {} }\n struct RootModule { config_module: ConfigModule, invoice_module: InvoiceModule }\n impl Lifecycle for RootModule { fn on_enable(&self) { self.invoice_module.on_enable(); } fn on_disable(&self) { self.invoice_module.on_disable(); } }\n struct StaleModule { invoice_module: InvoiceModule }\n impl Lifecycle for StaleModule { fn on_enable(&self) {} fn on_disable(&self) { self.invoice_module.on_disable(); } }\n}",
+        &[8],
+    );
+}
+
+#[test]
 fn given_scopes_and_shutdown_waits_when_checked_then_abort_is_required_and_shutdown_is_synchronous()
 {
     crate::test::module::util::assert_di_lines(

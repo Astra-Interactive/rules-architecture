@@ -1,5 +1,5 @@
 const SEPARATOR_CHARACTERS: [char; 9] = ['-', '=', '*', '#', '~', '_', '+', '/', '|'];
-const HEADER_CHARACTERS: [char; 4] = ['=', '-', '*', '#'];
+const HEADER_CHARACTERS: [char; 8] = ['=', '-', '*', '#', '~', '_', '+', '/'];
 const ONE_SIDED_HEADER_CHARACTERS: [char; 3] = ['=', '-', '*'];
 const BREAK_CHARACTERS: [char; 4] = ['-', '*', '_', '~'];
 

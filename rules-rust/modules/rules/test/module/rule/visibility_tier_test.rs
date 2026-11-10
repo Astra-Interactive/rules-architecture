@@ -139,3 +139,93 @@ fn given_persistent_placement_cases_when_checked_then_match_exact_node_anchors()
     assert_code_fixture(&VisibilityTier, "VisibilityTier", "bad");
     assert_code_fixture(&VisibilityTier, "VisibilityTier", "good");
 }
+
+#[test]
+fn given_public_members_named_by_no_other_crate_when_checked_then_reports_each_member() {
+    let billing = "pub struct Invoice {\n    pub total: u64,\n    pub paid: bool,\n}\nimpl Invoice {\n    pub fn describe(&self) -> u64 { self.total }\n    pub fn label(&self) -> bool { self.paid }\n}";
+    let ledger = "fn show(invoice: &shop_billing_api::Invoice) -> bool {\n    invoice.paid && invoice.label()\n}";
+    let context = crate::test::module::util::read_workspace_shape_context(&[
+        ("shop_billing_api", "", billing),
+        (
+            "shop_ledger",
+            "shop_billing_api={path=\"../shop_billing_api\"}",
+            ledger,
+        ),
+    ]);
+    assert_placement_findings(
+        &VisibilityTier,
+        "VisibilityTier",
+        &context,
+        &[
+            ("shop_billing_api/src/lib.rs", 2, "Node"),
+            ("shop_billing_api/src/lib.rs", 6, "Node"),
+        ],
+    );
+}
+
+#[test]
+fn given_super_and_self_visibility_when_checked_then_reports_item_field_and_method() {
+    let context = read_private_placement_context(&[
+        ("src/lib.rs", "mod table;"),
+        (
+            "src/table.rs",
+            "pub(super) struct Row {\n    pub(super) id: u32,\n}\nimpl Row { pub(self) fn open(&self) {} }",
+        ),
+    ]);
+    assert_placement_findings(
+        &VisibilityTier,
+        "VisibilityTier",
+        &context,
+        &[
+            ("src/table.rs", 1, "Node"),
+            ("src/table.rs", 2, "Node"),
+            ("src/table.rs", 4, "Node"),
+        ],
+    );
+}
+
+#[test]
+fn given_self_and_path_visibility_beside_crate_visibility_when_checked_then_reports_only_those() {
+    let root = "mod table;\nmod keep;\nfn run() -> u32 { keep::Keep::new().read() + keep::Keep::new().step }";
+    let keep = "pub(crate) struct Keep {\n    pub(crate) step: u32,\n}\nimpl Keep {\n    pub(crate) fn new() -> Self { Self { step: 1 } }\n    pub(crate) fn read(&self) -> u32 { self.step }\n}";
+    let table = "pub(self) struct Hidden;\nstruct Zone {\n    pub(in crate::table) code: u32,\n}\nimpl Zone {\n    pub(in crate::table) fn close(&self) {}\n}";
+    let context = read_private_placement_context(&[
+        ("src/lib.rs", root),
+        ("src/keep.rs", keep),
+        ("src/table.rs", table),
+    ]);
+    assert_placement_findings(
+        &VisibilityTier,
+        "VisibilityTier",
+        &context,
+        &[
+            ("src/table.rs", 1, "Node"),
+            ("src/table.rs", 3, "Node"),
+            ("src/table.rs", 6, "Node"),
+        ],
+    );
+}
+
+#[test]
+fn given_published_billing_crate_when_public_members_are_unused_then_reports_no_member() {
+    let billing = "pub struct Invoice {\n    pub total: u64,\n    pub paid: bool,\n}\nimpl Invoice {\n    pub fn describe(&self) -> u64 { self.total }\n    pub fn label(&self) -> bool { self.paid }\n}";
+    let ledger = "fn show(invoice: &shop_billing_api::Invoice) -> bool {\n    invoice.paid && invoice.label()\n}";
+    let mut context = crate::test::module::util::read_workspace_shape_context(&[
+        ("shop_billing_api", "", billing),
+        (
+            "shop_ledger",
+            "shop_billing_api={path=\"../shop_billing_api\"}",
+            ledger,
+        ),
+    ]);
+    for member in &mut context.workspace.members {
+        if member.name == "shop_billing_api" {
+            member.manifest = crate::workspace::util::parse_toml_file(
+                "Cargo.toml",
+                "[package]\nname=\"shop_billing_api\"\nversion=\"0.1.0\"\n",
+            )
+            .expect("published manifest");
+        }
+    }
+    assert_placement_findings(&VisibilityTier, "VisibilityTier", &context, &[]);
+}

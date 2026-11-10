@@ -52,6 +52,23 @@ impl RootBuildSubprojects {
         }
     }
 
+    fn find_version_only(value: &TomlValue) -> Option<&str> {
+        if value.is_table() && value.entries().len() == 1 {
+            return value.find(&["version"]).and_then(TomlValue::as_str);
+        }
+        value.as_str()
+    }
+
+    fn is_same_requirement(left: &TomlValue, right: &TomlValue) -> bool {
+        match (
+            Self::find_version_only(left),
+            Self::find_version_only(right),
+        ) {
+            (Some(left_version), Some(right_version)) => left_version == right_version,
+            _ => Self::is_same_literal(left, right),
+        }
+    }
+
     fn list_dependency_tables(manifest: &TomlValue) -> Vec<&TomlValue> {
         let mut scopes = vec![manifest];
         if let Some(targets) = manifest.find(&["target"]) {
@@ -78,7 +95,7 @@ impl RootBuildSubprojects {
                 .filter_map(|table| table.find_entry(&dependency.key))
                 .any(|other| {
                     !Self::inherits(&other.value)
-                        && Self::is_same_literal(&dependency.value, &other.value)
+                        && Self::is_same_requirement(&dependency.value, &other.value)
                 })
         })
     }

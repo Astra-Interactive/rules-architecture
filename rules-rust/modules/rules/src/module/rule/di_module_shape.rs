@@ -369,10 +369,34 @@ impl DiModuleShape {
             _ => None,
         }
     }
+    fn has_contract_bound<'syntax>(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        bounds: impl IntoIterator<Item = &'syntax syn::TypeParamBound>,
+    ) -> bool {
+        bounds.into_iter().any(|bound| {
+            let syn::TypeParamBound::Trait(bound) = bound else {
+                return false;
+            };
+            context
+                .resolve_workspace_path(ordinal, module, &bound.path)
+                .iter()
+                .any(|target| {
+                    target.path.item.is_some_and(|identity| {
+                        matches!(
+                            context.indexes[target.index].items[identity].syntax,
+                            syn::Item::Trait(_)
+                        )
+                    })
+                })
+        })
+    }
+
     fn generic_contract(
         context: &RuleContext,
         ordinal: usize,
-        item: &crate::source::model::IndexedItem,
+        module: usize,
         generics: &syn::Generics,
     ) -> bool {
         let mut bounds: Vec<_> = generics
@@ -386,22 +410,63 @@ impl DiModuleShape {
                 }
             }
         }
-        bounds.into_iter().any(|bound| {
-            let syn::TypeParamBound::Trait(bound) = bound else {
-                return false;
-            };
-            context
-                .resolve_workspace_path(ordinal, item.module, &bound.path)
-                .iter()
-                .any(|target| {
-                    target.path.item.is_some_and(|identity| {
-                        matches!(
-                            context.indexes[target.index].items[identity].syntax,
-                            syn::Item::Trait(_)
-                        )
-                    })
-                })
-        })
+        Self::has_contract_bound(context, ordinal, module, bounds)
+    }
+
+    fn is_contract_impl_trait_parameter(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        parameter: &syn::FnArg,
+    ) -> bool {
+        let syn::FnArg::Typed(parameter) = parameter else {
+            return false;
+        };
+        let mut parameter_type = parameter.ty.as_ref();
+        while let syn::Type::Reference(reference) = parameter_type {
+            parameter_type = reference.elem.as_ref();
+        }
+        let syn::Type::ImplTrait(opaque) = parameter_type else {
+            return false;
+        };
+        Self::has_contract_bound(context, ordinal, module, &opaque.bounds)
+    }
+
+    fn is_contract_bound_function(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        method: &syn::ImplItemFn,
+    ) -> bool {
+        Self::generic_contract(context, ordinal, module, &method.sig.generics)
+            || method.sig.inputs.iter().any(|parameter| {
+                Self::is_contract_impl_trait_parameter(context, ordinal, module, parameter)
+            })
+    }
+
+    fn has_contract_bound_in_impl(context: &RuleContext, ordinal: usize, identity: usize) -> bool {
+        let index = &context.indexes[ordinal];
+        index
+            .implementations
+            .iter()
+            .filter(|implementation| {
+                crate::module::util::owns_implementation(index, identity, implementation)
+            })
+            .any(|implementation| {
+                let module = implementation.module;
+                Self::generic_contract(context, ordinal, module, &implementation.syntax.generics)
+                    || (implementation.syntax.trait_.is_none()
+                        && implementation
+                            .syntax
+                            .items
+                            .iter()
+                            .any(|member| match member {
+                                syn::ImplItem::Fn(method) => Self::is_contract_bound_function(
+                                    context, ordinal, module, method,
+                                ),
+                                _ => false,
+                            }))
+            })
     }
 }
 
@@ -446,12 +511,15 @@ impl Rule for DiModuleShape {
                 let shape =
                     di && !matches!(item.syntax, syn::Item::Struct(_) | syn::Item::Trait(_));
                 let kind = find_kind_name(context, ordinal, item.module);
-                let relevant =
-                    di || kind == "usecase" || context.is_entry_kind(&index.crate_name, kind);
-                let bound = relevant
+                let entry = context.is_entry_kind(&index.crate_name, kind);
+                let relevant = di || kind == "usecase" || entry;
+                let struct_bound = relevant
                     && Self::item_generics(item).is_some_and(|generics| {
-                        Self::generic_contract(context, ordinal, item, generics)
+                        Self::generic_contract(context, ordinal, item.module, generics)
                     });
+                let impl_bound =
+                    (di || entry) && Self::has_contract_bound_in_impl(context, ordinal, identity);
+                let bound = struct_bound || impl_bound;
                 let constructs_outside_new =
                     di && Self::constructs_outside_new(context, ordinal, identity);
                 let service = di

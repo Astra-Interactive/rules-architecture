@@ -363,8 +363,22 @@ impl LintConfig {
             findings.push(Self::build_finding(
                 &file.path,
                 Some(present.line),
-                subject,
+                subject.clone(),
                 "this required path must set allow-invalid = true".to_owned(),
+            ));
+        }
+        let lacks_reason = list == "disallowed-types"
+            && Self::REASON_PATHS.contains(&path)
+            && present
+                .find(&["reason"])
+                .and_then(TomlValue::as_str)
+                .is_none_or(|reason| reason.trim().is_empty());
+        if lacks_reason {
+            findings.push(Self::build_finding(
+                &file.path,
+                Some(present.line),
+                subject,
+                "this required path must carry a non-blank reason".to_owned(),
             ));
         }
     }
@@ -554,6 +568,29 @@ impl LintConfig {
         values
     }
 
+    fn check_rustc_bootstrap(config: &TomlFile, findings: &mut Vec<RuleFinding>) {
+        let Some(entry) = config
+            .root
+            .find(&["env"])
+            .and_then(|environment| environment.find_entry("RUSTC_BOOTSTRAP"))
+        else {
+            return;
+        };
+        let value = entry
+            .value
+            .as_str()
+            .or_else(|| entry.value.find(&["value"]).and_then(TomlValue::as_str));
+        if value != Some("-1") {
+            findings.push(Self::build_finding(
+                &config.path,
+                Some(entry.line),
+                format!("{} env RUSTC_BOOTSTRAP", config.path),
+                "RUSTC_BOOTSTRAP lets the stable compiler use nightly features; set only -1"
+                    .to_owned(),
+            ));
+        }
+    }
+
     fn check_cargo_config(workspace: &Workspace, findings: &mut Vec<RuleFinding>) {
         let Some(config) = &workspace.cargo_config else {
             return;
@@ -578,6 +615,7 @@ impl LintConfig {
                 ));
             }
         }
+        Self::check_rustc_bootstrap(config, findings);
         if let Some(unstable) = config.root.find_entry("unstable") {
             let message = "an [unstable] table needs a nightly toolchain".to_owned();
             findings.push(Self::build_finding(
@@ -606,6 +644,11 @@ impl LintConfig {
     }
 
     const RULE: &str = "LintConfig";
+    const REASON_PATHS: [&str; 3] = [
+        "std::sync::Mutex",
+        "std::sync::RwLock",
+        "std::sync::PoisonError",
+    ];
     const FLOOR_MINOR: u32 = 93;
     const LINT_GROUPS: [&str; 15] = [
         "all",

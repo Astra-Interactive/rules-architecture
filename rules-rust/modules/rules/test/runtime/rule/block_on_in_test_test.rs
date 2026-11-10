@@ -62,6 +62,16 @@ fn given_handle_result_and_same_named_project_methods_when_checked_then_reports_
 }
 
 #[test]
+fn given_dependency_block_on_function_in_test_when_checked_then_reports_whatever_the_crate() {
+    assert_code_findings(
+        &BlockOnInTest,
+        "BlockOnInTest",
+        "#[cfg(test)]\nmod test {\n    fn run() {\n        vendor::block_on(work());\n        vendor::future::block_on(work());\n        let mut task = vendor::task::spawn(work());\n    }\n}",
+        &[4, 5],
+    );
+}
+
+#[test]
 fn given_prescribed_code_when_checked_then_passes() {
     assert_code_findings(
         &BlockOnInTest,

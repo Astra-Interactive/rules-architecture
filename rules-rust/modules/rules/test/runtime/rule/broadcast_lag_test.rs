@@ -117,11 +117,31 @@ fn given_broadcast_lag_let_chain_condition_when_linted_then_reports_the_while() 
 }
 
 #[test]
+fn given_broadcast_lag_unfold_closure_receiver_when_linted_then_reports_the_stopping_arm() {
+    assert_code_findings(
+        &BroadcastLag,
+        "BroadcastLag",
+        "use tokio::sync::broadcast::error::RecvError;\nstruct Timer { events: tokio::sync::broadcast::Sender<u32> }\nimpl Timer {\n    fn events(&self) -> impl futures::Stream<Item = u32> {\n        futures::stream::unfold(self.events.subscribe(), |mut receiver| async move {\n            loop {\n                match receiver.recv().await {\n                    Ok(event) => return Some((event, receiver)),\n                    Err(_) => return None,\n                }\n            }\n        })\n    }\n    fn resilient(&self) -> impl futures::Stream<Item = u32> {\n        futures::stream::unfold(self.events.subscribe(), |mut receiver| async move {\n            loop {\n                match receiver.recv().await {\n                    Ok(event) => return Some((event, receiver)),\n                    Err(RecvError::Lagged(_)) => continue,\n                    Err(RecvError::Closed) => return None,\n                }\n            }\n        })\n    }\n}",
+        &[9],
+    );
+}
+
+#[test]
 fn given_broadcast_lag_receiver_from_subscribe_when_linted_then_reports_the_while() {
     assert_code_findings(
         &BroadcastLag,
         "BroadcastLag",
         "struct Timer { events: tokio::sync::broadcast::Sender<u32> }\nimpl Timer {\n    async fn forward(&self) {\n        let mut receiver = self.events.subscribe();\n        while let Ok(event) = receiver.recv().await {\n            let _ = event;\n        }\n    }\n}",
         &[5],
+    );
+}
+
+#[test]
+fn given_if_let_ok_recv_with_stopping_else_in_loop_when_linted_then_reports_the_if() {
+    assert_code_findings(
+        &BroadcastLag,
+        "BroadcastLag",
+        "async fn consume(mut receiver: tokio::sync::broadcast::Receiver<u32>) {\n    loop {\n        if let Ok(event) = receiver.recv().await { drop(event); } else { break; }\n    }\n}\nasync fn tolerate(mut receiver: tokio::sync::broadcast::Receiver<u32>) {\n    loop {\n        if let Ok(event) = receiver.recv().await { drop(event); }\n    }\n}",
+        &[3],
     );
 }

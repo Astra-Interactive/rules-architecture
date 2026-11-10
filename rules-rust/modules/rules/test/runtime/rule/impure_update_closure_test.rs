@@ -105,3 +105,64 @@ fn given_impure_update_closure_effect_in_nested_closure_when_linted_then_reports
         &[5],
     );
 }
+
+#[test]
+fn given_fetch_update_closure_writing_a_capture_in_place_when_checked_then_reports_the_closure() {
+    for statement in [
+        "carried.take();",
+        "carried.replace(1);",
+        "carried.insert(1);",
+        "carried.get_or_insert(1);",
+        "carried.get_or_insert_with(|| 1);",
+        "std::mem::take(&mut carried);",
+        "std::mem::replace(&mut carried, None);",
+    ] {
+        assert_code_findings(
+            &ImpureUpdateClosure,
+            "ImpureUpdateClosure",
+            &format!(
+                "fn claim(counter: &std::sync::atomic::AtomicUsize, mut carried: Option<usize>) {{\n    let _updated = counter.fetch_update(std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst, |current| {{\n        {statement}\n        Some(current + 1)\n    }});\n}}"
+            ),
+            &[2],
+        );
+    }
+    assert_code_findings(
+        &ImpureUpdateClosure,
+        "ImpureUpdateClosure",
+        "fn claim(counter: &std::sync::atomic::AtomicUsize, mut buffer: Vec<usize>) {\n    let _updated = counter.fetch_update(std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst, |current| {\n        std::mem::take(&mut buffer);\n        Some(current + 1)\n    });\n}",
+        &[2],
+    );
+    assert_code_findings(
+        &ImpureUpdateClosure,
+        "ImpureUpdateClosure",
+        "fn claim(counter: &std::sync::atomic::AtomicUsize, carried: Option<usize>) {\n    let _updated = counter.fetch_update(std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst, |current| {\n        let _present = carried.is_some();\n        Some(current + 1)\n    });\n}",
+        &[],
+    );
+    assert_code_findings(
+        &ImpureUpdateClosure,
+        "ImpureUpdateClosure",
+        "fn claim(state: tokio::sync::watch::Sender<usize>, mut carried: Option<usize>) {\n    state.send_modify(|current| {\n        carried.take();\n        *current += 1;\n    });\n}",
+        &[],
+    );
+}
+
+#[test]
+fn given_fetch_update_closure_borrowing_a_destructured_local_when_checked_then_reports_only_capture()
+ {
+    for body in [
+        "let Some(mut next) = step(current) else { return None; }; advance(&mut next); Some(next)",
+        "if let Some(mut next) = step(current) { advance(&mut next); Some(next) } else { None }",
+        "match step(current) { Some(mut next) => { advance(&mut next); Some(next) } None => None }",
+        "let mut sum = 0; for (mut left, _) in [(current, 1)] { advance(&mut left); sum += left; } Some(sum)",
+        "let Step { mut value } = Step { value: current }; advance(&mut value); Some(value)",
+    ] {
+        assert_code_findings(
+            &ImpureUpdateClosure,
+            "ImpureUpdateClosure",
+            &format!(
+                "struct Step {{ value: usize }}\nfn advance(_: &mut usize) {{}}\nfn pure(counter: &std::sync::atomic::AtomicUsize, step: fn(usize) -> Option<usize>) {{\n    let _updated = counter.fetch_update(std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst, |current| {{\n        {body}\n    }});\n}}\nfn real(counter: &std::sync::atomic::AtomicUsize, mut captured: usize) {{\n    let _updated = counter.fetch_update(std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst, |current| {{\n        advance(&mut captured);\n        Some(current + 1)\n    }});\n}}"
+            ),
+            &[9],
+        );
+    }
+}

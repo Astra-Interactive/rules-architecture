@@ -418,8 +418,10 @@ impl<'ast> Visit<'ast> for PanicDocVisitor<'_> {
     }
 
     fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
-        self.found |= (call.method == "unwrap" || call.method == "expect")
-            && self.standard_receiver(&call.receiver);
+        let is_panicking_method = ["unwrap", "expect", "unwrap_err", "expect_err"]
+            .iter()
+            .any(|name| call.method == *name);
+        self.found |= is_panicking_method && self.standard_receiver(&call.receiver);
         self.visit_expr(&call.receiver);
         for argument in &call.args {
             self.visit_argument(argument);

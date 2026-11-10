@@ -114,6 +114,32 @@ fn given_signal_family_wait_when_checked_then_shutdown_is_waited_and_unrelated_r
 }
 
 #[test]
+fn given_shutdown_wait_inside_workspace_helper_when_checked_then_only_the_signal_wait_passes() {
+    for (helper, expected) in [
+        (
+            "if let Err(error) = tokio::signal::ctrl_c().await { drop(error); }",
+            0,
+        ),
+        (
+            "let (sender, mut receiver) = tokio::sync::mpsc::channel::<u8>(1); receiver.recv().await;",
+            1,
+        ),
+    ] {
+        let source = format!(
+            "mod di {{ pub struct RootModule; impl RootModule {{ pub fn new() -> Self {{ Self }} }} }} mod util {{ pub async fn wait_for_shutdown() {{ {helper} }} }} fn main() {{ let runtime = tokio::runtime::Builder::new_multi_thread().build(); let root = runtime.block_on(async {{ let root = di::RootModule::new(); root.on_enable(); util::wait_for_shutdown().await; root }}); root.on_disable(); }}"
+        );
+        let mut context = crate::test::declaration::util::read_code_context(&source);
+        context.project_config.crates[0].role = Some(crate::config::model::Role::EntryPoint);
+        let findings = crate::check::api::Rule::check(&crate::module::rule::MainShape, &context);
+        assert_eq!(findings.len(), expected, "{helper}: {findings:?}");
+        for finding in &findings {
+            assert_eq!("MainShape", finding.finding.rule_id.0);
+            assert_eq!(Some(1), finding.finding.location.line);
+        }
+    }
+}
+
+#[test]
 fn given_shutdown_wait_in_one_match_arm_when_checked_then_main_is_rejected() {
     for (wait, expected) in [
         (

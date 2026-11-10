@@ -119,3 +119,51 @@ fn given_other_script_spellings_at_the_root_when_checked_then_each_is_reported()
         .collect();
     assert_eq!(subjects, ["release.bash", "build.ps1", "GNUmakefile"]);
 }
+
+#[test]
+fn given_extensionless_shell_scripts_when_checked_then_only_root_and_cargo_scripts_are_reported() {
+    let root = tempfile::tempdir().expect("workspace directory");
+    write_file(
+        root.path(),
+        "Cargo.toml",
+        "[workspace]\nresolver = \"3\"\nmembers = [\"modules/sample\"]\n",
+    );
+    write_file(
+        root.path(),
+        "modules/sample/Cargo.toml",
+        "[package]\nname = \"case-sample\"\nedition = \"2024\"\n",
+    );
+    write_file(root.path(), "modules/sample/src/lib.rs", "");
+    write_file(
+        root.path(),
+        "release",
+        "#!/usr/bin/env bash\ncargo publish -p shop-billing-api\n",
+    );
+    write_file(
+        root.path(),
+        "scripts/publish",
+        "#!/bin/sh\ncargo publish --workspace\n",
+    );
+    write_file(
+        root.path(),
+        "scripts/serve",
+        "#!/bin/sh\nexec ./server --port 8080\n",
+    );
+    write_file(
+        root.path(),
+        "tool",
+        "#!/usr/bin/env python3\nprint('release')\n",
+    );
+    write_file(root.path(), "LICENSE", "Apache License\n");
+    let mut context = read_case_context("RootFileShape", "pass-tree");
+    context.workspace = CargoWorkspaceReader::new(resolve_cargo_path())
+        .read_workspace(root.path())
+        .expect("Cargo-valid workspace");
+    let mut subjects: Vec<String> = ShellAutomation
+        .check(&context)
+        .into_iter()
+        .map(|finding| finding.finding.subject)
+        .collect();
+    subjects.sort();
+    assert_eq!(subjects, ["release", "scripts/publish"]);
+}

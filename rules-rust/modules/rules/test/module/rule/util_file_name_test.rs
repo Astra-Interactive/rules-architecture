@@ -98,6 +98,39 @@ fn given_external_extension_trait_when_checked_then_requires_one_matching_same_f
     assert!(!UtilFileName.check(&context).is_empty());
 }
 #[test]
+fn given_primitive_and_slice_extension_traits_when_checked_then_reports_only_the_missing_impl() {
+    let context = read_shape_context(
+        "mod util { mod str_ext; mod u64_ext; mod slice_ext; mod string_ext; }",
+        &[
+            (
+                "util/str_ext.rs",
+                "trait StrExt { fn is_blank_line(&self) -> bool; } impl StrExt for str { fn is_blank_line(&self) -> bool { self.trim().is_empty() } }",
+            ),
+            (
+                "util/u64_ext.rs",
+                "trait U64Ext { fn is_even(&self) -> bool; } impl U64Ext for u64 { fn is_even(&self) -> bool { *self % 2 == 0 } }",
+            ),
+            (
+                "util/slice_ext.rs",
+                "trait SliceExt { fn is_ascii_run(&self) -> bool; } impl SliceExt for [u8] { fn is_ascii_run(&self) -> bool { self.is_ascii() } }",
+            ),
+            ("util/string_ext.rs", "trait StringExt {}"),
+        ],
+    );
+    let findings = UtilFileName.check(&context);
+    assert_eq!(1, findings.len(), "{findings:?}");
+    assert!(
+        findings[0]
+            .finding
+            .location
+            .path
+            .ends_with("util/string_ext.rs"),
+        "{findings:?}"
+    );
+    assert_eq!(Some(1), findings[0].finding.location.line);
+}
+
+#[test]
 fn given_cfg_complementary_extension_implementations_when_checked_then_each_configuration_has_one()
 {
     let context = read_shape_context(

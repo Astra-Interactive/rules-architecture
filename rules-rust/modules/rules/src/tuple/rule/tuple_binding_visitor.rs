@@ -215,7 +215,7 @@ impl<'context> TupleBindingVisitor<'context> {
                         Resolution::Local
                     ) =>
             {
-                ["chars", "lines", "bytes"].contains(&method)
+                ["chars", "lines", "bytes", "char_indices"].contains(&method)
             }
             syn::Type::Path(path) => self
                 .context
@@ -235,7 +235,7 @@ impl<'context> TupleBindingVisitor<'context> {
                                     && !self.collection_override("Vec", method)
                             }
                             ["string", "String"] => {
-                                ["chars", "lines", "bytes"].contains(&method)
+                                ["chars", "lines", "bytes", "char_indices"].contains(&method)
                                     && !self.collection_override("String", method)
                             }
                             _ => false,
@@ -250,7 +250,7 @@ impl<'context> TupleBindingVisitor<'context> {
             syn::Expr::Paren(paren) => self.standard_iterator_seed(&paren.expr, method),
             syn::Expr::Reference(reference) => self.standard_iterator_seed(&reference.expr, method),
             syn::Expr::Lit(literal) if matches!(literal.lit, syn::Lit::Str(_)) => {
-                ["chars", "lines", "bytes"].contains(&method)
+                ["chars", "lines", "bytes", "char_indices"].contains(&method)
             }
             syn::Expr::Path(path) => path
                 .path
@@ -274,6 +274,56 @@ impl<'context> TupleBindingVisitor<'context> {
         }
     }
 
+    fn is_map_type(&self, ordinal: usize, module: usize, typed: &syn::Type) -> bool {
+        match typed {
+            syn::Type::Reference(reference) => self.is_map_type(ordinal, module, &reference.elem),
+            syn::Type::Path(path) => {
+                self.context
+                    .canonical_external_type_path(ordinal, module, &path.path)
+                    .is_some_and(|identity| {
+                        ["std", "alloc"].contains(&identity.package.as_str())
+                            && identity
+                                .segments
+                                .get(1)
+                                .is_some_and(|name| name == "collections")
+                            && identity.segments.last().is_some_and(|name| {
+                                ["HashMap", "BTreeMap"].contains(&name.as_str())
+                            })
+                    })
+            }
+            _ => false,
+        }
+    }
+
+    fn is_map_receiver(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Paren(paren) => self.is_map_receiver(&paren.expr),
+            syn::Expr::Reference(reference) => self.is_map_receiver(&reference.expr),
+            syn::Expr::Path(path) => path
+                .path
+                .get_ident()
+                .and_then(|name| self.types.get(&name.to_string()))
+                .and_then(Option::as_ref)
+                .is_some_and(|typed| {
+                    self.context
+                        .resolve_type_syntax(self.ordinal, self.module, typed)
+                        .iter()
+                        .any(|resolved| {
+                            self.is_map_type(resolved.index, resolved.module, &resolved.typed)
+                        })
+                }),
+            _ => false,
+        }
+    }
+
+    fn is_map_iteration(&self, call: &syn::ExprMethodCall) -> bool {
+        call.args.is_empty()
+            && ["iter", "iter_mut", "into_iter"]
+                .iter()
+                .any(|name| call.method == *name)
+            && self.is_map_receiver(&call.receiver)
+    }
+
     fn standard_iterator(&self, expression: &syn::Expr) -> bool {
         match expression {
             syn::Expr::Paren(paren) => self.standard_iterator(&paren.expr),
@@ -283,6 +333,7 @@ impl<'context> TupleBindingVisitor<'context> {
                 .is_some_and(|name| self.iterators.contains_key(&name.to_string())),
             syn::Expr::MethodCall(call) if call.args.is_empty() => {
                 self.standard_iterator_seed(&call.receiver, &call.method.to_string())
+                    || self.is_map_iteration(call)
                     || (["enumerate", "rev", "copied", "cloned"]
                         .iter()
                         .any(|name| call.method == *name)
@@ -326,12 +377,31 @@ impl<'context> TupleBindingVisitor<'context> {
         unwraps && self.optional_tuple(&call.receiver)
     }
 
+    fn tuple_block(&self, block: &syn::Block) -> bool {
+        matches!(
+            block.stmts.last(),
+            Some(syn::Stmt::Expr(expression, None)) if self.tuple_expression(expression)
+        )
+    }
+
     fn tuple_expression(&self, expression: &syn::Expr) -> bool {
         match expression {
             syn::Expr::Tuple(tuple) => tuple.elems.len() >= 2,
             syn::Expr::Paren(paren) => self.tuple_expression(&paren.expr),
             syn::Expr::Group(group) => self.tuple_expression(&group.expr),
             syn::Expr::Try(attempt) => self.optional_tuple(&attempt.expr),
+            syn::Expr::Block(block) => self.tuple_block(&block.block),
+            syn::Expr::If(branch) => {
+                self.tuple_block(&branch.then_branch)
+                    || branch
+                        .else_branch
+                        .as_ref()
+                        .is_some_and(|(_, other)| self.tuple_expression(other))
+            }
+            syn::Expr::Match(matched) => matched
+                .arms
+                .iter()
+                .any(|arm| self.tuple_expression(&arm.body)),
             syn::Expr::Call(call) => self.call_tuple(call),
             syn::Expr::Path(path) => path
                 .path
@@ -367,6 +437,12 @@ impl<'context> TupleBindingVisitor<'context> {
             syn::Expr::MethodCall(call) if call.method == "rev" && call.args.is_empty() => {
                 self.tuple_iterator(&call.receiver)
             }
+            syn::Expr::MethodCall(call)
+                if call.method == "char_indices" && call.args.is_empty() =>
+            {
+                self.standard_iterator_seed(&call.receiver, "char_indices")
+            }
+            syn::Expr::MethodCall(call) if self.is_map_iteration(call) => true,
             syn::Expr::MethodCall(call) if call.method == "zip" && call.args.len() == 1 => {
                 self.standard_iterator(&call.receiver)
             }

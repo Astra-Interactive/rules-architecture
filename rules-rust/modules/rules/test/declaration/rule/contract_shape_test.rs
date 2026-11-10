@@ -148,6 +148,16 @@ fn given_api_streams_callbacks_handles_and_external_errors_when_checked_then_dom
 }
 
 #[test]
+fn given_contract_method_returning_one_argument_external_result_when_checked_then_the_trait_reports()
+ {
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ContractShape,
+        "mod model { pub struct Invoice; pub struct InvoiceId; pub struct InvoiceError; }\nmod api {\ntrait InvoiceRepository: Send + Sync { fn load(&self, id: crate::model::InvoiceId) -> std::io::Result<crate::model::Invoice>; }\ntrait InvoiceReader: Send + Sync { fn read(&self, id: crate::model::InvoiceId) -> Result<crate::model::Invoice, crate::model::InvoiceError>; }\n}",
+        &[3],
+    );
+}
+
+#[test]
 fn given_generic_di_aliases_when_checked_then_substituted_contract_types_are_used() {
     crate::test::module::util::assert_di_lines(
         &crate::declaration::rule::ContractShape,
@@ -177,5 +187,24 @@ fn given_contract_returning_a_broadcast_or_mpsc_receiver_when_checked_then_only_
         &crate::declaration::rule::ContractShape,
         "mod api { use tokio::sync::mpsc;\ntrait Feed: Send + Sync { fn subscribe(&self) -> tokio::sync::broadcast::Receiver<u64>; }\ntrait Queue: Send + Sync { fn drain(&self) -> mpsc::Receiver<u64>; }\ntrait Level: Send + Sync { fn level(&self) -> tokio::sync::watch::Receiver<u64>; }\n}",
         &[2, 3],
+    );
+}
+
+#[test]
+fn given_contract_method_returning_a_non_static_boxstream_under_any_name_when_checked_then_the_trait_reports()
+ {
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ContractShape,
+        "mod api {\ntrait Publisher: Send + Sync { fn updates(&self) -> futures::stream::BoxStream<'_, u64>; }\ntrait Playback: Send + Sync { fn state(&self) -> futures::stream::BoxStream<'static, u64>; }\ntrait Level: Send + Sync { fn level(&self) -> tokio::sync::watch::Receiver<u64>; }\n}",
+        &[2],
+    );
+}
+
+#[test]
+fn given_contract_method_taking_a_channel_sender_when_checked_then_reports_all_but_oneshot() {
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ContractShape,
+        "mod api { use tokio::sync::mpsc;\ntrait Timer: Send + Sync { fn subscribe(&self, sink: tokio::sync::mpsc::Sender<u64>); }\ntrait Feed: Send + Sync { fn subscribe(&self, sink: tokio::sync::broadcast::Sender<u64>); }\ntrait Queue: Send + Sync { fn subscribe(&self, sink: mpsc::UnboundedSender<u64>); }\ntrait Ack: Send + Sync { fn confirm(&self, answer: tokio::sync::oneshot::Sender<u64>); }\ntrait Level: Send + Sync { fn level(&self) -> tokio::sync::watch::Receiver<u64>; }\n}",
+        &[2, 3, 4],
     );
 }
