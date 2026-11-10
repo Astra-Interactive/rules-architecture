@@ -21,7 +21,7 @@ impl ForbiddenPackageName {
                 "`r#{name}` is a keyword: a module is named in the project's words"
             ));
         }
-        if Self::FORBIDDEN.contains(&name) {
+        if declaration.is_inline && Self::FORBIDDEN.contains(&name) {
             return Some(format!(
                 "`{name}` is never a package name (arch-package.md, Concepts and kinds 10)"
             ));

@@ -62,6 +62,24 @@ impl ModelDerives {
             })
     }
 
+    fn is_nonzero_integer(identity: &str) -> bool {
+        identity.strip_prefix("num::NonZero").is_some_and(|width| {
+            [
+                "U8", "U16", "U32", "U64", "U128", "Usize", "I8", "I16", "I32", "I64", "I128",
+                "Isize",
+            ]
+            .contains(&width)
+        })
+    }
+
+    fn field_holds(item: &crate::source::model::IndexedItem, field: &syn::Field) -> bool {
+        item.cfg
+            .and(&crate::source::model::CfgPredicate::from_attributes(
+                &field.attrs,
+            ))
+            .is_satisfiable()
+    }
+
     fn nominal_copy(
         context: &RuleContext,
         ordinal: usize,
@@ -89,8 +107,9 @@ impl ModelDerives {
                     .join("::");
                 (path.package == "uuid" && identity == "Uuid")
                     || (["std", "core"].contains(&path.package.as_str())
-                        && ["time::Duration", "time::Instant", "time::SystemTime"]
-                            .contains(&identity.as_str()))
+                        && (["time::Duration", "time::Instant", "time::SystemTime"]
+                            .contains(&identity.as_str())
+                            || Self::is_nonzero_integer(&identity)))
             })
     }
 
@@ -100,33 +119,57 @@ impl ModelDerives {
         module: usize,
         typed: &syn::Type,
         cfg: &crate::source::model::CfgPredicate,
+        generics: &syn::Generics,
+        depth: usize,
     ) -> bool {
+        if depth > 8 {
+            return false;
+        }
+        let has_copy_bound = crate::declaration::util::has_standard_bound(
+            context, ordinal, module, generics, typed, "Copy",
+        );
+        if has_copy_bound {
+            return true;
+        }
         let resolved = context.resolve_type_syntax_under(ordinal, module, typed, cfg);
         !resolved.is_empty()
-            && resolved.iter().all(|resolved| match &resolved.typed {
-                syn::Type::Reference(reference) => reference.mutability.is_none(),
-                syn::Type::Path(path) => {
-                    let builtin = matches!(
-                        context.indexes[resolved.index].resolve_path(resolved.module, &path.path),
-                        crate::source::model::Resolution::Local
-                    );
-                    Self::nominal_copy(
-                        context,
-                        resolved.index,
-                        resolved.module,
-                        &resolved.typed,
-                        &resolved.cfg,
-                    ) || builtin
-                        && path.path.get_ident().is_some_and(|name| {
-                            [
-                                "bool", "char", "u8", "u16", "u32", "u64", "u128", "usize", "i8",
-                                "i16", "i32", "i64", "i128", "isize", "f32", "f64",
-                            ]
-                            .iter()
-                            .any(|primitive| name == primitive)
-                        })
-                }
-                _ => false,
+            && resolved.iter().all(|resolved| {
+                !resolved.has_unsubstituted_parameters
+                    && match &resolved.typed {
+                        syn::Type::Reference(reference) => reference.mutability.is_none(),
+                        syn::Type::Array(array) => Self::supports_copy(
+                            context,
+                            resolved.index,
+                            resolved.module,
+                            &array.elem,
+                            &resolved.cfg,
+                            generics,
+                            depth + 1,
+                        ),
+                        syn::Type::Path(path) => {
+                            let builtin = matches!(
+                                context.indexes[resolved.index]
+                                    .resolve_path(resolved.module, &path.path),
+                                crate::source::model::Resolution::Local
+                            );
+                            Self::nominal_copy(
+                                context,
+                                resolved.index,
+                                resolved.module,
+                                &resolved.typed,
+                                &resolved.cfg,
+                            ) || builtin
+                                && path.path.get_ident().is_some_and(|name| {
+                                    [
+                                        "bool", "char", "u8", "u16", "u32", "u64", "u128", "usize",
+                                        "i8", "i16", "i32", "i64", "i128", "isize", "f32", "f64",
+                                    ]
+                                    .iter()
+                                    .any(|primitive| name == primitive)
+                                })
+                        }
+                        _ => false,
+                    }
             })
     }
 
@@ -141,7 +184,45 @@ impl ModelDerives {
             .and(&crate::source::model::CfgPredicate::from_attributes(
                 &field.attrs,
             ));
-        Self::supports_copy(context, ordinal, item.module, &field.ty, &cfg)
+        let syn::Item::Struct(value) = &item.syntax else {
+            return false;
+        };
+        Self::supports_copy(
+            context,
+            ordinal,
+            item.module,
+            &field.ty,
+            &cfg,
+            &value.generics,
+            0,
+        )
+    }
+
+    fn is_eq_hash_field(
+        context: &RuleContext,
+        ordinal: usize,
+        item: &crate::source::model::IndexedItem,
+        field: &syn::Field,
+    ) -> bool {
+        let syn::Item::Struct(value) = &item.syntax else {
+            return false;
+        };
+        ["Eq", "Hash"].iter().all(|name| {
+            crate::declaration::util::has_standard_bound(
+                context,
+                ordinal,
+                item.module,
+                &value.generics,
+                &field.ty,
+                name,
+            )
+        }) || crate::declaration::util::supports_eq_hash(
+            context,
+            ordinal,
+            item.module,
+            &field.ty,
+            0,
+        )
     }
 }
 
@@ -169,15 +250,11 @@ impl Rule for ModelDerives {
                     required.push("Copy");
                 }
                 if item.name.ends_with("Id")
-                    || value.fields.iter().all(|field| {
-                        crate::declaration::util::supports_eq_hash(
-                            context,
-                            ordinal,
-                            item.module,
-                            &field.ty,
-                            0,
-                        )
-                    })
+                    || value
+                        .fields
+                        .iter()
+                        .filter(|field| Self::field_holds(item, field))
+                        .all(|field| Self::is_eq_hash_field(context, ordinal, item, field))
                 {
                     required.extend(["Eq", "Hash"]);
                 }

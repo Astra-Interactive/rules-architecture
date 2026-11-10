@@ -89,6 +89,26 @@ fn given_normative_runtime_counterexamples_when_checked_then_matches_exact_node_
 }
 
 #[test]
+fn given_minute_and_hour_unit_constants_when_building_duration_then_reports_primitive_constants() {
+    assert_code_findings(
+        &TimePrimitive,
+        "TimePrimitive",
+        "use std::time::Duration;\nconst WAIT_MINUTES: u64 = 5;\nconst WAIT_HOURS: u64 = 1;\nconst WAIT: Duration = Duration::from_secs(60);\nfn pause() -> Duration { Duration::from_secs(WAIT_MINUTES * 60 + WAIT_HOURS * 3600) }",
+        &[2, 3],
+    );
+}
+
+#[test]
+fn given_static_and_trait_constants_with_unit_suffix_when_checked_then_reports_both() {
+    assert_code_findings(
+        &TimePrimitive,
+        "TimePrimitive",
+        "pub(crate) static CARD_IN_MS: u64 = 400;\npub(crate) trait Timing {\n    const FADE_MS: u64;\n}\npub(crate) const SLIDE_MS: u64 = 1;",
+        &[1, 3, 5],
+    );
+}
+
+#[test]
 fn given_persistent_runtime_cases_when_checked_then_matches_exact_finding_anchors() {
     assert_code_fixture(&TimePrimitive, "TimePrimitive", "bad");
     assert_code_fixture(&TimePrimitive, "TimePrimitive", "good");

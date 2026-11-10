@@ -3,7 +3,7 @@ use crate::check::model::{RuleContext, RuleFinding};
 use crate::check::util::build_node_finding;
 use crate::module::util::{find_kind_name, is_model_item, owns_implementation};
 use crate::source::model::IndexedImpl;
-use crate::source::model::{CrateIndex, Resolution};
+use crate::source::model::{CrateIndex, Resolution, WorkspaceResolvedPath};
 use crate::source::util::find_node_span;
 use syn::spanned::Spanned;
 
@@ -24,22 +24,61 @@ impl AssociatedFactoryFunction {
         let syn::Type::Path(path) = value else {
             return false;
         };
-        match index.resolve_path(module, &path.path) {
-            Resolution::Internal(targets) => targets.iter().filter_map(|target| target.item.map(|identity| &index.items[identity])).any(|item| {
-                is_model_item(context, ordinal, item) || matches!(&item.syntax, syn::Item::Type(alias) if Self::returns_model(context, ordinal, item.module, &alias.ty, depth + 1))
-            }),
-            resolution => {
-                let wrapper = match resolution {
-                    Resolution::External(name) => matches!(name.as_str(), "std::result::Result" | "core::result::Result" | "std::option::Option" | "core::option::Option"),
-                    Resolution::Local => path.path.segments.len() == 1 && matches!(path.path.segments[0].ident.to_string().as_str(), "Result" | "Option"),
-                    _ => false,
-                };
-                wrapper && path.path.segments.last().is_some_and(|segment| {
-                    let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments else { return false; };
-                    arguments.args.iter().find_map(|argument| if let syn::GenericArgument::Type(value) = argument { Some(value) } else { None }).is_some_and(|value| Self::returns_model(context, ordinal, module, value, depth + 1))
-                })
-            }
+        let targets = context.resolve_workspace_path(ordinal, module, &path.path);
+        if !targets.is_empty() {
+            return targets
+                .iter()
+                .any(|target| Self::is_model_target(context, target, depth));
         }
+        let wrapper = match index.resolve_path(module, &path.path) {
+            Resolution::External(name) => matches!(
+                name.as_str(),
+                "std::result::Result"
+                    | "core::result::Result"
+                    | "std::option::Option"
+                    | "core::option::Option"
+            ),
+            Resolution::Local => {
+                path.path.segments.len() == 1
+                    && matches!(
+                        path.path.segments[0].ident.to_string().as_str(),
+                        "Result" | "Option"
+                    )
+            }
+            _ => false,
+        };
+        wrapper
+            && path.path.segments.last().is_some_and(|segment| {
+                let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments else {
+                    return false;
+                };
+                arguments
+                    .args
+                    .iter()
+                    .find_map(|argument| {
+                        if let syn::GenericArgument::Type(value) = argument {
+                            Some(value)
+                        } else {
+                            None
+                        }
+                    })
+                    .is_some_and(|value| {
+                        Self::returns_model(context, ordinal, module, value, depth + 1)
+                    })
+            })
+    }
+
+    fn is_model_target(
+        context: &RuleContext,
+        target: &WorkspaceResolvedPath,
+        depth: usize,
+    ) -> bool {
+        let Some(identity) = target.path.item else {
+            return false;
+        };
+        let item = &context.indexes[target.index].items[identity];
+        is_model_item(context, target.index, item)
+            || matches!(&item.syntax, syn::Item::Type(alias) if Self::returns_model(context, target.index, item.module, &alias.ty, depth + 1))
     }
 
     fn returns_result(index: &CrateIndex, module: usize, value: &syn::Type, depth: usize) -> bool {

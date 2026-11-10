@@ -153,6 +153,41 @@ impl CargoWorkspaceReader {
         enabled.into_iter().collect()
     }
 
+    fn is_fake_of(dependency: &str, provider_feature: &str, key: &str) -> bool {
+        dependency.trim_end_matches('?') == key && provider_feature == "fake"
+    }
+
+    fn is_fake_feature(child: &str, key: &str) -> bool {
+        child
+            .split_once('/')
+            .is_some_and(|(dependency, provider_feature)| {
+                Self::is_fake_of(dependency, provider_feature, key)
+            })
+    }
+
+    fn enables_fake_through_features(package: &Package, key: &str) -> bool {
+        let mut pending = vec!["default"];
+        let mut visited = BTreeSet::new();
+        while let Some(feature) = pending.pop() {
+            if !visited.insert(feature) {
+                continue;
+            }
+            let children = package.features.get(feature).into_iter().flatten();
+            if children
+                .clone()
+                .any(|child| Self::is_fake_feature(child, key))
+            {
+                return true;
+            }
+            pending.extend(
+                children
+                    .filter(|child| !child.contains('/') && !child.starts_with("dep:"))
+                    .map(String::as_str),
+            );
+        }
+        false
+    }
+
     fn read_dependencies(
         root: &Path,
         package: &Package,
@@ -188,8 +223,13 @@ impl CargoWorkspaceReader {
                         lock,
                     )?,
                 };
-                let features =
+                let mut features =
                     Self::expand_dependency_features(root, dependency, path.as_deref(), packages);
+                let enables_fake = kind != DependencyKind::Development
+                    && Self::enables_fake_through_features(package, key);
+                if enables_fake && !features.iter().any(|feature| feature == "fake") {
+                    features.push("fake".to_owned());
+                }
                 Ok(Dependency {
                     name: dependency.name.clone(),
                     code_name: key.replace('-', "_"),
@@ -256,11 +296,20 @@ impl CargoWorkspaceReader {
         Ok(files)
     }
 
-    fn read_rustfmt_files(root: &Path) -> Result<Vec<TomlFile>, CheckError> {
+    fn read_rustfmt_files(root: &Path, members: &[Member]) -> Result<Vec<TomlFile>, CheckError> {
+        let mut directories = vec![String::new()];
+        directories.extend(
+            members
+                .iter()
+                .map(|member| member.directory.clone())
+                .filter(|directory| !directory.is_empty()),
+        );
         let mut files = Vec::new();
-        for name in ["rustfmt.toml", ".rustfmt.toml"] {
-            if let Some(file) = Self::read_toml(root, name)? {
-                files.push(file);
+        for directory in directories {
+            for name in ["rustfmt.toml", ".rustfmt.toml"] {
+                if let Some(file) = Self::read_toml(root, &Self::join_relative(&directory, name))? {
+                    files.push(file);
+                }
             }
         }
         Ok(files)
@@ -488,7 +537,7 @@ impl WorkspaceReader for CargoWorkspaceReader {
         )?;
         Ok(Workspace {
             clippy_files: Self::read_clippy_files(&root, &members)?,
-            rustfmt_files: Self::read_rustfmt_files(&root)?,
+            rustfmt_files: Self::read_rustfmt_files(&root, &members)?,
             toolchain_file: Self::read_toolchain_file(&root)?,
             cargo_config,
             lock_file: lock,

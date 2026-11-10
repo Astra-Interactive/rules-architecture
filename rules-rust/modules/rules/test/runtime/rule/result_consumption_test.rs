@@ -174,3 +174,74 @@ fn given_persistent_runtime_cases_when_checked_then_matches_exact_finding_anchor
     assert_code_fixture(&ResultConsumption, "ResultConsumption", "bad");
     assert_code_fixture(&ResultConsumption, "ResultConsumption", "good");
 }
+
+#[test]
+fn given_tdd_result_consumption_fallible_loop_initializer_when_linted_then_reports_let() {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "fn first(value: u32) -> Result<u32, ()> { value.checked_add(1).ok_or(()) }\nfn second(value: u32) -> Result<u32, ()> { value.checked_add(2).ok_or(()) }\nfn compute(values: &mut impl Iterator<Item = u8>, left: u32, right: u32) -> Result<u32, ()> {\n    let value = loop { match values.next() { Some(0) => continue, Some(_) => break first(left)? + second(right)?, None => return Ok(0) } };\n    Ok(value)\n}",
+        &[4],
+    );
+}
+
+#[test]
+fn given_result_consumption_sender_from_take_when_linted_then_reports_only_the_real_discard() {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "struct Gate { slot: parking_lot::Mutex<Option<tokio::sync::oneshot::Sender<bool>>> }\nimpl Gate {\n    fn complete(&self, value: bool) {\n        let Some(sender) = self.slot.lock().take() else { return; };\n        #[expect(clippy::let_underscore_must_use, reason = \"the receiver is gone only when the caller was cancelled\")] let _ = sender.send(value);\n    }\n    fn load(&self) {\n        #[expect(clippy::let_underscore_must_use, reason = \"too broad\")] let _ = std::fs::read(\"file\");\n    }\n}",
+        &[8],
+    );
+}
+
+#[test]
+fn given_result_consumption_composed_tail_expression_when_linted_then_reports_the_expression() {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "fn parse(_: &str) -> Result<u8, ()> { Ok(1) }\nfn validate(value: u8) -> Result<u8, ()> { Ok(value) }\nfn run(raw: &str) -> Result<u8, ()> {\n    Ok(validate(parse(raw)?)?)\n}\nfn run_separately(raw: &str) -> Result<u8, ()> {\n    let parsed = parse(raw)?;\n    Ok(validate(parsed)?)\n}",
+        &[4],
+    );
+}
+
+#[test]
+fn given_result_consumption_loop_tail_with_separate_fallible_statements_when_linted_then_reports_only_the_composed_let()
+ {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "fn read() -> Result<Option<u8>, ()> { Ok(Some(1)) }\nfn send(_: u8) -> Result<(), ()> { Ok(()) }\nfn load() -> Result<u8, ()> { Ok(1) }\nfn retain(value: u8) -> Result<u8, ()> { Ok(value) }\nfn walk(ready: bool) -> Result<(), ()> {\n    loop {\n        let Some(kind) = read()? else {\n            continue;\n        };\n        match kind {\n            1 => {\n                if ready {\n                    send(1)?;\n                } else {\n                    return Ok(());\n                }\n            }\n            2 => {\n                send(2)?;\n            }\n            3 => {\n                send(3)?;\n                return Ok(());\n            }\n            _ => {}\n        }\n    }\n}\nfn compose() -> Result<u8, ()> {\n    let value = retain(load()?)?;\n    Ok(value)\n}",
+        &[30],
+    );
+}
+
+#[test]
+fn given_result_consumption_match_tail_when_linted_then_reports_the_composing_arm() {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "fn send(_: u8) -> Result<(), ()> { Ok(()) }\nfn load() -> Result<u8, ()> { Ok(1) }\nfn retain(value: u8) -> Result<u8, ()> { Ok(value) }\nfn pick(ready: bool) -> Result<u8, ()> {\n    match ready {\n        true => {\n            send(1)?;\n            send(2)?;\n            Ok(1)\n        }\n        false => Ok(retain(load()?)?),\n    }\n}",
+        &[11],
+    );
+}
+
+#[test]
+fn given_result_consumption_underscore_named_send_result_when_linted_then_reports_the_let() {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "fn deliver(sender: tokio::sync::oneshot::Sender<bool>, outcome: bool) {\n    let _outcome = sender.send(outcome);\n}\nstruct CustomSender;\nimpl CustomSender { fn send(&self, _: bool) -> Result<(), ()> { Ok(()) } }\nfn custom(sender: CustomSender) {\n    let _outcome = sender.send(true);\n}",
+        &[2],
+    );
+}
+
+#[test]
+fn given_tdd_result_consumption_match_guard_and_arm_when_linted_then_reports_let() {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "fn condition(raw: &str) -> Result<bool, ()> { raw.parse::<u8>().map(|value| value > 0).map_err(|_| ()) }\nfn step(raw: &str) -> Result<usize, ()> { raw.parse::<usize>().map_err(|_| ()) }\nfn compute(number: u8, raw: &str) -> Result<usize, ()> {\n    let value = match number { 0..=2 if condition(raw)? => 0, 1 => step(raw)?, _ => 0 };\n    Ok(value)\n}",
+        &[4],
+    );
+}

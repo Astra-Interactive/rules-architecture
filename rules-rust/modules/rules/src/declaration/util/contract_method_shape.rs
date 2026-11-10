@@ -61,7 +61,18 @@ fn invalid_return(
                 .is_some_and(|name| name == "JoinHandle")
                 || path
                     .segments
-                    .ends_with(&["oneshot".to_owned(), "Receiver".to_owned()]))
+                    .ends_with(&["oneshot".to_owned(), "Receiver".to_owned()])
+                || (path.package == "tokio"
+                    && [
+                        "broadcast::Receiver",
+                        "mpsc::Receiver",
+                        "mpsc::UnboundedReceiver",
+                    ]
+                    .iter()
+                    .any(|channel| {
+                        let names: Vec<_> = channel.split("::").map(str::to_owned).collect();
+                        path.segments.ends_with(&names)
+                    })))
     });
     let stream = paths.iter().any(|path| {
         ["futures", "futures_core", "futures_util"].contains(&path.package.as_str())

@@ -39,3 +39,101 @@ fn given_persistent_di_policy_pairs_when_checked_then_exact_nodes_and_subjects_m
         );
     }
 }
+
+#[test]
+fn given_on_enable_on_one_branch_when_checked_then_main_is_rejected() {
+    for (enable, expected) in [
+        ("if flag { root.on_enable(); }", 1),
+        (
+            "if flag { root.on_enable(); } else { root.on_enable(); }",
+            0,
+        ),
+    ] {
+        let source = format!(
+            "mod di {{ pub struct RootModule; impl RootModule {{ pub fn new() -> Self {{ Self }} }} }} fn main() {{ let flag = std::env::args().count() > 1; let runtime = tokio::runtime::Builder::new_multi_thread().build(); let root = runtime.block_on(async {{ let root = di::RootModule::new(); {enable} tokio::signal::ctrl_c().await; root }}); root.on_disable(); }}"
+        );
+        let mut context = crate::test::declaration::util::read_code_context(&source);
+        context.project_config.crates[0].role = Some(crate::config::model::Role::EntryPoint);
+        assert_eq!(
+            crate::check::api::Rule::check(&crate::module::rule::MainShape, &context).len(),
+            expected,
+            "{enable}"
+        );
+    }
+}
+
+#[test]
+fn given_on_disable_on_one_branch_after_block_on_when_checked_then_main_is_rejected() {
+    for (disable, expected) in [
+        ("if flag { root.on_disable(); }", 1),
+        (
+            "if flag { root.on_disable(); } else { root.on_disable(); }",
+            0,
+        ),
+    ] {
+        let source = format!(
+            "mod di {{ pub struct RootModule; impl RootModule {{ pub fn new() -> Self {{ Self }} }} }} fn main() {{ let flag = std::env::args().count() > 1; let runtime = tokio::runtime::Builder::new_multi_thread().build(); let root = runtime.block_on(async {{ let root = di::RootModule::new(); root.on_enable(); tokio::signal::ctrl_c().await; root }}); {disable} }}"
+        );
+        let mut context = crate::test::declaration::util::read_code_context(&source);
+        context.project_config.crates[0].role = Some(crate::config::model::Role::EntryPoint);
+        assert_eq!(
+            crate::check::api::Rule::check(&crate::module::rule::MainShape, &context).len(),
+            expected,
+            "{disable}"
+        );
+    }
+}
+
+#[test]
+fn given_signal_family_wait_when_checked_then_shutdown_is_waited_and_unrelated_receive_is_not() {
+    for (wait, expected) in [
+        (
+            "let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).unwrap(); terminate.recv().await;",
+            0,
+        ),
+        (
+            "let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).unwrap(); tokio::select! { _ = tokio::signal::ctrl_c() => {} _ = terminate.recv() => {} }",
+            0,
+        ),
+        (
+            "let (sender, mut receiver) = tokio::sync::mpsc::channel::<u8>(1); receiver.recv().await;",
+            1,
+        ),
+    ] {
+        let source = format!(
+            "mod di {{ pub struct RootModule; impl RootModule {{ pub fn new() -> Self {{ Self }} }} }} fn main() {{ let runtime = tokio::runtime::Builder::new_multi_thread().build(); let root = runtime.block_on(async {{ let root = di::RootModule::new(); root.on_enable(); {wait} root }}); root.on_disable(); }}"
+        );
+        let mut context = crate::test::declaration::util::read_code_context(&source);
+        context.project_config.crates[0].role = Some(crate::config::model::Role::EntryPoint);
+        assert_eq!(
+            crate::check::api::Rule::check(&crate::module::rule::MainShape, &context).len(),
+            expected,
+            "{wait}"
+        );
+    }
+}
+
+#[test]
+fn given_shutdown_wait_in_one_match_arm_when_checked_then_main_is_rejected() {
+    for (wait, expected) in [
+        (
+            "match mode { 1 => { tokio::signal::ctrl_c().await; } _ => {} }",
+            1,
+        ),
+        (
+            "match mode { 1 => { tokio::signal::ctrl_c().await; } _ => { tokio::signal::ctrl_c().await; } }",
+            0,
+        ),
+    ] {
+        let source = format!(
+            "mod di {{ pub struct RootModule; impl RootModule {{ pub fn new() -> Self {{ Self }} }} }} fn main() {{ let mode = std::env::args().count(); let runtime = tokio::runtime::Builder::new_multi_thread().build(); let root = runtime.block_on(async {{ let root = di::RootModule::new(); root.on_enable(); {wait} root }}); root.on_disable(); }}"
+        );
+        let mut context = crate::test::declaration::util::read_code_context(&source);
+        context.project_config.crates[0].role = Some(crate::config::model::Role::EntryPoint);
+        assert_eq!(
+            crate::check::api::Rule::check(&crate::module::rule::MainShape, &context).len(),
+            expected,
+            "{wait}"
+        );
+    }
+}

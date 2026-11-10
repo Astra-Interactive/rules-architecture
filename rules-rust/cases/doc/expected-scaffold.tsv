@@ -188,8 +188,10 @@ KindShape	modules/bad/testing-no-useless-rs/src/lib.rs:1	bad_testing_no_useless_
 RootFileShape	modules/bad/testing-no-useless-rs/src/lib.rs:1	bad_testing_no_useless_rs	the root file holds only the module tree and the items the platform calls
 OneTypeFamilyPerFile	modules/bad/testing-no-useless-rs/src/my_struct.rs:6	bad_testing_no_useless_rs::my_struct::given_struct_when_built_then_value_is_stored	Place free functions in a function file, separate from a type family (arch-package.rs.md)
 TestMirror	modules/bad/testing-no-useless-rs/src/my_struct.rs:6	bad_testing_no_useless_rs::my_struct	tests live in the root test block; path attributes belong only to the root test and fixture blocks
+ReExportShape	modules/bad/testing-rs/src/example_59.rs:1	compute_order_total	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 KindShape	modules/bad/testing-rs/src/lib.rs:1	bad_testing_rs::example_59	a concept holds kind blocks; files live in a named kind
 RootFileShape	modules/bad/testing-rs/src/lib.rs:1	bad_testing_rs	the root file holds only the module tree and the items the platform calls
+KindShape	modules/bad/testing-rs/src/lib.rs:6	bad_testing_rs::test::example_59_test	a concept holds kind blocks; files live in a named kind
 ReExportShape	modules/bad/time-api-rs/src/example_64.rs:1	Session	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 KindShape	modules/bad/time-api-rs/src/lib.rs:1	bad_time_api_rs::example_64	a concept holds kind blocks; files live in a named kind
 OneTypeFamilyPerFile	modules/bad/time-api-rs/src/lib.rs:1	bad_time_api_rs::example_64	Name the file after its primary type family (arch-package.rs.md)
@@ -275,6 +277,7 @@ ReExportShape	modules/probe/std/src/probes.rs:66	probe_thread_builder_spawn	A no
 ReExportShape	modules/probe/std/src/probes.rs:71	probe_io_stdout	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 ReExportShape	modules/probe/std/src/probes.rs:75	probe_io_stderr	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 ReExportShape	modules/probe/std/src/probes.rs:79	probe_system_time_now	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/probe/std/src/probes.rs:80	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
 ReExportShape	modules/probe/std/src/probes.rs:83	probe_system_time_elapsed	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 ReExportShape	modules/probe/std/src/probes.rs:87	probe_await_holding_watch_ref	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 ReExportShape	modules/probe/std/src/probes.rs:93	probe_watch_sender_send	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block

@@ -1,5 +1,7 @@
 use crate::comment::rule::PanicDocVisitor;
-use crate::comment::util::{doc_heading, joined_doc, strip_doc_code};
+use crate::comment::util::{
+    collect_invalid_example_sections, doc_attribute_lines, doc_heading, joined_doc, strip_doc_code,
+};
 use crate::source::model::NodeSpan;
 use syn::visit::Visit;
 
@@ -9,6 +11,7 @@ pub(crate) struct DocScopeVisitor<'context> {
     file: String,
     cfg: crate::source::model::CfgPredicate,
     published: bool,
+    examples: bool,
     trait_impl: bool,
     spans: Vec<NodeSpan>,
 }
@@ -26,6 +29,14 @@ impl DocScopeVisitor<'_> {
             file: file.path.clone(),
             cfg: crate::source::model::CfgPredicate::All(Vec::new()),
             published,
+            examples: context
+                .workspace
+                .members
+                .iter()
+                .find(|member| member.name == context.indexes[ordinal].crate_name)
+                .is_some_and(|member| {
+                    member.is_published(&context.workspace) && member.has_rust_library()
+                }),
             trait_impl: false,
             spans: Vec::new(),
         };
@@ -46,6 +57,14 @@ impl DocScopeVisitor<'_> {
         let Some((span, text)) = joined_doc(attributes) else {
             return;
         };
+        if self.examples {
+            let lines = doc_attribute_lines(attributes);
+            self.spans.extend(
+                collect_invalid_example_sections(&text)
+                    .into_iter()
+                    .filter_map(|line| lines.get(line).copied()),
+            );
+        }
         let cleaned = strip_doc_code(&text);
         let labels = cleaned.lines().any(|line| {
             ["Errors:", "Panics:", "Safety:", "Examples:"]
@@ -147,7 +166,7 @@ impl DocScopeVisitor<'_> {
             return;
         }
         let panic = self.published
-            && matches!(visibility, syn::Visibility::Public(_))
+            && (self.trait_impl || matches!(visibility, syn::Visibility::Public(_)))
             && PanicDocVisitor::contains_panic(
                 self.context,
                 self.ordinal,

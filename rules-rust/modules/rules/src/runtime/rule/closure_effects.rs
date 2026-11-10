@@ -3,6 +3,7 @@ use syn::visit::Visit;
 pub(crate) struct ClosureEffects {
     bound: Vec<String>,
     closure_depth: usize,
+    nested: bool,
     pub(crate) assigns_capture: bool,
     pub(crate) methods: Vec<syn::ExprMethodCall>,
     pub(crate) calls: Vec<syn::ExprCall>,
@@ -13,9 +14,18 @@ pub(crate) struct ClosureEffects {
 
 impl ClosureEffects {
     pub(crate) fn collect(expression: &syn::Expr) -> Self {
+        Self::collect_scope(expression, false)
+    }
+
+    pub(crate) fn collect_nested(expression: &syn::Expr) -> Self {
+        Self::collect_scope(expression, true)
+    }
+
+    fn collect_scope(expression: &syn::Expr, nested: bool) -> Self {
         let mut visitor = Self {
             bound: Vec::new(),
             closure_depth: 0,
+            nested,
             assigns_capture: false,
             methods: Vec::new(),
             calls: Vec::new(),
@@ -63,9 +73,21 @@ impl ClosureEffects {
 impl<'ast> Visit<'ast> for ClosureEffects {
     fn visit_macro(&mut self, item: &'ast syn::Macro) {
         self.macros.push(item.clone());
+        if !self.nested {
+            return;
+        }
+        let Ok(arguments) = syn::parse::Parser::parse2(
+            syn::punctuated::Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated,
+            item.tokens.clone(),
+        ) else {
+            return;
+        };
+        for argument in &arguments {
+            self.visit_expr(argument);
+        }
     }
     fn visit_expr_closure(&mut self, closure: &'ast syn::ExprClosure) {
-        if self.closure_depth > 0 {
+        if self.closure_depth > 0 && !self.nested {
             return;
         }
         self.closure_depth += 1;

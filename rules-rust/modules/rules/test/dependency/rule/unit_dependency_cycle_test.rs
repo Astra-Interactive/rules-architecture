@@ -31,6 +31,23 @@ fn given_development_cycles_when_checked_then_each_strong_component_is_reported_
 }
 
 #[test]
+fn given_development_edges_under_exclusive_targets_when_checked_then_only_the_unconditional_cycle_is_reported()
+ {
+    let context = read_case_context("UnitDependencyCycle", "fail-exclusive-target-cycle");
+    let findings = UnitDependencyCycle.check(&context);
+    assert!(
+        findings
+            .iter()
+            .all(|finding| finding.finding.rule_id.0 == "UnitDependencyCycle")
+    );
+    let subjects: Vec<String> = findings
+        .into_iter()
+        .map(|finding| finding.finding.subject)
+        .collect();
+    assert_eq!(subjects, ["delta, epsilon"]);
+}
+
+#[test]
 fn given_acyclic_and_external_edges_when_checked_then_no_cycle_is_reported() {
     let mut context = read_case_context("UnitDependencyCycle", "pass-acyclic-development");
     context.workspace.members[0].dependencies.push(Dependency {

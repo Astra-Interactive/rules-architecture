@@ -2,7 +2,7 @@ use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
 use crate::check::util::build_node_finding;
 use crate::module::rule::FactoryReturnVisitor;
-use crate::source::model::{CrateIndex, SourceEdge};
+use crate::source::model::{CrateIndex, SourceEdge, SourceTree};
 use crate::source::util::find_node_span;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
@@ -10,6 +10,30 @@ use syn::visit::Visit;
 pub(crate) struct KindImportDirection;
 
 impl KindImportDirection {
+    fn is_fake_source(context: &RuleContext, ordinal: usize, edge: &SourceEdge) -> bool {
+        let index = &context.indexes[ordinal];
+        context
+            .find_kind_module(ordinal, edge.source)
+            .is_some_and(|source| {
+                index.modules[source].module.path.last().map(String::as_str) == Some("fake")
+            })
+    }
+
+    fn is_unlisted_kind_target(index: &CrateIndex, target: usize) -> bool {
+        let mut block = target;
+        while index.modules[block].is_file_module {
+            let Some(parent) = index.modules[block].parent else {
+                return false;
+            };
+            block = parent;
+        }
+        let module = &index.modules[block];
+        module.tree == SourceTree::Src
+            && module.module.path.len() > 1
+            && !["api", "model", "util"]
+                .contains(&module.module.path.last().map(String::as_str).unwrap_or(""))
+    }
+
     fn check_registration(context: &RuleContext) -> Vec<RuleFinding> {
         context.name_index().uses.iter().filter(|usage| !usage.is_test && !usage.ambiguous && usage.cfg.is_satisfiable()).filter(|usage| ["model","api","usecase"].contains(&crate::module::util::find_kind_name(context,usage.source_index,usage.source_module))).filter(|usage| context.is_platform_registration_trait(usage.target_index,&context.indexes[usage.target_index].items[usage.target_item])).map(|usage|build_node_finding("KindImportDirection",&usage.file,usage.anchor,context.indexes[usage.target_index].items[usage.target_item].name.clone(),"domain models, contracts and use cases do not depend on framework registration interfaces".to_owned())).collect()
     }
@@ -150,13 +174,19 @@ impl KindImportDirection {
 
     fn is_allowed(context: &RuleContext, ordinal: usize, edge: &SourceEdge) -> bool {
         let index = &context.indexes[ordinal];
-        if edge.is_test || edge.source == edge.target {
+        if edge.source == edge.target {
+            return true;
+        }
+        if edge.is_test && !Self::is_fake_source(context, ordinal, edge) {
             return true;
         }
         let Some(source) = context.find_kind_module(ordinal, edge.source) else {
             return Self::is_root_edge_allowed(context, ordinal, edge);
         };
         let Some(target) = context.find_kind_module(ordinal, edge.target) else {
+            if edge.is_test {
+                return !Self::is_unlisted_kind_target(index, edge.target);
+            }
             let source_name = index.modules[source]
                 .module
                 .path
@@ -224,11 +254,24 @@ impl KindImportDirection {
             }
             _ if context.is_entry_kind(&index.crate_name, source_name) => {
                 ["usecase", "api", "model", "util"].contains(&target_name)
-                    || context.is_entry_kind(&index.crate_name, target_name)
+                    || ((!Self::FIXED_ENTRY_KINDS.contains(&source_name)
+                        || source_name == target_name)
+                        && context.is_entry_kind(&index.crate_name, target_name))
             }
             _ => true,
         }
     }
+
+    pub(crate) const FIXED_ENTRY_KINDS: [&str; 8] = [
+        "command",
+        "event",
+        "route",
+        "job",
+        "service",
+        "warmup",
+        "migration",
+        "error",
+    ];
 }
 
 impl Rule for KindImportDirection {

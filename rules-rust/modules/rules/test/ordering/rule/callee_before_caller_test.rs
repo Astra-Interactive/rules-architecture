@@ -1,6 +1,8 @@
 use crate::check::api::Rule;
+use crate::check::model::Anchor;
 use crate::ordering::rule::CalleeBeforeCaller;
 use crate::test::check::usecase::read_case_context;
+use crate::test::declaration::util::assert_code_findings;
 
 #[test]
 fn given_type_declarations_when_checked_then_free_functions_are_exempt_but_methods_are_ordered() {
@@ -142,6 +144,44 @@ fn given_calls_in_macros_closures_and_async_when_checked_then_reports_later_call
 }
 
 #[test]
+fn given_function_passed_by_path_when_declared_after_caller_then_reports_the_caller() {
+    assert_code_findings(
+        &CalleeBeforeCaller,
+        "CalleeBeforeCaller",
+        "fn run(lines: Vec<&str>) -> Vec<usize> {\n    lines.into_iter().map(compute_line_length).collect()\n}\nfn compute_line_length(line: &str) -> usize { line.len() }",
+        &[1],
+    );
+    assert_code_findings(
+        &CalleeBeforeCaller,
+        "CalleeBeforeCaller",
+        "struct Subject;\nimpl Subject {\n    fn run(&self, values: Vec<u8>) -> Vec<u8> {\n        values.into_iter().map(Self::helper).collect()\n    }\n    fn helper(value: u8) -> u8 { value }\n}",
+        &[3],
+    );
+}
+
+#[test]
+fn given_call_inside_nested_function_when_callee_is_declared_later_then_reports_the_enclosing_function()
+ {
+    assert_code_findings(
+        &CalleeBeforeCaller,
+        "CalleeBeforeCaller",
+        "fn run() {\n    fn inner() {\n        compute();\n    }\n    inner();\n}\nfn compute() {}",
+        &[1],
+    );
+}
+
+#[test]
+fn given_method_called_on_parameter_of_own_type_when_declared_later_then_reports_only_own_type_callers()
+ {
+    assert_code_findings(
+        &CalleeBeforeCaller,
+        "CalleeBeforeCaller",
+        "struct Subject;\nstruct Other;\nimpl Subject {\n    fn first(other: &Self) {\n        other.second();\n    }\n    fn third(other: &Subject) {\n        other.fourth();\n    }\n    fn fifth(other: &Other) {\n        other.sixth();\n    }\n    fn second(&self) {}\n    fn fourth(&self) {}\n    fn sixth(&self) {}\n}",
+        &[4, 7],
+    );
+}
+
+#[test]
 fn given_forbidden_syntax_when_checked_then_reports_the_rule() {
     let context = read_case_context("CalleeBeforeCaller", "fail-syntax");
     assert!(!CalleeBeforeCaller.check(&context).is_empty());
@@ -151,4 +191,27 @@ fn given_forbidden_syntax_when_checked_then_reports_the_rule() {
 fn given_prescribed_syntax_when_checked_then_reports_nothing() {
     let context = read_case_context("CalleeBeforeCaller", "pass-syntax");
     assert!(CalleeBeforeCaller.check(&context).is_empty());
+}
+
+#[test]
+fn given_tdd_callee_before_caller_self_import_alias_when_linted_then_reports_caller() {
+    let source = "use self::compute_helper as calculate;\nfn compute_value() -> u8 { calculate() }\nfn compute_helper() -> u8 { 1 }";
+    let mut context = read_case_context("CalleeBeforeCaller", "pass-syntax");
+    let file = context.crates[0]
+        .files
+        .iter_mut()
+        .find(|file| !file.module.path.is_empty())
+        .expect("fixture has a source file");
+    file.syntax = syn::parse_file(source).expect("test input parses");
+    file.comments = crate::source::util::scan_comments(source, &[]);
+
+    let findings = CalleeBeforeCaller.check(&context);
+    assert_eq!(1, findings.len());
+    let finding = &findings[0];
+    assert_eq!("CalleeBeforeCaller", finding.finding.rule_id.0);
+    assert_eq!(Some(2), finding.finding.location.line);
+    let Anchor::Node { span, .. } = &finding.anchor else {
+        panic!("expected call node anchor");
+    };
+    assert_eq!(2, span.start.line);
 }

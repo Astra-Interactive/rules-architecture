@@ -228,6 +228,17 @@ fn given_target_file_suffix_when_checked_then_matches_the_unsuffixed_type() {
 }
 
 #[test]
+fn given_error_enum_declared_beside_the_struct_using_it_when_checked_then_reports_only_the_error_enum()
+ {
+    crate::test::syntax::util::assert_syntax_findings(
+        &OneTypeFamilyPerFile,
+        "OneTypeFamilyPerFile",
+        "struct Subject { failure: SubjectFailureError, kind: Kind } enum Kind { Plain } #[derive(Debug, thiserror::Error)] enum SubjectFailureError { #[error(\"failed\")] Failed }",
+        1,
+    );
+}
+
+#[test]
 fn given_plain_function_files_when_checked_then_requires_no_primary_type() {
     crate::test::syntax::util::assert_syntax_findings(
         &OneTypeFamilyPerFile,

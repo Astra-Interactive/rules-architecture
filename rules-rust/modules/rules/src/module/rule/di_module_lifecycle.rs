@@ -1,7 +1,7 @@
 use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
 use crate::module::model::LifecycleFacts;
-use crate::module::rule::LifecycleBodyVisitor;
+use crate::module::rule::{LifecycleBodyVisitor, LifecycleFields};
 use crate::module::util::{build_shape_item_finding, owns_implementation};
 use crate::module::util::{is_di_type, lifecycle_implementation, resolved_di_type};
 use syn::{ImplItem, Item};
@@ -232,6 +232,25 @@ impl DiModuleLifecycle {
         false
     }
 
+    fn is_exclusive_pointer(
+        context: &RuleContext,
+        ordinal: usize,
+        item: &crate::source::model::IndexedItem,
+        field: &syn::Field,
+        cfg: &crate::source::model::CfgPredicate,
+    ) -> bool {
+        context
+            .resolve_outer_external_type_paths_under(ordinal, item.module, &field.ty, cfg)
+            .iter()
+            .any(|path| {
+                ["std", "alloc", "core"].contains(&path.package.as_str())
+                    && path
+                        .segments
+                        .last()
+                        .is_some_and(|name| ["Box", "Rc"].contains(&name.as_str()))
+            })
+    }
+
     fn add_field(
         context: &RuleContext,
         ordinal: usize,
@@ -268,7 +287,10 @@ impl DiModuleLifecycle {
             && context
                 .resolve_outer_external_type_paths_under(ordinal, item.module, &field.ty, &cfg)
                 .is_empty();
-        facts.invalid |= (di && child && !by_value) || (!di && scope && by_value);
+        let exclusive_pointer =
+            scope && Self::is_exclusive_pointer(context, ordinal, item, field, &cfg);
+        facts.invalid |=
+            (di && child && !by_value) || (!di && scope && by_value) || exclusive_pointer;
         let Some(name) = &field.ident else {
             return;
         };
@@ -324,8 +346,64 @@ impl DiModuleLifecycle {
         })
     }
 
+    fn list_shared_fields(context: &RuleContext, ordinal: usize, identity: usize) -> Vec<String> {
+        let item = &context.indexes[ordinal].items[identity];
+        let Item::Struct(structure) = &item.syntax else {
+            return Vec::new();
+        };
+        structure
+            .fields
+            .iter()
+            .filter_map(|field| {
+                let name = field.ident.as_ref()?;
+                let cfg = item
+                    .cfg
+                    .and(&crate::source::model::CfgPredicate::from_attributes(
+                        &field.attrs,
+                    ));
+                let shared = context
+                    .resolve_outer_external_type_paths_under(ordinal, item.module, &field.ty, &cfg)
+                    .iter()
+                    .any(|path| {
+                        ["std", "alloc"].contains(&path.package.as_str())
+                            && path.segments.last().is_some_and(|segment| segment == "Arc")
+                    });
+                shared.then(|| name.to_string())
+            })
+            .collect()
+    }
+
+    fn list_task_scope_fields(
+        context: &RuleContext,
+        ordinal: usize,
+        identity: usize,
+    ) -> Vec<String> {
+        let item = &context.indexes[ordinal].items[identity];
+        let Item::Struct(structure) = &item.syntax else {
+            return Vec::new();
+        };
+        structure
+            .fields
+            .iter()
+            .filter_map(|field| {
+                let name = field.ident.as_ref()?;
+                let scope = context
+                    .resolve_workspace_type(ordinal, item.module, &field.ty)
+                    .iter()
+                    .any(|target| {
+                        target.path.item.is_some_and(|identity| {
+                            context.indexes[target.index].items[identity].name == "TaskScope"
+                        })
+                    });
+                scope.then(|| name.to_string())
+            })
+            .collect()
+    }
+
     fn methods(context: &RuleContext, ordinal: usize, identity: usize, facts: &mut LifecycleFacts) {
         let index = &context.indexes[ordinal];
+        let shared = Self::list_shared_fields(context, ordinal, identity);
+        let task_scopes = Self::list_task_scope_fields(context, ordinal, identity);
         for implementation in index
             .implementations
             .iter()
@@ -362,8 +440,12 @@ impl DiModuleLifecycle {
                     implementation.module,
                     &method.block,
                     &name,
-                    &facts.owned,
-                    &facts.scopes,
+                    LifecycleFields {
+                        owned: &facts.owned,
+                        scopes: &facts.scopes,
+                        task_scopes: &task_scopes,
+                        shared: &shared,
+                    },
                 );
                 facts.invalid |= body.invalid;
                 facts.invalid |= facts

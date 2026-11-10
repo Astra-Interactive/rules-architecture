@@ -23,3 +23,13 @@ fn given_persistent_runtime_cases_when_checked_then_matches_exact_finding_anchor
     assert_code_fixture(&DurationOverloadCall, "DurationOverloadCall", "bad");
     assert_code_fixture(&DurationOverloadCall, "DurationOverloadCall", "good");
 }
+
+#[test]
+fn given_duration_overload_call_arithmetic_roundtrip_when_linted_then_reports_the_call() {
+    assert_code_findings(
+        &DurationOverloadCall,
+        "DurationOverloadCall",
+        "fn delay(delay: std::time::Duration) -> std::time::Duration {\n    std::time::Duration::from_millis(delay.as_secs() * 1000)\n}\nfn fixed() -> std::time::Duration {\n    std::time::Duration::from_millis(2 * 1000)\n}",
+        &[2],
+    );
+}

@@ -1,3 +1,4 @@
+use crate::source::util::parse_macro_arguments;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use syn::spanned::Spanned;
@@ -10,6 +11,8 @@ pub(crate) struct LifecycleBodyVisitor<'scope> {
     method: &'scope str,
     owned: &'scope [String],
     scopes: &'scope [String],
+    task_scopes: &'scope [String],
+    shared: &'scope [String],
     pub(crate) invalid: bool,
     pub(crate) aborted: BTreeSet<String>,
     pub(crate) child_lifecycle: bool,
@@ -25,9 +28,14 @@ impl LifecycleBodyVisitor<'_> {
         module: usize,
         block: &syn::Block,
         method: &'scope str,
-        owned: &'scope [String],
-        scopes: &'scope [String],
+        fields: LifecycleFields<'scope>,
     ) -> LifecycleBodyVisitor<'scope> {
+        let LifecycleFields {
+            owned,
+            scopes,
+            task_scopes,
+            shared,
+        } = fields;
         let mut visitor = LifecycleBodyVisitor {
             context,
             ordinal,
@@ -35,6 +43,8 @@ impl LifecycleBodyVisitor<'_> {
             method,
             owned,
             scopes,
+            task_scopes,
+            shared,
             invalid: false,
             aborted: BTreeSet::new(),
             child_lifecycle: false,
@@ -221,22 +231,67 @@ impl LifecycleBodyVisitor<'_> {
     }
 }
 
+impl LifecycleBodyVisitor<'_> {
+    fn is_own_shared_clone(&self, call: &syn::ExprCall) -> bool {
+        let syn::Expr::Path(callee) = call.func.as_ref() else {
+            return false;
+        };
+        let arc_clone = self
+            .context
+            .resolve_external_call_paths(self.ordinal, self.module, &callee.path)
+            .iter()
+            .any(|target| {
+                ["std", "alloc"].contains(&target.package.as_str())
+                    && target
+                        .segments
+                        .ends_with(&["Arc".to_owned(), "clone".to_owned()])
+            });
+        self.method == "on_enable"
+            && arc_clone
+            && call
+                .args
+                .first()
+                .and_then(Self::field)
+                .is_some_and(|field| self.shared.contains(&field))
+    }
+
+    fn is_own_task_start(&self, call: &syn::ExprMethodCall) -> bool {
+        self.method == "on_enable"
+            && call.method == "spawn"
+            && Self::field(&call.receiver).is_some_and(|field| self.task_scopes.contains(&field))
+    }
+}
+
 impl<'ast> Visit<'ast> for LifecycleBodyVisitor<'_> {
     fn visit_expr_await(&mut self, expression: &'ast syn::ExprAwait) {
         self.invalid |= self.method == "on_disable";
         syn::visit::visit_expr_await(self, expression);
     }
 
+    fn visit_macro(&mut self, item: &'ast syn::Macro) {
+        for argument in &parse_macro_arguments(item) {
+            self.visit_expr(argument);
+        }
+    }
+
     fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
         let child = self.same_ufcs(call);
-        self.invalid |= !child;
+        self.invalid |= !child && !self.is_own_shared_clone(call);
         self.child_lifecycle |= child;
         syn::visit::visit_expr_call(self, call);
     }
 
     fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+        if self.is_own_task_start(call) {
+            return;
+        }
         let name = call.method.to_string();
         let field = Self::field(&call.receiver);
+        let shared_clone = self.method == "on_enable"
+            && name == "clone"
+            && field
+                .as_ref()
+                .is_some_and(|field| self.shared.contains(field));
         let abort = self.method == "on_disable"
             && name == "abort"
             && field
@@ -250,7 +305,14 @@ impl<'ast> Visit<'ast> for LifecycleBodyVisitor<'_> {
             self.aborted.extend(field);
         }
         self.child_lifecycle |= child;
-        self.invalid |= !abort && !child;
+        self.invalid |= !abort && !child && !shared_clone;
         syn::visit::visit_expr_method_call(self, call);
     }
+}
+
+pub(crate) struct LifecycleFields<'scope> {
+    pub(crate) owned: &'scope [String],
+    pub(crate) scopes: &'scope [String],
+    pub(crate) task_scopes: &'scope [String],
+    pub(crate) shared: &'scope [String],
 }

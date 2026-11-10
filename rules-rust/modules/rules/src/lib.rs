@@ -351,11 +351,13 @@ pub(crate) mod comment {
         pub(crate) use doc_attributes::{
             doc_attribute_lines, doc_heading, item_doc_attributes, joined_doc,
         };
+        pub(crate) use doc_examples::collect_invalid_example_sections;
         pub(crate) use doc_inline_code::doc_inline_candidates;
         pub(crate) use doc_resolve::doc_resolves;
         pub(crate) use doc_text::strip_doc_code;
         mod comment_shape;
         mod doc_attributes;
+        mod doc_examples;
         mod doc_inline_code;
         mod doc_resolve;
         mod doc_text;
@@ -576,7 +578,7 @@ pub(crate) mod module {
             resolve_shape_type,
         };
         pub(crate) use type_ownership::{
-            declaration_owner, exclusive_field_owner, has_type_behaviour,
+            declaration_owner, exclusive_field_owner, field_owners, has_type_behaviour,
         };
         mod external_identity;
         mod kind_resolve;
@@ -604,6 +606,7 @@ pub(crate) mod module {
         pub(crate) use di_module_visibility::DiModuleVisibility;
         pub(crate) use di_placement::DiPlacement;
         pub(crate) use doc_hidden_use::DocHiddenUse;
+        pub(crate) use doc_hidden_visitor::DocHiddenVisitor;
         pub(crate) use entry_point_shape::EntryPointShape;
         pub(crate) use entry_point_visibility::EntryPointVisibility;
         pub(crate) use enum_family_file::EnumFamilyFile;
@@ -623,6 +626,7 @@ pub(crate) mod module {
         pub(crate) use kind_import_direction::KindImportDirection;
         pub(crate) use kind_shape::KindShape;
         pub(crate) use lifecycle_body_visitor::LifecycleBodyVisitor;
+        pub(crate) use lifecycle_body_visitor::LifecycleFields;
         pub(crate) use listener_name::ListenerName;
         pub(crate) use main_shape::MainShape;
         pub(crate) use main_shape_visitor::MainShapeVisitor;
@@ -663,6 +667,7 @@ pub(crate) mod module {
         mod di_module_visibility;
         mod di_placement;
         mod doc_hidden_use;
+        mod doc_hidden_visitor;
         mod entry_point_shape;
         mod entry_point_visibility;
         mod enum_family_file;
@@ -782,6 +787,7 @@ pub(crate) mod runtime {
         pub(crate) use detached_task::DetachedTask;
         pub(crate) use duration_overload_call::DurationOverloadCall;
         pub(crate) use error_logging::ErrorLogging;
+        pub(crate) use fallible_step_count::FallibleStepCount;
         pub(crate) use fallible_step_visitor::FallibleStepVisitor;
         pub(crate) use guard_writes::GuardWrites;
         pub(crate) use ignored_test::IgnoredTest;
@@ -814,6 +820,7 @@ pub(crate) mod runtime {
         mod detached_task;
         mod duration_overload_call;
         mod error_logging;
+        mod fallible_step_count;
         mod fallible_step_visitor;
         mod guard_writes;
         mod ignored_test;
@@ -865,7 +872,9 @@ pub(crate) mod declaration {
         pub(crate) use callback_field_type::callback_field_type;
         pub(crate) use contract_method_shape::invalid_contract_method;
         pub(crate) use eq_hash_shape::supports_eq_hash;
-        pub(crate) use type_shape::{derives, has_bound, has_kind, is_technology};
+        pub(crate) use type_shape::{
+            derives, has_bound, has_kind, has_standard_bound, is_technology,
+        };
         mod callback_field_type;
         mod contract_method_shape;
         mod eq_hash_shape;
@@ -1004,6 +1013,7 @@ mod test {
             mod published_version_test;
             mod root_build_subprojects_test;
             mod root_package_path_test;
+            mod root_sources_test;
             mod shell_automation_test;
             mod unit_path_test;
             mod xtask_alias_test;

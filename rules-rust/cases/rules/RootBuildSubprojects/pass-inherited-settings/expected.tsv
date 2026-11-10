@@ -1,4 +1,5 @@
 RootPackagePath	Cargo.toml	.	set `[workspace.metadata.klibs-rules] prefix`: member names give no unique prefix
 UnitDependency	modules/sample/Cargo.toml:10	sample -> leaf	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+UnitDependency	modules/sample/Cargo.toml:12	sample -> leaf	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
 UnitDependency	modules/sample/Cargo.toml:14	sample -> leaf	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
 UnitDependency	modules/sample/Cargo.toml:16	sample -> leaf	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary

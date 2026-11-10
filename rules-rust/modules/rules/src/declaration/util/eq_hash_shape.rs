@@ -26,6 +26,64 @@ fn primitive_eq_hash(name: &str) -> bool {
     .contains(&name)
 }
 
+fn is_nonzero_integer(name: &str) -> bool {
+    name.strip_prefix("NonZero").is_some_and(|width| {
+        [
+            "U8", "U16", "U32", "U64", "U128", "Usize", "I8", "I16", "I32", "I64", "I128", "Isize",
+        ]
+        .contains(&width)
+    })
+}
+
+fn arguments_support(
+    context: &RuleContext,
+    ordinal: usize,
+    module: usize,
+    arguments: &syn::PathArguments,
+    depth: usize,
+) -> bool {
+    let syn::PathArguments::AngleBracketed(arguments) = arguments else {
+        return false;
+    };
+    arguments
+        .args
+        .iter()
+        .filter_map(|argument| {
+            if let syn::GenericArgument::Type(typed) = argument {
+                Some(typed)
+            } else {
+                None
+            }
+        })
+        .all(|typed| supports_eq_hash(context, ordinal, module, typed, depth + 1))
+}
+
+fn is_standard_leaf(package: &str, segments: &[String], name: &str) -> bool {
+    let nonzero = ["std", "core"].contains(&package)
+        && segments.len() == 3
+        && segments[1] == "num"
+        && is_nonzero_integer(&segments[2]);
+    nonzero
+        || [
+            "String",
+            "PathBuf",
+            "Path",
+            "OsString",
+            "OsStr",
+            "Duration",
+            "SystemTime",
+            "Instant",
+        ]
+        .contains(&name)
+}
+
+fn is_standard_container(name: &str) -> bool {
+    [
+        "Option", "Result", "Vec", "Box", "Arc", "Rc", "BTreeMap", "BTreeSet", "VecDeque",
+    ]
+    .contains(&name)
+}
+
 fn path_supports(
     context: &RuleContext,
     ordinal: usize,
@@ -61,37 +119,11 @@ fn path_supports(
     let Some(name) = path.segments.last() else {
         return false;
     };
-    if [
-        "String",
-        "PathBuf",
-        "Path",
-        "OsString",
-        "OsStr",
-        "Duration",
-        "SystemTime",
-        "Instant",
-    ]
-    .contains(&name.as_str())
-    {
+    if is_standard_leaf(&path.package, &path.segments, name) {
         return true;
     }
-    if !["Option", "Result", "Vec", "Box", "Arc", "Rc"].contains(&name.as_str()) {
-        return false;
-    }
-    let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments else {
-        return false;
-    };
-    arguments
-        .args
-        .iter()
-        .filter_map(|argument| {
-            if let syn::GenericArgument::Type(typed) = argument {
-                Some(typed)
-            } else {
-                None
-            }
-        })
-        .all(|typed| supports_eq_hash(context, ordinal, module, typed, depth + 1))
+    is_standard_container(name)
+        && arguments_support(context, ordinal, module, &segment.arguments, depth)
 }
 
 fn syntax_supports(

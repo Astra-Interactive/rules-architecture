@@ -63,11 +63,8 @@ impl RuleContext {
         {
             return false;
         }
-        if dependency.kind == DependencyKind::Development {
-            return true;
-        }
         if dependency.features.iter().any(|feature| feature == "fake") {
-            return false;
+            return dependency.kind == DependencyKind::Development;
         }
         if to == Some(Role::ProcMacro) {
             return true;

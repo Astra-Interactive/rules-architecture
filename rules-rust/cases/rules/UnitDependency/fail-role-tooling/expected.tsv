@@ -1,2 +1,3 @@
+XtaskAlias	.cargo/config.toml	.cargo/config.toml	set `[alias] xtask = "run --package xtask --"` in the root Cargo configuration
 UnitPath	modules/billing/consumer	case-billing-consumer	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
 UnitDependency	modules/billing/consumer/Cargo.toml:12	case-billing-consumer -> case-billing-provider	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary

@@ -13,23 +13,14 @@ impl Rule for GlobalState {
                 let syn::Item::Static(shared) = &item.syntax else {
                     continue;
                 };
-                let mutable = context
-                    .resolve_external_type_paths_under(ordinal, item.module, &shared.ty, &item.cfg)
-                    .iter()
-                    .any(|path| {
-                        let name = path.segments.last().map(String::as_str).unwrap_or("");
-                        let standard = ["std", "core", "alloc"].contains(&path.package.as_str());
-                        let library =
-                            ["tokio", "parking_lot", "once_cell"].contains(&path.package.as_str());
-                        let state = [
-                            "OnceLock", "LazyLock", "Mutex", "RwLock", "Cell", "RefCell",
-                            "OnceCell", "Lazy",
-                        ]
-                        .contains(&name)
-                            || name.starts_with("Atomic");
-                        (standard || library) && state
-                    });
-                if mutable {
+                let is_invalid = GlobalStateVisitor::invalid_static(
+                    context,
+                    ordinal,
+                    item.module,
+                    shared,
+                    &item.cfg,
+                );
+                if is_invalid {
                     findings.push(build_shape_item_finding(
                         index,
                         item,

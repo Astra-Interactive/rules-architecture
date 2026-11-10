@@ -29,6 +29,26 @@ fn given_all_binding_positions_when_checked_then_reports_it() {
 }
 
 #[test]
+fn given_function_pointer_argument_names_when_checked_then_reports_it() {
+    crate::test::syntax::util::assert_syntax_findings(
+        &ExplicitItName,
+        "ExplicitItName",
+        "type Callback = fn(it: u32) -> u32; type Named = fn(value: u32) -> u32; fn apply(callback: fn(it: u32) -> u32, value: u32) -> u32 { callback(value) }",
+        2,
+    );
+}
+
+#[test]
+fn given_it_binding_inside_macro_pattern_with_guard_when_checked_then_reports_it() {
+    crate::test::syntax::util::assert_syntax_findings(
+        &ExplicitItName,
+        "ExplicitItName",
+        "fn inside(event: PointerEvent) -> bool { matches!(event, PointerEvent::Click(it) if it.x > 0) }\nfn inside_match(event: PointerEvent) -> bool { match event { PointerEvent::Click(it) if it.x > 0 => true, _ => false } }",
+        2,
+    );
+}
+
+#[test]
 fn given_forbidden_syntax_when_checked_then_reports_the_rule() {
     let context = read_case_context("ExplicitItName", "fail-syntax");
     assert!(!ExplicitItName.check(&context).is_empty());

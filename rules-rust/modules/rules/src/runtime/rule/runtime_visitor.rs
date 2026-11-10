@@ -3,12 +3,15 @@ use crate::check::model::RuleFinding;
 use crate::check::util::build_node_finding;
 use crate::check::util::format_module_path;
 use crate::config::model::Role;
+use crate::runtime::util::node_predicate;
+use crate::source::model::CfgPredicate;
 use crate::source::model::CrateIndex;
 use crate::source::model::Resolution;
 use crate::source::model::SourceFile;
 use crate::source::model::SourceTree;
 use crate::source::util::find_node_span;
 use crate::source::util::parse_macro_arguments;
+use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
 
@@ -17,6 +20,7 @@ pub(crate) struct RuntimeVisitor<'source> {
     index: &'source CrateIndex,
     file: &'source SourceFile,
     module: usize,
+    ordinal: usize,
     rule: &'static str,
     is_main: bool,
     findings: Vec<RuleFinding>,
@@ -94,13 +98,71 @@ impl RuntimeVisitor<'_> {
         }
     }
 
+    fn has_active_ignore(&self, meta: &syn::Meta, active: &CfgPredicate) -> bool {
+        if meta.path().is_ident("ignore") {
+            return true;
+        }
+        let syn::Meta::List(list) = meta else {
+            return false;
+        };
+        if !list.path.is_ident("cfg_attr") {
+            return false;
+        }
+        let Ok(arguments) =
+            list.parse_args_with(Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated)
+        else {
+            return false;
+        };
+        let mut arguments = arguments.iter();
+        let Some(condition) = arguments.next() else {
+            return false;
+        };
+        let attribute: syn::Attribute = syn::parse_quote!(#[cfg(#condition)]);
+        let predicate = CfgPredicate::from_attributes(&[attribute]);
+        let active = active.in_scope(self.ordinal);
+        let predicate = predicate.in_scope(self.ordinal);
+        if !active.is_satisfiable() || !active.implies(&predicate) {
+            return false;
+        }
+        arguments.any(|nested| self.has_active_ignore(nested, &active))
+    }
+
+    fn has_tokio_main(&self, meta: &syn::Meta) -> bool {
+        let path = meta.path();
+        if self.resolved_call(self.module, path, 0).as_deref() == Some("tokio::main") {
+            return true;
+        }
+        let segments = &path.segments;
+        if segments.len() == 2 && segments[0].ident == "tokio" && segments[1].ident == "main" {
+            return true;
+        }
+        let syn::Meta::List(list) = meta else {
+            return false;
+        };
+        if !path.is_ident("cfg_attr") {
+            return false;
+        }
+        let Ok(arguments) =
+            list.parse_args_with(Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated)
+        else {
+            return false;
+        };
+        arguments
+            .iter()
+            .skip(1)
+            .any(|nested| self.has_tokio_main(nested))
+    }
+
     pub(crate) fn check_context(context: &RuleContext, rule: &'static str) -> Vec<RuleFinding> {
         let mut findings = Vec::new();
         for sources in &context.crates {
             for file in &sources.files {
-                let Some(index) = context.indexes.iter().find(|index| {
-                    index.crate_name == file.module.crate_name && index.target == file.module.target
-                }) else {
+                let Some((ordinal, index)) =
+                    context.indexes.iter().enumerate().find(|(_, index)| {
+                        index.crate_name == file.module.crate_name
+                            && index.target == file.module.target
+                    })
+                else {
                     continue;
                 };
                 let Some(module) = index
@@ -115,6 +177,7 @@ impl RuntimeVisitor<'_> {
                     index,
                     file,
                     module: module.id,
+                    ordinal,
                     rule,
                     is_main: false,
                     findings: Vec::new(),
@@ -169,16 +232,18 @@ impl<'ast> Visit<'ast> for RuntimeVisitor<'_> {
     }
 
     fn visit_attribute(&mut self, attribute: &'ast syn::Attribute) {
-        if self.rule == "IgnoredTest" && attribute.path().is_ident("ignore") {
-            self.report(attribute.span(), "Keep tests enabled (no-workarounds.md)");
+        if self.rule == "IgnoredTest" {
+            let active = node_predicate(
+                self.index,
+                self.module,
+                &self.file.path,
+                find_node_span(attribute.span()),
+            );
+            if self.has_active_ignore(&attribute.meta, &active) {
+                self.report(attribute.span(), "Keep tests enabled (no-workarounds.md)");
+            }
         }
-        let tokio_main = self
-            .resolved_call(self.module, attribute.path(), 0)
-            .as_deref()
-            == Some("tokio::main")
-            || attribute.path().segments.len() == 2
-                && attribute.path().segments[0].ident == "tokio"
-                && attribute.path().segments[1].ident == "main";
+        let tokio_main = self.has_tokio_main(&attribute.meta);
         if self.rule == "BlockOnOutsideBoundary" && tokio_main {
             self.report(attribute.span(), "Build the async runtime in entry-point main instead of tokio::main (di-manual.rs.md)");
         }

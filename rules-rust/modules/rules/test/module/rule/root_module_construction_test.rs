@@ -47,3 +47,13 @@ fn given_resolved_associated_factory_when_root_constructs_a_service_then_it_is_r
         &[1],
     );
 }
+
+#[test]
+fn given_dependency_crate_client_built_under_non_constructor_name_when_root_constructs_then_it_is_rejected()
+ {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::RootModuleConstruction,
+        "mod di {\n struct RootModule; impl RootModule { fn new() -> Self {\n let client = vendor::Client::builder().build();\n let pool = vendor::Pool::new();\n Self } }\n}",
+        &[3, 4],
+    );
+}

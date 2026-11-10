@@ -20,6 +20,101 @@ pub(crate) fn resolved_di_type(
     })
 }
 
+fn is_own_value_path(
+    context: &RuleContext,
+    ordinal: usize,
+    module: usize,
+    identity: usize,
+    path: &syn::Path,
+) -> bool {
+    path.is_ident("Self")
+        || (path
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == context.indexes[ordinal].items[identity].name)
+            && context
+                .resolve_workspace_path(ordinal, module, path)
+                .iter()
+                .any(|target| target.index == ordinal && target.path.item == Some(identity)))
+}
+
+fn returns_constructed_value(
+    context: &RuleContext,
+    ordinal: usize,
+    module: usize,
+    identity: usize,
+    expression: &syn::Expr,
+) -> bool {
+    match expression {
+        syn::Expr::Path(value) => {
+            is_own_value_path(context, ordinal, module, identity, &value.path)
+        }
+        syn::Expr::Struct(value) => {
+            is_own_value_path(context, ordinal, module, identity, &value.path)
+        }
+        syn::Expr::Call(call) => {
+            let syn::Expr::Path(path) = call.func.as_ref() else {
+                return false;
+            };
+            if is_own_value_path(context, ordinal, module, identity, &path.path) {
+                return true;
+            }
+            let wrapper = context
+                .resolve_external_call_paths(ordinal, module, &path.path)
+                .iter()
+                .any(|path| {
+                    ["std", "core"].contains(&path.package.as_str())
+                        && (path
+                            .segments
+                            .iter()
+                            .skip(1)
+                            .map(String::as_str)
+                            .eq(["option", "Option", "Some"])
+                            || path
+                                .segments
+                                .iter()
+                                .skip(1)
+                                .map(String::as_str)
+                                .eq(["result", "Result", "Ok"]))
+                });
+            wrapper
+                && call.args.len() == 1
+                && call.args.first().is_some_and(|value| {
+                    returns_constructed_value(context, ordinal, module, identity, value)
+                })
+        }
+        syn::Expr::Return(returned) => returned.expr.as_deref().is_some_and(|value| {
+            returns_constructed_value(context, ordinal, module, identity, value)
+        }),
+        syn::Expr::Paren(paren) => {
+            returns_constructed_value(context, ordinal, module, identity, &paren.expr)
+        }
+        _ => false,
+    }
+}
+
+fn is_workspace_factory(context: &RuleContext, usage: &crate::source::model::WorkspaceUse) -> bool {
+    let Some(name) = usage.path.last() else {
+        return false;
+    };
+    let index = &context.indexes[usage.target_index];
+    let item = &index.items[usage.target_item];
+    index.implementations.iter().any(|implementation| {
+        crate::module::util::owns_implementation(index, usage.target_item, implementation)
+            && implementation.cfg.and(&usage.cfg).is_satisfiable()
+            && implementation.syntax.items.iter().any(|member| {
+                let syn::ImplItem::Fn(method) = member else {
+                    return false;
+                };
+                method.sig.ident == name
+                    && method.sig.receiver().is_none()
+                    && crate::syntax::util::is_constructor(&method.sig, &item.name)
+                    && implementation.cfg.and(&usage.cfg).and(&crate::source::model::CfgPredicate::from_attributes(&method.attrs)).is_satisfiable()
+                    && method.block.stmts.last().is_some_and(|statement| matches!(statement, syn::Stmt::Expr(value, _) if returns_constructed_value(context, usage.target_index, implementation.module, usage.target_item, value)))
+            })
+    })
+}
+
 pub(crate) fn is_construction_use(
     context: &RuleContext,
     usage: &crate::source::model::WorkspaceUse,
@@ -27,12 +122,15 @@ pub(crate) fn is_construction_use(
     use crate::source::model::WorkspaceUseKind;
     match usage.kind {
         WorkspaceUseKind::Construction => true,
-        WorkspaceUseKind::Call => usage.path.last().is_some_and(|name| {
-            name == "new"
-                || name == "default"
-                || name.starts_with("with_")
-                || name.starts_with("from_")
-        }),
+        WorkspaceUseKind::Call => {
+            is_workspace_factory(context, usage)
+                || usage.path.last().is_some_and(|name| {
+                    name == "new"
+                        || name == "default"
+                        || name.starts_with("with_")
+                        || name.starts_with("from_")
+                })
+        }
         WorkspaceUseKind::Value => {
             matches!(&context.indexes[usage.target_index].items[usage.target_item].syntax, syn::Item::Struct(value) if matches!(value.fields, syn::Fields::Unit))
         }

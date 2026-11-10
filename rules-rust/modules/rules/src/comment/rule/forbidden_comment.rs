@@ -43,6 +43,16 @@ impl ForbiddenComment {
         })
     }
 
+    fn strip_gutter<'text>(comment: &Comment, line_text: &'text str) -> &'text str {
+        if !matches!(comment.kind, CommentKind::Block) {
+            return line_text;
+        }
+        match line_text.trim_start().strip_prefix('*') {
+            Some(rest) if !rest.starts_with('*') => rest,
+            _ => line_text,
+        }
+    }
+
     fn check_comment(
         file: &SourceFile,
         comment: &Comment,
@@ -55,7 +65,7 @@ impl ForbiddenComment {
                 Self::check_text(
                     file,
                     comment.start.line.saturating_add(offset),
-                    line_text,
+                    Self::strip_gutter(comment, line_text),
                     is_doc,
                 )
             })

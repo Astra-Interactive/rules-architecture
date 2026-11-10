@@ -104,6 +104,30 @@ pub(crate) fn exclusive_field_owner(
         .flatten()
 }
 
+pub(crate) fn field_owners(
+    context: &RuleContext,
+    ordinal: usize,
+    identity: usize,
+) -> BTreeSet<(usize, usize)> {
+    let mut owners = BTreeSet::new();
+    if context.name_index().has_blind_spots {
+        return owners;
+    }
+    for usage in context
+        .name_index()
+        .users_of(ordinal, identity)
+        .filter(|usage| !usage.is_test && !usage.ambiguous && usage.cfg.is_satisfiable())
+    {
+        let Some(owner) = declaration_owner(context, usage) else {
+            continue;
+        };
+        if owner != (ordinal, identity) && field_reference(context, usage, owner) {
+            owners.insert(owner);
+        }
+    }
+    owners
+}
+
 pub(crate) fn has_type_behaviour(context: &RuleContext, ordinal: usize, identity: usize) -> bool {
     let index = &context.indexes[ordinal];
     index.implementations.iter().any(|implementation| {

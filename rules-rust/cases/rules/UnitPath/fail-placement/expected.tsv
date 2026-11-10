@@ -1,3 +1,4 @@
+XtaskAlias	.cargo/config.toml	.cargo/config.toml	set `[alias] xtask = "run --package xtask --"` in the root Cargo configuration
 UnitPath	feature	outside	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
 UnitPath	modules/a/b/c/d	deep	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
 RootPackagePath	modules/a/b/c/d/Cargo.toml:2	deep	name this crate `wrong-a-b-c-d` to match its unit path

@@ -84,6 +84,45 @@ impl LintConfig {
         ));
     }
 
+    fn is_carrier_group(table: &str, group: &str) -> bool {
+        Self::CARRIERS
+            .iter()
+            .any(|carrier| carrier.group == table && carrier.groups.contains(&group))
+    }
+
+    fn check_lowering_groups(
+        manifest: &TomlFile,
+        table_name: &str,
+        required: &TomlValue,
+        findings: &mut Vec<RuleFinding>,
+    ) {
+        let Some(table) = manifest.root.find(&["workspace", "lints", table_name]) else {
+            return;
+        };
+        let lowest_priority = required
+            .entries()
+            .iter()
+            .map(|lint| Self::find_priority(table.find(&[lint.key.as_str()])))
+            .min()
+            .unwrap_or(0);
+        for entry in table.entries() {
+            let is_group = Self::LINT_GROUPS.contains(&entry.key.as_str());
+            let lowers = is_group
+                && !Self::is_carrier_group(table_name, &entry.key)
+                && Self::is_lowered(Self::find_level(&entry.value))
+                && Self::find_priority(Some(&entry.value)) > lowest_priority;
+            if lowers {
+                let message = format!("the group `{}` lowers required lints", entry.key);
+                findings.push(Self::build_finding(
+                    &manifest.path,
+                    Some(entry.value.line),
+                    format!("[workspace.lints.{table_name}] {}", entry.key),
+                    message,
+                ));
+            }
+        }
+    }
+
     fn check_required_lints(workspace: &Workspace, text: &str, findings: &mut Vec<RuleFinding>) {
         let manifest = &workspace.root_manifest;
         let required = match parse_toml_file("required workspace lints", text) {
@@ -132,6 +171,7 @@ impl LintConfig {
                     Self::check_check_cfg(manifest, own, findings);
                 }
             }
+            Self::check_lowering_groups(manifest, &group.key, &group.value, findings);
         }
     }
 
@@ -219,6 +259,35 @@ impl LintConfig {
         }
     }
 
+    fn is_zero(value: &TomlValue) -> bool {
+        matches!(&value.kind, TomlKind::Integer(text) if text.parse::<i64>().ok() == Some(0))
+    }
+
+    fn check_clippy_thresholds(file: &TomlFile, findings: &mut Vec<RuleFinding>) {
+        for key in ["too-many-lines-threshold", "excessive-nesting-threshold"] {
+            let Some(value) = file.root.find(&[key]) else {
+                let message =
+                    "required: the clippy default differs from the documents' threshold".to_owned();
+                findings.push(Self::build_finding(
+                    &file.path,
+                    None,
+                    format!("{} {key}", file.path),
+                    message,
+                ));
+                continue;
+            };
+            if key == "excessive-nesting-threshold" && Self::is_zero(value) {
+                let message = "0 switches excessive_nesting off: it is required at 5".to_owned();
+                findings.push(Self::build_finding(
+                    &file.path,
+                    Some(value.line),
+                    format!("{} {key}", file.path),
+                    message,
+                ));
+            }
+        }
+    }
+
     fn check_clippy_scalars(file: &TomlFile, findings: &mut Vec<RuleFinding>) {
         for key in [
             "allow-unwrap-in-tests",
@@ -236,18 +305,7 @@ impl LintConfig {
                 ));
             }
         }
-        for key in ["too-many-lines-threshold", "excessive-nesting-threshold"] {
-            if file.root.find(&[key]).is_none() {
-                let message =
-                    "required: the clippy default differs from the documents' threshold".to_owned();
-                findings.push(Self::build_finding(
-                    &file.path,
-                    None,
-                    format!("{} {key}", file.path),
-                    message,
-                ));
-            }
-        }
+        Self::check_clippy_thresholds(file, findings);
         for key in ["allow-print-in-tests", "allow-dbg-in-tests"] {
             let Some(value) = file
                 .root
@@ -262,6 +320,51 @@ impl LintConfig {
                 Some(value.line),
                 format!("{} {key}", file.path),
                 message,
+            ));
+        }
+    }
+
+    fn check_clippy_path(
+        file: &TomlFile,
+        list: &str,
+        required: &TomlValue,
+        findings: &mut Vec<RuleFinding>,
+    ) {
+        let Some(path) = required.find(&["path"]).and_then(TomlValue::as_str) else {
+            return;
+        };
+        let present = file
+            .root
+            .find(&[list])
+            .and_then(TomlValue::as_array)
+            .unwrap_or_default()
+            .iter()
+            .find(|value| {
+                value
+                    .as_str()
+                    .or_else(|| value.find(&["path"]).and_then(TomlValue::as_str))
+                    == Some(path)
+            });
+        let subject = format!("{} {list} {path}", file.path);
+        let Some(present) = present else {
+            let message = "a required path is missing".to_owned();
+            findings.push(Self::build_finding(&file.path, None, subject, message));
+            return;
+        };
+        let requires_allow_invalid = required
+            .find(&["allow-invalid"])
+            .and_then(TomlValue::as_bool)
+            == Some(true);
+        let allows_invalid = present
+            .find(&["allow-invalid"])
+            .and_then(TomlValue::as_bool)
+            == Some(true);
+        if requires_allow_invalid && !allows_invalid {
+            findings.push(Self::build_finding(
+                &file.path,
+                Some(present.line),
+                subject,
+                "this required path must set allow-invalid = true".to_owned(),
             ));
         }
     }
@@ -285,29 +388,9 @@ impl LintConfig {
             .iter()
             .filter(|entry| entry.value.as_array().is_some())
         {
-            let present: Vec<&str> = file
-                .root
-                .find(&[list.key.as_str()])
-                .and_then(TomlValue::as_array)
-                .unwrap_or_default()
-                .iter()
-                .filter_map(|value| {
-                    value
-                        .as_str()
-                        .or_else(|| value.find(&["path"]).and_then(TomlValue::as_str))
-                })
-                .collect();
             let required_paths = list.value.as_array().unwrap_or_default();
-            for path in required_paths
-                .iter()
-                .filter_map(|value| value.find(&["path"]).and_then(TomlValue::as_str))
-            {
-                if present.contains(&path) {
-                    continue;
-                }
-                let subject = format!("{} {} {path}", file.path, list.key);
-                let message = "a required path is missing".to_owned();
-                findings.push(Self::build_finding(&file.path, None, subject, message));
+            for required in required_paths {
+                Self::check_clippy_path(file, &list.key, required, findings);
             }
         }
     }
@@ -342,19 +425,6 @@ impl LintConfig {
         if resolver.and_then(TomlValue::as_str) == Some("3") {
             return;
         }
-        let configured = workspace
-            .cargo_config
-            .as_ref()
-            .and_then(|config| {
-                config
-                    .root
-                    .find(&["resolver", "incompatible-rust-versions"])
-            })
-            .and_then(TomlValue::as_str)
-            == Some("fallback");
-        if configured {
-            return;
-        }
         let message =
             "`resolver = \"3\"` keeps dependency versions within the project's Rust version"
                 .to_owned();
@@ -367,8 +437,19 @@ impl LintConfig {
         ));
     }
 
+    fn is_dated_stable(channel: &str) -> bool {
+        let Some(date) = channel.strip_prefix("stable-") else {
+            return false;
+        };
+        let widths: Vec<usize> = date.split('-').map(str::len).collect();
+        widths == [4, 2, 2]
+            && date
+                .chars()
+                .all(|character| character == '-' || character.is_ascii_digit())
+    }
+
     fn is_supported_channel(channel: &str) -> bool {
-        if channel == "stable" {
+        if channel == "stable" || Self::is_dated_stable(channel) {
             return true;
         }
         let parts: Vec<u32> = channel
@@ -458,14 +539,26 @@ impl LintConfig {
         })
     }
 
+    fn find_rustflags_values(config: &TomlFile) -> Vec<&TomlValue> {
+        let mut values: Vec<&TomlValue> = Vec::new();
+        values.extend(config.root.find(&["build", "rustflags"]));
+        values.extend(config.root.find(&["rustflags"]));
+        if let Some(targets) = config.root.find(&["target"]) {
+            values.extend(
+                targets
+                    .entries()
+                    .iter()
+                    .filter_map(|entry| entry.value.find(&["rustflags"])),
+            );
+        }
+        values
+    }
+
     fn check_cargo_config(workspace: &Workspace, findings: &mut Vec<RuleFinding>) {
         let Some(config) = &workspace.cargo_config else {
             return;
         };
-        for path in [["build", "rustflags"].as_slice(), ["rustflags"].as_slice()] {
-            let Some(value) = config.root.find(path) else {
-                continue;
-            };
+        for value in Self::find_rustflags_values(config) {
             let flags: Vec<String> = match &value.kind {
                 TomlKind::String(text) => text.split_whitespace().map(ToOwned::to_owned).collect(),
                 _ => value
@@ -514,6 +607,23 @@ impl LintConfig {
 
     const RULE: &str = "LintConfig";
     const FLOOR_MINOR: u32 = 93;
+    const LINT_GROUPS: [&str; 15] = [
+        "all",
+        "correctness",
+        "suspicious",
+        "style",
+        "complexity",
+        "perf",
+        "pedantic",
+        "restriction",
+        "nursery",
+        "cargo",
+        "unused",
+        "nonstandard_style",
+        "future_incompatible",
+        "rust_2018_idioms",
+        "warnings",
+    ];
     const CARRIERS: [CarrierLint; 14] = [
         CarrierLint {
             group: "rust",

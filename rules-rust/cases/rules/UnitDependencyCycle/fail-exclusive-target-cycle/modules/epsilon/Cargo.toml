@@ -1,0 +1,10 @@
+[package]
+name = "epsilon"
+edition = "2024"
+
+[dev-dependencies]
+delta = { path = "../delta" }
+
+[lints]
+workspace = true
+

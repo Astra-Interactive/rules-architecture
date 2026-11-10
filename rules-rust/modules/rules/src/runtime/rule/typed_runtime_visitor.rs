@@ -4,6 +4,7 @@ use crate::runtime::rule::AwaitVisitor;
 use crate::runtime::rule::ClosureEffects;
 use crate::runtime::rule::GuardWrites;
 use crate::runtime::rule::SelectBranches;
+use crate::runtime::rule::TaskVisitor;
 use crate::runtime::util::expects_lint;
 use crate::runtime::util::node_predicate;
 use crate::source::model::ResolvedTypeSyntax;
@@ -12,6 +13,50 @@ use crate::source::util::find_node_span;
 use std::rc::Rc;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
+
+const RESULT_TYPES: &[&str] = &["std::result::Result", "core::result::Result"];
+
+const OPTION_TYPES: &[&str] = &["std::option::Option", "core::option::Option"];
+
+const LOCK_TYPES: &[&str] = &[
+    "tokio::sync::Mutex",
+    "parking_lot::Mutex",
+    "std::sync::Mutex",
+    "tokio::sync::RwLock",
+    "parking_lot::RwLock",
+    "std::sync::RwLock",
+];
+
+const ATOMIC_TYPES: &[&str] = &[
+    "std::sync::atomic::AtomicBool",
+    "std::sync::atomic::AtomicU8",
+    "std::sync::atomic::AtomicU16",
+    "std::sync::atomic::AtomicU32",
+    "std::sync::atomic::AtomicU64",
+    "std::sync::atomic::AtomicUsize",
+    "std::sync::atomic::AtomicI8",
+    "std::sync::atomic::AtomicI16",
+    "std::sync::atomic::AtomicI32",
+    "std::sync::atomic::AtomicI64",
+    "std::sync::atomic::AtomicIsize",
+    "std::sync::atomic::AtomicPtr",
+];
+
+const ATOMIC_WRITES: &[&str] = &[
+    "store",
+    "swap",
+    "fetch_add",
+    "fetch_sub",
+    "fetch_and",
+    "fetch_nand",
+    "fetch_or",
+    "fetch_xor",
+    "fetch_max",
+    "fetch_min",
+    "fetch_update",
+    "compare_exchange",
+    "compare_exchange_weak",
+];
 
 pub(crate) struct TypedRuntimeVisitor<'source> {
     context: &'source RuleContext,
@@ -27,6 +72,7 @@ pub(crate) struct TypedRuntimeVisitor<'source> {
     thread_expect: bool,
     async_context: bool,
     runtime_main: bool,
+    inherit_async: bool,
 }
 
 impl TypedRuntimeVisitor<'_> {
@@ -66,6 +112,7 @@ impl TypedRuntimeVisitor<'_> {
                     thread_expect: expects_lint(&file.syntax.attrs, "disallowed_methods"),
                     async_context: false,
                     runtime_main: false,
+                    inherit_async: false,
                 };
                 visitor.visit_file(&file.syntax);
                 findings.extend(visitor.findings);
@@ -102,7 +149,7 @@ impl TypedRuntimeVisitor<'_> {
         })
     }
 
-    fn result_types(&self, expression: &syn::Expr) -> Vec<Rc<ResolvedTypeSyntax>> {
+    fn wrapped_types(&self, expression: &syn::Expr, names: &[&str]) -> Vec<Rc<ResolvedTypeSyntax>> {
         self.receiver_types(expression)
             .into_iter()
             .flat_map(|receiver| {
@@ -119,12 +166,10 @@ impl TypedRuntimeVisitor<'_> {
                     resolved.module,
                     &resolved.typed,
                 );
-                if !outer.iter().any(|path| {
-                    matches!(
-                        path.format_path().as_str(),
-                        "std::result::Result" | "core::result::Result"
-                    )
-                }) {
+                if !outer
+                    .iter()
+                    .any(|path| names.contains(&path.format_path().as_str()))
+                {
                     return None;
                 }
                 let syn::Type::Path(path) = &resolved.typed else {
@@ -146,7 +191,42 @@ impl TypedRuntimeVisitor<'_> {
             .collect()
     }
 
+    fn result_types(&self, expression: &syn::Expr) -> Vec<Rc<ResolvedTypeSyntax>> {
+        self.wrapped_types(expression, RESULT_TYPES)
+    }
+
+    fn channel_method_type(&self, call: &syn::ExprMethodCall) -> Vec<Rc<ResolvedTypeSyntax>> {
+        if matches!(call.method.to_string().as_str(), "lock" | "blocking_lock") {
+            let guarded = self.wrapped_types(&call.receiver, LOCK_TYPES);
+            if !guarded.is_empty() {
+                return guarded;
+            }
+        }
+        if call.method == "take" && !self.wrapped_types(&call.receiver, OPTION_TYPES).is_empty() {
+            return self.receiver_types(&call.receiver);
+        }
+        if call.method == "subscribe" {
+            if self.receiver_has(&call.receiver, &["tokio::sync::broadcast::Sender"]) {
+                return vec![self.build_receiver_type(
+                    syn::parse_quote!(tokio::sync::broadcast::Receiver),
+                    self.module,
+                )];
+            }
+            if self.receiver_has(&call.receiver, &["tokio::sync::watch::Sender"]) {
+                return vec![self.build_receiver_type(
+                    syn::parse_quote!(tokio::sync::watch::Receiver),
+                    self.module,
+                )];
+            }
+        }
+        Vec::new()
+    }
+
     fn runtime_method_type(&self, call: &syn::ExprMethodCall) -> Vec<Rc<ResolvedTypeSyntax>> {
+        let channel = self.channel_method_type(call);
+        if !channel.is_empty() {
+            return channel;
+        }
         if ["unwrap", "expect"].iter().any(|name| call.method == *name) {
             let success = self.result_types(&call.receiver);
             if !success.is_empty() {
@@ -271,6 +351,21 @@ impl TypedRuntimeVisitor<'_> {
             .collect()
     }
 
+    fn awaited_types(&self, awaited: &syn::ExprAwait) -> Vec<Rc<ResolvedTypeSyntax>> {
+        let syn::Expr::MethodCall(call) = &*awaited.base else {
+            return Vec::new();
+        };
+        if call.method != "recv"
+            || !self.receiver_has(&call.receiver, &["tokio::sync::broadcast::Receiver"])
+        {
+            return Vec::new();
+        }
+        vec![self.build_receiver_type(
+            syn::parse_quote!(::std::result::Result<_, tokio::sync::broadcast::error::RecvError>),
+            self.module,
+        )]
+    }
+
     fn receiver_types(&self, expression: &syn::Expr) -> Vec<Rc<ResolvedTypeSyntax>> {
         match expression {
             syn::Expr::Reference(reference) => self.receiver_types(&reference.expr),
@@ -283,6 +378,7 @@ impl TypedRuntimeVisitor<'_> {
                 .map(|typed| vec![self.build_receiver_type(typed, self.module)])
                 .unwrap_or_default(),
             syn::Expr::MethodCall(call) => self.runtime_method_type(call),
+            syn::Expr::Await(awaited) => self.awaited_types(awaited),
             syn::Expr::Path(path) => self
                 .bindings
                 .iter()
@@ -353,6 +449,22 @@ impl TypedRuntimeVisitor<'_> {
             arguments.args.iter().any(|argument| matches!(argument, syn::GenericArgument::Type(inner)
                 if self.receiver_identity(resolved.index, resolved.module, inner, active, names, depth + 1)))
         })
+    }
+
+    fn is_blocking_method(&self, expression: &syn::ExprMethodCall) -> bool {
+        let blocking_channel = self.receiver_has(
+            &expression.receiver,
+            &[
+                "std::sync::mpsc::Receiver",
+                "std::sync::mpsc::Sender",
+                "std::sync::mpsc::SyncSender",
+            ],
+        );
+        let blocking_file_read = matches!(
+            expression.method.to_string().as_str(),
+            "read_to_end" | "read_to_string" | "read_exact"
+        ) && self.receiver_has(&expression.receiver, &["std::fs::File"]);
+        blocking_channel || blocking_file_read
     }
 
     fn bind_signature(&mut self, signature: &syn::Signature) {
@@ -500,6 +612,33 @@ impl TypedRuntimeVisitor<'_> {
         }
     }
 
+    fn bind_payload(&mut self, pattern: &syn::Pat, expression: &syn::Expr) -> bool {
+        let syn::Pat::TupleStruct(pattern) = pattern else {
+            return false;
+        };
+        let Some(syn::Pat::Ident(name)) = pattern.elems.first() else {
+            return false;
+        };
+        let types = if pattern.path.is_ident("Some") {
+            self.wrapped_types(expression, OPTION_TYPES)
+        } else if crate::runtime::util::is_result_variant(
+            self.context,
+            self.ordinal,
+            self.module,
+            &pattern.path,
+            "Ok",
+        ) {
+            self.result_types(expression)
+        } else {
+            Vec::new()
+        };
+        let Some(typed) = types.into_iter().next() else {
+            return false;
+        };
+        self.bindings.push((name.ident.to_string(), typed));
+        true
+    }
+
     fn bind_initializer(&mut self, local: &syn::Local) {
         let Some(init) = &local.init else {
             self.bind_pattern(&local.pat);
@@ -523,6 +662,9 @@ impl TypedRuntimeVisitor<'_> {
             && let Some((sender, receiver)) = self.channel_types(&path.path)
         {
             self.bind_channel(pattern, sender, receiver);
+            return;
+        }
+        if self.bind_payload(&local.pat, &init.expr) {
             return;
         }
         self.bind_pattern(&local.pat);
@@ -587,23 +729,7 @@ impl TypedRuntimeVisitor<'_> {
 
     fn check_update(&mut self, expression: &syn::ExprMethodCall) {
         let atomic = expression.method == "fetch_update"
-            && self.receiver_has(
-                &expression.receiver,
-                &[
-                    "std::sync::atomic::AtomicBool",
-                    "std::sync::atomic::AtomicU8",
-                    "std::sync::atomic::AtomicU16",
-                    "std::sync::atomic::AtomicU32",
-                    "std::sync::atomic::AtomicU64",
-                    "std::sync::atomic::AtomicUsize",
-                    "std::sync::atomic::AtomicI8",
-                    "std::sync::atomic::AtomicI16",
-                    "std::sync::atomic::AtomicI32",
-                    "std::sync::atomic::AtomicI64",
-                    "std::sync::atomic::AtomicIsize",
-                    "std::sync::atomic::AtomicPtr",
-                ],
-            );
+            && self.receiver_has(&expression.receiver, ATOMIC_TYPES);
         let watch = matches!(
             expression.method.to_string().as_str(),
             "send_modify" | "send_if_modified"
@@ -615,19 +741,23 @@ impl TypedRuntimeVisitor<'_> {
             if !matches!(argument, syn::Expr::Closure(_)) {
                 continue;
             }
-            let effects = ClosureEffects::collect(argument);
+            let effects = ClosureEffects::collect_nested(argument);
             let impure = atomic && effects.assigns_capture || (watch || atomic) && (
                 effects.methods.iter().any(|call| {
                     let method = call.method.to_string();
+                    let captured = effects.captured_methods.iter().any(|captured| captured.span().start() == call.span().start());
                     let lock = matches!(method.as_str(), "lock" | "blocking_lock" | "read" | "write" | "blocking_read" | "blocking_write")
-                        && self.receiver_has(&call.receiver, &["tokio::sync::Mutex", "parking_lot::Mutex", "std::sync::Mutex", "tokio::sync::RwLock", "parking_lot::RwLock", "std::sync::RwLock"]);
+                        && self.receiver_has(&call.receiver, LOCK_TYPES);
+                    let atomic_write = captured
+                        && ATOMIC_WRITES.contains(&method.as_str())
+                        && self.receiver_has(&call.receiver, ATOMIC_TYPES);
                     let mutation = atomic
-                        && effects.captured_methods.iter().any(|captured| captured.span().start() == call.span().start())
+                        && captured
                         && matches!(method.as_str(), "push" | "pop" | "insert" | "remove" | "clear" | "extend" | "truncate" | "retain" | "resize" | "append" | "drain" | "sort" | "reverse" | "swap_remove")
                         && self.receiver_has(&call.receiver, &["std::vec::Vec", "alloc::vec::Vec", "std::collections::HashMap", "std::collections::HashSet", "std::collections::BTreeMap", "std::collections::BTreeSet", "std::collections::VecDeque"]);
                     let channel = matches!(method.as_str(), "send" | "try_send" | "send_replace" | "send_modify" | "send_if_modified")
                         && self.receiver_has(&call.receiver, &["tokio::sync::watch::Sender", "tokio::sync::mpsc::Sender", "tokio::sync::mpsc::UnboundedSender", "tokio::sync::broadcast::Sender", "tokio::sync::oneshot::Sender", "std::sync::mpsc::Sender", "std::sync::mpsc::SyncSender"]);
-                    lock || channel || mutation
+                    lock || channel || mutation || atomic_write
                 }) || effects.calls.iter().any(|call| matches!(&*call.func, syn::Expr::Path(path)
                     if self.context.resolve_external_call_paths(self.ordinal, self.module, &path.path).iter().any(|path|
                         ["std::fs::", "tokio::fs::", "std::net::", "tokio::net::"].iter().any(|prefix| path.format_path().starts_with(prefix))))));
@@ -715,6 +845,51 @@ impl TypedRuntimeVisitor<'_> {
         }
     }
 
+    fn guard_binding(pattern: &syn::Pat) -> Option<&syn::Ident> {
+        match pattern {
+            syn::Pat::Ident(name) => Some(&name.ident),
+            syn::Pat::Type(typed) => Self::guard_binding(&typed.pat),
+            _ => None,
+        }
+    }
+
+    fn temporary_guard_without_await(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Await(awaited) => {
+                matches!(&*awaited.base, syn::Expr::MethodCall(call)
+                    if call.method == "lock"
+                        && self.receiver_has(&call.receiver, &["tokio::sync::Mutex"]))
+            }
+            syn::Expr::MethodCall(call) => {
+                !call.args.iter().any(AwaitVisitor::in_expression)
+                    && self.temporary_guard_without_await(&call.receiver)
+            }
+            syn::Expr::Field(field) => self.temporary_guard_without_await(&field.base),
+            syn::Expr::Paren(paren) => self.temporary_guard_without_await(&paren.expr),
+            syn::Expr::Reference(reference) => self.temporary_guard_without_await(&reference.expr),
+            syn::Expr::Unary(unary) => self.temporary_guard_without_await(&unary.expr),
+            _ => false,
+        }
+    }
+
+    fn is_channel_send(&self, expression: &syn::Expr) -> bool {
+        let syn::Expr::MethodCall(call) = expression else {
+            return false;
+        };
+        match call.method.to_string().as_str() {
+            "send" => self.receiver_has(
+                &call.receiver,
+                &[
+                    "tokio::sync::oneshot::Sender",
+                    "tokio::sync::mpsc::UnboundedSender",
+                    "tokio::sync::broadcast::Sender",
+                ],
+            ),
+            "try_send" => self.receiver_has(&call.receiver, &["tokio::sync::mpsc::Sender"]),
+            _ => false,
+        }
+    }
+
     fn drops_guard(&self, statement: &syn::Stmt, name: &str) -> bool {
         let syn::Stmt::Expr(syn::Expr::Call(call), _) = statement else {
             return false;
@@ -764,6 +939,17 @@ impl TypedRuntimeVisitor<'_> {
         match expression {
             syn::Expr::Cast(cast) => self.duration_roundtrip(&cast.expr),
             syn::Expr::Paren(paren) => self.duration_roundtrip(&paren.expr),
+            syn::Expr::Binary(binary)
+                if matches!(
+                    binary.op,
+                    syn::BinOp::Add(_)
+                        | syn::BinOp::Sub(_)
+                        | syn::BinOp::Mul(_)
+                        | syn::BinOp::Div(_)
+                ) =>
+            {
+                self.duration_roundtrip(&binary.left) || self.duration_roundtrip(&binary.right)
+            }
             syn::Expr::MethodCall(call) => {
                 call.method.to_string().starts_with("as_")
                     && self.receiver_has(
@@ -851,9 +1037,93 @@ impl TypedRuntimeVisitor<'_> {
         }
     }
 
+    fn broadcast_error(&self, expression: &syn::Expr) -> bool {
+        self.receiver_types(expression).iter().any(|receiver| {
+            let syn::Type::Path(path) = &receiver.typed else {
+                return false;
+            };
+            let Some(segment) = path.path.segments.last() else {
+                return false;
+            };
+            let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments else {
+                return false;
+            };
+            let Some(syn::GenericArgument::Type(error)) = arguments.args.iter().nth(1) else {
+                return false;
+            };
+            self.receiver_identity(
+                receiver.index,
+                receiver.module,
+                error,
+                &crate::source::model::CfgPredicate::All(Vec::new()),
+                &["tokio::sync::broadcast::error::RecvError"],
+                0,
+            )
+        })
+    }
+
+    fn broadcast_recv(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Paren(paren) => self.broadcast_recv(&paren.expr),
+            syn::Expr::Group(group) => self.broadcast_recv(&group.expr),
+            syn::Expr::MethodCall(call) if call.method == "ok" => {
+                self.broadcast_recv(&call.receiver)
+            }
+            syn::Expr::Await(awaited) => !self.awaited_types(awaited).is_empty(),
+            syn::Expr::Path(_) => self.broadcast_error(expression),
+            _ => false,
+        }
+    }
+
+    fn lag_stopping_let(&self, pattern: &syn::Pat, expression: &syn::Expr) -> bool {
+        let syn::Pat::TupleStruct(pattern) = pattern else {
+            return false;
+        };
+        let value = pattern.path.is_ident("Some")
+            || crate::runtime::util::is_result_variant(
+                self.context,
+                self.ordinal,
+                self.module,
+                &pattern.path,
+                "Ok",
+            );
+        value && self.broadcast_recv(expression)
+    }
+
+    fn let_condition(condition: &syn::Expr) -> Option<&syn::ExprLet> {
+        match condition {
+            syn::Expr::Let(expression) => Some(expression),
+            syn::Expr::Paren(paren) => Self::let_condition(&paren.expr),
+            syn::Expr::Binary(binary) if matches!(binary.op, syn::BinOp::And(_)) => {
+                Self::let_condition(&binary.left).or_else(|| Self::let_condition(&binary.right))
+            }
+            _ => None,
+        }
+    }
+
+    fn runs_off_async_call(&self, call: &syn::ExprCall) -> bool {
+        let syn::Expr::Path(path) = &*call.func else {
+            return false;
+        };
+        self.context
+            .resolve_external_call_paths(self.ordinal, self.module, &path.path)
+            .iter()
+            .any(|path| TaskVisitor::runs_off_async(&path.format_path()))
+    }
+
+    fn visit_closure_argument(&mut self, argument: &syn::Expr, inherit: bool) {
+        self.inherit_async = inherit && matches!(argument, syn::Expr::Closure(_));
+        self.visit_expr(argument);
+        self.inherit_async = false;
+    }
+
     fn terminates_loop(expression: &syn::Expr) -> bool {
         match expression {
             syn::Expr::Break(_) | syn::Expr::Return(_) => true,
+            syn::Expr::Match(branch) => branch
+                .arms
+                .iter()
+                .any(|arm| Self::terminates_loop(&arm.body)),
             syn::Expr::Block(block) => block.block.stmts.iter().any(|statement| matches!(statement, syn::Stmt::Expr(expression, _) if Self::terminates_loop(expression))),
             syn::Expr::If(branch) => branch.then_branch.stmts.iter().any(|statement| matches!(statement, syn::Stmt::Expr(expression, _) if Self::terminates_loop(expression))) || branch.else_branch.as_ref().is_some_and(|(_, expression)| Self::terminates_loop(expression)),
             _ => false,
@@ -863,13 +1133,7 @@ impl TypedRuntimeVisitor<'_> {
 
 impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
     fn visit_expr_match(&mut self, expression: &'ast syn::ExprMatch) {
-        if self.rule == "BroadcastLag"
-            && self.loops > 0
-            && let syn::Expr::Await(awaited) = &*expression.expr
-            && let syn::Expr::MethodCall(call) = &*awaited.base
-            && call.method == "recv"
-            && self.receiver_has(&call.receiver, &["tokio::sync::broadcast::Receiver"])
-        {
+        if self.rule == "BroadcastLag" && self.loops > 0 && self.broadcast_recv(&expression.expr) {
             for arm in &expression.arms {
                 if self.lag_pattern(&arm.pat) && Self::terminates_loop(&arm.body) {
                     self.report(arm.span());
@@ -901,7 +1165,8 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
     }
     fn visit_expr_closure(&mut self, expression: &'ast syn::ExprClosure) {
         let asynchronous = self.async_context;
-        self.async_context = expression.asyncness.is_some();
+        let inherited = std::mem::take(&mut self.inherit_async);
+        self.async_context = expression.asyncness.is_some() || inherited;
         let length = self.bindings.len();
         let parent = (self.synchronous_boundary, self.loops);
         self.synchronous_boundary = false;
@@ -1062,10 +1327,16 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
             if !matches!(self.rule, "CriticalSectionWrite" | "LockChoice") {
                 continue;
             }
+            if self.rule == "LockChoice"
+                && let syn::Stmt::Expr(expression, Some(_)) = statement
+                && self.temporary_guard_without_await(expression)
+            {
+                self.report(statement.span());
+            }
             let syn::Stmt::Local(local) = statement else {
                 continue;
             };
-            let syn::Pat::Ident(name) = &local.pat else {
+            let Some(name) = Self::guard_binding(&local.pat) else {
                 continue;
             };
             let Some(init) = &local.init else {
@@ -1105,7 +1376,7 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
                 continue;
             }
             let following = &block.stmts[position + 1..];
-            self.check_guard_tail(local, call, &name.ident.to_string(), following);
+            self.check_guard_tail(local, call, &name.to_string(), following);
         }
         self.bindings.truncate(length);
     }
@@ -1117,26 +1388,26 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
             && expects_lint(&local.attrs, "let_underscore_must_use")
             && matches!(local.pat, syn::Pat::Wild(_))
             && let Some(init) = &local.init
+            && !self.is_channel_send(&init.expr)
         {
-            let allowed = if let syn::Expr::MethodCall(call) = &*init.expr {
-                match call.method.to_string().as_str() {
-                    "send" => self.receiver_has(
-                        &call.receiver,
-                        &[
-                            "tokio::sync::oneshot::Sender",
-                            "tokio::sync::mpsc::UnboundedSender",
-                            "tokio::sync::broadcast::Sender",
-                        ],
-                    ),
-                    "try_send" => self.receiver_has(&call.receiver, &["tokio::sync::mpsc::Sender"]),
-                    _ => false,
-                }
-            } else {
-                false
-            };
-            if !allowed {
-                self.report(local.span());
-            }
+            self.report(local.span());
+        }
+        if self.rule == "ResultConsumption"
+            && let syn::Pat::Ident(name) = &local.pat
+            && name.ident.to_string().starts_with('_')
+            && let Some(init) = &local.init
+            && self.is_channel_send(&init.expr)
+        {
+            self.report(local.span());
+        }
+        if self.rule == "BroadcastLag"
+            && self.loops > 0
+            && let Some(init) = &local.init
+            && let Some((_, diverge)) = &init.diverge
+            && self.lag_stopping_let(&local.pat, &init.expr)
+            && Self::terminates_loop(diverge)
+        {
+            self.report(local.span());
         }
         syn::visit::visit_local(self, local);
         self.bind_initializer(local);
@@ -1162,17 +1433,8 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
                 self.report(expression.span());
             }
         }
-        if self.rule == "BlockingCallInAsync"
-            && self.async_context
-            && self.receiver_has(
-                &expression.receiver,
-                &[
-                    "std::sync::mpsc::Receiver",
-                    "std::sync::mpsc::Sender",
-                    "std::sync::mpsc::SyncSender",
-                ],
-            )
-        {
+        let blocking_async = self.rule == "BlockingCallInAsync" && self.async_context;
+        if blocking_async && self.is_blocking_method(expression) {
             self.report(expression.span());
         }
         if self.rule == "ThreadPrimitive"
@@ -1197,31 +1459,50 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
         {
             self.report(expression.span());
         }
-        syn::visit::visit_expr_method_call(self, expression);
+        self.visit_expr(&expression.receiver);
+        if let Some(turbofish) = &expression.turbofish {
+            self.visit_angle_bracketed_generic_arguments(turbofish);
+        }
+        let inherit = self.async_context
+            && !matches!(
+                expression.method.to_string().as_str(),
+                "spawn" | "spawn_blocking" | "spawn_scoped"
+            );
+        for argument in &expression.args {
+            self.visit_closure_argument(argument, inherit);
+        }
         self.thread_expect = expectation;
     }
 
     fn visit_expr_while(&mut self, expression: &'ast syn::ExprWhile) {
         self.loops += 1;
         if self.rule == "BroadcastLag"
-            && let syn::Expr::Let(condition) = &*expression.cond
-            && let syn::Pat::TupleStruct(pattern) = &*condition.pat
-            && crate::runtime::util::is_result_variant(
-                self.context,
-                self.ordinal,
-                self.module,
-                &pattern.path,
-                "Ok",
-            )
-            && let syn::Expr::Await(awaited) = &*condition.expr
-            && let syn::Expr::MethodCall(call) = &*awaited.base
-            && call.method == "recv"
-            && self.receiver_has(&call.receiver, &["tokio::sync::broadcast::Receiver"])
+            && let Some(condition) = Self::let_condition(&expression.cond)
+            && self.lag_stopping_let(&condition.pat, &condition.expr)
         {
             self.report(expression.span());
         }
+        let length = self.bindings.len();
         syn::visit::visit_expr_while(self, expression);
+        self.bindings.truncate(length);
         self.loops -= 1;
+    }
+
+    fn visit_expr_if(&mut self, expression: &'ast syn::ExprIf) {
+        let length = self.bindings.len();
+        self.visit_expr(&expression.cond);
+        self.visit_block(&expression.then_branch);
+        self.bindings.truncate(length);
+        if let Some((_, otherwise)) = &expression.else_branch {
+            self.visit_expr(otherwise);
+        }
+    }
+
+    fn visit_expr_let(&mut self, expression: &'ast syn::ExprLet) {
+        self.visit_expr(&expression.expr);
+        if !self.bind_payload(&expression.pat, &expression.expr) {
+            self.bind_pattern(&expression.pat);
+        }
     }
 
     fn visit_expr_call(&mut self, expression: &'ast syn::ExprCall) {
@@ -1250,6 +1531,10 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
         {
             self.report(expression.span());
         }
-        syn::visit::visit_expr_call(self, expression);
+        self.visit_expr(&expression.func);
+        let inherit = self.async_context && !self.runs_off_async_call(expression);
+        for argument in &expression.args {
+            self.visit_closure_argument(argument, inherit);
+        }
     }
 }

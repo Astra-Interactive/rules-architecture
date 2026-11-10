@@ -49,6 +49,14 @@ impl CfgPredicate {
         )
     }
 
+    pub(crate) fn is_test_only(&self) -> bool {
+        let test = Self::Atom {
+            key: "test".to_owned(),
+            value: None,
+        };
+        self.implies(&test) && test.implies(self)
+    }
+
     fn from_meta(meta: Meta) -> Self {
         match meta {
             Meta::Path(path) => Self::Atom {
@@ -87,6 +95,21 @@ impl CfgPredicate {
                 Self::All(children)
             }
         }
+    }
+
+    pub(crate) fn find_condition(attribute: &syn::Attribute) -> Option<Self> {
+        if attribute.path().is_ident("cfg") {
+            return attribute.parse_args::<Meta>().ok().map(Self::from_meta);
+        }
+        if !attribute.path().is_ident("cfg_attr") {
+            return None;
+        }
+        attribute
+            .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+            .ok()?
+            .into_iter()
+            .next()
+            .map(Self::from_meta)
     }
 
     pub(crate) fn and(&self, other: &Self) -> Self {
@@ -141,6 +164,14 @@ impl CfgPredicate {
         let mut merged = left.clone();
         for (name, value) in right {
             if merged.get(name).is_some_and(|previous| previous != value) {
+                return None;
+            }
+            let rival = match name.as_str() {
+                "unix" => Some("windows"),
+                "windows" => Some("unix"),
+                _ => None,
+            };
+            if *value && rival.is_some_and(|rival| merged.get(rival) == Some(&true)) {
                 return None;
             }
             let key = name.split_once('=').map(|(key, _)| key);

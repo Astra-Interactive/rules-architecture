@@ -36,7 +36,12 @@ impl Rule for RootSources {
             let message = "the root manifest is virtual: move the crate to modules/<name> and keep only [workspace] here".to_owned();
             findings.push(Self::build_finding(location, message));
         }
-        if workspace.files.iter().any(|file| file.starts_with("src/")) {
+        let has_src_file = workspace.files.iter().any(|file| file.starts_with("src/"));
+        let has_src_directory = workspace
+            .directories
+            .iter()
+            .any(|directory| directory == "src" || directory.starts_with("src/"));
+        if has_src_file || has_src_directory {
             let location = Location {
                 path: "src".to_owned(),
                 line: None,

@@ -16,8 +16,20 @@ impl CallbackDeclaration {
     ) -> Vec<RuleFinding> {
         let index = &context.indexes[ordinal];
         let mut findings = Vec::new();
-        let syn::Item::Struct(structure) = &item.syntax else {
-            return Vec::new();
+        let (fields, generics) = match &item.syntax {
+            syn::Item::Struct(structure) => (
+                structure.fields.iter().collect::<Vec<&syn::Field>>(),
+                &structure.generics,
+            ),
+            syn::Item::Enum(declaration) => (
+                declaration
+                    .variants
+                    .iter()
+                    .flat_map(|variant| &variant.fields)
+                    .collect::<Vec<&syn::Field>>(),
+                &declaration.generics,
+            ),
+            _ => return Vec::new(),
         };
         let production = crate::source::model::CfgPredicate::Not(Box::new(
             crate::source::model::CfgPredicate::Atom {
@@ -30,7 +42,7 @@ impl CallbackDeclaration {
         {
             return Vec::new();
         }
-        for field in &structure.fields {
+        for field in fields {
             let cfg = item
                 .cfg
                 .and(&crate::source::model::CfgPredicate::from_attributes(
@@ -43,7 +55,7 @@ impl CallbackDeclaration {
                 item.module,
                 &field.ty,
                 &cfg,
-                &structure.generics,
+                generics,
                 0,
             ) {
                 findings.push(build_node_finding(

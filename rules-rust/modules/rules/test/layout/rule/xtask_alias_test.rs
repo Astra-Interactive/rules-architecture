@@ -1,4 +1,5 @@
 use crate::check::api::Rule;
+use crate::config::model::Role;
 use crate::layout::rule::XtaskAlias;
 use crate::test::check::usecase::read_case_context;
 use crate::workspace::util::parse_toml_file;
@@ -33,4 +34,17 @@ fn given_xtask_member_when_effective_alias_is_checked_then_wrong_config_location
             Some(parse_toml_file(path, "[alias]\nxtask='run --package xtask --'").expect("config"));
         assert!(XtaskAlias.check(&context).is_empty());
     }
+}
+
+#[test]
+fn given_tooling_crate_with_a_prefixed_name_when_the_alias_is_missing_then_it_is_reported() {
+    let mut context = read_case_context("RootFileShape", "pass-tree");
+    context.workspace.members[0].name = "shop-xtask".to_owned();
+    context.project_config.crates[0].name = "shop-xtask".to_owned();
+    context.project_config.crates[0].role = Some(Role::Tooling);
+    context.workspace.cargo_config = None;
+    let findings = XtaskAlias.check(&context);
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].finding.rule_id.0, "XtaskAlias");
+    assert_eq!(findings[0].finding.subject, ".cargo/config.toml");
 }

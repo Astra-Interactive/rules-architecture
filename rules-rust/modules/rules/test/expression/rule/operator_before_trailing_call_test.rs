@@ -27,6 +27,22 @@ fn given_forbidden_code_when_checked_then_reports_exact_node_lines() {
 }
 
 #[test]
+fn given_lone_mul_call_when_std_ops_trait_is_imported_then_reports_the_call() {
+    assert_code_findings(
+        &OperatorBeforeTrailingCall,
+        "OperatorBeforeTrailingCall",
+        "use std::ops::Mul;\nfn run() {\n    let total = price.mul(quantity);\n}",
+        &[3],
+    );
+    assert_code_findings(
+        &OperatorBeforeTrailingCall,
+        "OperatorBeforeTrailingCall",
+        "fn run() {\n    let total = price.mul(quantity);\n}",
+        &[],
+    );
+}
+
+#[test]
 fn given_prescribed_code_when_checked_then_passes() {
     assert_code_findings(
         &OperatorBeforeTrailingCall,

@@ -38,6 +38,34 @@ fn given_reexported_type_and_cfg_extensions_when_checked_then_only_out_of_file_n
 }
 
 #[test]
+fn given_file_constant_in_util_function_file_when_checked_then_only_static_and_type_report() {
+    let context = read_shape_context(
+        "mod util { mod money_parse; mod limit_state; mod row; }",
+        &[
+            (
+                "util/money_parse.rs",
+                "const MAX_CENTS: i64 = 100;\npub(crate) fn parse_money() -> i64 { MAX_CENTS }",
+            ),
+            (
+                "util/limit_state.rs",
+                "static LIMIT: i64 = 100;\npub(crate) fn read_limit() -> i64 { LIMIT }",
+            ),
+            ("util/row.rs", "struct Row;"),
+        ],
+    );
+    let mut subjects: Vec<_> = UtilShape
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.subject.clone())
+        .collect();
+    subjects.sort();
+    assert_eq!(
+        subjects,
+        ["case_sample::util::LIMIT", "case_sample::util::Row"]
+    );
+}
+
+#[test]
 fn given_declaration_shapes_when_checked_then_exact_wrong_sites_report_and_correct_shapes_pass() {
     let context = read_case_context("UtilShape", "fail-declaration-shape");
     let mut actual: Vec<String> = UtilShape

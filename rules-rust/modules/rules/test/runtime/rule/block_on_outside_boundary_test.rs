@@ -95,6 +95,22 @@ fn given_result_type_alias_when_checked_then_classifies_the_matched_value_type()
 }
 
 #[test]
+fn given_conditional_tokio_main_attribute_when_checked_then_reports_the_attribute() {
+    assert_code_findings(
+        &BlockOnOutsideBoundary,
+        "BlockOnOutsideBoundary",
+        "#[cfg_attr(not(test), tokio::main)]\nasync fn main() {}",
+        &[1],
+    );
+    assert_code_findings(
+        &BlockOnOutsideBoundary,
+        "BlockOnOutsideBoundary",
+        "#[cfg_attr(not(test), inline)]\nasync fn main() {}",
+        &[],
+    );
+}
+
+#[test]
 fn given_cross_module_result_aliases_when_checked_then_uses_the_alias_owner_type() {
     assert_code_findings(
         &BlockOnOutsideBoundary,

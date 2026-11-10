@@ -91,7 +91,7 @@ impl TestRuntimeVisitor<'_> {
     fn model_targets(
         &self,
         expression: &syn::Expr,
-        bindings: &[(String, Vec<crate::source::model::WorkspaceResolvedPath>)],
+        bindings: &[ModelBinding],
     ) -> Vec<crate::source::model::WorkspaceResolvedPath> {
         match expression {
             syn::Expr::Reference(reference) => self.model_targets(&reference.expr, bindings),
@@ -99,8 +99,8 @@ impl TestRuntimeVisitor<'_> {
             syn::Expr::Path(path) => bindings
                 .iter()
                 .rev()
-                .find(|(name, _)| path.path.is_ident(name))
-                .map(|(_, targets)| targets.clone())
+                .find(|binding| path.path.is_ident(&binding.name))
+                .map(|binding| binding.targets.clone())
                 .unwrap_or_else(|| {
                     self.context
                         .resolve_workspace_path(self.ordinal, self.module, &path.path)
@@ -123,6 +123,34 @@ impl TestRuntimeVisitor<'_> {
         }
     }
 
+    fn rooted_in_self(expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Path(path) => path.path.is_ident("self"),
+            syn::Expr::Field(field) => Self::rooted_in_self(&field.base),
+            syn::Expr::MethodCall(call) => Self::rooted_in_self(&call.receiver),
+            syn::Expr::Paren(paren) => Self::rooted_in_self(&paren.expr),
+            syn::Expr::Reference(reference) => Self::rooted_in_self(&reference.expr),
+            _ => false,
+        }
+    }
+
+    fn is_data_method(call: &syn::ExprMethodCall) -> bool {
+        !matches!(
+            call.method.to_string().as_str(),
+            "spawn"
+                | "block_on"
+                | "send"
+                | "recv"
+                | "lock"
+                | "read"
+                | "write"
+                | "join"
+                | "sleep"
+                | "wait"
+        ) && !call.method.to_string().starts_with("blocking_")
+            && Self::rooted_in_self(&call.receiver)
+    }
+
     fn pure_method(item: &syn::ImplItem, name: &syn::Ident) -> bool {
         let syn::ImplItem::Fn(function) = item else {
             return false;
@@ -140,7 +168,7 @@ impl TestRuntimeVisitor<'_> {
         });
         let effects = crate::runtime::rule::ClosureEffects::collect(&body);
         effects.calls.is_empty()
-            && effects.methods.is_empty()
+            && effects.methods.iter().all(Self::is_data_method)
             && effects.macros.is_empty()
             && !effects.assigns_capture
     }
@@ -150,7 +178,7 @@ impl TestRuntimeVisitor<'_> {
         targets: &[crate::source::model::WorkspaceResolvedPath],
         name: &syn::Ident,
     ) -> bool {
-        targets.iter().any(|target| {
+        !targets.is_empty() && targets.iter().all(|target| {
             let Some(identity) = target.path.item else {
                 return false;
             };
@@ -164,7 +192,7 @@ impl TestRuntimeVisitor<'_> {
             {
                 return false;
             }
-            index
+            let methods: Vec<_> = index
                 .implementations
                 .iter()
                 .filter(|implementation| {
@@ -176,28 +204,28 @@ impl TestRuntimeVisitor<'_> {
                             )
                             .contains(&identity)
                 })
-                .any(|implementation| {
+                .flat_map(|implementation| {
                     implementation
                         .syntax
                         .items
                         .iter()
-                        .any(|item| Self::pure_method(item, name))
-                })
+                        .filter(move |item| matches!(item, syn::ImplItem::Fn(function)
+                            if function.sig.ident == *name
+                                && implementation.cfg.and(&target.path.cfg)
+                                    .and(&crate::source::model::CfgPredicate::from_attributes(&function.attrs)).is_satisfiable()))
+                }).collect();
+            !methods.is_empty() && methods.iter().all(|item| Self::pure_method(item, name))
         })
     }
 
-    fn model_call(
-        &self,
-        call: &syn::ExprCall,
-        bindings: &[(String, Vec<crate::source::model::WorkspaceResolvedPath>)],
-    ) -> bool {
+    fn model_call(&self, call: &syn::ExprCall, bindings: &[ModelBinding]) -> bool {
         let syn::Expr::Path(path) = &*call.func else {
             return false;
         };
         if bindings
             .iter()
             .rev()
-            .any(|(name, _)| path.path.is_ident(name))
+            .any(|binding| path.path.is_ident(&binding.name))
         {
             return false;
         }
@@ -218,10 +246,57 @@ impl TestRuntimeVisitor<'_> {
         model_rule || constructor
     }
 
+    fn check_model_if(
+        &self,
+        conditional: &syn::ExprIf,
+        bindings: &mut Vec<ModelBinding>,
+        exercised: &mut bool,
+    ) -> bool {
+        self.model_expression(&conditional.cond, bindings, exercised)
+            && self.model_block(&conditional.then_branch, bindings, exercised)
+            && conditional
+                .else_branch
+                .as_ref()
+                .is_none_or(|(_, otherwise)| self.model_expression(otherwise, bindings, exercised))
+    }
+
+    fn check_model_match(
+        &self,
+        matched: &syn::ExprMatch,
+        bindings: &mut Vec<ModelBinding>,
+        exercised: &mut bool,
+    ) -> bool {
+        if !self.model_expression(&matched.expr, bindings, exercised) {
+            return false;
+        }
+        matched.arms.iter().all(|arm| {
+            let length = bindings.len();
+            let pattern = match &arm.pat {
+                syn::Pat::Guard(guard) => &*guard.pat,
+                pattern => pattern,
+            };
+            match pattern {
+                syn::Pat::Ident(name) if name.subpat.is_none() => bindings.push(ModelBinding {
+                    name: name.ident.to_string(),
+                    targets: Vec::new(),
+                }),
+                syn::Pat::Wild(_) | syn::Pat::Lit(_) | syn::Pat::Path(_) | syn::Pat::Range(_) => {}
+                _ => return false,
+            }
+            let guard = match &arm.pat {
+                syn::Pat::Guard(guard) => self.model_expression(&guard.guard, bindings, exercised),
+                _ => true,
+            };
+            let pure = guard && self.model_expression(&arm.body, bindings, exercised);
+            bindings.truncate(length);
+            pure
+        })
+    }
+
     fn model_expression(
         &self,
         expression: &syn::Expr,
-        bindings: &mut Vec<(String, Vec<crate::source::model::WorkspaceResolvedPath>)>,
+        bindings: &mut Vec<ModelBinding>,
         exercised: &mut bool,
     ) -> bool {
         match expression {
@@ -241,6 +316,8 @@ impl TestRuntimeVisitor<'_> {
                 .iter()
                 .all(|field| self.model_expression(&field.expr, bindings, exercised)),
             syn::Expr::Block(block) => self.model_block(&block.block, bindings, exercised),
+            syn::Expr::If(conditional) => self.check_model_if(conditional, bindings, exercised),
+            syn::Expr::Match(matched) => self.check_model_match(matched, bindings, exercised),
             syn::Expr::MethodCall(call) => {
                 let targets = self.model_targets(&call.receiver, bindings);
                 if !self.pure_model_method(&targets, &call.method) {
@@ -270,7 +347,7 @@ impl TestRuntimeVisitor<'_> {
     fn model_assertion(
         &self,
         item: &syn::Macro,
-        bindings: &mut Vec<(String, Vec<crate::source::model::WorkspaceResolvedPath>)>,
+        bindings: &mut Vec<ModelBinding>,
         exercised: &mut bool,
     ) -> bool {
         if !self.builtin_assertion(item) {
@@ -284,7 +361,7 @@ impl TestRuntimeVisitor<'_> {
     fn model_block(
         &self,
         block: &syn::Block,
-        bindings: &mut Vec<(String, Vec<crate::source::model::WorkspaceResolvedPath>)>,
+        bindings: &mut Vec<ModelBinding>,
         exercised: &mut bool,
     ) -> bool {
         let length = bindings.len();
@@ -307,7 +384,10 @@ impl TestRuntimeVisitor<'_> {
                 let syn::Pat::Ident(name) = pattern else {
                     return false;
                 };
-                bindings.push((name.ident.to_string(), targets));
+                bindings.push(ModelBinding {
+                    name: name.ident.to_string(),
+                    targets,
+                });
                 true
             }
             syn::Stmt::Expr(expression, _) => {
@@ -427,6 +507,12 @@ impl TestRuntimeVisitor<'_> {
 }
 
 impl<'ast> Visit<'ast> for TestRuntimeVisitor<'_> {
+    fn visit_macro(&mut self, item: &'ast syn::Macro) {
+        for argument in &crate::source::util::parse_macro_arguments(item) {
+            self.visit_expr(argument);
+        }
+    }
+
     fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
         let parent = self.module;
         if let Some(module) = self.context.indexes[self.ordinal]
@@ -491,4 +577,9 @@ impl<'ast> Visit<'ast> for TestRuntimeVisitor<'_> {
         }
         syn::visit::visit_expr_call(self, expression);
     }
+}
+
+struct ModelBinding {
+    name: String,
+    targets: Vec<crate::source::model::WorkspaceResolvedPath>,
 }

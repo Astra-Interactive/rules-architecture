@@ -6,6 +6,8 @@ use crate::source::model::SourceFile;
 use crate::source::util::find_node_span;
 use crate::source::util::parse_macro_arguments;
 use syn::ext::IdentExt;
+use syn::parse::ParseStream;
+use syn::parse::Parser;
 use syn::visit::Visit;
 
 pub(crate) struct NameVisitor<'source> {
@@ -74,14 +76,26 @@ impl<'source> NameVisitor<'source> {
         }
     }
 
+    pub(crate) fn has_interface_prefix(name: &str) -> bool {
+        let letters: Vec<char> = name.chars().take(3).collect();
+        matches!(letters.as_slice(), ['I', upper, lower] if upper.is_uppercase() && lower.is_lowercase())
+    }
+
+    fn has_service_word(name: &str) -> bool {
+        name.match_indices("Service").any(|(position, word)| {
+            name[position + word.len()..]
+                .chars()
+                .next()
+                .is_none_or(|next| !next.is_lowercase())
+        })
+    }
+
     fn check_type(&mut self, ident: &syn::Ident, is_trait: bool) {
         let name = ident.unraw().to_string();
         let has_bad_suffix = name.ends_with("Impl") || name.ends_with("Interface");
-        let letters: Vec<char> = name.chars().take(3).collect();
-        let has_interface_shape = matches!(letters.as_slice(), ['I', upper, lower] if upper.is_uppercase() && lower.is_lowercase());
-        let has_interface_prefix = is_trait && has_interface_shape;
+        let has_interface_prefix = is_trait && Self::has_interface_prefix(&name);
         if self.rule == "ImplementationName" && (has_bad_suffix || has_interface_prefix) {
-            self.report_name(ident, "Name a type by its contract or implementation variant, without Impl, Interface or an I-prefix (arch-package.md)");
+            self.report_name(ident, Self::IMPLEMENTATION_NAME_MESSAGE);
         }
         if self.rule != "KindNameInPackage" {
             return;
@@ -106,7 +120,9 @@ impl<'source> NameVisitor<'source> {
             .any(|suffix| name.ends_with(suffix));
         let repeats_model_kind =
             is_domain_model && (name.ends_with("Model") || name.ends_with("Entity"));
-        let misplaced_service = name.ends_with("Service") && !segments.contains(&"service");
+        let misplaced_service = !segments.contains(&"service")
+            && (name.ends_with("Service")
+                || (segments.contains(&"model") && Self::has_service_word(&name)));
         let vague_contract = is_trait
             && segments.contains(&"api")
             && ["Api", "Dao", "Krate", "Storage"]
@@ -204,6 +220,8 @@ impl<'source> NameVisitor<'source> {
             })
             .collect()
     }
+
+    pub(crate) const IMPLEMENTATION_NAME_MESSAGE: &'static str = "Name a type by its contract or implementation variant, without Impl, Interface or an I-prefix (arch-package.md)";
 }
 
 impl<'ast> Visit<'ast> for NameVisitor<'_> {
@@ -286,6 +304,19 @@ impl<'ast> Visit<'ast> for NameVisitor<'_> {
     }
 
     fn visit_macro(&mut self, item: &'ast syn::Macro) {
+        let is_matches = item
+            .path
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == "matches");
+        if is_matches && let Ok(arguments) = parse_matches_arguments.parse2(item.tokens.clone()) {
+            self.visit_expr(&arguments.scrutinee);
+            self.visit_pat(&arguments.pattern);
+            if let Some(guard) = &arguments.guard {
+                self.visit_expr(guard);
+            }
+            return;
+        }
         for argument in &parse_macro_arguments(item) {
             self.visit_expr(argument);
         }
@@ -363,6 +394,13 @@ impl<'ast> Visit<'ast> for NameVisitor<'_> {
         syn::visit::visit_pat_ident(self, pattern);
     }
 
+    fn visit_named_arg(&mut self, argument: &'ast syn::NamedArg) {
+        if let Some((name, _)) = &argument.name {
+            self.check_declared_name(name);
+        }
+        syn::visit::visit_named_arg(self, argument);
+    }
+
     fn visit_field(&mut self, field: &'ast syn::Field) {
         if self.rule == "ExplicitItName" {
             self.check_field_name(field);
@@ -378,4 +416,28 @@ impl<'ast> Visit<'ast> for NameVisitor<'_> {
             );
         }
     }
+}
+
+struct MatchesArguments {
+    scrutinee: syn::Expr,
+    pattern: syn::Pat,
+    guard: Option<syn::Expr>,
+}
+
+fn parse_matches_arguments(input: ParseStream) -> syn::Result<MatchesArguments> {
+    let scrutinee: syn::Expr = input.parse()?;
+    input.parse::<syn::Token![,]>()?;
+    let pattern = syn::Pat::parse_multi_with_leading_vert(input)?;
+    let mut guard = None;
+    if input.peek(syn::Token![if]) {
+        input.parse::<syn::Token![if]>()?;
+        let condition: syn::Expr = input.parse()?;
+        guard = Some(condition);
+    }
+    input.parse::<Option<syn::Token![,]>>()?;
+    Ok(MatchesArguments {
+        scrutinee,
+        pattern,
+        guard,
+    })
 }

@@ -17,6 +17,28 @@ fn given_cdylib_host_items_when_checked_then_only_hidden_configured_host_reports
     assert!(EntryPointShape.check(&context).is_empty());
 }
 
+fn read_staticlib_host_context(source: &str) -> crate::check::model::RuleContext {
+    let mut context = read_shape_context(source, &[]);
+    context.project_config.crates[0].role = Some(crate::config::model::Role::EntryPoint);
+    context.project_config.crates[0].host_items = vec!["start_host".to_owned()];
+    context.workspace.members[0].targets[0].kinds = vec!["staticlib".to_owned()];
+    context
+}
+
+#[test]
+fn given_staticlib_host_items_when_checked_then_only_hidden_configured_host_reports() {
+    let context =
+        read_staticlib_host_context("#[unsafe(no_mangle)] extern \"C\" fn start_host() {}");
+    let findings = EntryPointShape.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].finding.rule_id.0, "EntryPointShape");
+    assert_eq!(findings[0].finding.subject, "case_sample::start_host");
+    assert_eq!(findings[0].finding.location.line, Some(1));
+    let context =
+        read_staticlib_host_context("#[unsafe(no_mangle)] pub extern \"C\" fn start_host() {}");
+    assert!(EntryPointShape.check(&context).is_empty());
+}
+
 #[test]
 fn given_declaration_shapes_when_checked_then_exact_wrong_sites_report_and_correct_shapes_pass() {
     let context = read_case_context("EntryPointShape", "fail-declaration-shape");

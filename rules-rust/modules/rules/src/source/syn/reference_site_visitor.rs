@@ -1,5 +1,6 @@
 use crate::source::model::{NodeSpan, ReferenceSite, WorkspaceUseKind};
 use crate::source::util::find_node_span;
+use crate::source::util::parse_macro_arguments;
 use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 
@@ -43,6 +44,12 @@ impl<'ast> Visit<'ast> for ReferenceSiteVisitor {
         self.kind = WorkspaceUseKind::Type;
         visit::visit_type_path(self, path);
         self.kind = previous;
+    }
+
+    fn visit_macro(&mut self, item: &'ast syn::Macro) {
+        for argument in &parse_macro_arguments(item) {
+            self.visit_expr(argument);
+        }
     }
 
     fn visit_expr_call(&mut self, expression: &'ast syn::ExprCall) {

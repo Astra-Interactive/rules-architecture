@@ -36,10 +36,41 @@ impl<'context> RootConstructionVisitor<'context> {
         })
     }
 
+    fn list_external_packages(&self, path: &syn::Path) -> Vec<String> {
+        self.context
+            .resolve_external_call_paths(self.ordinal, self.module, path)
+            .into_iter()
+            .map(|target| target.package)
+            .collect()
+    }
+
+    fn is_dependency_call(&self, path: &syn::Path) -> bool {
+        let mut owner = path.clone();
+        owner.segments.pop();
+        owner.segments.pop_punct();
+        let in_workspace = !self
+            .context
+            .resolve_workspace_path(self.ordinal, self.module, path)
+            .is_empty()
+            || (!owner.segments.is_empty()
+                && !self
+                    .context
+                    .resolve_workspace_path(self.ordinal, self.module, &owner)
+                    .is_empty());
+        !in_workspace
+            && self
+                .list_external_packages(path)
+                .iter()
+                .any(|package| !["std", "core", "alloc"].contains(&package.as_str()))
+    }
+
     fn invalid_call(&self, call: &syn::ExprCall) -> bool {
         let syn::Expr::Path(callee) = call.func.as_ref() else {
             return false;
         };
+        if self.is_dependency_call(&callee.path) {
+            return true;
+        }
         let mut path = callee.path.clone();
         let constructor = path.segments.last().is_some_and(|segment| {
             let name = segment.ident.to_string();

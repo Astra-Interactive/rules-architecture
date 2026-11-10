@@ -56,3 +56,22 @@ fn given_error_struct_or_foreign_from_type_when_checked_then_requires_enum_and_o
         &[],
     );
 }
+
+#[test]
+fn given_foreign_error_nested_in_an_option_field_when_checked_then_the_family_is_rejected() {
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ErrorFamilyShape,
+        "type Source = Box<dyn std::error::Error + Send + Sync>;\n#[derive(Debug, thiserror::Error)] enum OrderError { #[error(\"failed\")] Failed { cause: Option<std::io::Error> } }\n#[derive(Debug, thiserror::Error)] enum LoadError { #[error(\"failed\")] Failed { #[source] source: Source } }",
+        &[2],
+    );
+}
+
+#[test]
+fn given_enum_without_error_suffix_and_a_handwritten_error_impl_when_checked_then_the_family_is_checked()
+ {
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ErrorFamilyShape,
+        "#[derive(Debug)] enum Failure { Missing }\nimpl std::fmt::Display for Failure { fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { formatter.write_str(\"missing\") } }\nimpl std::error::Error for Failure {}\nenum Kind { Plain }",
+        &[1],
+    );
+}

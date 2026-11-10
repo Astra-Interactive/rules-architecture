@@ -1,3 +1,4 @@
+use crate::comment::util::joined_doc;
 use crate::source::util::find_node_span;
 use crate::syntax::util::to_snake_case;
 use syn::ext::IdentExt;
@@ -24,7 +25,9 @@ impl RustdocParameterVisitor {
     }
 
     fn repeats(line: &str, parameters: &[String]) -> bool {
-        let Some(rest) = line.trim_start().strip_prefix('`') else {
+        let line = line.trim_start();
+        let line = line.strip_prefix("- ").unwrap_or(line).trim_start();
+        let Some(rest) = line.strip_prefix('`') else {
             return false;
         };
         let Some((name, description)) = rest.split_once('`') else {
@@ -47,6 +50,19 @@ impl RustdocParameterVisitor {
         !name.is_empty() && name == description
     }
 
+    fn lists_parameter(text: &str, name: &str) -> bool {
+        text.lines().any(|line| {
+            let line = line.trim_start();
+            let Some(item) = line.strip_prefix("- ").or_else(|| line.strip_prefix("* ")) else {
+                return false;
+            };
+            item.trim_start()
+                .strip_prefix('`')
+                .and_then(|rest| rest.strip_prefix(name))
+                .is_some_and(|rest| rest.starts_with('`'))
+        })
+    }
+
     fn inspect(&mut self, signature: &syn::Signature, attributes: &[syn::Attribute]) {
         let parameters: Vec<_> = signature
             .inputs
@@ -59,6 +75,7 @@ impl RustdocParameterVisitor {
                 _ => None,
             })
             .collect();
+        let reported = self.spans.len();
         for attribute in attributes
             .iter()
             .filter(|attribute| attribute.path().is_ident("doc"))
@@ -79,6 +96,25 @@ impl RustdocParameterVisitor {
             {
                 self.spans.push(find_node_span(attribute.span()));
             }
+        }
+        let typed = signature
+            .inputs
+            .iter()
+            .filter(|input| matches!(input, syn::FnArg::Typed(_)))
+            .count();
+        let is_unreported = self.spans.len() == reported;
+        let is_fully_typed = parameters.len() > 1 && parameters.len() == typed;
+        if !is_unreported || !is_fully_typed {
+            return;
+        }
+        let Some((span, text)) = joined_doc(attributes) else {
+            return;
+        };
+        let lists_every_parameter = parameters
+            .iter()
+            .all(|parameter| Self::lists_parameter(&text, parameter));
+        if lists_every_parameter {
+            self.spans.push(span);
         }
     }
 }

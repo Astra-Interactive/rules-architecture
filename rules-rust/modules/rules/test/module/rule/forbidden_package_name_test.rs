@@ -4,6 +4,31 @@ use crate::config::model::Role;
 use crate::module::rule::ForbiddenPackageName;
 use crate::test::module::util::assert_import_pair;
 use crate::test::module::util::read_import_context;
+use crate::test::module::util::read_shape_context;
+
+#[test]
+fn given_file_modules_named_by_a_type_when_checked_then_only_blocks_and_standard_crate_names_report()
+ {
+    let context = read_shape_context(
+        "mod api {\n    mod port;\n    mod std;\n    mod core;\n    pub use port::Port;\n    pub trait Source { fn read(&self) -> Port; }\n}\nmod model {\n    mod port {}\n}\n",
+        &[
+            ("api/port.rs", "pub struct Port;"),
+            ("api/std.rs", "pub struct Handle;"),
+            ("api/core.rs", "pub struct Engine;"),
+        ],
+    );
+    let mut actual: Vec<String> = ForbiddenPackageName
+        .check(&context)
+        .iter()
+        .map(|finding| {
+            assert_eq!("ForbiddenPackageName", finding.finding.rule_id.0);
+            let name = finding.finding.subject.rsplit("::").next().expect("name");
+            format!("{} {name}", finding.finding.location.line.expect("line"))
+        })
+        .collect();
+    actual.sort();
+    assert_eq!(actual, ["3 std", "4 core", "9 port"]);
+}
 
 #[test]
 fn given_persistent_phase3_package_pairs_when_checked_then_only_the_technology_role_allows_storage_kinds()

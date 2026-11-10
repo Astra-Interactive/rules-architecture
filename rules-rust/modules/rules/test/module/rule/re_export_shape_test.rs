@@ -75,3 +75,24 @@ fn given_complementary_cfg_exports_when_checked_then_exactly_one_export_is_requi
     )];
     assert_eq!(ReExportShape.check(&context).len(), 1);
 }
+
+#[test]
+fn given_item_re_exported_by_another_kind_block_when_checked_then_the_second_path_is_reported() {
+    let mut context = read_case_context("ImportOrdering", "pass-syntax");
+    context.indexes = vec![build_index_files(
+        "mod billing {\n    mod model { pub(crate) use value::Invoice; mod value; }\n    mod usecase {\n        pub(crate) use issue_use_case::IssueUseCase;\n        pub(crate) use crate::billing::model::Invoice;\n        mod issue_use_case;\n    }\n}",
+        BTreeMap::from([
+            ("billing/model/value.rs", "pub(crate) struct Invoice;"),
+            (
+                "billing/usecase/issue_use_case.rs",
+                "pub(crate) struct IssueUseCase;",
+            ),
+        ]),
+    )];
+    let findings = ReExportShape.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].finding.rule_id.0, "ReExportShape");
+    assert_eq!(findings[0].finding.subject, "Invoice");
+    assert_eq!(findings[0].finding.location.path, "lib.rs");
+    assert_eq!(findings[0].finding.location.line, Some(5));
+}

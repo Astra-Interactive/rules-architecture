@@ -1,5 +1,6 @@
 use crate::check::model::RuleContext;
 use crate::module::util::is_di_type;
+use crate::runtime::rule::SelectBranches;
 use crate::source::model::Resolution;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
@@ -16,6 +17,7 @@ pub(crate) struct MainShapeVisitor<'context> {
     disabled_after: bool,
     roots: std::collections::BTreeSet<String>,
     runtimes: std::collections::BTreeSet<String>,
+    signals: std::collections::BTreeSet<String>,
     builder_calls: usize,
     returned_roots: Vec<crate::source::model::NodeSpan>,
     shutdown_waited: bool,
@@ -23,6 +25,68 @@ pub(crate) struct MainShapeVisitor<'context> {
 }
 
 impl MainShapeVisitor<'_> {
+    fn build_flow(&self) -> Flow {
+        Flow {
+            enabled: self.enabled,
+            disabled_after: self.disabled_after,
+            shutdown_waited: self.shutdown_waited,
+        }
+    }
+
+    fn restore(&mut self, flow: Flow) {
+        self.enabled = flow.enabled;
+        self.disabled_after = flow.disabled_after;
+        self.shutdown_waited = flow.shutdown_waited;
+    }
+
+    fn find_tokio_segments(&self, path: &syn::Path) -> Vec<String> {
+        match self.context.indexes[self.ordinal].resolve_path(self.module, path) {
+            Resolution::External(path) => {
+                let path = self.context.resolve_external_identity(self.ordinal, &path);
+                if path.package == "tokio" {
+                    path.segments
+                } else {
+                    Vec::new()
+                }
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    fn is_signal_source(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::MethodCall(call) => self.is_signal_source(&call.receiver),
+            syn::Expr::Try(attempt) => self.is_signal_source(&attempt.expr),
+            syn::Expr::Call(call) => {
+                matches!(call.func.as_ref(), syn::Expr::Path(path) if {
+                    let segments = self.find_tokio_segments(&path.path);
+                    segments.iter().any(|segment| segment == "signal")
+                        && (segments.last().is_some_and(|segment| segment == "signal")
+                            || segments.iter().any(|segment| segment == "windows"))
+                })
+            }
+            _ => false,
+        }
+    }
+
+    fn is_signal_wait(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Call(call) => {
+                matches!(call.func.as_ref(), syn::Expr::Path(path) if self
+                    .find_tokio_segments(&path.path)
+                    .ends_with(&["signal".to_owned(), "ctrl_c".to_owned()]))
+            }
+            syn::Expr::MethodCall(call) => {
+                call.method == "recv"
+                    && matches!(call.receiver.as_ref(), syn::Expr::Path(path) if path
+                        .path
+                        .get_ident()
+                        .is_some_and(|name| self.signals.contains(&name.to_string())))
+            }
+            _ => false,
+        }
+    }
+
     fn root_target(&self, target: &crate::source::model::WorkspaceResolvedPath) -> bool {
         target.path.item.is_some_and(|identity| {
             let item = &self.context.indexes[target.index].items[identity];
@@ -86,6 +150,7 @@ impl MainShapeVisitor<'_> {
             disabled_after: false,
             roots: std::collections::BTreeSet::new(),
             runtimes: std::collections::BTreeSet::new(),
+            signals: std::collections::BTreeSet::new(),
             builder_calls: 0,
             returned_roots: Vec::new(),
             shutdown_waited: false,
@@ -109,25 +174,43 @@ impl<'ast> Visit<'ast> for MainShapeVisitor<'_> {
     }
 
     fn visit_expr_await(&mut self, awaited: &'ast syn::ExprAwait) {
-        if self.in_block
-            && self.enabled
-            && let syn::Expr::Call(call) = awaited.base.as_ref()
-            && let syn::Expr::Path(path) = call.func.as_ref()
-        {
-            let signal =
-                match self.context.indexes[self.ordinal].resolve_path(self.module, &path.path) {
-                    Resolution::External(path) => {
-                        let path = self.context.resolve_external_identity(self.ordinal, &path);
-                        path.package == "tokio"
-                            && path
-                                .segments
-                                .ends_with(&["signal".to_owned(), "ctrl_c".to_owned()])
-                    }
-                    _ => false,
-                };
-            self.shutdown_waited |= signal;
+        if self.in_block && self.enabled && self.is_signal_wait(&awaited.base) {
+            self.shutdown_waited = true;
         }
         syn::visit::visit_expr_await(self, awaited);
+    }
+
+    fn visit_macro(&mut self, item: &'ast syn::Macro) {
+        let select = self
+            .find_tokio_segments(&item.path)
+            .last()
+            .is_some_and(|segment| segment == "select");
+        if !(self.in_block && self.enabled && select) {
+            return;
+        }
+        let Ok(branches) = syn::parse2::<SelectBranches>(item.tokens.clone()) else {
+            return;
+        };
+        if branches
+            .futures
+            .iter()
+            .any(|future| self.is_signal_wait(future))
+        {
+            self.shutdown_waited = true;
+        }
+    }
+
+    fn visit_expr_match(&mut self, branch: &'ast syn::ExprMatch) {
+        self.visit_expr(&branch.expr);
+        let before = self.build_flow();
+        let mut merged: Option<Flow> = None;
+        for arm in &branch.arms {
+            self.restore(before);
+            self.visit_arm(arm);
+            let arm_flow = self.build_flow();
+            merged = Some(merged.map_or(arm_flow, |flow| flow.both(arm_flow)));
+        }
+        self.restore(merged.unwrap_or(before));
     }
 
     fn visit_expr_if(&mut self, branch: &'ast syn::ExprIf) {
@@ -145,17 +228,18 @@ impl<'ast> Visit<'ast> for MainShapeVisitor<'_> {
             }
             return;
         }
-        let waited_before = self.shutdown_waited;
+        let before = self.build_flow();
         self.visit_block(&branch.then_branch);
         if literal == Some(true) {
             return;
         }
-        let waited_then = self.shutdown_waited;
-        self.shutdown_waited = waited_before;
+        let then_flow = self.build_flow();
+        self.restore(before);
         if let Some((_, expression)) = &branch.else_branch {
             self.visit_expr(expression);
         }
-        self.shutdown_waited &= waited_then;
+        let else_flow = self.build_flow();
+        self.restore(then_flow.both(else_flow));
     }
 
     fn visit_local(&mut self, local: &'ast syn::Local) {
@@ -176,6 +260,10 @@ impl<'ast> Visit<'ast> for MainShapeVisitor<'_> {
         };
         self.roots.remove(&binding.to_string());
         self.runtimes.remove(&binding.to_string());
+        self.signals.remove(&binding.to_string());
+        if self.is_signal_source(&initializer.expr) {
+            self.signals.insert(binding.to_string());
+        }
         if self.builder_calls > builders {
             self.runtimes.insert(binding.to_string());
         }
@@ -253,6 +341,7 @@ impl<'ast> Visit<'ast> for MainShapeVisitor<'_> {
     fn visit_block(&mut self, block: &'ast syn::Block) {
         let roots = self.roots.clone();
         let runtimes = self.runtimes.clone();
+        let signals = self.signals.clone();
         syn::visit::visit_block(self, block);
         if let Some(syn::Stmt::Expr(expression, None)) = block.stmts.last()
             && self.root_expression(expression)
@@ -262,5 +351,23 @@ impl<'ast> Visit<'ast> for MainShapeVisitor<'_> {
         }
         self.roots = roots;
         self.runtimes = runtimes;
+        self.signals = signals;
+    }
+}
+
+#[derive(Clone, Copy)]
+struct Flow {
+    enabled: bool,
+    disabled_after: bool,
+    shutdown_waited: bool,
+}
+
+impl Flow {
+    fn both(self, other: Flow) -> Flow {
+        Flow {
+            enabled: self.enabled && other.enabled,
+            disabled_after: self.disabled_after && other.disabled_after,
+            shutdown_waited: self.shutdown_waited && other.shutdown_waited,
+        }
     }
 }

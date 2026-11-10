@@ -149,6 +149,15 @@ impl TimeVisitor<'_> {
                 ["u8","u16","u32","u64","u128","usize","i8","i16","i32","i64","i128","isize","f32","f64","str"].contains(&name.to_string().as_str()))))
     }
 
+    fn unit_constant(&self, ident: &syn::Ident, typed: &syn::Type) -> bool {
+        [
+            "_MS", "_MILLIS", "_SECS", "_SECONDS", "_NANOS", "_MICROS", "_MINUTES", "_HOURS",
+        ]
+        .iter()
+        .any(|suffix| ident.to_string().ends_with(suffix))
+            && self.primitive(typed)
+    }
+
     fn local_instant(&self, expression: &syn::Expr) -> bool {
         match expression {
             syn::Expr::Path(path) => self
@@ -375,25 +384,31 @@ impl<'ast> Visit<'ast> for TimeVisitor<'_> {
     }
 
     fn visit_item_const(&mut self, item: &'ast syn::ItemConst) {
-        if ["_MS", "_MILLIS", "_SECS", "_SECONDS", "_NANOS", "_MICROS"]
-            .iter()
-            .any(|suffix| item.ident.to_string().ends_with(suffix))
-            && self.primitive(&item.ty)
-        {
+        if self.unit_constant(&item.ident, &item.ty) {
             self.spans.push(item.span());
         }
         syn::visit::visit_item_const(self, item);
     }
 
+    fn visit_item_static(&mut self, item: &'ast syn::ItemStatic) {
+        if self.unit_constant(&item.ident, &item.ty) {
+            self.spans.push(item.span());
+        }
+        syn::visit::visit_item_static(self, item);
+    }
+
     fn visit_impl_item_const(&mut self, item: &'ast syn::ImplItemConst) {
-        if ["_MS", "_MILLIS", "_SECS", "_SECONDS", "_NANOS", "_MICROS"]
-            .iter()
-            .any(|suffix| item.ident.to_string().ends_with(suffix))
-            && self.primitive(&item.ty)
-        {
+        if self.unit_constant(&item.ident, &item.ty) {
             self.spans.push(item.span());
         }
         syn::visit::visit_impl_item_const(self, item);
+    }
+
+    fn visit_trait_item_const(&mut self, item: &'ast syn::TraitItemConst) {
+        if self.unit_constant(&item.ident, &item.ty) {
+            self.spans.push(item.span());
+        }
+        syn::visit::visit_trait_item_const(self, item);
     }
 }
 

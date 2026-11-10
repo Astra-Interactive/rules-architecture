@@ -62,10 +62,10 @@ fn given_cfg_siblings_loading_one_file_when_inner_approved_then_both_instances_a
     let root = temporary.path().join("modules/sample/src/lib.rs");
     let common = temporary
         .path()
-        .join("modules/sample/src/sample/util/common.rs");
+        .join("modules/sample/src/sample/util/std.rs");
     fs::create_dir_all(common.parent().expect("module parent")).expect("module directory");
     fs::write(common, "#![cfg_attr(klibs_rules, expect(ForbiddenPackageName, reason = \"shared body approved\"))] pub(crate) fn read_values() {}").expect("write common body");
-    fs::write(root, "pub(crate) mod sample { pub(crate) mod util { #[cfg(unix)] mod common; #[cfg(windows)] mod common; } }").expect("write cfg declarations");
+    fs::write(root, "pub(crate) mod sample { pub(crate) mod util { #[cfg(unix)] mod std; #[cfg(windows)] mod std; } }").expect("write cfg declarations");
     let report = CheckModule::default()
         .check_workspace_use_case
         .invoke(temporary.path())
@@ -87,7 +87,7 @@ fn given_cfg_siblings_loading_one_file_when_inner_approved_then_both_instances_a
             .count(),
         1
     );
-    fs::write(temporary.path().join("modules/sample/src/lib.rs"), "pub(crate) mod sample { pub(crate) mod util { #[cfg(unix)] mod common; #[cfg(windows)] mod common {} } }").expect("write mixed cfg declarations");
+    fs::write(temporary.path().join("modules/sample/src/lib.rs"), "pub(crate) mod sample { pub(crate) mod util { #[cfg(unix)] mod std; #[cfg(windows)] mod std {} } }").expect("write mixed cfg declarations");
     let report = CheckModule::default()
         .check_workspace_use_case
         .invoke(temporary.path())
@@ -114,10 +114,10 @@ fn given_cfg_siblings_loading_one_file_when_inner_approved_then_both_instances_a
 fn given_cfg_siblings_and_macro_closure_when_checked_then_each_approval_has_its_own_scope() {
     let temporary = build_workspace();
     let root = temporary.path().join("modules/sample/src/lib.rs");
-    let source = "pub(crate) mod sample { pub(crate) mod util { #[cfg(unix)] #[cfg_attr(klibs_rules, expect(ForbiddenPackageName, reason = \"Unix approved\"))] mod common; #[cfg(windows)] SECOND mod common; } }";
+    let source = "pub(crate) mod sample { pub(crate) mod util { #[cfg(unix)] #[cfg_attr(klibs_rules, expect(ForbiddenPackageName, reason = \"Unix approved\"))] mod std; #[cfg(windows)] SECOND mod std; } }";
     let common = temporary
         .path()
-        .join("modules/sample/src/sample/util/common.rs");
+        .join("modules/sample/src/sample/util/std.rs");
     fs::create_dir_all(common.parent().expect("common parent")).expect("module directory");
     fs::write(&common, "pub(crate) fn read_values() { let _closures = vec![#[cfg_attr(klibs_rules, expect(AnonymousTuple, reason = \"approved closure\"))] |value: (u8, u8)| value]; }").expect("write shared module");
     for (second, count) in [

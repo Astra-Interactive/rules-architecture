@@ -21,6 +21,22 @@ impl ErrorFamilyShape {
         let path = context.resolve_external_identity(ordinal, &path);
         path.package == "thiserror" && path.segments.last().is_some_and(|name| name == "Error")
     }
+    fn implements_error(context: &RuleContext, ordinal: usize, identity: usize) -> bool {
+        let index = &context.indexes[ordinal];
+        index.implementations.iter().any(|implementation| {
+            let Some((path, _)) = &implementation.syntax.trait_ else {
+                return false;
+            };
+            if !crate::module::util::owns_implementation(index, identity, implementation) {
+                return false;
+            }
+            matches!(
+                index.resolve_path(implementation.module, path),
+                crate::source::model::Resolution::External(path)
+                    if ["std::error::Error", "core::error::Error"].contains(&path.as_str())
+            )
+        })
+    }
     fn derives_error(
         context: &RuleContext,
         ordinal: usize,
@@ -106,18 +122,18 @@ impl ErrorFamilyShape {
 
 impl Rule for ErrorFamilyShape {
     fn check(&self, context: &RuleContext) -> Vec<RuleFinding> {
-        context.indexes.iter().enumerate().flat_map(|(ordinal, index)| index.items.iter().filter_map(move |item| {
+        context.indexes.iter().enumerate().flat_map(|(ordinal, index)| index.items.iter().enumerate().filter_map(move |(identity, item)| {
             if let Item::Struct(structure) = &item.syntax {
-                return Self::derives_error(context, ordinal, item.module, &structure.attrs).then(|| build_shape_item_finding(index, item, "ErrorFamilyShape", "an error family is an enum, not a struct"));
+                return (Self::derives_error(context, ordinal, item.module, &structure.attrs) || Self::implements_error(context, ordinal, identity)).then(|| build_shape_item_finding(index, item, "ErrorFamilyShape", "an error family is an enum, not a struct"));
             }
             let Item::Enum(family) = &item.syntax else { return None; };
-            if !item.name.ends_with("Error") && !Self::derives_error(context, ordinal, item.module, &family.attrs) { return None; }
+            if !item.name.ends_with("Error") && !Self::derives_error(context, ordinal, item.module, &family.attrs) && !Self::implements_error(context, ordinal, identity) { return None; }
             let invalid_variant = family.variants.iter().filter(|variant| item.cfg.and(&crate::source::model::CfgPredicate::from_attributes(&variant.attrs)).is_satisfiable()).any(|variant| !variant.attrs.iter().any(|attribute| attribute.path().is_ident("error")) || variant.fields.iter().any(|field| {
                 let cfg = item.cfg.and(&crate::source::model::CfgPredicate::from_attributes(&variant.attrs)).and(&crate::source::model::CfgPredicate::from_attributes(&field.attrs));
                 if !cfg.is_satisfiable() { return false; }
                 let source = field.attrs.iter().any(|attribute| attribute.path().is_ident("source"));
                 let from = field.attrs.iter().any(|attribute| attribute.path().is_ident("from"));
-                let foreign = !source && context.resolve_outer_external_type_paths_under(ordinal, item.module, &field.ty, &cfg).iter().any(|path| (from && !["std", "core", "alloc"].contains(&path.package.as_str())) || path.segments.last().is_some_and(|name| name.ends_with("Error")));
+                let foreign = !source && !Self::is_source_box(context, ordinal, item.module, &field.ty, &cfg) && context.resolve_external_type_paths_under(ordinal, item.module, &field.ty, &cfg).iter().any(|path| (from && !["std", "core", "alloc"].contains(&path.package.as_str())) || path.segments.last().is_some_and(|name| name.ends_with("Error")));
                 (source && !Self::is_source_box(context, ordinal, item.module, &field.ty, &cfg)) || foreign
             }));
             let invalid = !derives(&family.attrs, "Debug") || !Self::derives_error(context, ordinal, item.module, &family.attrs) || invalid_variant;

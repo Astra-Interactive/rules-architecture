@@ -96,3 +96,23 @@ fn given_persistent_runtime_cases_when_checked_then_matches_exact_finding_anchor
     assert_code_fixture(&CriticalSectionWrite, "CriticalSectionWrite", "bad");
     assert_code_fixture(&CriticalSectionWrite, "CriticalSectionWrite", "good");
 }
+
+#[test]
+fn given_critical_section_write_typed_guard_binding_when_linted_then_reports_the_local() {
+    assert_code_findings(
+        &CriticalSectionWrite,
+        "CriticalSectionWrite",
+        "struct CachedInvoices { total: u32, revision: u32 }\nfn run(cache: parking_lot::Mutex<CachedInvoices>) {\n    let mut guard: parking_lot::MutexGuard<'_, CachedInvoices> = cache.lock();\n    guard.total = 1;\n    guard.revision = 2;\n}\nfn run_once(cache: parking_lot::Mutex<CachedInvoices>) {\n    let mut guard: parking_lot::MutexGuard<'_, CachedInvoices> = cache.lock();\n    guard.total = 1;\n}",
+        &[3],
+    );
+}
+
+#[test]
+fn given_critical_section_write_writes_in_match_guard_when_linted_then_reports_the_local() {
+    assert_code_findings(
+        &CriticalSectionWrite,
+        "CriticalSectionWrite",
+        "struct CachedInvoices { total: u32, revision: u32 }\nfn run(cache: parking_lot::Mutex<CachedInvoices>, ready: bool) {\n    let mut guard = cache.lock();\n    match ready {\n        true if { guard.total = 1; guard.revision = 2; true } => {}\n        _ => {}\n    }\n}\nfn run_once(cache: parking_lot::Mutex<CachedInvoices>, ready: bool) {\n    let mut guard = cache.lock();\n    match ready {\n        true if { guard.total = 1; true } => {}\n        _ => {}\n    }\n}",
+        &[3],
+    );
+}

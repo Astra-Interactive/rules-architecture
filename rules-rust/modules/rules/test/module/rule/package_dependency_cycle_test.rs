@@ -39,6 +39,34 @@ fn given_mutually_exclusive_cfg_edges_when_checked_then_no_production_cycle_is_r
 }
 
 #[test]
+fn given_cycle_between_kind_packages_of_the_test_tree_when_checked_then_the_cycle_is_reported() {
+    let mut context = read_case_context("ImportOrdering", "pass-syntax");
+    context.indexes = vec![build_index(
+        "#[cfg(test)]\nmod test {\n    pub mod first {\n        pub mod fake {\n            pub struct First;\n            use crate::test::second::fake::Second;\n        }\n    }\n    pub mod second {\n        pub mod fake {\n            pub struct Second;\n            use crate::test::first::fake::First;\n        }\n    }\n}",
+    )];
+    let findings = PackageDependencyCycle.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!("PackageDependencyCycle", findings[0].finding.rule_id.0);
+    assert!(findings[0].finding.subject.contains("test::first::fake"));
+    assert!(findings[0].finding.subject.contains("test::second::fake"));
+}
+
+#[test]
+fn given_unix_and_windows_edges_when_checked_then_only_the_compatible_cycle_is_reported() {
+    let mut context = read_case_context("ImportOrdering", "pass-syntax");
+    context.indexes = vec![build_index(
+        "mod clock { pub mod model { pub struct Tick; #[cfg(unix)] use crate::timer::model::Span; } } mod timer { pub mod model { pub struct Span; #[cfg(windows)] use crate::clock::model::Tick; } } mod third { pub mod model { pub struct Third; #[cfg(feature = \"enabled\")] use crate::fourth::model::Fourth; } } mod fourth { pub mod model { pub struct Fourth; #[cfg(feature = \"enabled\")] use crate::third::model::Third; } }",
+    )];
+    let findings = PackageDependencyCycle.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!("PackageDependencyCycle", findings[0].finding.rule_id.0);
+    assert!(findings[0].finding.subject.contains("third::model"));
+    assert!(findings[0].finding.subject.contains("fourth::model"));
+    assert!(!findings[0].finding.subject.contains("clock"));
+    assert!(!findings[0].finding.subject.contains("timer"));
+}
+
+#[test]
 fn given_overlapping_cycles_when_checked_then_the_strong_component_is_reported_once() {
     let mut context = read_case_context("ImportOrdering", "pass-syntax");
     context.indexes = vec![build_index(

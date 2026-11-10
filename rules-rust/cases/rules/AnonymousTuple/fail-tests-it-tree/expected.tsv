@@ -1,3 +1,4 @@
+LintConfig	Cargo.toml	[workspace] resolver	`resolver = "3"` keeps dependency versions within the project's Rust version
 MainShape	instances/cli/src/main.rs:1	case_cli::main	entry main builds a runtime, constructs/enables the root in one block_on, then disables it synchronously
 KindShape	modules/macros/src/lib.rs:2	case_macros::expand::expansion	a concept holds kind blocks; files live in a named kind
 AnonymousTuple	modules/macros/tests/it/derive/derive_test.rs:3	case_macros::derive::derive_test	a tuple of 2 elements as a type: use a struct with named fields (no-tuples.rs.md)

@@ -1511,7 +1511,7 @@ sha256 = "248ef5ca04dce29fb330875d41c32948d2b60e86c33adbc695582ae9327e26fb"
 expected = []
 review = [{ why = "review (testing.rs Rule:5)" }]
 [[example.fragment]]
-path = "modules/bad/testing-rs/src/example_59.rs"
+path = "modules/bad/testing-rs/test/example_59_test.rs"
 block-lines = "1-2"
 fixture-lines = "1-2"
 suffix = " {"

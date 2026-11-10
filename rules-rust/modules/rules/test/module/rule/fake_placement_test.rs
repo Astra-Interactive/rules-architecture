@@ -2,7 +2,9 @@ use crate::check::api::Rule;
 use crate::module::rule::FakePlacement;
 use crate::test::check::usecase::read_case_context;
 use crate::test::declaration::util::assert_code_fixture;
-use crate::test::module::util::{assert_placement_findings, read_placement_context};
+use crate::test::module::util::{
+    assert_placement_findings, read_placement_context, read_workspace_shape_context,
+};
 use crate::workspace::util::parse_toml_file;
 
 #[test]
@@ -88,6 +90,34 @@ fn given_production_fake_kind_and_nonempty_feature_when_checked_then_reports_mod
         "FakePlacement",
         &context,
         &[("src/lib.rs", 1, "Module"), (path.as_str(), 2, "Crate")],
+    );
+}
+
+#[test]
+fn given_shared_fake_in_a_crate_that_does_not_own_the_trait_when_checked_then_only_that_fake_reports()
+ {
+    let context = read_workspace_shape_context(&[
+        (
+            "shop_account_api",
+            "\n[features]\nfake = []\n",
+            "pub mod account { pub mod api { pub trait Reader { fn read(&self) -> u64; } } }\n#[cfg(any(test, feature = \"fake\"))]\npub mod fixture {\n    pub mod account {\n        pub mod fake {\n            pub struct FakeOwnedReader;\n            impl crate::account::api::Reader for FakeOwnedReader {\n                fn read(&self) -> u64 { 0 }\n            }\n        }\n    }\n}",
+        ),
+        (
+            "shop_billing_api",
+            "shop_account_api={path=\"../shop_account_api\"}\n[features]\nfake = []\n",
+            "#[cfg(any(test, feature = \"fake\"))]\npub mod fixture {\n    pub mod account {\n        pub mod fake {\n            pub struct FakeReader;\n            impl shop_account_api::account::api::Reader for FakeReader {\n                fn read(&self) -> u64 { 0 }\n            }\n        }\n    }\n}",
+        ),
+    ]);
+    let findings = FakePlacement.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!("FakePlacement", findings[0].finding.rule_id.0);
+    assert_eq!(Some(5), findings[0].finding.location.line);
+    assert!(
+        findings[0]
+            .finding
+            .location
+            .path
+            .starts_with("shop_billing_api/")
     );
 }
 

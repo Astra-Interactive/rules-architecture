@@ -7,3 +7,4 @@ UnitDependency	modules/consumer/Cargo.toml:7	consumer -> host	the workspace depe
 EntryPointDependency	modules/consumer/Cargo.toml:9	consumer -> static-host	nothing depends on an entry-point crate or a crate without a Rust library target
 UnitDependency	modules/consumer/Cargo.toml:9	consumer -> static-host	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
 EntryPointDependency	modules/consumer/Cargo.toml:11	consumer -> entry-lib	nothing depends on an entry-point crate or a crate without a Rust library target
+UnitDependency	modules/consumer/Cargo.toml:11	consumer -> entry-lib	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary

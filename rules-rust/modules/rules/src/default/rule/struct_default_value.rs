@@ -34,23 +34,61 @@ impl StructDefaultValue {
         }
     }
 
-    fn derives(attributes: &[syn::Attribute], name: &str) -> bool {
-        attributes
+    fn derive_names(attribute: &syn::Attribute) -> Vec<String> {
+        let paths = |paths: syn::punctuated::Punctuated<syn::Path, syn::Token![,]>| {
+            paths
+                .iter()
+                .filter_map(|path| path.segments.last())
+                .map(|segment| segment.ident.to_string())
+                .collect::<Vec<_>>()
+        };
+        if attribute.path().is_ident("derive") {
+            return attribute
+                .parse_args_with(
+                    syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated,
+                )
+                .map(paths)
+                .unwrap_or_default();
+        }
+        if !attribute.path().is_ident("cfg_attr") {
+            return Vec::new();
+        }
+        let Ok(metas) = attribute.parse_args_with(
+            syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
+        ) else {
+            return Vec::new();
+        };
+        metas
             .iter()
-            .filter(|attribute| attribute.path().is_ident("derive"))
-            .any(|attribute| {
-                attribute
+            .skip(1)
+            .flat_map(|meta| match meta {
+                syn::Meta::List(list) if list.path.is_ident("derive") => list
                     .parse_args_with(
                         syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated,
                     )
-                    .is_ok_and(|paths| {
-                        paths.iter().any(|path| {
-                            path.segments
-                                .last()
-                                .is_some_and(|segment| segment.ident == name)
-                        })
-                    })
+                    .map(paths)
+                    .unwrap_or_default(),
+                _ => Vec::new(),
             })
+            .collect()
+    }
+
+    fn derives(attributes: &[syn::Attribute], name: &str) -> bool {
+        attributes
+            .iter()
+            .flat_map(Self::derive_names)
+            .any(|derived| derived == name)
+    }
+
+    fn cfg_holds(
+        implementation_attributes: &[syn::Attribute],
+        function_attributes: &[syn::Attribute],
+    ) -> bool {
+        crate::source::model::CfgPredicate::from_attributes(implementation_attributes)
+            .and(&crate::source::model::CfgPredicate::from_attributes(
+                function_attributes,
+            ))
+            .is_satisfiable()
     }
 
     fn is_self_type(value: &syn::Type, name: &str) -> bool {
@@ -73,6 +111,9 @@ impl StructDefaultValue {
                     return false;
                 };
                 if function.sig.ident != "new" || !function.sig.inputs.is_empty() {
+                    return false;
+                }
+                if !Self::cfg_holds(&value.attrs, &function.attrs) {
                     return false;
                 }
                 let syn::ReturnType::Type(_, value) = &function.sig.output else {

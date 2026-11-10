@@ -6,18 +6,32 @@ use syn::visit::Visit;
 
 pub(crate) struct LintExpectationVisitor {
     is_module: bool,
+    allows_print: bool,
     findings: Vec<proc_macro2::Span>,
 }
 
 impl LintExpectationVisitor {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(allows_print: bool) -> Self {
         Self {
             is_module: false,
+            allows_print,
             findings: Vec::new(),
         }
     }
 
-    fn violates_scope(meta: &syn::Meta, is_inner: bool, is_module: bool) -> bool {
+    fn is_prescribed_lint(&self, name: &str) -> bool {
+        match name {
+            "clippy::unwrap_used"
+            | "clippy::expect_used"
+            | "clippy::let_underscore_must_use"
+            | "clippy::disallowed_methods"
+            | "clippy::disallowed_types" => true,
+            "clippy::print_stdout" | "clippy::print_stderr" => self.allows_print,
+            _ => false,
+        }
+    }
+
+    fn violates_scope(&self, meta: &syn::Meta, is_inner: bool, is_conditional: bool) -> bool {
         let syn::Meta::List(list) = meta else {
             return false;
         };
@@ -33,11 +47,11 @@ impl LintExpectationVisitor {
             return arguments
                 .iter()
                 .skip(1)
-                .any(|argument| Self::violates_scope(argument, is_inner, is_module));
+                .any(|argument| self.violates_scope(argument, is_inner, true));
         }
         let is_expect = list.path.is_ident("expect");
-        let is_inner_allow = is_inner && list.path.is_ident("allow");
-        if !is_expect && !is_inner_allow {
+        let is_allow = (is_inner || is_conditional) && list.path.is_ident("allow");
+        if !is_expect && !is_allow {
             return false;
         }
         let lints: Vec<&syn::Path> = arguments
@@ -51,19 +65,11 @@ impl LintExpectationVisitor {
             return false;
         }
         is_inner
-            || is_module
-            || lints.iter().any(|path| {
-                let name = format_tokens(path).replace(' ', "");
-                ![
-                    "clippy::unwrap_used",
-                    "clippy::expect_used",
-                    "clippy::let_underscore_must_use",
-                    "clippy::disallowed_methods",
-                    "clippy::disallowed_types",
-                    "clippy::print_stdout",
-                ]
-                .contains(&name.as_str())
-            })
+            || self.is_module
+            || is_allow
+            || lints
+                .iter()
+                .any(|path| !self.is_prescribed_lint(&format_tokens(path).replace(' ', "")))
     }
 
     pub(crate) fn collect_findings(mut self, syntax: &syn::File) -> Vec<proc_macro2::Span> {
@@ -81,7 +87,7 @@ impl<'ast> Visit<'ast> for LintExpectationVisitor {
 
     fn visit_attribute(&mut self, attribute: &'ast syn::Attribute) {
         let is_inner = matches!(attribute.style, syn::AttrStyle::Inner(_));
-        if Self::violates_scope(&attribute.meta, is_inner, self.is_module) {
+        if self.violates_scope(&attribute.meta, is_inner, false) {
             self.findings.push(attribute.span());
         }
     }

@@ -4,6 +4,7 @@ use crate::check::model::RuleContext;
 use crate::check::model::RuleFinding;
 use crate::check::util::build_node_finding;
 use crate::check::util::format_module_path;
+use crate::declaration::util::derives;
 use crate::family::model::TypeBehaviour;
 use crate::family::model::TypeDeclaration;
 use crate::family::util::find_primary_type;
@@ -175,6 +176,13 @@ impl OneTypeFamilyPerFile {
             .collect()
     }
 
+    fn is_error_family(item: &syn::Item) -> bool {
+        let syn::Item::Enum(family) = item else {
+            return false;
+        };
+        family.ident.to_string().ends_with("Error") || derives(&family.attrs, "Error")
+    }
+
     fn check_file(
         file: &SourceFile,
         sources: &CrateSources,
@@ -216,6 +224,7 @@ impl OneTypeFamilyPerFile {
                 .position(|candidate| uses_type(candidate.item, &name));
             let invalid = behaviour.contains(&name)
                 || matches!(item.item, syn::Item::Trait(_))
+                || Self::is_error_family(item.item)
                 || user.is_none()
                 || user.is_some_and(|position| index < position);
             if invalid {

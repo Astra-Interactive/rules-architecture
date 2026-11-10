@@ -4,7 +4,7 @@ use crate::check::util::build_node_finding;
 use crate::config::model::Role;
 use crate::module::util::build_shape_item_finding;
 use syn::punctuated::Punctuated;
-use syn::{Item, Path, Token, TraitItem};
+use syn::{Item, Path, Token};
 
 pub(crate) struct ContractUnitShape;
 
@@ -20,9 +20,14 @@ impl ContractUnitShape {
             })
             .flatten()
             .any(|path| {
-                path.segments
-                    .last()
-                    .is_some_and(|segment| segment.ident == name)
+                let segments: Vec<_> = path.segments.iter().collect();
+                match segments.as_slice() {
+                    [segment] => segment.ident == name,
+                    [crate_segment, segment] => {
+                        crate_segment.ident == "serde" && segment.ident == name
+                    }
+                    _ => false,
+                }
             })
     }
 }
@@ -47,8 +52,7 @@ impl Rule for ContractUnitShape {
                 let untyped_wire = attrs.is_some_and(|attrs| {
                     !Self::derives(attrs, "Serialize") || !Self::derives(attrs, "Deserialize")
                 });
-                let function_body = matches!(item.syntax, Item::Fn(_))
-                    || matches!(&item.syntax, Item::Trait(contract) if contract.items.iter().any(|member| matches!(member, TraitItem::Fn(method) if method.default.is_some())));
+                let function_body = matches!(item.syntax, Item::Fn(_) | Item::Trait(_));
                 if untyped_wire || function_body {
                     findings.push(build_shape_item_finding(index, item, "ContractUnitShape", "contract units hold Serialize + Deserialize wire types and route constants, without function bodies"));
                 }

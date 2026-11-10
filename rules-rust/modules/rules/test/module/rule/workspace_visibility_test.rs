@@ -246,3 +246,77 @@ fn given_external_consumers_or_restricted_visibility_when_checked_then_absent_wo
     assert!(DocHiddenUse.check(&context).is_empty());
     assert!(DiModuleVisibility.check(&context).is_empty());
 }
+
+#[test]
+fn given_tdd_doc_hidden_private_items_when_checked_then_reports_hidden_declarations_and_members() {
+    let mut context = read_code_context(
+        "#[doc(hidden)] pub(crate) fn hidden_function() {}\n#[doc(hidden)] pub(crate) struct HiddenStruct {\n    #[doc(hidden)] field: u8,\n}\n#[doc(hidden)] enum HiddenEnum {\n    #[doc(hidden)] Variant,\n}\n#[doc(hidden)] trait HiddenTrait {\n    #[doc(hidden)] fn hidden_method(&self);\n}\n#[doc(hidden)] static HIDDEN_STATIC: u8 = 0;\n#[doc(hidden)] mod hidden_module {}",
+    );
+    context.workspace.members[0].manifest = crate::workspace::util::parse_toml_file(
+        "Cargo.toml",
+        "[package]\nname=\"case-sample\"\nversion=\"0.1.0\"",
+    )
+    .expect("published library manifest");
+    let findings = DocHiddenUse.check(&context);
+    assert_eq!(9, findings.len());
+    assert!(
+        findings
+            .iter()
+            .all(|finding| finding.finding.rule_id.0 == "DocHiddenUse")
+    );
+    let mut lines: Vec<_> = findings
+        .iter()
+        .map(|finding| finding.finding.location.line.expect("finding line"))
+        .collect();
+    lines.sort_unstable();
+    assert_eq!(vec![1, 2, 3, 5, 6, 8, 9, 11, 12], lines);
+}
+
+fn assert_published_doc_hidden_lines(source: &str, expected: &[u32]) {
+    let mut context = read_code_context(source);
+    context.workspace.members[0].manifest = crate::workspace::util::parse_toml_file(
+        "Cargo.toml",
+        "[package]\nname=\"case-sample\"\nversion=\"0.1.0\"",
+    )
+    .expect("published library manifest");
+    assert_doc_hidden_lines(&context, expected);
+}
+
+fn assert_doc_hidden_lines(context: &crate::check::model::RuleContext, expected: &[u32]) {
+    let findings = DocHiddenUse.check(context);
+    let mut actual = findings
+        .iter()
+        .map(|finding| {
+            assert_eq!("DocHiddenUse", finding.finding.rule_id.0);
+            finding.finding.location.line.expect("finding line")
+        })
+        .collect::<Vec<_>>();
+    actual.sort_unstable();
+    assert_eq!(expected, actual, "findings: {findings:?}");
+}
+
+#[test]
+fn given_doc_hidden_on_private_impl_method_when_published_then_reports_the_attribute() {
+    assert_published_doc_hidden_lines(
+        "pub struct Entry;\nimpl Entry {\n    #[doc(hidden)]\n    fn helper() {}\n    #[doc(hidden)]\n    pub fn bridge() {}\n    pub fn run() { Self::helper(); }\n}",
+        &[3],
+    );
+}
+
+#[test]
+fn given_conditional_doc_hidden_on_crate_private_function_when_published_then_reports_the_attribute()
+ {
+    assert_published_doc_hidden_lines(
+        "#[cfg_attr(all(), doc(hidden))] pub(crate) fn compute(value: u32) -> u32 { value + 1 }\n#[cfg_attr(all(), doc(hidden))] pub fn bridge() {}",
+        &[1],
+    );
+}
+
+#[test]
+fn given_doc_hidden_with_alias_on_unused_public_function_when_workspace_only_then_reports_the_item()
+{
+    let context = read_private_context(
+        "#[doc(hidden, alias = \"invoice-hint\")]\npub fn compute_hint(total: u64) -> u64 { total }\n#[doc(alias = \"invoice-total\")]\npub fn visible_total(total: u64) -> u64 { total }",
+    );
+    assert_doc_hidden_lines(&context, &[1]);
+}

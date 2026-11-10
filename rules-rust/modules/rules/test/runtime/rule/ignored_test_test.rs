@@ -27,3 +27,33 @@ fn given_prescribed_code_when_checked_then_passes() {
         &[],
     );
 }
+
+#[test]
+fn given_tdd_ignored_test_active_cfg_attr_when_checked_then_reports_test_attribute() {
+    assert_code_findings(
+        &IgnoredTest,
+        "IgnoredTest",
+        "#[test]\n#[cfg_attr(all(), ignore)]\nfn run() {}",
+        &[2],
+    );
+}
+
+#[test]
+fn given_tdd_ignored_test_nested_cfg_attr_when_checked_then_reports_test_attribute() {
+    assert_code_findings(
+        &IgnoredTest,
+        "IgnoredTest",
+        "#[test]\n#[cfg_attr(all(), cfg_attr(all(), ignore))]\nfn run() {}",
+        &[2],
+    );
+}
+
+#[test]
+fn given_tdd_ignored_test_active_reason_when_checked_then_reports_test_attribute() {
+    assert_code_findings(
+        &IgnoredTest,
+        "IgnoredTest",
+        "#[test]\n#[ignore = \"slow\"]\nfn run() {}",
+        &[2],
+    );
+}

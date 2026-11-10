@@ -7,6 +7,7 @@ use crate::test::check::usecase::read_case_context;
 use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
 use crate::test::declaration::util::read_code_context;
+use crate::test::module::util::read_workspace_shape_context;
 use crate::workspace::api::WorkspaceReader;
 use crate::workspace::cargo::CargoWorkspaceReader;
 use crate::workspace::util::resolve_cargo_path;
@@ -96,6 +97,41 @@ fn given_type_alias_self_when_checked_then_names_the_underlying_implementation()
         "ImplementationName",
         "mod api { trait Reader {} }\nmod model { struct NetworkReader; type Alias = NetworkReader; impl crate::api::Reader for Alias {} }",
         &[2],
+    );
+}
+
+#[test]
+fn given_contract_of_another_workspace_crate_when_checked_then_reports_only_vague_prefix() {
+    let context = read_workspace_shape_context(&[
+        (
+            "shop_billing_api",
+            "",
+            "pub mod invoice { pub mod api { pub trait Reader {} } }",
+        ),
+        (
+            "shop_billing_impl",
+            "shop_billing_api={path=\"../shop_billing_api\"}",
+            "mod file {\n    pub struct FileReader;\n    impl shop_billing_api::invoice::api::Reader for FileReader {}\n    pub struct NetworkReader;\n    impl shop_billing_api::invoice::api::Reader for NetworkReader {}\n}",
+        ),
+    ]);
+    let findings = ImplementationName.check(&context);
+    let reported: Vec<_> = findings
+        .iter()
+        .map(|finding| {
+            assert_eq!("ImplementationName", finding.finding.rule_id.0);
+            finding.finding.location.line
+        })
+        .collect();
+    assert_eq!(vec![Some(4)], reported, "{findings:?}");
+}
+
+#[test]
+fn given_interface_prefixed_struct_when_checked_then_reports_only_that_struct() {
+    assert_code_findings(
+        &ImplementationName,
+        "ImplementationName",
+        "mod api { trait Invoice {} }\nmod model {\n    struct IInvoice;\n    impl crate::api::Invoice for IInvoice {}\n    struct DefaultInvoice;\n    impl crate::api::Invoice for DefaultInvoice {}\n}",
+        &[3],
     );
 }
 

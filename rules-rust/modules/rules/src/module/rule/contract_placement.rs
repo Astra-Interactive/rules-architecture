@@ -2,8 +2,9 @@ use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
 use crate::check::util::build_node_finding;
 use crate::config::model::Role;
+use crate::module::rule::KindImportDirection;
 use crate::module::util::{build_shape_item_finding, find_kind_name, implements_crate_trait};
-use crate::source::model::{IndexedImpl, IndexedItem, Resolution};
+use crate::source::model::{CrateIndex, IndexedImpl, IndexedItem, Resolution};
 use syn::Item;
 
 pub(crate) struct ContractPlacement;
@@ -70,6 +71,87 @@ impl ContractPlacement {
                             || !siblings
                     })
             })
+    }
+
+    pub(crate) fn is_state_holder_kind(
+        context: &RuleContext,
+        crate_name: &str,
+        kind: &str,
+    ) -> bool {
+        let is_fixed_kind = KindImportDirection::FIXED_ENTRY_KINDS.contains(&kind);
+        !is_fixed_kind && context.is_entry_kind(crate_name, kind)
+    }
+
+    fn pascal_kind(kind: &str) -> String {
+        kind.split('_')
+            .filter(|word| !word.is_empty())
+            .map(|word| {
+                let mut letters = word.chars();
+                letters
+                    .next()
+                    .map(|first| first.to_uppercase().chain(letters).collect::<String>())
+                    .unwrap_or_default()
+            })
+            .collect()
+    }
+
+    pub(crate) fn is_app_api_state_holder(
+        context: &RuleContext,
+        ordinal: usize,
+        item: &IndexedItem,
+    ) -> bool {
+        let index = &context.indexes[ordinal];
+        let kind = find_kind_name(context, ordinal, item.module);
+        let role = context
+            .find_role_config(&index.crate_name)
+            .and_then(|config| config.role);
+        matches!(item.syntax, Item::Trait(_))
+            && !context.is_plugin_product()
+            && role == Some(Role::Api)
+            && Self::is_state_holder_kind(context, &index.crate_name, kind)
+            && item.name.ends_with(&Self::pascal_kind(kind))
+    }
+
+    fn is_implementation_of(
+        index: &CrateIndex,
+        implementation: &IndexedImpl,
+        item: &IndexedItem,
+    ) -> bool {
+        implementation
+            .syntax
+            .trait_
+            .as_ref()
+            .is_some_and(
+                |(path, _)| match index.resolve_path(implementation.module, path) {
+                    Resolution::Internal(paths) => paths
+                        .iter()
+                        .filter_map(|path| path.item)
+                        .any(|target| std::ptr::eq(&index.items[target], item)),
+                    _ => false,
+                },
+            )
+    }
+
+    fn has_default_beside(context: &RuleContext, ordinal: usize, item: &IndexedItem) -> bool {
+        let index = &context.indexes[ordinal];
+        let kind = context.find_kind_module(ordinal, item.module);
+        let holder = Self::is_state_holder_kind(
+            context,
+            &index.crate_name,
+            find_kind_name(context, ordinal, item.module),
+        );
+        index.items.iter().any(|candidate| {
+            let beside = candidate.file == item.file
+                || (holder
+                    && kind.is_some()
+                    && context.find_kind_module(ordinal, candidate.module) == kind);
+            beside
+                && candidate.name == format!("Default{}", item.name)
+                && index.implementations.iter().any(|implementation| {
+                    Self::is_implementation_of(index, implementation, item)
+                        && implements_crate_trait(index, candidate, implementation)
+                })
+        })
     }
 
     fn check_item(context: &RuleContext, ordinal: usize, item: &IndexedItem) -> Vec<RuleFinding> {
@@ -160,28 +242,8 @@ impl ContractPlacement {
                 .and_then(|config| config.role)
                 == Some(Role::Api);
         let entry = context.is_entry_kind(&index.crate_name, kind);
-        let state_holder = entry
-            && index.items.iter().any(|candidate| {
-                candidate.file == item.file
-                    && candidate.name == format!("Default{}", item.name)
-                    && index.implementations.iter().any(|implementation| {
-                        let implements_owner =
-                            implementation
-                                .syntax
-                                .trait_
-                                .as_ref()
-                                .is_some_and(|(path, _)| {
-                                    match index.resolve_path(implementation.module, path) {
-                                        Resolution::Internal(paths) => paths
-                                            .iter()
-                                            .filter_map(|path| path.item)
-                                            .any(|target| std::ptr::eq(&index.items[target], item)),
-                                        _ => false,
-                                    }
-                                });
-                        implements_owner && implements_crate_trait(index, candidate, implementation)
-                    })
-            });
+        let state_holder = (entry && Self::has_default_beside(context, ordinal, item))
+            || Self::is_app_api_state_holder(context, ordinal, item);
         let mixed_core = context
             .project_config
             .crates

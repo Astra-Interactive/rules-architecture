@@ -95,8 +95,14 @@ impl ModuleTreeWalker {
     fn is_generated(text: &str) -> bool {
         text.lines().next().is_some_and(|line| {
             let trimmed = line.trim_start();
-            let is_comment = trimmed.starts_with("//") || trimmed.starts_with("/*");
-            is_comment && trimmed.contains("@generated")
+            if trimmed.starts_with("//") {
+                return trimmed.contains("@generated");
+            }
+            let Some(block) = trimmed.strip_prefix("/*") else {
+                return false;
+            };
+            let comment = block.split_once("*/").map_or(block, |(inner, _)| inner);
+            comment.contains("@generated")
         })
     }
 

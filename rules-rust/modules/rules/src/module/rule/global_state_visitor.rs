@@ -53,6 +53,50 @@ impl GlobalStateVisitor<'_> {
         }
     }
 
+    fn installs_logging(path: &crate::source::model::ExternalPath) -> bool {
+        let name = path.segments.last().map(String::as_str).unwrap_or("");
+        match path.package.as_str() {
+            "tracing" | "tracing_core" => name == "set_global_default",
+            "tracing_subscriber" => ["init", "try_init"].contains(&name),
+            "log" => ["set_logger", "set_boxed_logger"].contains(&name),
+            _ => false,
+        }
+    }
+
+    fn is_shared_state_type(path: &crate::source::model::ExternalPath) -> bool {
+        let name = path.segments.last().map(String::as_str).unwrap_or("");
+        let standard = ["std", "core", "alloc"].contains(&path.package.as_str());
+        let library = ["tokio", "parking_lot", "once_cell"].contains(&path.package.as_str());
+        let state = [
+            "OnceLock", "LazyLock", "Mutex", "RwLock", "Cell", "RefCell", "OnceCell", "Lazy",
+        ]
+        .contains(&name)
+            || name.starts_with("Atomic");
+        (standard || library) && state
+    }
+
+    pub(crate) fn invalid_static(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        shared: &syn::ItemStatic,
+        cfg: &crate::source::model::CfgPredicate,
+    ) -> bool {
+        let state = context
+            .resolve_external_type_paths_under(ordinal, module, &shared.ty, cfg)
+            .iter()
+            .any(Self::is_shared_state_type);
+        let service = context
+            .resolve_workspace_type(ordinal, module, &shared.ty)
+            .iter()
+            .any(|target| {
+                target.path.item.is_some_and(|identity| {
+                    crate::module::util::workspace_implementation(context, target.index, identity)
+                })
+            });
+        state || service || matches!(shared.mutability, syn::StaticMutability::Mut(_))
+    }
+
     pub(crate) fn check(context: &RuleContext, ordinal: usize) -> Vec<RuleFinding> {
         let index = &context.indexes[ordinal];
         let mut visitor = GlobalStateVisitor {
@@ -91,6 +135,21 @@ impl<'ast> Visit<'ast> for GlobalStateVisitor<'_> {
         syn::visit::visit_item_fn(self, function);
         self.is_main = main;
     }
+    fn visit_stmt(&mut self, statement: &'ast syn::Stmt) {
+        if let syn::Stmt::Item(syn::Item::Static(local)) = statement {
+            let cfg = crate::source::model::CfgPredicate::All(Vec::new());
+            let is_invalid =
+                Self::invalid_static(self.context, self.ordinal, self.module, local, &cfg);
+            if is_invalid {
+                self.report(
+                    local.span(),
+                    "shared state is passed from DI, never stored in a global static",
+                );
+            }
+        }
+        syn::visit::visit_stmt(self, statement);
+    }
+
     fn visit_macro(&mut self, expression: &'ast syn::Macro) {
         if self.resolved_package(&expression.path).as_deref() == Some("lazy_static") {
             self.report(
@@ -116,11 +175,7 @@ impl<'ast> Visit<'ast> for GlobalStateVisitor<'_> {
                 return;
             };
             let path = self.context.resolve_external_identity(self.ordinal, &path);
-            let global = path
-                .segments
-                .last()
-                .is_some_and(|segment| segment == "set_global_default");
-            if global && ["tracing", "tracing_core"].contains(&path.package.as_str()) {
+            if Self::installs_logging(&path) {
                 self.report(
                     call.span(),
                     "install the logging subscriber in entry-point main",
@@ -131,7 +186,8 @@ impl<'ast> Visit<'ast> for GlobalStateVisitor<'_> {
     }
 
     fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
-        if !self.is_main && call.method == "init" && self.is_subscriber_builder(&call.receiver) {
+        let installs = call.method == "init" || call.method == "try_init";
+        if !self.is_main && installs && self.is_subscriber_builder(&call.receiver) {
             self.report(
                 call.span(),
                 "install the logging subscriber in entry-point main",

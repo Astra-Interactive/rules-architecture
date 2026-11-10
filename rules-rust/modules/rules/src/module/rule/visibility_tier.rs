@@ -7,12 +7,205 @@ use crate::source::model::{
 };
 use crate::source::util::find_node_span;
 use crate::workspace::model::Target;
-use std::collections::BTreeSet;
+use proc_macro2::{Delimiter, TokenStream, TokenTree};
+use quote::ToTokens;
+use std::collections::{BTreeMap, BTreeSet};
 use syn::spanned::Spanned;
 
 pub(crate) struct VisibilityTier;
 
 impl VisibilityTier {
+    fn is_punct(token: Option<&TokenTree>, expected: char) -> bool {
+        matches!(token, Some(TokenTree::Punct(punct)) if punct.as_char() == expected)
+    }
+
+    fn is_member_position(tokens: &[TokenTree], position: usize, braced: bool) -> bool {
+        let previous = position
+            .checked_sub(1)
+            .and_then(|before| tokens.get(before));
+        let next = tokens.get(position + 1);
+        let after_dot = Self::is_punct(previous, '.');
+        let after_colon = Self::is_punct(previous, ':');
+        let before_colon = Self::is_punct(next, ':');
+        if after_dot || after_colon || before_colon {
+            return true;
+        }
+        braced
+            && (previous.is_none() || Self::is_punct(previous, ','))
+            && (next.is_none() || Self::is_punct(next, ','))
+    }
+
+    fn collect_inline_names(literal: &str, names: &mut BTreeSet<String>) {
+        if !literal.contains('{') {
+            return;
+        }
+        for word in literal
+            .split(|character: char| !(character.is_alphanumeric() || character == '_'))
+            .filter(|word| !word.is_empty())
+        {
+            names.insert(word.to_owned());
+        }
+    }
+
+    fn collect_member_names(stream: TokenStream, braced: bool, names: &mut BTreeSet<String>) {
+        let tokens: Vec<TokenTree> = stream.into_iter().collect();
+        for (position, token) in tokens.iter().enumerate() {
+            match token {
+                TokenTree::Group(group) => Self::collect_member_names(
+                    group.stream(),
+                    group.delimiter() == Delimiter::Brace,
+                    names,
+                ),
+                TokenTree::Ident(ident) if Self::is_member_position(&tokens, position, braced) => {
+                    names.insert(ident.to_string());
+                }
+                TokenTree::Literal(literal) => {
+                    Self::collect_inline_names(&literal.to_string(), names);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn collect_file_member_names(index: &CrateIndex) -> FileMemberNames<'_> {
+        let mut names = FileMemberNames::new();
+        for item in &index.items {
+            let file_names = names.entry(&*item.file).or_default();
+            Self::collect_member_names(item.syntax.to_token_stream(), false, file_names);
+        }
+        for implementation in &index.implementations {
+            let file_names = names.entry(&*implementation.file).or_default();
+            Self::collect_member_names(implementation.syntax.to_token_stream(), false, file_names);
+        }
+        names
+    }
+
+    fn is_used_outside(names: &FileMemberNames, file: &str, name: &str) -> bool {
+        names
+            .iter()
+            .any(|(other, used)| *other != file && used.contains(name))
+    }
+
+    fn is_crate_visible(visibility: &syn::Visibility) -> bool {
+        matches!(visibility, syn::Visibility::Restricted(restriction) if restriction.path.is_ident("crate"))
+    }
+
+    fn declared_fields(item: &IndexedItem) -> Vec<&syn::Field> {
+        match &item.syntax {
+            syn::Item::Struct(value) => value.fields.iter().collect(),
+            syn::Item::Union(value) => value.fields.named.iter().collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    fn build_unshared_method_findings(
+        item: &IndexedItem,
+        implementation: &IndexedImpl,
+        names: &FileMemberNames,
+    ) -> Vec<RuleFinding> {
+        implementation
+            .syntax
+            .items
+            .iter()
+            .filter_map(|child| {
+                let syn::ImplItem::Fn(method) = child else {
+                    return None;
+                };
+                (Self::is_crate_visible(&method.vis)
+                    && !Self::is_used_outside(names, &item.file, &method.sig.ident.to_string()))
+                .then(|| {
+                    build_node_finding(
+                        "VisibilityTier",
+                        &implementation.file,
+                        find_node_span(method.span()),
+                        item.name.clone(),
+                        "A crate-visible method used only in the file of its type is private"
+                            .to_owned(),
+                    )
+                })
+            })
+            .collect()
+    }
+
+    fn crate_visible_members(
+        index: &CrateIndex,
+        identity: usize,
+        item: &IndexedItem,
+        names: &FileMemberNames,
+    ) -> Vec<RuleFinding> {
+        if !index.unanalysable.is_empty() {
+            return Vec::new();
+        }
+        let mut findings: Vec<RuleFinding> = Self::declared_fields(item)
+            .into_iter()
+            .filter(|field| Self::is_crate_visible(&field.vis))
+            .filter(|field| {
+                field.ident.as_ref().is_some_and(|ident| {
+                    !Self::is_used_outside(names, &item.file, &ident.to_string())
+                })
+            })
+            .map(|field| {
+                build_node_finding(
+                    "VisibilityTier",
+                    &item.file,
+                    find_node_span(field.span()),
+                    item.name.clone(),
+                    "A crate-visible field used only in the file of its type is private".to_owned(),
+                )
+            })
+            .collect();
+        findings.extend(
+            index
+                .implementations
+                .iter()
+                .filter(|implementation| {
+                    crate::module::util::owns_implementation(index, identity, implementation)
+                })
+                .flat_map(|implementation| {
+                    Self::build_unshared_method_findings(item, implementation, names)
+                }),
+        );
+        findings
+    }
+
+    fn check_workspace_item(
+        context: &RuleContext,
+        ordinal: usize,
+        identity: usize,
+        item: &IndexedItem,
+    ) -> Option<RuleFinding> {
+        let visibility = Self::visibility(&item.syntax)?;
+        let path_restricted = matches!(visibility, syn::Visibility::Restricted(restriction) if restriction.in_token.is_some());
+        if path_restricted {
+            return Some(build_node_finding(
+                "VisibilityTier",
+                &item.file,
+                item.span,
+                item.name.clone(),
+                "visibility is one of pub, pub(crate) or private; `pub(in path)` is not a tier"
+                    .to_owned(),
+            ));
+        }
+        let too_public = matches!(visibility, syn::Visibility::Public(_))
+            && !context.has_external_name_user(ordinal, identity);
+        let crate_only = matches!(visibility,syn::Visibility::Restricted(restriction) if restriction.path.is_ident("crate"));
+        let own_file = crate_only
+            && context
+                .name_index()
+                .users_of(ordinal, identity)
+                .filter(|usage| usage.cfg.and(&item.cfg.in_scope(ordinal)).is_satisfiable())
+                .all(|usage| usage.source_index == ordinal && usage.file == item.file);
+        (too_public || own_file).then(|| {
+            build_node_finding(
+                "VisibilityTier",
+                &item.file,
+                item.span,
+                item.name.clone(),
+                "visibility follows the actual workspace users of the item".to_owned(),
+            )
+        })
+    }
+
     fn check_workspace(context: &RuleContext) -> Vec<RuleFinding> {
         let mut findings = Vec::new();
         for (ordinal, index) in context
@@ -28,31 +221,13 @@ impl VisibilityTier {
             {
                 continue;
             }
+            let names = Self::collect_file_member_names(index);
             for (identity, item) in index.items.iter().enumerate().filter(|(_, item)| {
                 item.cfg.is_satisfiable()
                     && index.modules[item.module].tree == crate::source::model::SourceTree::Src
             }) {
-                let Some(visibility) = Self::visibility(&item.syntax) else {
-                    continue;
-                };
-                let too_public = matches!(visibility, syn::Visibility::Public(_))
-                    && !context.has_external_name_user(ordinal, identity);
-                let crate_only = matches!(visibility,syn::Visibility::Restricted(restriction) if restriction.path.is_ident("crate"));
-                let own_file = crate_only
-                    && context
-                        .name_index()
-                        .users_of(ordinal, identity)
-                        .filter(|usage| usage.cfg.and(&item.cfg.in_scope(ordinal)).is_satisfiable())
-                        .all(|usage| usage.source_index == ordinal && usage.file == item.file);
-                if too_public || own_file {
-                    findings.push(build_node_finding(
-                        "VisibilityTier",
-                        &item.file,
-                        item.span,
-                        item.name.clone(),
-                        "visibility follows the actual workspace users of the item".to_owned(),
-                    ));
-                }
+                findings.extend(Self::check_workspace_item(context, ordinal, identity, item));
+                findings.extend(Self::crate_visible_members(index, identity, item, &names));
             }
         }
         findings
@@ -316,12 +491,7 @@ impl VisibilityTier {
                 continue;
             };
             let public = matches!(visibility, syn::Visibility::Public(_));
-            let fields = match &item.syntax {
-                syn::Item::Struct(value) => value.fields.iter().collect::<Vec<_>>(),
-                syn::Item::Union(value) => value.fields.named.iter().collect::<Vec<_>>(),
-                _ => Vec::new(),
-            };
-            for field in fields
+            for field in Self::declared_fields(item)
                 .into_iter()
                 .filter(|field| matches!(field.vis, syn::Visibility::Public(_)))
             {
@@ -351,3 +521,5 @@ impl Rule for VisibilityTier {
         findings
     }
 }
+
+type FileMemberNames<'a> = BTreeMap<&'a str, BTreeSet<String>>;

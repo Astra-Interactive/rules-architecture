@@ -11,8 +11,11 @@ use crate::source::model::SourceFile;
 pub(crate) struct RustdocHtmlTag;
 
 impl RustdocHtmlTag {
-    fn has_tag(text: &str) -> bool {
+    fn has_tag(text: &str, opening_lines: usize) -> bool {
         text.match_indices('<').any(|(start, _)| {
+            if text[..start].bytes().filter(|byte| *byte == b'\n').count() >= opening_lines {
+                return false;
+            }
             let rest = text[start + 1..]
                 .strip_prefix('/')
                 .unwrap_or(&text[start + 1..]);
@@ -39,13 +42,8 @@ impl RustdocHtmlTag {
         let mut offset = 0;
         for comment in comments {
             let line_count = comment.text.lines().count().max(1);
-            let section = cleaned
-                .lines()
-                .skip(offset)
-                .take(line_count)
-                .collect::<Vec<_>>()
-                .join("\n");
-            if Self::has_tag(&section) {
+            let section = cleaned.lines().skip(offset).collect::<Vec<_>>().join("\n");
+            if Self::has_tag(&section, line_count) {
                 findings.push(build_node_finding(
                     "RustdocHtmlTag",
                     &file.path,

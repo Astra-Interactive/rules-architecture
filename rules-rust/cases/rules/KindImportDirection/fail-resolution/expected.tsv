@@ -3,3 +3,4 @@ ModuleVisibility	modules/sample/src/lib.rs:1	case_sample::api	module visibility 
 ModuleVisibility	modules/sample/src/lib.rs:5	case_sample::model	module visibility must be Crate (arch-package.rs.md, Modules and directories)
 KindImportDirection	modules/sample/src/lib.rs:6	model	This kind may not use `api::contract` (arch-context.md, Direction and enforcement)
 BareIdentifier	modules/sample/src/model/value.rs:2	case_sample::model::value::Value	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
+VisibilityTier	modules/sample/src/model/value.rs:3	Value	A crate-visible field used only in the file of its type is private

@@ -112,7 +112,7 @@ impl RootFileShape {
                 })
             }
             Item::Fn(function) if is_bin && function.sig.ident == "main" => Some(2),
-            Item::Macro(_) => Some(1),
+            Item::Macro(definition) => definition.ident.is_none().then_some(1),
             _ if is_entry => Self::is_host(item, hosts).then_some(2),
             _ if is_macro => Self::is_proc_macro(item).then_some(2),
             _ => None,
@@ -141,6 +141,32 @@ impl RootFileShape {
                 file,
                 item,
                 "fixture is pub with cfg(any(test, feature = \"fake\")) and path = \"../fixture\"",
+                findings,
+            );
+        }
+    }
+
+    fn check_test_block(
+        file: &SourceFile,
+        item: &Item,
+        module: &ItemMod,
+        findings: &mut Vec<RuleFinding>,
+    ) {
+        if module.ident != "test" {
+            return;
+        }
+        let attributes: Vec<String> = module
+            .attrs
+            .iter()
+            .map(|attribute| format_tokens(&attribute.meta).replace(' ', ""))
+            .collect();
+        let has_cfg = attributes.contains(&"cfg(test)".to_owned());
+        let has_path = attributes.contains(&"path=\"../test\"".to_owned());
+        if !has_cfg || !has_path {
+            Self::report(
+                file,
+                item,
+                "test is cfg(test) with path = \"../test\"",
                 findings,
             );
         }
@@ -186,6 +212,7 @@ impl RootFileShape {
             if let Item::Mod(module) = item {
                 Self::check_block(file, module, findings);
                 Self::check_fixture(file, item, module, findings);
+                Self::check_test_block(file, item, module, findings);
             }
         }
     }

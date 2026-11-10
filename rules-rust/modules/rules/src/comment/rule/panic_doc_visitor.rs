@@ -1,6 +1,7 @@
 use crate::check::model::RuleContext;
 use crate::source::model::Resolution;
 use std::collections::BTreeMap;
+use syn::spanned::Spanned;
 use syn::visit::Visit;
 
 pub(crate) struct PanicDocVisitor<'context> {
@@ -9,19 +10,14 @@ pub(crate) struct PanicDocVisitor<'context> {
     module: usize,
     cfg: crate::source::model::CfgPredicate,
     parameters: BTreeMap<String, syn::Type>,
+    nested: BTreeMap<String, syn::ItemFn>,
+    self_type: Option<Box<syn::Type>>,
     found: bool,
 }
 
 impl PanicDocVisitor<'_> {
-    pub(crate) fn contains_panic(
-        context: &RuleContext,
-        ordinal: usize,
-        module: usize,
-        signature: &syn::Signature,
-        cfg: &crate::source::model::CfgPredicate,
-        block: &syn::Block,
-    ) -> bool {
-        let parameters = signature
+    fn signature_parameters(signature: &syn::Signature) -> BTreeMap<String, syn::Type> {
+        signature
             .inputs
             .iter()
             .filter_map(|input| match input {
@@ -34,13 +30,36 @@ impl PanicDocVisitor<'_> {
                 }
                 _ => None,
             })
-            .collect();
+            .collect()
+    }
+
+    pub(crate) fn contains_panic(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        signature: &syn::Signature,
+        cfg: &crate::source::model::CfgPredicate,
+        block: &syn::Block,
+    ) -> bool {
+        let parameters = Self::signature_parameters(signature);
+        let self_type = context.indexes[ordinal]
+            .implementations
+            .iter()
+            .find(|implementation| {
+                implementation.module == module
+                    && implementation.syntax.items.iter().any(|item| {
+                        matches!(item, syn::ImplItem::Fn(method) if crate::source::util::find_node_span(method.sig.span()) == crate::source::util::find_node_span(signature.span()))
+                    })
+            })
+            .map(|implementation| implementation.syntax.self_ty.clone());
         let mut visitor = PanicDocVisitor {
             context,
             ordinal,
             module,
             cfg: cfg.clone(),
             parameters,
+            nested: BTreeMap::new(),
+            self_type,
             found: false,
         };
         visitor.visit_block(block);
@@ -133,13 +152,180 @@ impl PanicDocVisitor<'_> {
             _ => true,
         }
     }
+
+    fn is_indexable_std_type(&self, index: usize, module: usize, path: &syn::Path) -> bool {
+        if path.is_ident("str") {
+            return true;
+        }
+        self.context
+            .canonical_external_type_path(index, module, path)
+            .is_some_and(|identity| {
+                let tail: Vec<&str> = identity
+                    .segments
+                    .iter()
+                    .skip(1)
+                    .map(String::as_str)
+                    .collect();
+                ["std", "alloc"].contains(&identity.package.as_str())
+                    && (tail == ["vec", "Vec"] || tail == ["string", "String"])
+            })
+    }
+
+    fn is_primitive_integer(typed: &syn::Type) -> bool {
+        const INTEGERS: [&str; 12] = [
+            "u8", "u16", "u32", "u64", "u128", "usize", "i8", "i16", "i32", "i64", "i128", "isize",
+        ];
+        let syn::Type::Path(path) = typed else {
+            return false;
+        };
+        path.qself.is_none()
+            && path
+                .path
+                .get_ident()
+                .is_some_and(|name| INTEGERS.contains(&name.to_string().as_str()))
+    }
+
+    fn is_integer_parameter(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Paren(paren) => self.is_integer_parameter(&paren.expr),
+            syn::Expr::Group(group) => self.is_integer_parameter(&group.expr),
+            syn::Expr::Path(path) => path
+                .path
+                .get_ident()
+                .and_then(|name| self.parameters.get(&name.to_string()))
+                .is_some_and(Self::is_primitive_integer),
+            _ => false,
+        }
+    }
+
+    fn visit_nested_call(&mut self, name: &str) {
+        let Some(function) = self.nested.remove(name) else {
+            return;
+        };
+        let parameters = std::mem::replace(
+            &mut self.parameters,
+            Self::signature_parameters(&function.sig),
+        );
+        self.visit_block(&function.block);
+        self.parameters = parameters;
+        self.nested.insert(name.to_owned(), function);
+    }
+
+    fn visit_argument(&mut self, argument: &syn::Expr) {
+        let syn::Expr::Closure(closure) = argument else {
+            self.visit_expr(argument);
+            return;
+        };
+        let parameters = self.parameters.clone();
+        for input in &closure.inputs {
+            self.visit_pat(input);
+        }
+        self.visit_expr(&closure.body);
+        self.parameters = parameters;
+    }
+
+    fn has_index_panic(
+        &self,
+        ordinal: usize,
+        module: usize,
+        typed: &syn::Type,
+        index: &syn::Expr,
+    ) -> bool {
+        if let syn::Expr::Paren(paren) = index {
+            return self.has_index_panic(ordinal, module, typed, &paren.expr);
+        }
+        if let syn::Expr::Group(group) = index {
+            return self.has_index_panic(ordinal, module, typed, &group.expr);
+        }
+        self.context
+            .resolve_type_syntax(ordinal, module, typed)
+            .iter()
+            .any(|resolved| {
+                if resolved.has_unsubstituted_parameters {
+                    return false;
+                }
+                let compatible = self.cfg.and(&resolved.cfg).is_satisfiable();
+                if !compatible {
+                    return false;
+                }
+                let mut typed = &resolved.typed;
+                while let syn::Type::Reference(reference) = typed {
+                    typed = &reference.elem;
+                }
+                if let syn::Type::Path(path) = typed {
+                    return self.is_indexable_std_type(resolved.index, resolved.module, &path.path)
+                        && !Self::safe_range(index, None);
+                }
+                !Self::safe_index(typed, index)
+            })
+    }
+
+    fn has_field_index_panic(&self, field: &syn::ExprField, index: &syn::Expr) -> bool {
+        if !matches!(field.base.as_ref(), syn::Expr::Path(path) if path.path.is_ident("self")) {
+            return false;
+        }
+        let Some(typed) = &self.self_type else {
+            return false;
+        };
+        self.context
+            .resolve_outer_workspace_type(self.ordinal, self.module, typed)
+            .iter()
+            .any(|owner| {
+                if !self.cfg.and(&owner.path.cfg).is_satisfiable() {
+                    return false;
+                }
+                let Some(identity) = owner.path.item else {
+                    return false;
+                };
+                let item = &self.context.indexes[owner.index].items[identity];
+                let syn::Item::Struct(structure) = &item.syntax else {
+                    return false;
+                };
+                let member = match &field.member {
+                    syn::Member::Named(name) => structure
+                        .fields
+                        .iter()
+                        .find(|member| member.ident.as_ref() == Some(name)),
+                    syn::Member::Unnamed(position) => {
+                        structure.fields.iter().nth(position.index as usize)
+                    }
+                };
+                member.is_some_and(|member| {
+                    self.cfg
+                        .and(&crate::source::model::CfgPredicate::from_attributes(
+                            &member.attrs,
+                        ))
+                        .is_satisfiable()
+                        && self.has_index_panic(owner.index, item.module, &member.ty, index)
+                })
+            })
+    }
 }
 
 impl<'ast> Visit<'ast> for PanicDocVisitor<'_> {
     fn visit_block(&mut self, block: &'ast syn::Block) {
         let parameters = self.parameters.clone();
+        let nested = self.nested.clone();
+        for statement in &block.stmts {
+            if let syn::Stmt::Item(syn::Item::Fn(function)) = statement {
+                self.nested
+                    .insert(function.sig.ident.to_string(), function.clone());
+            }
+        }
         syn::visit::visit_block(self, block);
         self.parameters = parameters;
+        self.nested = nested;
+    }
+
+    fn visit_expr_binary(&mut self, expression: &'ast syn::ExprBinary) {
+        self.found |= matches!(
+            expression.op,
+            syn::BinOp::Div(_)
+                | syn::BinOp::Rem(_)
+                | syn::BinOp::DivAssign(_)
+                | syn::BinOp::RemAssign(_)
+        ) && self.is_integer_parameter(&expression.right);
+        syn::visit::visit_expr_binary(self, expression);
     }
 
     fn visit_local(&mut self, local: &'ast syn::Local) {
@@ -159,11 +345,10 @@ impl<'ast> Visit<'ast> for PanicDocVisitor<'_> {
             && let Some(name) = path.path.get_ident()
             && let Some(typed) = self.parameters.get(&name.to_string())
         {
-            self.found |= self
-                .context
-                .resolve_type_syntax(self.ordinal, self.module, typed)
-                .iter()
-                .any(|resolved| !Self::safe_index(&resolved.typed, &expression.index));
+            self.found |= self.has_index_panic(self.ordinal, self.module, typed, &expression.index);
+        }
+        if let syn::Expr::Field(field) = expression.expr.as_ref() {
+            self.found |= self.has_field_index_panic(field, &expression.index);
         }
         syn::visit::visit_expr_index(self, expression);
     }
@@ -219,13 +404,26 @@ impl<'ast> Visit<'ast> for PanicDocVisitor<'_> {
                             .is_some_and(|name| ["unwrap", "expect"].contains(&name.as_str()))
                 });
         }
-        syn::visit::visit_expr_call(self, call);
+        let callee = match call.func.as_ref() {
+            syn::Expr::Path(path) => path.path.get_ident(),
+            _ => None,
+        };
+        if let Some(name) = callee {
+            self.visit_nested_call(&name.to_string());
+        }
+        self.visit_expr(&call.func);
+        for argument in &call.args {
+            self.visit_argument(argument);
+        }
     }
 
     fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
         self.found |= (call.method == "unwrap" || call.method == "expect")
             && self.standard_receiver(&call.receiver);
-        syn::visit::visit_expr_method_call(self, call);
+        self.visit_expr(&call.receiver);
+        for argument in &call.args {
+            self.visit_argument(argument);
+        }
     }
 
     fn visit_expr_closure(&mut self, _: &'ast syn::ExprClosure) {}

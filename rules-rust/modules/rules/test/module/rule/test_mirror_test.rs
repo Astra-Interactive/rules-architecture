@@ -2,6 +2,54 @@ use crate::check::api::Rule;
 use crate::module::rule::TestMirror;
 use crate::source::model::SourceTree;
 use crate::test::check::usecase::read_case_context;
+use crate::test::declaration::util::assert_code_findings;
+use crate::test::module::util::{assert_placement_findings, read_placement_context};
+
+#[test]
+fn given_equivalent_test_cfg_in_production_source_when_checked_then_only_the_cfg_and_test_attributes_report()
+ {
+    assert_code_findings(
+        &TestMirror,
+        "TestMirror",
+        "mod util {\n    #[cfg(all(test))]\n    pub(crate) fn helper() {}\n    #[cfg(test)]\n    fn plain() {}\n}",
+        &[2, 4],
+    );
+}
+
+#[test]
+fn given_tokio_test_function_in_production_source_when_checked_then_the_attribute_reports() {
+    assert_code_findings(
+        &TestMirror,
+        "TestMirror",
+        "mod util {\n    #[tokio::test]\n    async fn given_text_when_parsed_then_fails() {}\n    #[test]\n    fn given_text_when_parsed_then_passes() {}\n}",
+        &[2, 4],
+    );
+}
+
+#[test]
+fn given_test_file_in_fake_directory_when_checked_then_it_must_end_in_test_like_any_other_test_file()
+ {
+    let context = read_placement_context(&[
+        (
+            "src/lib.rs",
+            "#[cfg(test)]\n#[path = \"../test\"]\nmod test {\n    mod invoice {\n        pub(crate) mod fake {\n            pub(crate) use fake_invoice_repository::FakeInvoiceRepository;\n            mod fake_invoice_repository;\n        }\n        mod usecase {\n            mod issue_helper;\n        }\n    }\n}",
+        ),
+        (
+            "test/invoice/fake/fake_invoice_repository.rs",
+            "pub(crate) struct FakeInvoiceRepository;\n\n#[test]\nfn given_nothing_when_run_then_passes() {}",
+        ),
+        (
+            "test/invoice/usecase/issue_helper.rs",
+            "#[test]\nfn given_nothing_when_run_then_passes() {}",
+        ),
+    ]);
+    assert_placement_findings(
+        &TestMirror,
+        "TestMirror",
+        &context,
+        &[("src/lib.rs", 7, "Module"), ("src/lib.rs", 10, "Module")],
+    );
+}
 
 #[test]
 fn given_root_or_test_named_crate_directory_when_checked_then_mirror_paths_are_relative_to_the_member()

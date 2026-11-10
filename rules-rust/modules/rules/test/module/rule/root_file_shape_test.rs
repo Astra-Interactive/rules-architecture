@@ -6,7 +6,7 @@ use crate::test::check::usecase::read_case_context;
 #[test]
 fn given_root_declarations_when_checked_then_only_ordered_platform_items_and_module_tree_pass() {
     let mut context = read_case_context("RootFileShape", "pass-tree");
-    context.crates[0].files[0].syntax = syn::parse_file("pub use std::fmt::Debug; mod plain; pub(crate) mod invoice { mod record; use record::Record; struct Extra; call!(); } mod test {} mod fixture {}").expect("valid syntax");
+    context.crates[0].files[0].syntax = syn::parse_file("pub use std::fmt::Debug; mod plain; pub(crate) mod invoice { mod record; use record::Record; struct Extra; call!(); } #[cfg(test)] #[path = \"../test\"] mod test {} mod fixture {}").expect("valid syntax");
     assert_eq!(RootFileShape.check(&context).len(), 6);
     context.project_config.crates[0].role = Some(Role::EntryPoint);
     context.project_config.crates[0].host_items = vec![
@@ -20,6 +20,40 @@ fn given_root_declarations_when_checked_then_only_ordered_platform_items_and_mod
         syn::parse_file("#[no_mangle] pub fn start() {} fn ordinary() {}").expect("valid syntax");
     assert_eq!(RootFileShape.check(&context).len(), 1);
     context.crates[0].files[0].syntax = syn::parse_file("macro_rules! example { () => {} } pub(crate) mod invoice { use std::fmt::Debug; mod record; }").expect("valid syntax");
+    assert_eq!(RootFileShape.check(&context).len(), 1);
+}
+
+#[test]
+fn given_macro_definition_in_root_when_checked_then_only_the_macro_reports() {
+    let mut context = read_case_context("RootFileShape", "pass-tree");
+    context.crates[0].files[0].syntax = syn::parse_file(
+        "macro_rules! double {\n    ($value:expr) => {\n        $value * 2\n    };\n}\npub(crate) mod invoice { mod record; }",
+    )
+    .expect("valid syntax");
+    let findings = RootFileShape.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!("RootFileShape", findings[0].finding.rule_id.0);
+    assert_eq!(Some(1), findings[0].finding.location.line);
+    context.crates[0].files[0].syntax =
+        syn::parse_file("pub(crate) mod invoice { mod record; }").expect("valid syntax");
+    assert!(RootFileShape.check(&context).is_empty());
+}
+
+#[test]
+fn given_test_block_without_cfg_test_when_checked_then_only_that_block_reports() {
+    let mut context = read_case_context("RootFileShape", "pass-tree");
+    context.crates[0].files[0].syntax = syn::parse_file(
+        "pub(crate) mod invoice { mod record; }\n#[path = \"../test\"] mod test {}",
+    )
+    .expect("valid syntax");
+    let findings = RootFileShape.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!("RootFileShape", findings[0].finding.rule_id.0);
+    assert_eq!(Some(2), findings[0].finding.location.line);
+    context.crates[0].files[0].syntax = syn::parse_file(
+        "pub(crate) mod invoice { mod record; }\n#[cfg(test)] #[path = \"../test\"] mod test {}",
+    )
+    .expect("valid syntax");
     assert!(RootFileShape.check(&context).is_empty());
 }
 

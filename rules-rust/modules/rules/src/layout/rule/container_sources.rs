@@ -21,7 +21,7 @@ impl Rule for ContainerSources {
             let has_sources = workspace.directories.iter().any(|path| path == &format!("{directory}/src"));
             let has_file = workspace.files.iter().any(|path| {
                 let Some(file) = path.strip_prefix(&format!("{directory}/")) else { return false; };
-                !file.contains('/') && (file == "Cargo.toml" || file.ends_with(".rs"))
+                !file.contains('/') && file != "README.md"
             });
             has_sources || has_file
         }).map(|directory| RuleFinding {

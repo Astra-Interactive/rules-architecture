@@ -104,6 +104,56 @@ fn given_documented_contract_exceptions_when_checked_then_only_unqualified_and_d
 }
 
 #[test]
+fn given_state_holder_interface_beside_its_default_in_separate_files_when_checked_then_only_the_stray_contract_reports()
+ {
+    let mut context = read_shape_context(
+        "mod player {\n    pub(crate) mod component {\n        pub(crate) use default_players_component::DefaultPlayersComponent;\n        pub(crate) use players_component::PlayersComponent;\n        mod default_players_component;\n        mod players_component;\n    }\n}\nmod model { trait StrayContract {} }",
+        &[
+            (
+                "player/component/players_component.rs",
+                "pub(crate) trait PlayersComponent: Send + Sync { fn player_count(&self) -> u32; }",
+            ),
+            (
+                "player/component/default_players_component.rs",
+                "use crate::player::component::PlayersComponent;\npub(crate) struct DefaultPlayersComponent { count: u32 }\nimpl PlayersComponent for DefaultPlayersComponent { fn player_count(&self) -> u32 { self.count } }",
+            ),
+        ],
+    );
+    context.workspace.root_manifest = crate::workspace::util::parse_toml_file(
+        "Cargo.toml",
+        "[workspace.metadata.klibs-rules]\nproduct-kind=\"app\"\nentry-point-words=[\"component\"]\n",
+    )
+    .expect("fixture metadata");
+    let subjects: Vec<String> = ContractPlacement
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.subject.clone())
+        .collect();
+    assert_eq!(subjects, ["case_sample::model::StrayContract"]);
+}
+
+#[test]
+fn given_state_holder_interface_in_app_api_component_when_checked_then_only_the_stray_contract_reports()
+ {
+    let mut context = read_shape_context(
+        "mod component { pub trait OfferComponent: Send + Sync { fn offer_count(&self) -> u32; } }\nmod model { trait StrayContract {} }",
+        &[],
+    );
+    context.project_config.crates[0].role = Some(crate::config::model::Role::Api);
+    context.workspace.root_manifest = crate::workspace::util::parse_toml_file(
+        "Cargo.toml",
+        "[workspace.metadata.klibs-rules]\nproduct-kind=\"app\"\nentry-point-words=[\"component\"]\n",
+    )
+    .expect("manifest");
+    let subjects: Vec<String> = ContractPlacement
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.subject.clone())
+        .collect();
+    assert_eq!(subjects, ["case_sample::model::StrayContract"]);
+}
+
+#[test]
 fn given_reexported_trait_and_cfg_impl_when_checked_then_api_and_stub_use_defining_trait_identity()
 {
     let context = read_shape_context(

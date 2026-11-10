@@ -55,7 +55,8 @@ impl FakePlacement {
                         };
                         matches!(contract.syntax, syn::Item::Trait(_))
                             && target.path.cfg.and(&implementation.cfg).is_satisfiable()
-                            && concept != item_concept(context, target.index, contract.module)
+                            && (concept != item_concept(context, target.index, contract.module)
+                                || (tree == SourceTree::Fixture && target.index != ordinal))
                     })
             });
         let duplicate = index.items.iter().any(|other| {

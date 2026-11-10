@@ -35,6 +35,16 @@ fn given_normative_runtime_counterexamples_when_checked_then_matches_exact_node_
 }
 
 #[test]
+fn given_own_logic_behind_unwind_safe_wrapper_when_caught_then_reports_local_logic() {
+    assert_code_findings(
+        &CatchUnwind,
+        "CatchUnwind",
+        "struct Worker;\nimpl Worker {\n    fn compute(&self) -> u32 { 1 }\n}\nfn run(worker: &Worker) -> bool {\n    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| worker.compute())).is_err()\n}\nfn read() {\n    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| std::fs::read(\"file\")));\n}",
+        &[6],
+    );
+}
+
+#[test]
 fn given_persistent_runtime_cases_when_checked_then_matches_exact_finding_anchors() {
     assert_code_fixture(&CatchUnwind, "CatchUnwind", "bad");
     assert_code_fixture(&CatchUnwind, "CatchUnwind", "good");

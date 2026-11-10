@@ -3,3 +3,6 @@ UnitDependencyCycle	Cargo.toml	alpha, beta, gamma	a development dependency close
 UnitDependencyCycle	Cargo.toml	delta, epsilon	a development dependency closes a cycle between these crates: each compilation's graph must remain acyclic
 UnitDependency	modules/alpha/Cargo.toml:6	alpha -> beta	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
 UnitDependency	modules/beta/Cargo.toml:6	beta -> gamma	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+UnitDependency	modules/delta/Cargo.toml:6	delta -> epsilon	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+UnitDependency	modules/epsilon/Cargo.toml:6	epsilon -> delta	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+UnitDependency	modules/gamma/Cargo.toml:6	gamma -> alpha	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary

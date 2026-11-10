@@ -177,3 +177,13 @@ fn given_delegated_deferred_accessor_when_checked_then_initialization_chain_is_r
         );
     }
 }
+
+#[test]
+fn given_accessor_constructing_service_in_get_or_init_when_checked_then_only_other_violation_is_reported()
+ {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::DiModuleShape,
+        "mod api { pub trait Repo {} }\nmod file { pub struct FileRepo; impl crate::api::Repo for FileRepo {} impl FileRepo { pub fn new() -> Self { Self } } }\nmod di {\nstruct DeferredModule { repo: std::sync::OnceLock<std::sync::Arc<dyn crate::api::Repo>> }\nimpl DeferredModule { fn new() -> Self { Self { repo: std::sync::OnceLock::new() } } fn repo(&self) -> &std::sync::Arc<dyn crate::api::Repo> { self.repo.get_or_init(|| std::sync::Arc::new(crate::file::FileRepo::new())) } }\nstruct WrongModule { repo: Option<std::sync::Arc<dyn crate::api::Repo>> }\n}",
+        &[6],
+    );
+}

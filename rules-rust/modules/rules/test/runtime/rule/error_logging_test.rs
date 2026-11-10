@@ -143,3 +143,96 @@ fn given_persistent_runtime_cases_when_checked_then_matches_exact_finding_anchor
     assert_code_fixture(&ErrorLogging, "ErrorLogging", "bad");
     assert_code_fixture(&ErrorLogging, "ErrorLogging", "good");
 }
+
+#[test]
+fn given_error_bound_by_fallback_closure_when_logged_in_message_then_reports_log() {
+    for call in [
+        "unwrap_or_else(|error| { tracing::warn!(\"Could not parse: {error}\"); 0 })",
+        "or_else(|error| { tracing::warn!(\"Could not parse: {error}\"); Ok::<u32, std::num::ParseIntError>(0) }).unwrap_or(0)",
+        "map_or_else(|error| { tracing::warn!(\"Could not parse: {error}\"); 0 }, |value| value)",
+    ] {
+        assert_code_findings(
+            &ErrorLogging,
+            "ErrorLogging",
+            &format!("fn total(raw: &str) -> u32 {{\n    raw.parse::<u32>().{call}\n}}"),
+            &[2],
+        );
+    }
+    assert_code_findings(
+        &ErrorLogging,
+        "ErrorLogging",
+        "fn total(raw: &str) -> u32 {\n    raw.parse::<u32>().unwrap_or_else(|error| { tracing::warn!(error = &error as &dyn std::error::Error, \"Could not parse\"); 0 })\n}",
+        &[],
+    );
+}
+
+#[test]
+fn given_error_bound_by_let_else_when_logged_in_message_then_reports_log() {
+    assert_code_findings(
+        &ErrorLogging,
+        "ErrorLogging",
+        "fn run(result: Result<(), std::io::Error>) {\n    let Err(error) = result else { return; };\n    tracing::warn!(\"Failed: {error}\");\n}",
+        &[3],
+    );
+}
+
+#[test]
+fn given_error_bound_by_while_let_when_logged_in_message_then_reports_log() {
+    assert_code_findings(
+        &ErrorLogging,
+        "ErrorLogging",
+        "fn run(result: Result<(), std::io::Error>) {\n    while let Err(error) = result {\n        tracing::warn!(\"Failed: {error}\");\n        break;\n    }\n}",
+        &[3],
+    );
+}
+
+#[test]
+fn given_error_bound_in_let_chain_when_logged_in_message_then_reports_log() {
+    assert_code_findings(
+        &ErrorLogging,
+        "ErrorLogging",
+        "fn run(result: Result<(), std::io::Error>, attempts: u32) {\n    if let Err(error) = result && attempts > 0 {\n        tracing::warn!(\"Failed: {error}\");\n    }\n}",
+        &[3],
+    );
+}
+
+#[test]
+fn given_error_bound_in_nested_pattern_when_logged_in_message_then_reports_log() {
+    assert_code_findings(
+        &ErrorLogging,
+        "ErrorLogging",
+        "fn run(result: Option<Result<(), std::io::Error>>) {\n    match result {\n        Some(Err(error)) => tracing::warn!(\"Failed: {error}\"),\n        _ => {}\n    }\n}",
+        &[3],
+    );
+}
+
+#[test]
+fn given_result_parameter_of_impl_method_when_error_is_logged_in_message_then_reports_log() {
+    assert_code_findings(
+        &ErrorLogging,
+        "ErrorLogging",
+        "struct Loader;\nimpl Loader {\n    fn settle(&self, outcome: Result<u32, std::io::Error>) -> Option<u32> {\n        outcome.map_err(|error| tracing::warn!(\"failed: {error}\")).ok()\n    }\n}\nfn settle(outcome: Result<u32, std::io::Error>) -> Option<u32> {\n    outcome.map_err(|error| tracing::warn!(\"failed: {error}\")).ok()\n}",
+        &[4, 8],
+    );
+}
+
+#[test]
+fn given_tdd_error_logging_parsed_error_before_propagation_when_checked_then_reports_log() {
+    assert_code_findings(
+        &ErrorLogging,
+        "ErrorLogging",
+        "fn parse(raw: &str) -> Result<u32, std::num::ParseIntError> {\n    let value = raw.parse::<u32>().map_err(|error| { tracing::warn!(error = &error as &dyn std::error::Error, \"parse failed\"); error })?;\n    Ok(value)\n}",
+        &[2],
+    );
+}
+
+#[test]
+fn given_tdd_error_logging_parsed_error_with_fallback_when_matched_then_requires_structured_field()
+{
+    assert_code_findings(
+        &ErrorLogging,
+        "ErrorLogging",
+        "fn parse_or_zero(raw: &str) -> u32 {\n    match raw.parse::<u32>() { Ok(value) => value, Err(error) => { tracing::warn!(\"{error}\"); 0 } }\n}",
+        &[2],
+    );
+}

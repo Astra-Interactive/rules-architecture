@@ -48,6 +48,94 @@ impl SystemClockOutsideDi {
                         .ends_with(&["time".to_owned(), "SystemTime".to_owned()])
             })
     }
+
+    fn reads_wall_clock(
+        context: &RuleContext,
+        ordinal: usize,
+        reference: &crate::source::model::SourceReference,
+    ) -> bool {
+        let crate::source::model::Resolution::External(path) = &reference.resolution else {
+            return false;
+        };
+        let path = context.resolve_external_identity(ordinal, path);
+        path.package == "std"
+            && path
+                .segments
+                .ends_with(&["SystemTime".to_owned(), "now".to_owned()])
+    }
+
+    fn is_inside_system_clock(
+        context: &RuleContext,
+        ordinal: usize,
+        reference: &crate::source::model::SourceReference,
+    ) -> bool {
+        context.indexes[ordinal]
+            .implementations
+            .iter()
+            .any(|implementation| {
+                implementation.file == reference.file
+                    && implementation.span.contains(&reference.span)
+                    && context
+                        .resolve_workspace_type(
+                            ordinal,
+                            implementation.module,
+                            &implementation.syntax.self_ty,
+                        )
+                        .iter()
+                        .any(|target| {
+                            target.path.item.is_some_and(|identity| {
+                                let item = &context.indexes[target.index].items[identity];
+                                item.name == "SystemClock"
+                                    && matches!(item.syntax, syn::Item::Struct(_))
+                            })
+                        })
+            })
+    }
+
+    fn is_production_reference(
+        context: &RuleContext,
+        ordinal: usize,
+        reference: &crate::source::model::SourceReference,
+    ) -> bool {
+        let production = crate::source::model::CfgPredicate::Not(Box::new(
+            crate::source::model::CfgPredicate::Atom {
+                key: "test".to_owned(),
+                value: None,
+            },
+        ))
+        .in_scope(ordinal);
+        context.indexes[ordinal].modules[reference.module].tree
+            == crate::source::model::SourceTree::Src
+            && reference
+                .cfg
+                .in_scope(ordinal)
+                .and(&production)
+                .is_satisfiable()
+    }
+
+    fn build_wall_clock_findings(context: &RuleContext) -> Vec<RuleFinding> {
+        let mut findings = Vec::new();
+        for (ordinal, index) in context.indexes.iter().enumerate() {
+            let mut reads: Vec<_> = index
+                .references
+                .iter()
+                .filter(|reference| Self::reads_wall_clock(context, ordinal, reference))
+                .filter(|reference| Self::is_production_reference(context, ordinal, reference))
+                .filter(|reference| !Self::is_inside_system_clock(context, ordinal, reference))
+                .collect();
+            reads.sort_by_key(|reference| reference.anchor);
+            findings.extend(reads.into_iter().map(|reference| {
+                crate::check::util::build_node_finding(
+                    "SystemClockOutsideDi",
+                    &reference.file,
+                    reference.anchor,
+                    "SystemTime::now".to_owned(),
+                    "only SystemClock reads the wall clock; other code receives a Clock".to_owned(),
+                )
+            }));
+        }
+        findings
+    }
 }
 
 impl Rule for SystemClockOutsideDi {
@@ -95,6 +183,7 @@ impl Rule for SystemClockOutsideDi {
                 "construct SystemClock in DI or tests".to_owned(),
             ));
         }
+        findings.extend(Self::build_wall_clock_findings(context));
         findings
     }
 }

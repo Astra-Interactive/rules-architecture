@@ -63,7 +63,7 @@ fn candidates_in_line(line: &str, number: usize, candidates: &mut Vec<(usize, St
             let path = valid_characters
                 .then(|| syn::parse_str::<syn::Path>(code).ok())
                 .flatten();
-            if path.is_some_and(|path| path.segments.len() <= 2) && !linked(line, start, cursor) {
+            if path.is_some() && !linked(line, start, cursor) {
                 candidates.push((number, code.to_owned()));
             }
             break;

@@ -1,1 +1,2 @@
+XtaskAlias	.cargo/config.toml	.cargo/config.toml	set `[alias] xtask = "run --package xtask --"` in the root Cargo configuration
 UnitPath	modules/billing/consumer	case-billing-consumer	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared

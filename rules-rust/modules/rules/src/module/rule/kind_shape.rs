@@ -1,6 +1,7 @@
 use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
 use crate::config::model::Role;
+use crate::module::rule::ContractPlacement;
 use crate::module::util::build_shape_module_finding;
 use crate::module::util::resolve_shape_type;
 use crate::source::model::{IndexedModule, SourceTree};
@@ -90,6 +91,22 @@ impl KindShape {
         used_by_implementation
     }
 
+    fn holds_only_state_holders(
+        context: &RuleContext,
+        ordinal: usize,
+        module: &IndexedModule,
+    ) -> bool {
+        let owned: Vec<_> = context.indexes[ordinal]
+            .items
+            .iter()
+            .filter(|item| context.find_kind_module(ordinal, item.module) == Some(module.id))
+            .collect();
+        !owned.is_empty()
+            && owned
+                .iter()
+                .all(|item| ContractPlacement::is_app_api_state_holder(context, ordinal, item))
+    }
+
     fn check_role_kind(
         context: &RuleContext,
         ordinal: usize,
@@ -107,12 +124,61 @@ impl KindShape {
             .find_role_config(&index.crate_name)
             .and_then(|config| config.role);
         let app_api = !context.is_plugin_product() && role == Some(Role::Api);
-        let forbidden_api =
-            app_api && !["api", "model", "util", "stub", "di", "usecase"].contains(&name);
+        let forbidden_api = app_api
+            && !["api", "model", "util", "stub", "di", "usecase"].contains(&name)
+            && !Self::holds_only_state_holders(context, ordinal, module);
         let forbidden_helper = Self::is_mixed_unit(context, ordinal)
             && !["table", "entity", "model", "util", "database", "di"].contains(&name)
             && context.is_technology_kind(&index.crate_name, name);
         (forbidden_api || forbidden_helper).then(|| build_shape_module_finding(context, ordinal, module.id, "KindShape", "the crate role does not permit this kind; technology helpers use table/entity/model/util/database/di and app api contains only its public-contract kinds")).flatten()
+    }
+
+    fn is_root_file_block(
+        index: &crate::source::model::CrateIndex,
+        module: &IndexedModule,
+    ) -> bool {
+        let root_file = &index.modules[0].file;
+        let mut current = module;
+        while let Some(parent) = current.parent {
+            if current.is_file_module || &current.file != root_file {
+                return false;
+            }
+            current = &index.modules[parent];
+        }
+        true
+    }
+
+    fn find_nesting_sites(
+        context: &RuleContext,
+        ordinal: usize,
+        module: &IndexedModule,
+        own_kind: bool,
+    ) -> Vec<ShapeSite> {
+        let mut sites = Vec::new();
+        let nested = module
+            .parent
+            .is_some_and(|parent| context.find_kind_module(ordinal, parent).is_some());
+        if own_kind && nested {
+            sites.push(ShapeSite {
+                module: module.id,
+                message: "a kind block is not nested inside another kind",
+            });
+        }
+        let is_concept_level = module.tree == SourceTree::Src && module.module.path.len() == 3;
+        if !is_concept_level {
+            return sites;
+        }
+        let is_root_block = Self::is_root_file_block(&context.indexes[ordinal], module);
+        if !is_root_block {
+            return sites;
+        }
+        if context.find_kind_module(ordinal, module.id).is_none() {
+            sites.push(ShapeSite {
+                module: module.id,
+                message: "a concept nests at most two levels",
+            });
+        }
+        sites
     }
 
     fn check_module(
@@ -138,19 +204,17 @@ impl KindShape {
                 files
                     .iter()
                     .filter(|child| !Self::is_implementation_file(context, ordinal, child.id))
-                    .map(|child| {
-                        (
-                            child.id,
-                            "a concept holds kind blocks; files live in a named kind",
-                        )
+                    .map(|child| ShapeSite {
+                        module: child.id,
+                        message: "a concept holds kind blocks; files live in a named kind",
                     }),
             );
         }
         if !files.is_empty() && blocks && (!Self::is_mixed_unit(context, ordinal) || own_kind) {
-            sites.push((
-                module.id,
-                "a block does not mix file modules and inline blocks",
-            ));
+            sites.push(ShapeSite {
+                module: module.id,
+                message: "a block does not mix file modules and inline blocks",
+            });
         }
         let has_items = index.items.iter().any(|item| item.module == module.id);
         let has_impls = index
@@ -158,20 +222,15 @@ impl KindShape {
             .iter()
             .any(|implementation| implementation.module == module.id);
         if own_kind && children.is_empty() && !has_items && !has_impls {
-            sites.push((
-                module.id,
-                "a kind block is created with its first file, never empty",
-            ));
+            sites.push(ShapeSite {
+                module: module.id,
+                message: "a kind block is created with its first file, never empty",
+            });
         }
-        let nested = module
-            .parent
-            .is_some_and(|parent| context.find_kind_module(ordinal, parent).is_some());
-        if own_kind && nested {
-            sites.push((module.id, "a kind block is not nested inside another kind"));
-        }
+        sites.extend(Self::find_nesting_sites(context, ordinal, module, own_kind));
         sites
             .into_iter()
-            .filter_map(|(module, message)| {
+            .filter_map(|ShapeSite { module, message }| {
                 build_shape_module_finding(context, ordinal, module, "KindShape", message)
             })
             .collect()
@@ -241,4 +300,9 @@ impl Rule for KindShape {
         }
         findings
     }
+}
+
+struct ShapeSite {
+    module: usize,
+    message: &'static str,
 }

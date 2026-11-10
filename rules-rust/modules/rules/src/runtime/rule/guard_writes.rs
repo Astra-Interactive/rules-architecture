@@ -55,7 +55,10 @@ impl<'ast> Visit<'ast> for GuardWrites<'_> {
     fn visit_block(&mut self, block: &'ast syn::Block) {
         let before = self.writes;
         for statement in &block.stmts {
-            let tail = matches!(statement, syn::Stmt::Expr(syn::Expr::Path(_), None));
+            let tail = matches!(
+                statement,
+                syn::Stmt::Expr(syn::Expr::Path(_) | syn::Expr::Lit(_), None)
+            );
             if self.writes > before && !tail {
                 self.trailing = true;
             }
@@ -80,6 +83,7 @@ impl<'ast> Visit<'ast> for GuardWrites<'_> {
         let mut largest = 0;
         for arm in &expression.arms {
             self.writes = before;
+            self.visit_pat(&arm.pat);
             self.visit_expr(&arm.body);
             largest = largest.max(self.writes - before);
         }

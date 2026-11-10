@@ -74,6 +74,16 @@ fn given_paused_runtime_configuration_when_checked_then_checks_flavor_and_develo
 }
 
 #[test]
+fn given_timer_inside_assertion_macro_when_test_is_not_paused_then_requires_paused_time() {
+    assert_code_findings(
+        &TestTimePaused,
+        "TestTimePaused",
+        "#[tokio::test]\nasync fn verify() {\n    let pending = std::future::pending::<()>();\n    assert!(\n        tokio::time::timeout(std::time::Duration::from_secs(3600), pending)\n            .await\n            .is_err()\n    );\n}",
+        &[5],
+    );
+}
+
+#[test]
 fn given_persistent_runtime_cases_when_checked_then_matches_exact_finding_anchors() {
     assert_code_fixture(&TestTimePaused, "TestTimePaused", "bad");
     assert_code_fixture(&TestTimePaused, "TestTimePaused", "good");

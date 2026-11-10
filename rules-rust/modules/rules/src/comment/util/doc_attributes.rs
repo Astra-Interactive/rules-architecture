@@ -25,9 +25,23 @@ pub(crate) fn joined_doc(attributes: &[syn::Attribute]) -> Option<(NodeSpan, Str
 }
 
 pub(crate) fn doc_heading(text: &str, required: &str) -> bool {
+    let indent = |line: &str| {
+        line.chars()
+            .take_while(|character| character.is_whitespace())
+            .map(|character| if character == '\t' { 4 } else { 1 })
+            .sum::<usize>()
+    };
+    let base = text
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(indent)
+        .min()
+        .unwrap_or(0);
     text.lines().any(|line| {
-        let line = line.trim_start();
-        line.starts_with('#') && line.trim_start_matches('#').trim() == required
+        let trimmed = line.trim_start();
+        indent(line) < base + 4
+            && trimmed.starts_with('#')
+            && trimmed.trim_start_matches('#').trim() == required
     })
 }
 

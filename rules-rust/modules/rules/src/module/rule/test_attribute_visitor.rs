@@ -1,7 +1,8 @@
 use crate::check::model::RuleFinding;
 use crate::check::util::build_node_finding;
+use crate::source::model::CfgPredicate;
+use crate::source::util::find_node_span;
 use crate::source::util::parse_macro_arguments;
-use crate::source::util::{find_node_span, format_tokens};
 use syn::visit::Visit;
 use syn::{Attribute, ItemMod};
 
@@ -41,8 +42,14 @@ impl<'ast> Visit<'ast> for TestAttributeVisitor {
     }
 
     fn visit_attribute(&mut self, attribute: &'ast Attribute) {
-        let tokens = format_tokens(&attribute.meta).replace(' ', "");
-        let is_test = attribute.path().is_ident("test") || tokens == "cfg(test)";
+        let is_test_function = attribute
+            .path()
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == "test");
+        let is_test = is_test_function
+            || CfgPredicate::find_condition(attribute)
+                .is_some_and(|condition| condition.is_test_only());
         if is_test && !self.in_test || attribute.path().is_ident("path") {
             self.findings.push(build_node_finding("TestMirror", &self.file,
                 find_node_span(attribute.pound_token.span), self.subject.clone(),

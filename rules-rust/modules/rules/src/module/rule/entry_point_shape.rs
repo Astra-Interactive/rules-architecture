@@ -33,16 +33,18 @@ impl Rule for EntryPointShape {
                     ));
                 }
             }
-            let cdylib = context
+            let host_library = context
                 .workspace
                 .members
                 .iter()
                 .find(|member| member.name == index.crate_name)
                 .is_some_and(|member| {
-                    member
-                        .targets
-                        .iter()
-                        .any(|target| target.kinds.iter().any(|kind| kind == "cdylib"))
+                    member.targets.iter().any(|target| {
+                        target
+                            .kinds
+                            .iter()
+                            .any(|kind| kind == "cdylib" || kind == "staticlib")
+                    })
                 });
             for item in index.items.iter().filter(|item| item.module == 0) {
                 let public = matches!(
@@ -51,8 +53,9 @@ impl Rule for EntryPointShape {
                 );
                 let public_main =
                     item.name == "main" && matches!(item.syntax, Item::Fn(_)) && public;
-                let hidden_host =
-                    cdylib && config.host_items.iter().any(|host| host == &item.name) && !public;
+                let hidden_host = host_library
+                    && config.host_items.iter().any(|host| host == &item.name)
+                    && !public;
                 if public_main || hidden_host {
                     findings.push(build_shape_item_finding(
                         index,

@@ -86,6 +86,54 @@ fn given_public_type_alias_or_signature_when_checked_then_fields_of_the_exposed_
     );
 }
 
+fn read_private_placement_context(files: &[(&str, &str)]) -> crate::check::model::RuleContext {
+    let mut context = read_placement_context(files);
+    let name = context.workspace.members[0].name.clone();
+    context.workspace.members[0].manifest = crate::workspace::util::parse_toml_file(
+        "Cargo.toml",
+        &format!("[package]\nname={name:?}\npublish=false\n"),
+    )
+    .unwrap();
+    context
+}
+
+#[test]
+fn given_crate_visible_field_read_only_in_its_owner_file_when_checked_then_the_field_is_reported() {
+    let root = "mod counter { pub(crate) use value::Counter; mod value; }\nmod report { pub(crate) use total::read_total; mod total; }\nfn run() -> u64 { report::read_total() }";
+    let counter = "pub(crate) struct Counter {\n    pub(crate) value: u64,\n    pub(crate) step: u64,\n}\nimpl Counter {\n    pub(crate) fn new() -> Self { Self { value: 0, step: 1 } }\n    pub(crate) fn read(&self) -> u64 { self.value }\n}";
+    let total = "use crate::counter::Counter;\npub(crate) fn read_total() -> u64 { Counter::new().read() + Counter::new().step }";
+    let context = read_private_placement_context(&[
+        ("src/lib.rs", root),
+        ("src/counter/value.rs", counter),
+        ("src/report/total.rs", total),
+    ]);
+    assert_placement_findings(
+        &VisibilityTier,
+        "VisibilityTier",
+        &context,
+        &[("src/counter/value.rs", 2, "Node")],
+    );
+}
+
+#[test]
+fn given_path_restricted_visibility_on_item_and_re_export_when_checked_then_the_item_is_reported() {
+    let root = "mod invoice {\n    mod file {\n        pub(in crate::invoice) use file_invoice_repository::FileInvoiceRepository;\n        mod file_invoice_repository;\n    }\n    mod di {\n        pub(crate) use invoice_module::InvoiceModule;\n        mod invoice_module;\n    }\n}\nfn run(module: invoice::di::InvoiceModule) {}";
+    let repository =
+        "pub(in crate::invoice) struct FileInvoiceRepository {\n    folder: std::path::PathBuf,\n}";
+    let module = "use crate::invoice::file::FileInvoiceRepository;\npub(crate) struct InvoiceModule {\n    repository: FileInvoiceRepository,\n}";
+    let context = read_private_placement_context(&[
+        ("src/lib.rs", root),
+        ("src/invoice/file/file_invoice_repository.rs", repository),
+        ("src/invoice/di/invoice_module.rs", module),
+    ]);
+    assert_placement_findings(
+        &VisibilityTier,
+        "VisibilityTier",
+        &context,
+        &[("src/invoice/file/file_invoice_repository.rs", 1, "Node")],
+    );
+}
+
 #[test]
 fn given_persistent_placement_cases_when_checked_then_match_exact_node_anchors() {
     assert_code_fixture(&VisibilityTier, "VisibilityTier", "bad");

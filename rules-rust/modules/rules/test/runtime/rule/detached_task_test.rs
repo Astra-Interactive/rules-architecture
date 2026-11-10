@@ -178,3 +178,90 @@ fn given_real_cargo_rename_and_workspace_reexports_when_checked_then_preserves_e
         ));
     }
 }
+
+#[test]
+fn given_tdd_detached_task_dropped_containers_when_dropped_then_reports_each_spawn() {
+    assert_code_findings(
+        &DetachedTask,
+        "DetachedTask",
+        "fn option_container() {\n    let handle = tokio::spawn(async {});\n    let container = Some(handle);\n    std::mem::drop(container);\n}\nfn boxed_container() {\n    let handle = tokio::spawn(async {});\n    let container = Box::new(handle);\n    std::mem::drop(container);\n}\nfn vector_container() {\n    let handle = tokio::spawn(async {});\n    let container = vec![handle];\n    std::mem::drop(container);\n}\nfn array_container() {\n    let handle = tokio::spawn(async {});\n    let container = [handle];\n    std::mem::drop(container);\n}",
+        &[2, 7, 12, 17],
+    );
+}
+
+#[test]
+fn given_tdd_detached_task_array_loop_with_early_break_when_awaited_then_reports_unjoined_spawn() {
+    assert_code_findings(
+        &DetachedTask,
+        "DetachedTask",
+        "async fn run() {\n    let first = tokio::spawn(async {});\n    let second = tokio::spawn(async {});\n    let handles = [first, second];\n    for handle in handles {\n        let _ = handle.await;\n        break;\n    }\n}",
+        &[3],
+    );
+}
+
+#[test]
+fn given_tdd_detached_task_inline_spawn_in_option_when_dropped_then_reports_spawn() {
+    assert_code_findings(
+        &DetachedTask,
+        "DetachedTask",
+        "async fn run() {\n    let task = Some(tokio::spawn(async {}));\n    drop(task);\n}",
+        &[2],
+    );
+}
+
+#[test]
+fn given_inline_spawn_array_handles_are_awaited_when_checked_then_reports_only_orphaned_task() {
+    assert_code_findings(
+        &DetachedTask,
+        "DetachedTask",
+        "async fn run() {\n    let handles = [\n        tokio::spawn(async {}),\n        tokio::spawn(async {}),\n    ];\n    for handle in handles {\n        let _ = handle.await;\n    }\n    tokio::spawn(async {});\n}",
+        &[9],
+    );
+}
+
+#[test]
+fn given_parenthesized_inline_spawn_array_handles_are_awaited_when_checked_then_reports_only_orphaned_task()
+ {
+    assert_code_findings(
+        &DetachedTask,
+        "DetachedTask",
+        "async fn run() {\n    let handles = [\n        (tokio::spawn(async {})),\n        ((tokio::spawn(async {}))),\n        tokio::spawn(async {}),\n    ];\n    for handle in handles {\n        let _ = handle.await;\n    }\n    tokio::spawn(async {});\n}",
+        &[10],
+    );
+}
+
+#[test]
+fn given_task_module_spawn_when_handle_is_dropped_then_reports_spawn() {
+    assert_code_findings(
+        &DetachedTask,
+        "DetachedTask",
+        "async fn work() {}\nfn start() {\n    tokio::task::spawn(work());\n}\nasync fn joined() {\n    let handle = tokio::task::spawn(work());\n    let _ = handle.await;\n}",
+        &[3],
+    );
+    assert_code_findings(
+        &DetachedTask,
+        "DetachedTask",
+        "use tokio::task;\nasync fn work() {}\nfn start() {\n    task::spawn(work());\n}",
+        &[4],
+    );
+}
+
+#[test]
+fn given_spawn_blocking_when_handle_is_dropped_then_reports_spawn() {
+    assert_code_findings(
+        &DetachedTask,
+        "DetachedTask",
+        "fn start() {\n    tokio::task::spawn_blocking(|| {});\n}\nasync fn joined() {\n    let handle = tokio::task::spawn_blocking(|| {});\n    let _ = handle.await;\n}",
+        &[2],
+    );
+}
+
+#[test]
+fn given_runtime_handle_spawn_when_handle_is_dropped_then_reports_spawn() {
+    assert_code_findings(
+        &DetachedTask,
+        "DetachedTask",
+        "struct JobRunner {\n    handle: tokio::runtime::Handle,\n}\nimpl JobRunner {\n    fn run(&self) {\n        self.handle.spawn(async {});\n    }\n    fn start(&self) -> tokio::task::JoinHandle<()> {\n        self.handle.spawn(async {})\n    }\n}",
+        &[6],
+    );
+}

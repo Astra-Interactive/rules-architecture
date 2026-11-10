@@ -2,6 +2,7 @@ use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
 use crate::module::util::is_di_type;
 use crate::module::util::{build_shape_item_finding, find_kind_name};
+use syn::visit::Visit;
 
 pub(crate) struct DiModuleShape;
 
@@ -329,6 +330,15 @@ impl DiModuleShape {
                     && find_kind_name(context, ordinal, item.module) == "api"))
     }
 
+    fn inside_deferred_init(
+        implementation: &crate::source::model::IndexedImpl,
+        span: &crate::source::model::NodeSpan,
+    ) -> bool {
+        let mut visitor = DeferredInitVisitor { spans: Vec::new() };
+        visitor.visit_item_impl(&implementation.syntax);
+        visitor.spans.iter().any(|init| init.contains(span))
+    }
+
     fn constructs_outside_new(context: &RuleContext, ordinal: usize, identity: usize) -> bool {
         let index = &context.indexes[ordinal];
         context.name_index().uses.iter().any(|usage| {
@@ -346,6 +356,7 @@ impl DiModuleShape {
                 && index.implementations.iter().any(|implementation| {
                     implementation.file == usage.file
                         && implementation.span.contains(&usage.span)
+                        && !Self::inside_deferred_init(implementation, &usage.span)
                         && crate::module::util::owns_implementation(index, identity, implementation)
                 })
         })
@@ -406,6 +417,22 @@ impl<'ast> syn::visit::Visit<'ast> for DeferredAccessorVisitor<'_> {
         let delegated = matches!(call.receiver.as_ref(), syn::Expr::Path(path) if path.path.is_ident("self"))
             && self.initialized.contains(&call.method.to_string());
         self.found |= (own_field && call.method == "get_or_init") || delegated;
+        syn::visit::visit_expr_method_call(self, call);
+    }
+}
+
+struct DeferredInitVisitor {
+    spans: Vec<crate::source::model::NodeSpan>,
+}
+
+impl<'ast> syn::visit::Visit<'ast> for DeferredInitVisitor {
+    fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+        let own_field = matches!(call.receiver.as_ref(), syn::Expr::Field(field) if matches!(field.base.as_ref(), syn::Expr::Path(path) if path.path.is_ident("self")));
+        if own_field && call.method == "get_or_init" {
+            self.spans.push(crate::source::util::find_node_span(
+                call.paren_token.span.join(),
+            ));
+        }
         syn::visit::visit_expr_method_call(self, call);
     }
 }

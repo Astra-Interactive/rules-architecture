@@ -16,7 +16,7 @@ struct LogVisitor<'source> {
     errors: Vec<String>,
     logged: Vec<(String, proc_macro2::Span)>,
     spans: Vec<proc_macro2::Span>,
-    results: Vec<(String, bool)>,
+    results: Vec<ResultBinding>,
     propagating: bool,
 }
 
@@ -35,12 +35,17 @@ impl LogVisitor<'_> {
 
     fn mask_result_pattern(&mut self, pattern: &syn::Pat) {
         match pattern {
-            syn::Pat::Ident(name) => self.results.push((name.ident.to_string(), false)),
+            syn::Pat::Ident(name) => self.results.push(ResultBinding {
+                name: name.ident.to_string(),
+                is_result: false,
+                typed: None,
+            }),
             syn::Pat::Type(pattern) => {
                 self.mask_result_pattern(&pattern.pat);
                 let result = self.result_type(self.ordinal, self.module, &pattern.ty);
-                if let Some((_, binding)) = self.results.last_mut() {
-                    *binding = result;
+                if let Some(binding) = self.results.last_mut() {
+                    binding.is_result = result;
+                    binding.typed = Some((*pattern.ty).clone());
                 }
             }
             syn::Pat::Paren(pattern) => self.mask_result_pattern(&pattern.pat),
@@ -74,6 +79,76 @@ impl LogVisitor<'_> {
         }
     }
 
+    fn resolve_expression_type(&self, expression: &syn::Expr) -> Option<syn::Type> {
+        match expression {
+            syn::Expr::Path(path) => self
+                .results
+                .iter()
+                .rev()
+                .find(|binding| path.path.is_ident(&binding.name))
+                .and_then(|binding| binding.typed.clone()),
+            syn::Expr::Paren(paren) => self.resolve_expression_type(&paren.expr),
+            syn::Expr::Group(group) => self.resolve_expression_type(&group.expr),
+            _ => None,
+        }
+    }
+
+    fn is_string_receiver(&self, expression: &syn::Expr) -> bool {
+        let Some(typed) = self.resolve_expression_type(expression) else {
+            return false;
+        };
+        let cfg = crate::runtime::util::node_predicate(
+            &self.context.indexes[self.ordinal],
+            self.module,
+            &self.file.path,
+            find_node_span(expression.span()),
+        );
+        let resolved =
+            self.context
+                .resolve_type_syntax_under(self.ordinal, self.module, &typed, &cfg);
+        !resolved.is_empty() && resolved.iter().all(|resolved| {
+            if resolved.has_unsubstituted_parameters { return false; }
+            let mut typed = &resolved.typed;
+            while let syn::Type::Reference(reference) = typed { typed = &reference.elem; }
+            matches!(typed, syn::Type::Path(path) if path.path.is_ident("str")
+                && matches!(self.context.indexes[resolved.index].resolve_path(resolved.module, &path.path), crate::source::model::Resolution::Local))
+                || self.context.resolve_outer_external_type_paths_under(resolved.index, resolved.module, typed, &resolved.cfg)
+                    .iter().any(|path| matches!(path.format_path().as_str(), "std::primitive::str" | "core::primitive::str"))
+        })
+    }
+
+    fn is_result_call(&self, call: &syn::ExprCall) -> bool {
+        let syn::Expr::Path(path) = &*call.func else {
+            return false;
+        };
+        if self
+            .results
+            .iter()
+            .rev()
+            .any(|binding| path.path.is_ident(&binding.name))
+        {
+            return false;
+        }
+        if ["Ok", "Err"].iter().any(|variant| {
+            crate::runtime::util::is_result_variant(
+                self.context,
+                self.ordinal,
+                self.module,
+                &path.path,
+                variant,
+            )
+        }) {
+            return true;
+        }
+        self.context.resolve_workspace_path(self.ordinal, self.module, &path.path).iter().any(|target| {
+            let Some(identity) = target.path.item else { return false; };
+            let item = &self.context.indexes[target.index].items[identity];
+            target.path.cfg.and(&item.cfg).is_satisfiable() && matches!(&item.syntax, syn::Item::Fn(function) if matches!(&function.sig.output, syn::ReturnType::Type(_, typed) if self.result_type(target.index, item.module, typed)))
+        }) || self.context.resolve_external_call_paths(self.ordinal, self.module, &path.path).iter().any(|path| {
+            matches!(path.format_path().as_str(), "std::fs::read" | "std::fs::read_to_string" | "std::fs::write" | "tokio::fs::read" | "tokio::fs::read_to_string" | "tokio::fs::write")
+        })
+    }
+
     fn result_expression(&self, expression: &syn::Expr) -> bool {
         match expression {
             syn::Expr::Paren(paren) => self.result_expression(&paren.expr),
@@ -84,9 +159,12 @@ impl LogVisitor<'_> {
                 .results
                 .iter()
                 .rev()
-                .find(|(name, _)| path.path.is_ident(name))
-                .is_some_and(|(_, result)| *result),
+                .find(|binding| path.path.is_ident(&binding.name))
+                .is_some_and(|binding| binding.is_result),
             syn::Expr::MethodCall(call) => {
+                if call.method == "parse" && self.is_string_receiver(&call.receiver) {
+                    return true;
+                }
                 [
                     "map",
                     "map_err",
@@ -101,37 +179,7 @@ impl LogVisitor<'_> {
                 .any(|name| call.method == *name)
                     && self.result_expression(&call.receiver)
             }
-            syn::Expr::Call(call) => {
-                let syn::Expr::Path(path) = &*call.func else {
-                    return false;
-                };
-                if self
-                    .results
-                    .iter()
-                    .rev()
-                    .any(|(name, _)| path.path.is_ident(name))
-                {
-                    return false;
-                }
-                if ["Ok", "Err"].iter().any(|variant| {
-                    crate::runtime::util::is_result_variant(
-                        self.context,
-                        self.ordinal,
-                        self.module,
-                        &path.path,
-                        variant,
-                    )
-                }) {
-                    return true;
-                }
-                self.context.resolve_workspace_path(self.ordinal, self.module, &path.path).iter().any(|target| {
-                    let Some(identity) = target.path.item else { return false; };
-                    let item = &self.context.indexes[target.index].items[identity];
-                    target.path.cfg.and(&item.cfg).is_satisfiable() && matches!(&item.syntax, syn::Item::Fn(function) if matches!(&function.sig.output, syn::ReturnType::Type(_, typed) if self.result_type(target.index, item.module, typed)))
-                }) || self.context.resolve_external_call_paths(self.ordinal, self.module, &path.path).iter().any(|path| {
-                    matches!(path.format_path().as_str(), "std::fs::read" | "std::fs::read_to_string" | "std::fs::write" | "tokio::fs::read" | "tokio::fs::read_to_string" | "tokio::fs::write")
-                })
-            }
+            syn::Expr::Call(call) => self.is_result_call(call),
             _ => false,
         }
     }
@@ -141,42 +189,82 @@ impl LogVisitor<'_> {
         for argument in &signature.inputs {
             if let syn::FnArg::Typed(parameter) = argument
                 && let syn::Pat::Ident(name) = &*parameter.pat
-                && self
-                    .context
-                    .resolve_outer_external_type_paths(self.ordinal, self.module, &parameter.ty)
-                    .iter()
-                    .any(|path| {
-                        matches!(
-                            path.format_path().as_str(),
-                            "std::result::Result" | "core::result::Result"
-                        )
-                    })
             {
-                self.results.push((name.ident.to_string(), true));
-            } else if let syn::FnArg::Typed(parameter) = argument
-                && let syn::Pat::Ident(name) = &*parameter.pat
-            {
-                self.results.push((name.ident.to_string(), false));
+                self.results.push(ResultBinding {
+                    name: name.ident.to_string(),
+                    is_result: self.result_type(self.ordinal, self.module, &parameter.ty),
+                    typed: Some((*parameter.ty).clone()),
+                });
             }
         }
     }
+
+    fn error_name(&self, pattern: &syn::Pat) -> Option<String> {
+        match pattern {
+            syn::Pat::Paren(pattern) => self.error_name(&pattern.pat),
+            syn::Pat::Reference(pattern) => self.error_name(&pattern.pat),
+            syn::Pat::TupleStruct(pattern) => {
+                let error = crate::runtime::util::is_result_variant(
+                    self.context,
+                    self.ordinal,
+                    self.module,
+                    &pattern.path,
+                    "Err",
+                );
+                if error && let Some(syn::Pat::Ident(name)) = pattern.elems.first() {
+                    return Some(name.ident.to_string());
+                }
+                pattern
+                    .elems
+                    .iter()
+                    .find_map(|element| self.error_name(element))
+            }
+            _ => None,
+        }
+    }
+
     fn bind_error(&mut self, pattern: &syn::Pat) {
-        if let syn::Pat::TupleStruct(pattern) = pattern
-            && crate::runtime::util::is_result_variant(
-                self.context,
-                self.ordinal,
-                self.module,
-                &pattern.path,
-                "Err",
-            )
-            && let Some(syn::Pat::Ident(name)) = pattern.elems.first()
-        {
-            let name = name.ident.to_string();
+        if let Some(name) = self.error_name(pattern) {
             self.logged.retain(|(logged, _)| logged != &name);
             if !self.errors.contains(&name) {
                 self.errors.push(name);
             }
         }
+    }
+
+    fn bind_condition(&mut self, condition: &syn::Expr) -> Vec<String> {
+        match condition {
+            syn::Expr::Let(condition) => {
+                self.mask_result_pattern(&condition.pat);
+                self.bind_error(&condition.pat);
+                let mut bindings = Vec::new();
+                bindings.extend(self.error_name(&condition.pat));
+                if let syn::Pat::TupleStruct(pattern) = &*condition.pat
+                    && let Some(syn::Pat::Ident(name)) = pattern.elems.first()
+                {
+                    bindings.push(name.ident.to_string());
+                }
+                bindings
+            }
+            syn::Expr::Binary(binary) if matches!(binary.op, syn::BinOp::And(_)) => {
+                let mut bindings = self.bind_condition(&binary.left);
+                bindings.extend(self.bind_condition(&binary.right));
+                bindings
+            }
+            syn::Expr::Paren(paren) => self.bind_condition(&paren.expr),
+            _ => Vec::new(),
+        }
+    }
+
+    fn scoped_function(&mut self, signature: &syn::Signature, visit: impl FnOnce(&mut Self)) {
+        let errors = std::mem::take(&mut self.errors);
+        let logged = std::mem::take(&mut self.logged);
+        let results = std::mem::take(&mut self.results);
+        self.bind_results(signature);
+        visit(self);
+        self.errors = errors;
+        self.logged = logged;
+        self.results = results;
     }
 
     fn token_names(tokens: proc_macro2::TokenStream) -> Vec<String> {
@@ -305,9 +393,27 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
             syn::Pat::Type(typed) => &*typed.pat,
             pattern => pattern,
         };
+        let typed = match &local.pat {
+            syn::Pat::Type(pattern) => Some((*pattern.ty).clone()),
+            _ => local
+                .init
+                .as_ref()
+                .and_then(|init| self.resolve_expression_type(&init.expr)),
+        };
         self.mask_result_pattern(&local.pat);
+        if local
+            .init
+            .as_ref()
+            .is_some_and(|init| init.diverge.is_some())
+        {
+            self.bind_error(pattern);
+        }
         if let syn::Pat::Ident(name) = pattern {
-            self.results.push((name.ident.to_string(), result));
+            self.results.push(ResultBinding {
+                name: name.ident.to_string(),
+                is_result: result,
+                typed,
+            });
             self.errors.retain(|error| name.ident != error);
             self.logged.retain(|(error, _)| name.ident != error);
         }
@@ -328,14 +434,15 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
     }
 
     fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
-        let errors = std::mem::take(&mut self.errors);
-        let logged = std::mem::take(&mut self.logged);
-        let results = std::mem::take(&mut self.results);
-        self.bind_results(&item.sig);
-        syn::visit::visit_item_fn(self, item);
-        self.errors = errors;
-        self.logged = logged;
-        self.results = results;
+        self.scoped_function(&item.sig, |visitor| {
+            syn::visit::visit_item_fn(visitor, item);
+        });
+    }
+
+    fn visit_impl_item_fn(&mut self, item: &'ast syn::ImplItemFn) {
+        self.scoped_function(&item.sig, |visitor| {
+            syn::visit::visit_impl_item_fn(visitor, item);
+        });
     }
 
     fn visit_arm(&mut self, arm: &'ast syn::Arm) {
@@ -372,16 +479,7 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
         let length = self.errors.len();
         let logged = self.logged.clone();
         self.visit_expr(&expression.cond);
-        let mut binding = None;
-        if let syn::Expr::Let(condition) = &*expression.cond {
-            self.mask_result_pattern(&condition.pat);
-            self.bind_error(&condition.pat);
-            if let syn::Pat::TupleStruct(pattern) = &*condition.pat
-                && let Some(syn::Pat::Ident(name)) = pattern.elems.first()
-            {
-                binding = Some(name.ident.to_string());
-            }
-        }
+        let bindings = self.bind_condition(&expression.cond);
         self.visit_block(&expression.then_branch);
         let then_logged = self.logged.clone();
         self.errors.truncate(length);
@@ -393,17 +491,19 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
         self.logged.extend(
             then_logged
                 .into_iter()
-                .filter(|(name, _)| self.errors.contains(name) && binding.as_ref() != Some(name)),
+                .filter(|(name, _)| self.errors.contains(name) && !bindings.contains(name)),
         );
     }
 
     fn visit_expr_while(&mut self, expression: &'ast syn::ExprWhile) {
         self.visit_expr(&expression.cond);
         let results = self.results.len();
-        if let syn::Expr::Let(condition) = &*expression.cond {
-            self.mask_result_pattern(&condition.pat);
-        }
+        let length = self.errors.len();
+        let logged = self.logged.clone();
+        self.bind_condition(&expression.cond);
         self.visit_block(&expression.body);
+        self.errors.truncate(length);
+        self.logged = logged;
         self.results.truncate(results);
     }
 
@@ -460,12 +560,18 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
 
     fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
         let result = self.result_expression(&call.receiver);
-        if result && matches!(call.method.to_string().as_str(), "map_err" | "inspect_err") {
+        if result
+            && matches!(
+                call.method.to_string().as_str(),
+                "map_err" | "inspect_err" | "unwrap_or_else" | "or_else" | "map_or_else"
+            )
+        {
             self.visit_expr(&call.receiver);
-            for argument in &call.args {
+            for (position, argument) in call.args.iter().enumerate() {
                 let errors = self.errors.clone();
                 let logged = self.logged.clone();
-                if let syn::Expr::Closure(closure) = argument
+                if position == 0
+                    && let syn::Expr::Closure(closure) = argument
                     && let Some(syn::Pat::Ident(name)) = closure.inputs.first()
                 {
                     self.errors.push(name.ident.to_string());
@@ -557,4 +663,10 @@ impl Rule for ErrorLogging {
         }
         findings
     }
+}
+
+struct ResultBinding {
+    name: String,
+    is_result: bool,
+    typed: Option<syn::Type>,
 }

@@ -46,6 +46,31 @@ impl TestMirror {
         })
     }
 
+    fn is_test_function(function: &syn::ItemFn) -> bool {
+        function.attrs.iter().any(|attribute| {
+            attribute
+                .path()
+                .segments
+                .last()
+                .is_some_and(|segment| segment.ident == "test")
+        })
+    }
+
+    fn is_test_in_fixture_directory(file: &SourceFile) -> bool {
+        let directory = file
+            .path
+            .rsplit_once('/')
+            .map_or("", |(directory, _)| directory);
+        directory
+            .split('/')
+            .any(|segment| segment == "fake" || segment == "memory")
+            && file
+                .syntax
+                .items
+                .iter()
+                .any(|item| matches!(item, Item::Fn(function) if Self::is_test_function(function)))
+    }
+
     fn check_test_file(
         file: &SourceFile,
         module: &SourceModule,
@@ -58,6 +83,7 @@ impl TestMirror {
             .path
             .iter()
             .any(|segment| segment == "fake" || segment == "memory")
+            && !Self::is_test_in_fixture_directory(file)
         {
             return;
         }

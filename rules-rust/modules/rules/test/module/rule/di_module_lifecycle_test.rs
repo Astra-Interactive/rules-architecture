@@ -167,3 +167,39 @@ fn given_nested_branch_projections_when_forwarding_then_repeated_subtree_states_
         &[],
     );
 }
+
+#[test]
+fn given_own_task_started_in_on_enable_when_checked_then_only_received_module_lifecycle_is_reported()
+ {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::DiModuleLifecycle,
+        "struct TaskScope;\nstruct WarmupUseCase;\nmod di {\n use super::{TaskScope, WarmupUseCase};\n trait Lifecycle { fn on_enable(&self); fn on_disable(&self); }\n struct InvoiceModule { warmup_use_case: std::sync::Arc<WarmupUseCase>, task_scope: std::sync::Arc<TaskScope> }\n impl Lifecycle for InvoiceModule { fn on_enable(&self) { let warmup_use_case = std::sync::Arc::clone(&self.warmup_use_case); self.task_scope.spawn(async move { warmup_use_case.invoke().await; }); } fn on_disable(&self) {} }\n struct ChildModule;\n struct BorrowingModule<'a> { child: &'a ChildModule }\n impl Lifecycle for BorrowingModule<'_> { fn on_enable(&self) { self.child.on_enable(); } fn on_disable(&self) {} }\n}",
+        &[9],
+    );
+}
+
+#[test]
+fn given_non_arc_task_scope_fields_when_checked_then_only_arc_is_accepted() {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::DiModuleLifecycle,
+        "struct TaskScope;\nstruct BoxedWorker { scope: Box<TaskScope> }\nstruct SharedWorker { scope: std::sync::Arc<TaskScope> }\nstruct RcWorker { scope: std::rc::Rc<TaskScope> }",
+        &[2, 4],
+    );
+}
+
+#[test]
+fn given_foreign_call_in_lifecycle_macro_argument_when_checked_then_child_work_in_on_enable_is_reported()
+ {
+    for statement in [
+        "tracing::info!(count = self.child.warm_up(), \"warmed up\");",
+        "let _ = self.child.warm_up();",
+    ] {
+        crate::test::module::util::assert_di_lines(
+            &crate::module::rule::DiModuleLifecycle,
+            &format!(
+                "mod di {{\n struct ChildModule;\n struct ParentModule {{ child: ChildModule }}\n trait Lifecycle {{ fn on_enable(&self); fn on_disable(&self); }}\n impl Lifecycle for ParentModule {{ fn on_enable(&self) {{ self.child.on_enable(); {statement} }} fn on_disable(&self) {{ self.child.on_disable(); }} }}\n}}"
+            ),
+            &[3],
+        );
+    }
+}

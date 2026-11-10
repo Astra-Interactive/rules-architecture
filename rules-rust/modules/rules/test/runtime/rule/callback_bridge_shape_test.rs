@@ -2,6 +2,7 @@ use crate::check::api::Rule;
 use crate::runtime::rule::CallbackBridgeShape;
 use crate::test::declaration::util::assert_code_fixture;
 use crate::test::declaration::util::{assert_code_findings, read_code_context};
+use crate::workspace::model::{Dependency, DependencyKind};
 
 #[test]
 fn given_temporarily_stored_callable_when_consumed_synchronously_then_is_not_a_registration() {
@@ -214,6 +215,16 @@ fn given_synchronous_library_builder_when_checked_then_keeps_callback_intent_in_
 }
 
 #[test]
+fn given_boxed_closure_passed_to_external_method_when_spawning_then_reports_spawn() {
+    assert_code_findings(
+        &CallbackBridgeShape,
+        "CallbackBridgeShape",
+        "fn run(player: &vendor::Player) {\n    player.add_state_listener(Box::new(move |state: u8| {\n        tokio::spawn(async move { let _ = state; });\n    }));\n    player.map_state(|state: u8| {\n        tokio::spawn(async move { let _ = state; });\n    });\n}",
+        &[3],
+    );
+}
+
+#[test]
 fn given_persistent_runtime_cases_when_checked_then_matches_exact_finding_anchors() {
     assert_code_fixture(&CallbackBridgeShape, "CallbackBridgeShape", "bad");
     assert_code_fixture(&CallbackBridgeShape, "CallbackBridgeShape", "good");
@@ -265,5 +276,75 @@ fn given_actual_good_stream_and_bridge_when_checked_then_keeps_owned_stream_clos
                     .any(|ending| finding.finding.location.path.ends_with(ending))
         ),
         "{findings:?}"
+    );
+}
+
+fn assert_tdd_callback_bridge_external_library_finding(source: &str, expected_line: u32) {
+    let directory = tempfile::tempdir().expect("temporary callback dependency");
+    std::fs::create_dir_all(directory.path().join("src")).expect("dependency source directory");
+    std::fs::write(
+        directory.path().join("Cargo.toml"),
+        "[package]\nname = \"callback-library\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .expect("dependency manifest");
+    std::fs::write(
+        directory.path().join("src/lib.rs"),
+        "pub struct Library { handler: Option<Box<dyn Fn(u8) + Send + Sync>> } impl Library { pub fn register(&mut self, handler: impl Fn(u8) + Send + Sync + 'static) { self.handler = Some(Box::new(handler)); } }",
+    )
+    .expect("dependency source");
+
+    let mut context = read_code_context(source);
+    let owner_name = context.crates[0].crate_name.clone();
+    let owner = context
+        .workspace
+        .members
+        .iter_mut()
+        .find(|member| member.name == owner_name)
+        .expect("source crate workspace member");
+    owner
+        .dependencies
+        .retain(|dependency| dependency.code_name != "vendor");
+    owner.dependencies.push(Dependency {
+        name: "callback-library".to_owned(),
+        code_name: "vendor".to_owned(),
+        path: Some(directory.path().to_string_lossy().into_owned()),
+        kind: DependencyKind::Normal,
+        features: Vec::new(),
+        is_target_specific: false,
+        line: None,
+    });
+    context.indexes[0]
+        .dependency_packages
+        .insert("vendor".to_owned(), "callback_library".to_owned());
+    context.names = std::sync::OnceLock::new();
+
+    let findings = CallbackBridgeShape.check(&context);
+    assert_eq!(
+        1,
+        findings.len(),
+        "source: {source}\nfindings: {findings:?}"
+    );
+    let finding = &findings[0];
+    assert_eq!("CallbackBridgeShape", finding.finding.rule_id.0);
+    assert_eq!(Some(expected_line), finding.finding.location.line);
+    assert!(matches!(
+        &finding.anchor,
+        crate::check::model::Anchor::Node { .. }
+    ));
+}
+
+#[test]
+fn given_tdd_callback_bridge_external_library_blocking_send_when_registered_then_reports_call() {
+    assert_tdd_callback_bridge_external_library_finding(
+        "use vendor::Library;\nfn run(library: &mut Library, sender: tokio::sync::mpsc::Sender<u8>) {\n    library.register(move |event| { let _ = sender.blocking_send(event); });\n}",
+        3,
+    );
+}
+
+#[test]
+fn given_tdd_callback_bridge_external_library_per_event_spawn_when_registered_then_reports_call() {
+    assert_tdd_callback_bridge_external_library_finding(
+        "use vendor::Library;\nfn run(library: &mut Library) {\n    library.register(move |event| {\n        let task = tokio::spawn(async move { let _ = event; });\n        task.abort();\n    });\n}",
+        4,
     );
 }

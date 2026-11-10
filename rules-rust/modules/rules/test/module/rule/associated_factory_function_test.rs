@@ -1,6 +1,8 @@
+use crate::check::api::Rule;
 use crate::module::rule::AssociatedFactoryFunction;
 use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
+use crate::test::module::util::read_workspace_shape_context;
 
 #[test]
 fn given_non_factory_helpers_when_named_create_then_does_not_infer_an_aggregate_from_name() {
@@ -40,4 +42,34 @@ fn given_persistent_placement_cases_when_checked_then_match_exact_node_anchors()
         "AssociatedFactoryFunction",
         "good",
     );
+}
+
+#[test]
+fn given_create_function_returning_foreign_crate_model_when_checked_then_reports_factory() {
+    let context = read_workspace_shape_context(&[
+        (
+            "shop_billing_api",
+            "",
+            "pub mod model { pub struct Invoice { pub total: u64, pub paid_at: Option<std::time::SystemTime> } }",
+        ),
+        (
+            "shop_billing_impl",
+            "shop_billing_api={path=\"../shop_billing_api\"}",
+            "mod util {\n\
+             use shop_billing_api::model::Invoice;\n\
+             fn create_invoice(total: u64) -> Invoice {\n\
+             Invoice { total, paid_at: None }\n\
+             }\n\
+             fn create_checked_invoice(total: u64) -> Result<Invoice, ()> {\n\
+             Ok(Invoice { total, paid_at: None })\n\
+             }\n\
+             }",
+        ),
+    ]);
+    let lines: Vec<Option<u32>> = AssociatedFactoryFunction
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect();
+    assert_eq!(vec![Some(3)], lines);
 }

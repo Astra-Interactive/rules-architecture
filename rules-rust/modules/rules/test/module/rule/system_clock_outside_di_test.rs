@@ -36,6 +36,15 @@ fn given_di_alias_shape_when_checked_then_preserves_defined_exceptions() {
 }
 
 #[test]
+fn given_second_wall_clock_reader_under_expect_when_checked_then_only_system_clock_may_call_now() {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::SystemClockOutsideDi,
+        "trait Clock { fn now(&self) -> std::time::SystemTime; }\nmod system {\n pub struct SystemClock;\n impl super::Clock for SystemClock {\n  #[expect(clippy::disallowed_methods, reason = \"the single wall clock reader\")]\n  fn now(&self) -> std::time::SystemTime { std::time::SystemTime::now() }\n }\n}\nstruct NtpClock;\nimpl Clock for NtpClock {\n #[expect(clippy::disallowed_methods, reason = \"reads the wall clock\")]\n fn now(&self) -> std::time::SystemTime { std::time::SystemTime::now() }\n}\nmod usecase {\n #[expect(clippy::disallowed_methods, reason = \"reads the wall clock\")]\n pub fn deadline() -> std::time::SystemTime { std::time::SystemTime::now() }\n}",
+        &[12, 16],
+    );
+}
+
+#[test]
 fn given_persistent_di_policy_pairs_when_checked_then_exact_nodes_and_subjects_match() {
     for half in ["bad", "good"] {
         crate::test::module::util::assert_di_fixture(

@@ -27,6 +27,29 @@ fn remove_abbreviations(text: &str) -> String {
     kept
 }
 
+fn ends_initialism(characters: &[char], index: usize) -> bool {
+    let start = characters[..index]
+        .iter()
+        .rposition(|character| character.is_whitespace())
+        .map_or(0, |space| space + 1);
+    let word = &characters[start..=index];
+    let (groups, rest) = word.as_chunks::<2>();
+    word.len() >= 4
+        && rest.is_empty()
+        && groups
+            .iter()
+            .all(|group| group[0].is_alphabetic() && group[1] == '.')
+}
+
+fn is_sentence_end(characters: &[char], index: usize) -> bool {
+    let character = characters[index];
+    let is_terminal = matches!(character, '.' | '!' | '?');
+    let next = characters.get(index + 1);
+    is_terminal
+        && next.is_none_or(|next| next.is_whitespace())
+        && !(character == '.' && ends_initialism(characters, index))
+}
+
 pub(crate) fn count_sentences(text: &str) -> usize {
     let joined = text
         .lines()
@@ -39,14 +62,12 @@ pub(crate) fn count_sentences(text: &str) -> usize {
         return 0;
     }
     let characters: Vec<char> = cleaned.chars().collect();
-    let ends = characters
+    let ends: Vec<usize> = (0..characters.len())
+        .filter(|index| is_sentence_end(&characters, *index))
+        .collect();
+    let tail_start = ends.last().map_or(0, |last| last + 1);
+    let has_tail = characters[tail_start..]
         .iter()
-        .enumerate()
-        .filter(|(index, character)| {
-            let is_terminal = matches!(character, '.' | '!' | '?');
-            let next = characters.get(index + 1);
-            is_terminal && next.is_none_or(|next| next.is_whitespace())
-        })
-        .count();
-    ends.max(1)
+        .any(|character| !character.is_whitespace());
+    ends.len() + usize::from(has_tail)
 }

@@ -11,7 +11,8 @@ impl PackageDependencyCycle {
     fn build_adjacency(index: &CrateIndex, kinds: &[Option<usize>]) -> Vec<Vec<usize>> {
         let mut adjacency = vec![Vec::new(); index.modules.len()];
         for (position, edge) in index.edges.iter().enumerate() {
-            if edge.is_test {
+            let same_tree = index.modules[edge.source].tree == index.modules[edge.target].tree;
+            if edge.is_test && !same_tree {
                 continue;
             }
             let Some(source) = kinds[edge.source] else {

@@ -11,6 +11,7 @@ UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:12	AnonymousTuple	no `
 ImportOrdering	modules/sample/src/sample/kinds.rs:14	case_sample::sample::kinds	Keep use declarations first and file imports in one contiguous block (imports.rs.md; code-ordering.rs.md)
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:14	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:16	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
+UnsafePlacement	modules/sample/src/sample/kinds.rs:16	modules/sample/src/sample/kinds.rs	Keep unsafe code behind a safe technology implementation (arch-package.rs.md)
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:18	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:20	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:22	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception

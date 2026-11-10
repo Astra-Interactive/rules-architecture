@@ -352,3 +352,74 @@ fn given_composition_sibling_and_development_edges_when_checked_then_only_docume
     context.workspace.members[0].dependencies[0].kind = DependencyKind::Build;
     assert_eq!(UnitDependency.check(&context).len(), 1);
 }
+
+fn read_feature_table_context(feature: &str) -> RuleContext {
+    use crate::workspace::api::WorkspaceReader;
+    use crate::workspace::cargo::CargoWorkspaceReader;
+    use crate::workspace::util::resolve_cargo_path;
+    use std::fs;
+
+    let root = tempfile::tempdir().expect("feature workspace");
+    fs::write(
+        root.path().join("Cargo.toml"),
+        "[workspace]\nresolver=\"3\"\nmembers=[\"consumer\",\"provider\"]\n",
+    )
+    .expect("workspace manifest");
+    for name in ["consumer", "provider"] {
+        fs::create_dir_all(root.path().join(name).join("src")).expect("member source");
+        fs::write(root.path().join(name).join("src/lib.rs"), "").expect("valid source");
+    }
+    fs::write(
+        root.path().join("provider/Cargo.toml"),
+        "[package]\nname=\"case-provider\"\nedition=\"2024\"\n[features]\nfake=[]\nsafe=[]\n",
+    )
+    .expect("provider manifest");
+    fs::write(
+        root.path().join("consumer/Cargo.toml"),
+        format!(
+            "[package]\nname=\"case-consumer\"\nedition=\"2024\"\n[dependencies]\ncase-provider={{path=\"../provider\"}}\n[features]\ndefault=[\"case-provider/{feature}\"]\n"
+        ),
+    )
+    .expect("consumer manifest");
+    let mut context = read_role_context(Role::Api, Role::Api, DependencyKind::Normal);
+    context.workspace = CargoWorkspaceReader::new(resolve_cargo_path())
+        .read_workspace(root.path())
+        .expect("Cargo-valid feature graph");
+    context
+}
+
+#[test]
+fn given_api_unit_when_development_edge_targets_a_foreign_impl_without_fake_then_the_edge_is_reported()
+ {
+    let mut context = read_role_context(Role::Api, Role::Impl, DependencyKind::Development);
+    context.workspace.members[1].directory = "modules/other/implementation".to_owned();
+    context.workspace.members[0].dependencies[0].path =
+        Some("modules/other/implementation".to_owned());
+    let findings = UnitDependency.check(&context);
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].finding.rule_id.0, "UnitDependency");
+    assert_eq!(
+        findings[0].finding.subject,
+        "case-consumer -> case-provider"
+    );
+    assert_eq!(findings[0].finding.location.line, Some(12));
+    context.workspace.members[0].dependencies[0].features = vec!["fake".to_owned()];
+    assert!(UnitDependency.check(&context).is_empty());
+}
+
+#[test]
+fn given_dependent_features_table_when_it_enables_the_provider_fake_feature_then_the_edge_is_reported()
+ {
+    let context = read_feature_table_context("fake");
+    let findings = UnitDependency.check(&context);
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].finding.rule_id.0, "UnitDependency");
+    assert_eq!(findings[0].finding.location.path, "consumer/Cargo.toml");
+    assert_eq!(findings[0].finding.location.line, Some(5));
+    assert_eq!(
+        findings[0].finding.subject,
+        "case-consumer -> case-provider"
+    );
+    let context = read_feature_table_context("safe");
+    assert!(UnitDependency.check(&context).is_empty());
+}

@@ -108,6 +108,26 @@ fn given_defaults_without_a_valid_constructor_delegation_when_checked_then_repor
 }
 
 #[test]
+fn given_derived_default_with_only_a_cfg_disabled_constructor_when_checked_then_reports_it() {
+    assert_code_findings(
+        &StructDefaultValue,
+        "StructDefaultValue",
+        "#[derive(Default)] struct Alpha;\n#[cfg(any())] impl Alpha { fn new() -> Self { Self } }\n#[derive(Default)] struct Beta;\nimpl Beta { #[cfg(any())] fn new() -> Self { Self } }\n#[derive(Default)] struct Gamma;\nimpl Gamma { fn new() -> Self { Self } }",
+        &[1, 3],
+    );
+}
+
+#[test]
+fn given_default_derived_through_cfg_attr_when_checked_then_reports_it() {
+    assert_code_findings(
+        &StructDefaultValue,
+        "StructDefaultValue",
+        "#[derive(Debug, Clone)] #[cfg_attr(feature = \"defaults\", derive(Default))] struct Invoice { revision: u32, paid: bool }\n#[derive(Debug, Clone)] struct Plain { revision: u32, paid: bool }",
+        &[1],
+    );
+}
+
+#[test]
 fn given_forbidden_syntax_when_checked_then_reports_the_rule() {
     let context = read_case_context("StructDefaultValue", "fail-syntax");
     assert!(!StructDefaultValue.check(&context).is_empty());

@@ -288,8 +288,42 @@ impl<'context> TupleBindingVisitor<'context> {
                         .any(|name| call.method == *name)
                         && self.standard_iterator(&call.receiver))
             }
+            syn::Expr::MethodCall(call) if call.method == "zip" && call.args.len() == 1 => {
+                self.standard_iterator(&call.receiver)
+            }
             _ => false,
         }
+    }
+
+    fn optional_tuple(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Paren(paren) => self.optional_tuple(&paren.expr),
+            syn::Expr::Group(group) => self.optional_tuple(&group.expr),
+            syn::Expr::MethodCall(call) => {
+                (["split_once", "rsplit_once"]
+                    .iter()
+                    .any(|name| call.method == *name)
+                    && self.standard_receiver(&call.receiver))
+                    || (["ok_or", "ok_or_else"]
+                        .iter()
+                        .any(|name| call.method == *name)
+                        && self.optional_tuple(&call.receiver))
+            }
+            _ => false,
+        }
+    }
+
+    fn unwrapped_tuple(&self, call: &syn::ExprMethodCall) -> bool {
+        let unwraps = [
+            "unwrap",
+            "expect",
+            "unwrap_or",
+            "unwrap_or_default",
+            "unwrap_or_else",
+        ]
+        .iter()
+        .any(|name| call.method == *name);
+        unwraps && self.optional_tuple(&call.receiver)
     }
 
     fn tuple_expression(&self, expression: &syn::Expr) -> bool {
@@ -297,6 +331,7 @@ impl<'context> TupleBindingVisitor<'context> {
             syn::Expr::Tuple(tuple) => tuple.elems.len() >= 2,
             syn::Expr::Paren(paren) => self.tuple_expression(&paren.expr),
             syn::Expr::Group(group) => self.tuple_expression(&group.expr),
+            syn::Expr::Try(attempt) => self.optional_tuple(&attempt.expr),
             syn::Expr::Call(call) => self.call_tuple(call),
             syn::Expr::Path(path) => path
                 .path
@@ -307,10 +342,11 @@ impl<'context> TupleBindingVisitor<'context> {
                     .iter()
                     .any(|name| call.method == *name)
                     && self.standard_receiver(&call.receiver))
-                    || (["partition", "unzip"]
+                    || (["partition", "unzip", "size_hint"]
                         .iter()
                         .any(|name| call.method == *name)
                         && self.standard_iterator(&call.receiver))
+                    || self.unwrapped_tuple(call)
             }
             _ => false,
         }
@@ -331,8 +367,55 @@ impl<'context> TupleBindingVisitor<'context> {
             syn::Expr::MethodCall(call) if call.method == "rev" && call.args.is_empty() => {
                 self.tuple_iterator(&call.receiver)
             }
+            syn::Expr::MethodCall(call) if call.method == "zip" && call.args.len() == 1 => {
+                self.standard_iterator(&call.receiver)
+            }
             _ => false,
         }
+    }
+
+    fn named_binding(pattern: &syn::Pat) -> bool {
+        match pattern {
+            syn::Pat::Ident(_) => true,
+            syn::Pat::Type(typed) => Self::named_binding(&typed.pat),
+            _ => false,
+        }
+    }
+
+    fn named_item_closure<'call>(
+        &self,
+        call: &'call syn::ExprMethodCall,
+    ) -> Option<&'call syn::Pat> {
+        let adapts_items = [
+            "map",
+            "filter",
+            "for_each",
+            "filter_map",
+            "flat_map",
+            "inspect",
+            "take_while",
+            "skip_while",
+            "map_while",
+            "find",
+            "find_map",
+            "position",
+            "any",
+            "all",
+            "max_by_key",
+            "min_by_key",
+        ]
+        .iter()
+        .any(|name| call.method == *name);
+        if !adapts_items || call.args.len() != 1 || !self.tuple_iterator(&call.receiver) {
+            return None;
+        }
+        let Some(syn::Expr::Closure(closure)) = call.args.first() else {
+            return None;
+        };
+        closure
+            .inputs
+            .first()
+            .filter(|pattern| closure.inputs.len() == 1 && Self::named_binding(pattern))
     }
 }
 
@@ -352,6 +435,13 @@ impl<'ast> Visit<'ast> for TupleBindingVisitor<'_> {
         self.types = types;
         self.tuples = tuples;
         self.iterators = iterators;
+    }
+
+    fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+        if let Some(pattern) = self.named_item_closure(call) {
+            self.spans.push(find_node_span(pattern.span()));
+        }
+        syn::visit::visit_expr_method_call(self, call);
     }
 
     fn visit_expr_let(&mut self, expression: &'ast syn::ExprLet) {

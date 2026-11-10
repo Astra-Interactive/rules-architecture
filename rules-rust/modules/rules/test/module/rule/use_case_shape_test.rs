@@ -101,6 +101,22 @@ fn given_di_alias_shape_when_checked_then_preserves_defined_exceptions() {
         &[],
     );
 }
+
+#[test]
+fn given_tdd_use_case_shape_ufcs_forwarding_when_linted_then_reports_the_use_case_node() {
+    for forwarding in [
+        "Counter::read(&*self.counter)",
+        "<dyn Counter as Counter>::read(&*self.counter)",
+    ] {
+        crate::test::module::util::assert_di_lines(
+            &UseCaseShape,
+            &format!(
+                "mod api {{ pub trait Counter {{ fn read(&self) -> u32; }} }}\nmod usecase {{ use crate::api::Counter; use std::sync::Arc; struct ReadCounterUseCase {{ counter: Arc<dyn crate::api::Counter> }} impl ReadCounterUseCase {{ pub fn new(counter: Arc<dyn crate::api::Counter>) -> Self {{ Self {{ counter }} }} pub fn invoke(&self) -> u32 {{ {forwarding} }} }} }}"
+            ),
+            &[2],
+        );
+    }
+}
 #[test]
 fn given_forwarded_bindings_and_private_invoke_when_checked_then_only_business_decision_with_public_entry_passes()
  {
@@ -172,5 +188,143 @@ fn given_trait_invoke_and_aliased_shared_contract_when_checked_then_the_public_e
         &UseCaseShape,
         "mod api { use std::sync::Arc; pub trait Repo {} pub type SharedRepo = Arc<dyn Repo>; } trait Invocation { fn invoke(&self); } mod usecase { struct ReadInvoiceUseCase; impl ReadInvoiceUseCase { pub fn new(repo: crate::api::SharedRepo) -> Self { Self } } impl crate::Invocation for ReadInvoiceUseCase { fn invoke(&self) {} } }",
         &[],
+    );
+}
+
+#[test]
+fn given_typed_local_forwarding_the_contract_result_when_checked_then_the_pass_through_use_case_is_reported()
+ {
+    crate::test::module::util::assert_di_lines(
+        &UseCaseShape,
+        "mod usecase {\nstruct ReadCounterUseCase { counter: String } impl ReadCounterUseCase { pub fn invoke(&self) -> u32 { let result: u32 = self.counter.read(); result } }\nstruct CheckCounterUseCase { counter: String } impl CheckCounterUseCase { pub fn invoke(&self) -> bool { let result: bool = self.counter.is_empty(); !result } } }",
+        &[2],
+    );
+}
+
+#[test]
+fn given_block_body_forwarding_the_contract_call_when_checked_then_the_pass_through_use_case_is_reported()
+ {
+    crate::test::module::util::assert_di_lines(
+        &UseCaseShape,
+        "mod usecase {\nstruct ReadCounterUseCase { counter: String } impl ReadCounterUseCase { pub fn invoke(&self) -> u32 { { self.counter.read() } } }\nstruct CheckCounterUseCase { counter: String } impl CheckCounterUseCase { pub fn invoke(&self) -> bool { { !self.counter.is_empty() } } } }",
+        &[2],
+    );
+}
+
+#[test]
+fn given_generic_constructor_parameter_bounded_by_a_contract_when_checked_then_only_arc_trait_objects_pass()
+ {
+    crate::test::module::util::assert_di_lines(
+        &UseCaseShape,
+        "mod api { pub trait Repo {} }\nmod usecase {\nstruct ReadInvoiceUseCase; impl ReadInvoiceUseCase { pub fn new<R: crate::api::Repo>(repo: R) -> Self { Self } pub fn invoke(&self) {} }\nstruct PayInvoiceUseCase; impl PayInvoiceUseCase { pub fn new<R>(repo: R) -> Self where R: crate::api::Repo { Self } pub fn invoke(&self) {} }\nstruct ShowInvoiceUseCase; impl ShowInvoiceUseCase { pub fn new(repo: std::sync::Arc<dyn crate::api::Repo>) -> Self { Self } pub fn invoke(&self) {} } }",
+        &[3, 4],
+    );
+}
+
+#[test]
+fn given_cfg_disabled_invoke_when_checked_then_the_use_case_without_an_active_entry_is_reported() {
+    crate::test::module::util::assert_di_lines(
+        &UseCaseShape,
+        "mod api { pub trait Repo {} pub trait Clock {} }\nmod usecase {\nstruct ReadInvoiceUseCase { repo: std::sync::Arc<dyn crate::api::Repo>, clock: std::sync::Arc<dyn crate::api::Clock> } impl ReadInvoiceUseCase { pub fn new(repo: std::sync::Arc<dyn crate::api::Repo>, clock: std::sync::Arc<dyn crate::api::Clock>) -> Self { Self { repo, clock } } #[cfg(any())] pub(crate) fn invoke(&self) {} }\nstruct PayInvoiceUseCase; impl PayInvoiceUseCase { #[cfg(any())] fn invoke(&self) {} pub fn invoke(&self) {} } }",
+        &[3],
+    );
+}
+
+#[test]
+fn given_use_case_with_contract_fields_and_no_constructor_when_checked_then_it_is_reported() {
+    crate::test::module::util::assert_di_lines(
+        &UseCaseShape,
+        "mod api { pub trait Repo {} pub trait Clock {} }\nmod usecase {\nstruct PayInvoiceUseCase { repo: std::sync::Arc<dyn crate::api::Repo>, clock: std::sync::Arc<dyn crate::api::Clock> } impl PayInvoiceUseCase { pub fn invoke(&self) {} }\nstruct ReadInvoiceUseCase { guard: std::sync::Arc<dyn Send + Sync> } impl ReadInvoiceUseCase { pub fn invoke(&self) {} }\nstruct ShowInvoiceUseCase { repo: std::sync::Arc<dyn crate::api::Repo> } impl ShowInvoiceUseCase { pub fn new(repo: std::sync::Arc<dyn crate::api::Repo>) -> Self { Self { repo } } pub fn invoke(&self) {} } }",
+        &[3],
+    );
+}
+
+#[test]
+fn given_free_function_in_usecase_kind_when_checked_then_the_function_is_reported() {
+    crate::test::module::util::assert_di_lines(
+        &UseCaseShape,
+        "mod api { pub trait Repo { fn save(&self); } }\nmod usecase {\npub(crate) fn issue_invoice(repository: &dyn crate::api::Repo) { repository.save(); }\nstruct PayInvoiceUseCase; impl PayInvoiceUseCase { pub fn invoke(&self) {} } }\nmod util { pub(crate) fn double(value: u32) -> u32 { value * 2 } }",
+        &[3],
+    );
+}
+
+#[test]
+fn given_test_and_helper_functions_in_test_tree_usecase_kind_when_checked_then_only_the_src_function_is_reported()
+ {
+    let context = crate::test::module::util::read_shape_context(
+        "mod usecase {\npub(crate) fn issue_invoice() {}\n}\n#[cfg(test)] #[path = \"../test\"] mod test { mod order { mod usecase { mod create_order_use_case_test; } } }",
+        &[(
+            "../test/order/usecase/create_order_use_case_test.rs",
+            "#[test]\nfn given_order_when_created_then_it_is_saved() { build_order(); }\nfn build_order() {}\n",
+        )],
+    );
+    let locations: Vec<String> = UseCaseShape
+        .check(&context)
+        .iter()
+        .map(|finding| {
+            format!(
+                "{}:{}",
+                finding.finding.location.path,
+                finding.finding.location.line.expect("finding line")
+            )
+        })
+        .collect();
+    assert_eq!(locations, ["modules/sample/src/lib.rs:2"]);
+}
+
+fn read_use_case_subjects(context: &crate::check::model::RuleContext) -> Vec<String> {
+    UseCaseShape
+        .check(context)
+        .iter()
+        .map(|finding| finding.finding.subject.clone())
+        .collect()
+}
+
+#[test]
+fn given_use_case_of_another_crate_invoked_inside_closure_or_async_block_when_checked_then_the_caller_is_reported()
+ {
+    for call in [
+        "let _all: Vec<u32> = ids.iter().map(|id| load.invoke(*id)).collect();",
+        "let _task = async { load.invoke(1) };",
+    ] {
+        let source = format!(
+            "mod usecase {{ struct ReadInvoicesUseCase; impl ReadInvoicesUseCase {{ pub fn invoke(&self, ids: &[u32], load: &provider::usecase::LoadInvoiceUseCase) {{ {call} }} }} struct ShowInvoicesUseCase; impl ShowInvoicesUseCase {{ pub fn invoke(&self, ids: &[u32], renderer: &crate::render::Renderer) {{ let _all: Vec<u32> = ids.iter().map(|id| renderer.invoke(*id)).collect(); }} }} }} mod render {{ pub struct Renderer; impl Renderer {{ pub fn invoke(&self, id: u32) -> u32 {{ id }} }} }}"
+        );
+        let context = crate::test::module::util::read_workspace_shape_context(&[
+            (
+                "provider",
+                "",
+                "pub mod usecase { pub struct LoadInvoiceUseCase; impl LoadInvoiceUseCase { pub fn invoke(&self, id: u32) -> u32 { id } } }",
+            ),
+            ("consumer", "provider={path=\"../provider\"}", &source),
+        ]);
+        let subjects = read_use_case_subjects(&context);
+        assert_eq!(subjects.len(), 1, "{subjects:?}");
+        assert!(
+            subjects[0].ends_with("::usecase::ReadInvoicesUseCase"),
+            "{subjects:?}"
+        );
+    }
+}
+
+#[test]
+fn given_use_case_of_another_crate_awaited_when_checked_then_the_caller_is_reported() {
+    let context = crate::test::module::util::read_workspace_shape_context(&[
+        (
+            "provider",
+            "",
+            "pub mod usecase { pub struct LoadInvoiceUseCase; impl LoadInvoiceUseCase { pub async fn invoke(&self, id: u32) -> u32 { std::future::ready(id).await } } }",
+        ),
+        (
+            "consumer",
+            "provider={path=\"../provider\"}",
+            "mod usecase { struct ReadInvoicesUseCase; impl ReadInvoicesUseCase { pub async fn invoke(&self, load: &provider::usecase::LoadInvoiceUseCase) -> u32 { load.invoke(1).await } } struct ShowInvoicesUseCase; impl ShowInvoicesUseCase { pub async fn invoke(&self) { std::future::ready(()).await; } } }",
+        ),
+    ]);
+    let subjects = read_use_case_subjects(&context);
+    assert_eq!(subjects.len(), 1, "{subjects:?}");
+    assert!(
+        subjects[0].ends_with("::usecase::ReadInvoicesUseCase"),
+        "{subjects:?}"
     );
 }

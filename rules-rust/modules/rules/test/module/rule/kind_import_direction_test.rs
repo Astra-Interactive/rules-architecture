@@ -254,3 +254,41 @@ fn given_factory_runtime_contract_parameters_when_checked_then_its_import_and_pa
     )];
     assert_eq!(KindImportDirection.check(&context).len(), 2);
 }
+
+#[test]
+fn given_fake_in_fixture_tree_when_it_uses_a_file_implementation_then_only_that_import_is_reported()
+{
+    let context = read_import_context(
+        "mod invoice { pub mod api { pub trait InvoiceRepository {} } pub mod file { pub struct FileInvoiceRepository; } }\n#[cfg(any(test, feature = \"fake\"))] pub mod fixture { pub mod invoice { pub mod fake {\nuse crate::invoice::api::InvoiceRepository;\nuse crate::invoice::file::FileInvoiceRepository;\n} } }",
+        Role::Context,
+        &[],
+        &[],
+        "app",
+    );
+    let findings = KindImportDirection.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!("KindImportDirection", findings[0].finding.rule_id.0);
+    assert_eq!(Some(4), findings[0].finding.location.line);
+    assert!(findings[0].finding.message.contains("invoice::file"));
+}
+
+#[test]
+fn given_entry_point_kinds_when_checked_then_only_ui_kinds_may_use_each_other() {
+    let mut context = read_import_context(
+        "mod billing { pub mod job { pub struct InvoiceJob; } pub mod command {\nuse crate::billing::job::InvoiceJob;\n} }\nmod task { pub mod service { pub struct TaskScope; } }\nmod report { pub mod service {\nuse crate::task::service::TaskScope;\n} }\nmod screen { pub mod menu { pub struct Menu; } pub mod slot {\nuse crate::screen::menu::Menu;\n} }",
+        Role::Context,
+        &[],
+        &[],
+        "app",
+    );
+    context.workspace.root_manifest = crate::workspace::util::parse_toml_file(
+        "Cargo.toml",
+        "[workspace.metadata.klibs-rules]\nproduct-kind=\"app\"\nentry-point-words=[\"menu\",\"slot\"]\n",
+    )
+    .expect("fixture metadata");
+    let findings = KindImportDirection.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!("KindImportDirection", findings[0].finding.rule_id.0);
+    assert_eq!(Some(2), findings[0].finding.location.line);
+    assert!(findings[0].finding.message.contains("billing::job"));
+}

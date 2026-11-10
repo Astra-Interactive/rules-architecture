@@ -6,6 +6,7 @@ pub(crate) struct CalledFunctionVisitor<'scope> {
     own_name: Option<&'scope str>,
     calls: HashSet<String>,
     bindings: Vec<HashMap<String, Option<String>>>,
+    own_receivers: HashSet<String>,
 }
 
 impl<'scope> CalledFunctionVisitor<'scope> {
@@ -14,7 +15,87 @@ impl<'scope> CalledFunctionVisitor<'scope> {
             own_name,
             calls: HashSet::new(),
             bindings: vec![HashMap::new()],
+            own_receivers: HashSet::new(),
         }
+    }
+
+    fn is_own_type(&self, ty: &syn::Type) -> bool {
+        match ty {
+            syn::Type::Reference(reference) => self.is_own_type(&reference.elem),
+            syn::Type::Paren(parenthesized) => self.is_own_type(&parenthesized.elem),
+            syn::Type::Path(value) => {
+                value.qself.is_none()
+                    && (value.path.is_ident("Self")
+                        || self.own_name.is_some_and(|name| value.path.is_ident(name)))
+            }
+            _ => false,
+        }
+    }
+
+    fn register_own_receivers(&mut self, signature: &syn::Signature) {
+        if self.own_name.is_none() {
+            return;
+        }
+        for input in &signature.inputs {
+            if let syn::FnArg::Typed(parameter) = input
+                && let syn::Pat::Ident(binding) = parameter.pat.as_ref()
+                && self.is_own_type(&parameter.ty)
+            {
+                self.own_receivers.insert(binding.ident.to_string());
+            }
+        }
+    }
+
+    fn record_path_arguments(
+        &mut self,
+        arguments: &syn::punctuated::Punctuated<syn::Expr, syn::token::Comma>,
+    ) {
+        for argument in arguments {
+            if let syn::Expr::Path(path) = argument
+                && let Some(name) = self.called_name(path)
+            {
+                self.calls.insert(name);
+            }
+        }
+    }
+
+    fn import_binding(&mut self, tree: &syn::UseTree, prefix: &[String]) {
+        match tree {
+            syn::UseTree::Path(path) => {
+                let mut prefix = prefix.to_vec();
+                prefix.push(path.ident.to_string());
+                self.import_binding(&path.tree, &prefix);
+            }
+            syn::UseTree::Group(group) => {
+                for tree in &group.items {
+                    self.import_binding(tree, prefix);
+                }
+            }
+            syn::UseTree::Name(name) => {
+                let target =
+                    (self.own_name.is_none() && prefix == ["self"]).then(|| name.ident.to_string());
+                if let Some(scope) = self.bindings.last_mut() {
+                    scope.insert(name.ident.to_string(), target);
+                }
+            }
+            syn::UseTree::Rename(rename) => {
+                let target = (self.own_name.is_none() && prefix == ["self"])
+                    .then(|| rename.ident.to_string());
+                if let Some(scope) = self.bindings.last_mut() {
+                    scope.insert(rename.rename.to_string(), target);
+                }
+            }
+            syn::UseTree::Glob(_) => {}
+        }
+    }
+
+    pub(crate) fn with_imports(mut self, items: &[syn::Item]) -> Self {
+        for item in items {
+            if let syn::Item::Use(import) = item {
+                self.import_binding(&import.tree, &[]);
+            }
+        }
+        self
     }
 
     fn merge_bindings(&mut self, alternative: &[HashMap<String, Option<String>>]) {
@@ -78,6 +159,7 @@ impl<'scope> CalledFunctionVisitor<'scope> {
                 self.visit_pat(&parameter.pat);
             }
         }
+        self.register_own_receivers(signature);
         self.visit_block(block);
         self.calls
     }
@@ -86,11 +168,22 @@ impl<'scope> CalledFunctionVisitor<'scope> {
 impl<'ast> Visit<'ast> for CalledFunctionVisitor<'_> {
     fn visit_block(&mut self, block: &'ast syn::Block) {
         self.bindings.push(HashMap::new());
+        for statement in &block.stmts {
+            if let syn::Stmt::Item(syn::Item::Use(import)) = statement {
+                self.import_binding(&import.tree, &[]);
+            }
+            if let syn::Stmt::Item(syn::Item::Fn(function)) = statement
+                && let Some(scope) = self.bindings.last_mut()
+            {
+                scope.insert(function.sig.ident.to_string(), None);
+            }
+        }
         syn::visit::visit_block(self, block);
         self.bindings.pop();
     }
 
     fn visit_pat_ident(&mut self, binding: &'ast syn::PatIdent) {
+        self.own_receivers.remove(&binding.ident.to_string());
         if let Some(scope) = self.bindings.last_mut() {
             scope.insert(binding.ident.to_string(), None);
         }
@@ -204,7 +297,16 @@ impl<'ast> Visit<'ast> for CalledFunctionVisitor<'_> {
         }
     }
 
-    fn visit_item_fn(&mut self, _: &'ast syn::ItemFn) {}
+    fn visit_item_fn(&mut self, function: &'ast syn::ItemFn) {
+        self.bindings.push(HashMap::new());
+        for input in &function.sig.inputs {
+            if let syn::FnArg::Typed(parameter) = input {
+                self.visit_pat(&parameter.pat);
+            }
+        }
+        self.visit_block(&function.block);
+        self.bindings.pop();
+    }
 
     fn visit_expr_call(&mut self, expression: &'ast syn::ExprCall) {
         if let syn::Expr::Path(path) = &*expression.func
@@ -212,16 +314,24 @@ impl<'ast> Visit<'ast> for CalledFunctionVisitor<'_> {
         {
             self.calls.insert(name);
         }
+        self.record_path_arguments(&expression.args);
         syn::visit::visit_expr_call(self, expression);
     }
 
     fn visit_expr_method_call(&mut self, expression: &'ast syn::ExprMethodCall) {
         let has_owner = self.own_name.is_some();
-        let has_self_receiver =
-            matches!(&*expression.receiver, syn::Expr::Path(path) if path.path.is_ident("self"));
-        if has_owner && has_self_receiver {
+        let has_own_receiver = matches!(
+            &*expression.receiver,
+            syn::Expr::Path(path)
+                if path.path.is_ident("self")
+                    || path.path.get_ident().is_some_and(|name| {
+                        self.own_receivers.contains(&name.to_string())
+                    })
+        );
+        if has_owner && has_own_receiver {
             self.calls.insert(expression.method.to_string());
         }
+        self.record_path_arguments(&expression.args);
         syn::visit::visit_expr_method_call(self, expression);
     }
 

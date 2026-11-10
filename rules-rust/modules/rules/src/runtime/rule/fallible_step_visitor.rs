@@ -1,9 +1,10 @@
+use crate::runtime::rule::FallibleStepCount;
 use quote::ToTokens;
 use syn::visit::Visit;
 
 #[derive(Clone)]
 pub(crate) struct FallibleStepVisitor {
-    count: usize,
+    count: FallibleStepCount,
     maximum: usize,
     continues: bool,
     break_targets: Vec<BreakTarget>,
@@ -41,7 +42,7 @@ impl FallibleStepVisitor {
 
     pub(crate) fn count(expression: &syn::Expr) -> usize {
         let mut visitor = Self {
-            count: 0,
+            count: FallibleStepCount::empty(),
             maximum: 0,
             continues: true,
             break_targets: Vec::new(),
@@ -54,8 +55,12 @@ impl FallibleStepVisitor {
         for (index, target) in self.break_targets.iter_mut().enumerate() {
             target.count = branches
                 .iter()
-                .filter_map(|branch| branch.break_targets[index].count)
-                .max();
+                .filter_map(|branch| branch.break_targets[index].count.clone())
+                .reduce(FallibleStepCount::merge);
+            target.continued = branches
+                .iter()
+                .filter_map(|branch| branch.break_targets[index].continued.clone())
+                .reduce(FallibleStepCount::merge);
         }
         self.maximum = branches
             .iter()
@@ -65,8 +70,8 @@ impl FallibleStepVisitor {
         let continuation = branches
             .iter()
             .filter(|branch| branch.continues)
-            .map(|branch| branch.count)
-            .max();
+            .map(|branch| branch.count.clone())
+            .reduce(FallibleStepCount::merge);
         self.continues = continuation.is_some();
         if let Some(count) = continuation {
             self.count = count;
@@ -81,11 +86,57 @@ impl FallibleStepVisitor {
         }
     }
 
+    fn parse_literal_value(expression: &syn::Expr) -> Option<i128> {
+        match expression {
+            syn::Expr::Lit(literal) => match &literal.lit {
+                syn::Lit::Int(value) => value.base10_parse().ok(),
+                _ => None,
+            },
+            syn::Expr::Unary(unary) if matches!(unary.op, syn::UnOp::Neg(_)) => {
+                Self::parse_literal_value(&unary.expr)?.checked_neg()
+            }
+            _ => None,
+        }
+    }
+
+    fn resolve_pattern_range(pattern: &syn::Pat) -> Option<std::ops::RangeInclusive<i128>> {
+        match Self::without_guard(pattern) {
+            syn::Pat::Lit(literal) => {
+                let value = Self::parse_literal_value(&syn::Expr::Lit(literal.clone()))?;
+                Some(value..=value)
+            }
+            syn::Pat::Range(range) => {
+                let start = match &range.start {
+                    Some(start) => Self::parse_literal_value(start)?,
+                    None => i128::MIN,
+                };
+                let end = match &range.end {
+                    Some(end) => Self::parse_literal_value(end)?,
+                    None => i128::MAX,
+                };
+                let has_exclusive_end =
+                    range.end.is_some() && matches!(range.limits, syn::RangeLimits::HalfOpen(_));
+                let end = if has_exclusive_end {
+                    end.checked_sub(1)?
+                } else {
+                    end
+                };
+                Some(start..=end)
+            }
+            _ => None,
+        }
+    }
+
     fn covers_pattern(pattern: &syn::Pat, candidate: &syn::Pat) -> bool {
         let pattern = Self::without_guard(pattern);
         let candidate = Self::without_guard(candidate);
         matches!(pattern, syn::Pat::Wild(_))
             || pattern.to_token_stream().to_string() == candidate.to_token_stream().to_string()
+            || Self::resolve_pattern_range(pattern)
+                .zip(Self::resolve_pattern_range(candidate))
+                .is_some_and(|(range, candidate)| {
+                    range.start() <= candidate.start() && range.end() >= candidate.end()
+                })
     }
 
     fn visit_failed_guard(&mut self, pattern: &syn::Pat) {
@@ -127,6 +178,81 @@ impl FallibleStepVisitor {
         branch.visit_expr(&arm.body);
         branch
     }
+
+    fn visit_loop_iteration(
+        &mut self,
+        condition: Option<&syn::Expr>,
+        body: &syn::Block,
+    ) -> Option<FallibleStepCount> {
+        let mut exit = None;
+        if let Some(condition) = condition {
+            self.visit_expr(condition);
+            if self.continues && Self::known_boolean(condition) != Some(true) {
+                exit = Some(self.count.clone());
+            }
+            if Self::known_boolean(condition) == Some(false) {
+                self.continues = false;
+            }
+        }
+        self.visit_block(body);
+        exit
+    }
+
+    fn visit_loop_body(
+        &mut self,
+        label: Option<&syn::Label>,
+        condition: Option<&syn::Expr>,
+        body: &syn::Block,
+        may_finish: bool,
+    ) {
+        if !self.continues {
+            return;
+        }
+        let mut exits = may_finish
+            .then(|| self.count.clone())
+            .filter(|_| condition.is_none());
+        self.break_targets.push(BreakTarget {
+            label: label.map(|label| label.name.clone()),
+            count: None,
+            continued: None,
+            is_loop: true,
+        });
+        loop {
+            let entry = self.count.clone();
+            if let Some(exit) = self.visit_loop_iteration(condition, body) {
+                exits = Some(exits.map_or_else(|| exit.clone(), |count| count.merge(exit.clone())));
+            }
+            let Some(target) = self.break_targets.last_mut() else {
+                break;
+            };
+            let mut next = target.continued.take();
+            if self.continues {
+                next = Some(next.map_or_else(
+                    || self.count.clone(),
+                    |count| count.merge(self.count.clone()),
+                ));
+            }
+            let Some(next) = next else {
+                break;
+            };
+            if may_finish && condition.is_none() {
+                exits = Some(exits.map_or_else(|| next.clone(), |count| count.merge(next.clone())));
+            }
+            let joined = entry.clone().merge(next);
+            if joined == entry {
+                break;
+            }
+            self.count = joined;
+            self.continues = true;
+        }
+        if let Some(count) = self.break_targets.pop().and_then(|target| target.count) {
+            exits = Some(exits.map_or_else(|| count.clone(), |exit| exit.merge(count.clone())));
+        }
+        self.continues = exits.is_some();
+        if let Some(count) = exits {
+            self.count = count;
+        }
+    }
 }
 
 impl<'ast> Visit<'ast> for FallibleStepVisitor {
@@ -139,8 +265,9 @@ impl<'ast> Visit<'ast> for FallibleStepVisitor {
     fn visit_expr_try(&mut self, expression: &'ast syn::ExprTry) {
         self.visit_expr(&expression.expr);
         if self.continues {
-            self.count = (self.count + 1).min(2);
-            self.maximum = self.maximum.max(self.count);
+            let site = std::ptr::from_ref(expression) as usize;
+            self.count.add(site);
+            self.maximum = self.maximum.max(self.count.compute_maximum());
         }
     }
 
@@ -188,15 +315,17 @@ impl<'ast> Visit<'ast> for FallibleStepVisitor {
             return;
         };
         self.break_targets.push(BreakTarget {
-            label: label.name.clone(),
+            label: Some(label.name.clone()),
             count: None,
+            continued: None,
+            is_loop: false,
         });
         self.visit_block(&expression.block);
         if let Some(target) = self.break_targets.pop()
             && let Some(count) = target.count
         {
             self.count = if self.continues {
-                self.count.max(count)
+                self.count.clone().merge(count)
             } else {
                 count
             };
@@ -211,18 +340,22 @@ impl<'ast> Visit<'ast> for FallibleStepVisitor {
         if !self.continues {
             return;
         }
-        if let Some(label) = &expression.label
-            && let Some(target) = self
-                .break_targets
-                .iter_mut()
-                .rev()
-                .find(|target| target.label.ident == label.ident)
-        {
-            target.count = Some(
-                target
-                    .count
-                    .map_or(self.count, |count| count.max(self.count)),
-            );
+        let target = self
+            .break_targets
+            .iter_mut()
+            .rev()
+            .find(|target| match &expression.label {
+                Some(label) => target
+                    .label
+                    .as_ref()
+                    .is_some_and(|target| target.ident == label.ident),
+                None => target.is_loop,
+            });
+        if let Some(target) = target {
+            target.count = Some(target.count.clone().map_or_else(
+                || self.count.clone(),
+                |count| count.merge(self.count.clone()),
+            ));
         }
         self.continues = false;
     }
@@ -232,6 +365,7 @@ impl<'ast> Visit<'ast> for FallibleStepVisitor {
             let mut initializer = self.clone();
             for target in &mut initializer.break_targets {
                 target.count = None;
+                target.continued = None;
             }
             initializer.visit_expr(&init.expr);
             self.continues = initializer.continues;
@@ -239,11 +373,16 @@ impl<'ast> Visit<'ast> for FallibleStepVisitor {
                 self.break_targets.iter_mut().zip(initializer.break_targets)
             {
                 if initialized.count.is_some() {
-                    target.count = Some(
-                        target
-                            .count
-                            .map_or(self.count, |count| count.max(self.count)),
-                    );
+                    target.count = Some(target.count.clone().map_or_else(
+                        || self.count.clone(),
+                        |count| count.merge(self.count.clone()),
+                    ));
+                }
+                if initialized.continued.is_some() {
+                    target.continued = Some(target.continued.clone().map_or_else(
+                        || self.count.clone(),
+                        |count| count.merge(self.count.clone()),
+                    ));
                 }
             }
         }
@@ -255,11 +394,43 @@ impl<'ast> Visit<'ast> for FallibleStepVisitor {
 
     fn visit_expr_async(&mut self, _: &'ast syn::ExprAsync) {}
 
-    fn visit_expr_loop(&mut self, _: &'ast syn::ExprLoop) {}
+    fn visit_expr_loop(&mut self, expression: &'ast syn::ExprLoop) {
+        self.visit_loop_body(expression.label.as_ref(), None, &expression.body, false);
+    }
 
-    fn visit_expr_for_loop(&mut self, _: &'ast syn::ExprForLoop) {}
+    fn visit_expr_for_loop(&mut self, expression: &'ast syn::ExprForLoop) {
+        self.visit_expr(&expression.expr);
+        self.visit_loop_body(expression.label.as_ref(), None, &expression.body, true);
+    }
 
-    fn visit_expr_while(&mut self, _: &'ast syn::ExprWhile) {}
+    fn visit_expr_while(&mut self, expression: &'ast syn::ExprWhile) {
+        self.visit_loop_body(
+            expression.label.as_ref(),
+            Some(&expression.cond),
+            &expression.body,
+            true,
+        );
+    }
+
+    fn visit_expr_continue(&mut self, expression: &'ast syn::ExprContinue) {
+        let label = expression.label.as_ref();
+        let target = self.break_targets.iter_mut().rev().find(|target| {
+            let is_label_match = label.is_none_or(|label| {
+                target
+                    .label
+                    .as_ref()
+                    .is_some_and(|target| target.ident == label.ident)
+            });
+            target.is_loop && is_label_match
+        });
+        if let Some(target) = target {
+            target.continued = Some(target.continued.clone().map_or_else(
+                || self.count.clone(),
+                |count| count.merge(self.count.clone()),
+            ));
+        }
+        self.continues = false;
+    }
 
     fn visit_expr_return(&mut self, expression: &'ast syn::ExprReturn) {
         if let Some(value) = &expression.expr {
@@ -271,6 +442,8 @@ impl<'ast> Visit<'ast> for FallibleStepVisitor {
 
 #[derive(Clone)]
 struct BreakTarget {
-    label: syn::Lifetime,
-    count: Option<usize>,
+    label: Option<syn::Lifetime>,
+    count: Option<FallibleStepCount>,
+    continued: Option<FallibleStepCount>,
+    is_loop: bool,
 }

@@ -16,6 +16,50 @@ struct ConsumptionVisitor<'source> {
     composed_steps: Vec<proc_macro2::Span>,
 }
 
+impl ConsumptionVisitor<'_> {
+    fn check_composed(&mut self, expression: &syn::Expr) {
+        if FallibleStepVisitor::count(expression) > 1 {
+            self.composed_steps.push(expression.span());
+        }
+    }
+
+    fn check_expression(&mut self, expression: &syn::Expr) {
+        match expression {
+            syn::Expr::Block(block) => self.check_tail(&block.block),
+            syn::Expr::Unsafe(block) => self.check_tail(&block.block),
+            syn::Expr::If(branch) => {
+                self.check_composed(&branch.cond);
+                self.check_tail(&branch.then_branch);
+                if let Some((_, otherwise)) = &branch.else_branch {
+                    self.check_expression(otherwise);
+                }
+            }
+            syn::Expr::Match(selection) => {
+                self.check_composed(&selection.expr);
+                for arm in &selection.arms {
+                    self.check_expression(&arm.body);
+                }
+            }
+            syn::Expr::Loop(repeat) => self.check_tail(&repeat.body),
+            syn::Expr::While(repeat) => {
+                self.check_composed(&repeat.cond);
+                self.check_tail(&repeat.body);
+            }
+            syn::Expr::ForLoop(repeat) => {
+                self.check_composed(&repeat.expr);
+                self.check_tail(&repeat.body);
+            }
+            _ => self.check_composed(expression),
+        }
+    }
+
+    fn check_tail(&mut self, block: &syn::Block) {
+        if let Some(syn::Stmt::Expr(tail, None)) = block.stmts.last() {
+            self.check_expression(tail);
+        }
+    }
+}
+
 fn expects_discard(attribute: &syn::Attribute) -> bool {
     if !attribute.path().is_ident("expect") {
         return false;
@@ -33,6 +77,16 @@ fn expects_discard(attribute: &syn::Attribute) -> bool {
 }
 
 impl<'ast> Visit<'ast> for ConsumptionVisitor<'_> {
+    fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
+        self.check_tail(&item.block);
+        syn::visit::visit_item_fn(self, item);
+    }
+
+    fn visit_impl_item_fn(&mut self, item: &'ast syn::ImplItemFn) {
+        self.check_tail(&item.block);
+        syn::visit::visit_impl_item_fn(self, item);
+    }
+
     fn visit_local(&mut self, local: &'ast syn::Local) {
         let parent = self.allowed;
         self.allowed = matches!(local.pat, syn::Pat::Wild(_));

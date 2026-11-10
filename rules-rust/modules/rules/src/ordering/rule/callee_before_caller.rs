@@ -38,6 +38,7 @@ impl CalleeBeforeCaller {
     fn check_scope(
         functions: &[FunctionBody<'_>],
         own_name: Option<&str>,
+        items: &[syn::Item],
     ) -> Vec<proc_macro2::Span> {
         let names: Vec<String> = functions
             .iter()
@@ -47,6 +48,7 @@ impl CalleeBeforeCaller {
             .iter()
             .map(|function| {
                 CalledFunctionVisitor::new(own_name)
+                    .with_imports(items)
                     .collect_calls(function.signature, function.block)
             })
             .collect();
@@ -98,7 +100,7 @@ impl CalleeBeforeCaller {
             })
             .collect();
         let mut findings = if free_functions {
-            Self::check_scope(&functions, None)
+            Self::check_scope(&functions, None, items)
         } else {
             Vec::new()
         };
@@ -117,7 +119,7 @@ impl CalleeBeforeCaller {
                         })
                         .collect();
                     let name = find_self_name(&value.self_ty).unwrap_or_default();
-                    findings.extend(Self::check_scope(&functions, Some(&name)));
+                    findings.extend(Self::check_scope(&functions, Some(&name), &[]));
                 }
                 syn::Item::Mod(module) => {
                     if let Some((_, children)) = &module.content {

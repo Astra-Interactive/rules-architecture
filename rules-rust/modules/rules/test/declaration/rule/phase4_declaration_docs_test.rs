@@ -253,6 +253,55 @@ fn given_two_step_string_adaptation_when_checked_then_only_equivalent_function_p
 }
 
 #[test]
+fn given_case_conversion_adapter_closure_when_checked_then_reports_the_closure() {
+    assert_lines(
+        &TrivialClosurePath,
+        &read_code_context(
+            "fn normalize(value: String) -> usize { value.len() }\nfn run(text: &str) {\nlet values = text.lines().map(|line| normalize(line.to_ascii_lowercase()));\n}",
+        ),
+        &[3],
+    );
+}
+
+#[test]
+fn given_two_step_adaptation_inside_impl_method_when_checked_then_reports_the_closure() {
+    assert_lines(
+        &TrivialClosurePath,
+        &read_code_context(
+            "struct Parser;\nfn parse_order(value: &str) -> usize { value.len() }\nimpl Parser {\nfn run(&self, text: &str) {\nlet values = text.lines().map(|line| parse_order(line.trim()));\n}\n}",
+        ),
+        &[5],
+    );
+}
+
+#[test]
+fn given_path_adapters_of_different_kinds_when_checked_then_only_the_map_run_reports() {
+    assert_lines(
+        &TrivialClosurePath,
+        &read_code_context(
+            "fn is_even(value: &u64) -> bool { true } fn double_value(value: u64) -> u64 { value } fn is_small(value: &u64) -> bool { true } fn first(value: u64) -> u64 { value } fn second(value: u64) -> u64 { value } fn third(value: u64) -> u64 { value }\nfn work(values: Vec<u64>) {\nlet mixed = values.iter().filter(is_even).map(double_value).take_while(is_small).count();\nlet chained = values.iter().map(first).map(second).map(third).count();\n}",
+        ),
+        &[4],
+    );
+}
+
+#[test]
+fn given_tdd_trivial_closure_path_string_split_when_linted_then_reports_adapter_closure() {
+    let context = read_code_context(
+        "fn parse_word(word: &str) -> usize { word.len() }\nfn words(text: &str) -> Vec<usize> { text.split(',').map(|word| parse_word(word.trim())).collect() }",
+    );
+    let findings = TrivialClosurePath.check(&context);
+    assert_eq!(1, findings.len());
+    let finding = &findings[0];
+    assert_eq!("TrivialClosurePath", finding.finding.rule_id.0);
+    let Anchor::Node { span, .. } = &finding.anchor else {
+        panic!("expected closure node anchor");
+    };
+    assert_eq!(Some(2), finding.finding.location.line);
+    assert_eq!(2, span.start.line);
+}
+
+#[test]
 fn given_doc_scope_rules_when_checked_then_impl_docs_labels_and_published_panic_contracts_are_precise()
  {
     let mut context = read_code_context(
@@ -464,4 +513,70 @@ fn given_returned_io_adapter_when_checked_then_does_not_classify_it_as_plain_dat
         ],
     );
     assert_lines(&NestedDataStruct, &context, &[]);
+}
+
+#[test]
+fn given_data_struct_used_by_two_types_in_different_files_when_checked_then_it_requires_its_own_model_file()
+ {
+    let context = read_shape_context(
+        "mod model { mod customer; mod supplier; pub use customer::{Address, Customer}; pub use supplier::Supplier; }",
+        &[
+            (
+                "model/customer.rs",
+                "pub struct Customer { address: Address, contact: Contact }\npub struct Address { street: String }\nstruct Contact { phone: String }",
+            ),
+            (
+                "model/supplier.rs",
+                "pub struct Supplier { address: super::Address }",
+            ),
+        ],
+    );
+    assert_lines(&NestedDataStruct, &context, &[2]);
+}
+
+#[test]
+fn given_error_enum_in_its_own_file_when_checked_then_only_the_plain_data_enum_must_move_into_its_owner()
+ {
+    let context = read_shape_context(
+        "mod model { mod owner; mod failure_error; mod status; pub use owner::Owner; pub use failure_error::FailureError; pub use status::Status; }",
+        &[
+            (
+                "model/owner.rs",
+                "pub struct Owner { failure: super::FailureError, status: super::Status }",
+            ),
+            (
+                "model/failure_error.rs",
+                "#[derive(Debug)] pub enum FailureError { Missing, Broken }",
+            ),
+            ("model/status.rs", "pub enum Status { Ready, Done }"),
+        ],
+    );
+    assert_lines(&NestedEnum, &context, &[1]);
+}
+
+#[test]
+fn given_tdd_intra_doc_link_resolved_multisegment_path_when_written_as_code_then_reports_doc_line()
+{
+    let mut context = read_code_context(
+        "pub mod sample { pub mod util { pub fn compute_value() -> u32 { 1 } } }\n/// See `crate::sample::util::compute_value`.\npub fn run() {}",
+    );
+    context.workspace.members[0].manifest = crate::workspace::util::parse_toml_file(
+        "Cargo.toml",
+        "[package]\nname=\"case-sample\"\nversion=\"0.1.0\"",
+    )
+    .expect("published manifest");
+    assert_lines(&IntraDocLink, &context, &[2]);
+}
+
+#[test]
+fn given_tdd_rustdoc_filler_exact_parameter_restatement_when_published_then_reports_doc_line() {
+    let mut context = read_code_context(
+        "/// - `order_count` — the order count.\npub fn count(order_count: u32) {}",
+    );
+    context.workspace.members[0].manifest = crate::workspace::util::parse_toml_file(
+        "Cargo.toml",
+        "[package]\nname=\"case-sample\"\nversion=\"0.1.0\"",
+    )
+    .expect("published manifest");
+    assert_lines(&RustdocFiller, &context, &[1]);
 }

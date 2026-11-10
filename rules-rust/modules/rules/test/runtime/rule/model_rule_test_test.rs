@@ -56,7 +56,62 @@ fn given_async_io_test_in_util_when_checked_then_does_not_classify_it_as_model_o
 }
 
 #[test]
+fn given_model_query_without_await_when_tested_with_tokio_then_requires_synchronous_test() {
+    let model = "mod model { pub struct Invoice { pub paid_at: Option<std::time::SystemTime> } } mod util { impl crate::model::Invoice { pub fn is_paid(&self) -> bool { self.paid_at.is_some() } } }";
+    assert_code_findings(
+        &ModelRuleTest,
+        "ModelRuleTest",
+        &format!(
+            "{model}\n#[cfg(test)] mod test {{ mod model {{\n #[tokio::test]\n async fn verify() {{ let invoice = crate::model::Invoice {{ paid_at: None }}; assert!(!invoice.is_paid()); }}\n #[tokio::test]\n async fn verify_io() {{ let invoice = crate::model::Invoice {{ paid_at: None }}; assert!(!invoice.is_paid()); tokio::fs::read(\"file\").await; }}\n}} }}"
+        ),
+        &[3],
+    );
+}
+
+#[test]
 fn given_persistent_runtime_cases_when_checked_then_matches_exact_finding_anchors() {
     assert_code_fixture(&ModelRuleTest, "ModelRuleTest", "bad");
     assert_code_fixture(&ModelRuleTest, "ModelRuleTest", "good");
+}
+
+#[test]
+fn given_tdd_model_rule_primitive_calculation_when_tested_with_tokio_then_requires_synchronous_test()
+ {
+    let model = "mod model { pub struct Money { pub value: u32 } } mod util { impl crate::model::Money { pub fn next_value(&self) -> u32 { self.value.saturating_add(1) } } }";
+    assert_code_findings(
+        &ModelRuleTest,
+        "ModelRuleTest",
+        &format!(
+            "{model}\n#[cfg(test)] mod test {{ mod model {{\n #[tokio::test]\n async fn verify() {{ let money = crate::model::Money {{ value: 1 }}; assert_eq!(2, money.next_value()); }}\n}} }}"
+        ),
+        &[3],
+    );
+}
+
+#[test]
+fn given_tdd_model_rule_pure_method_with_test_branches_when_tested_with_tokio_then_requires_synchronous_test()
+ {
+    let model = "mod model { pub struct Money { pub value: u32 } } mod util { impl crate::model::Money { pub fn is_valid(&self) -> bool { self.value > 0 } } }";
+    assert_code_findings(
+        &ModelRuleTest,
+        "ModelRuleTest",
+        &format!(
+            "{model}\n#[cfg(test)] mod test {{ mod model {{\n #[tokio::test]\n async fn verify() {{ let money = crate::model::Money {{ value: 1 }}; if money.is_valid() {{ assert!(money.is_valid()); }} else {{ assert!(!money.is_valid()); }} }}\n}} }}"
+        ),
+        &[3],
+    );
+}
+
+#[test]
+fn given_tdd_model_rule_match_around_pure_assertions_when_tested_with_tokio_then_requires_synchronous_test()
+ {
+    let model = "mod model { pub struct Money { pub value: u32 } } mod util { impl crate::model::Money { pub fn is_valid(&self) -> bool { self.value > 0 } } }";
+    assert_code_findings(
+        &ModelRuleTest,
+        "ModelRuleTest",
+        &format!(
+            "{model}\n#[cfg(test)] mod test {{ mod model {{\n #[tokio::test]\n async fn verify() {{ let money = crate::model::Money {{ value: 1 }}; match money.is_valid() {{ true => assert!(money.is_valid()), false => assert!(!money.is_valid()) }} }}\n}} }}"
+        ),
+        &[3],
+    );
 }

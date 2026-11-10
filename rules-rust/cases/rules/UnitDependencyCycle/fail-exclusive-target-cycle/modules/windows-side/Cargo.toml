@@ -1,0 +1,10 @@
+[package]
+name = "windows-side"
+edition = "2024"
+
+[target.'cfg(windows)'.dev-dependencies]
+unix-side = { path = "../unix-side" }
+
+[lints]
+workspace = true
+

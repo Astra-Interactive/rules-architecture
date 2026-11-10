@@ -169,3 +169,13 @@ fn given_di_alias_shape_when_checked_then_preserves_defined_exceptions() {
         &[1],
     );
 }
+
+#[test]
+fn given_contract_returning_a_broadcast_or_mpsc_receiver_when_checked_then_only_the_watch_receiver_passes()
+ {
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ContractShape,
+        "mod api { use tokio::sync::mpsc;\ntrait Feed: Send + Sync { fn subscribe(&self) -> tokio::sync::broadcast::Receiver<u64>; }\ntrait Queue: Send + Sync { fn drain(&self) -> mpsc::Receiver<u64>; }\ntrait Level: Send + Sync { fn level(&self) -> tokio::sync::watch::Receiver<u64>; }\n}",
+        &[2, 3],
+    );
+}

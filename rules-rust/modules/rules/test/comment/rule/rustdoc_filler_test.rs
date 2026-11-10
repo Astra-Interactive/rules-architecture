@@ -27,3 +27,13 @@ fn given_prescribed_code_when_checked_then_passes() {
         &[],
     );
 }
+
+#[test]
+fn given_one_doc_line_for_every_parameter_when_checked_then_reports_the_comment() {
+    assert_code_findings(
+        &RustdocFiller,
+        "RustdocFiller",
+        "/// Computes the discount amount.\n///\n/// - `price` — amount in cents before tax\n/// - `rate` — fraction in the range `0.0..=1.0`\npub fn compute_discount(price: u64, rate: f64) -> u64 {\n    price\n}\n/// Computes the discount amount.\n///\n/// The rate is a fraction in the range `0.0..=1.0`.\npub fn compute_rate(price: u64, rate: f64) -> u64 {\n    price\n}",
+        &[1],
+    );
+}

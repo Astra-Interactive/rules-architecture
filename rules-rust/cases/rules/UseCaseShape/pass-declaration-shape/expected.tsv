@@ -1,3 +1,4 @@
 NamespaceType	modules/sample/src/usecase/compute_invoice_use_case.rs:1	case_sample::usecase::compute_invoice_use_case::ComputeInvoiceUseCase	Use module functions instead of a fieldless namespace type (arch-package.rs.md)
 ReExportShape	modules/sample/src/usecase/compute_invoice_use_case.rs:1	ComputeInvoiceUseCase	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 VisibilityTier	modules/sample/src/usecase/compute_invoice_use_case.rs:1	ComputeInvoiceUseCase	visibility follows the actual workspace users of the item
+VisibilityTier	modules/sample/src/usecase/compute_invoice_use_case.rs:3	ComputeInvoiceUseCase	A crate-visible method used only in the file of its type is private

@@ -91,3 +91,43 @@ fn given_typed_standard_receivers_when_checked_then_tuple_bindings_require_destr
         &[2, 3],
     );
 }
+
+#[test]
+fn given_split_once_unwrapped_when_bound_to_a_name_then_requires_destructuring() {
+    assert_code_findings(
+        &AnonymousTuple,
+        "AnonymousTuple",
+        "fn run() {\nlet parts = \"a=b\".split_once('=').unwrap();\nlet (key, value) = \"a=b\".split_once('=').unwrap();\n}",
+        &[2],
+    );
+}
+
+#[test]
+fn given_closure_parameter_bound_to_enumerate_item_when_checked_then_requires_destructuring() {
+    assert_code_findings(
+        &AnonymousTuple,
+        "AnonymousTuple",
+        "fn run(values: &[u8]) {\nlet named = values.iter().enumerate().map(|entry| entry.0);\nlet split = values.iter().enumerate().map(|(index, value)| index);\n}",
+        &[2],
+    );
+}
+
+#[test]
+fn given_for_loop_over_zip_when_item_is_bound_to_a_name_then_requires_destructuring() {
+    assert_code_findings(
+        &AnonymousTuple,
+        "AnonymousTuple",
+        "fn run(prices: &[u8], quantities: &[u8]) {\nfor pair in prices.iter().zip(quantities.iter()) {}\nfor (price, quantity) in prices.iter().zip(quantities.iter()) {}\n}",
+        &[2],
+    );
+}
+
+#[test]
+fn given_tdd_anonymous_tuple_size_hint_when_linted_then_reports_named_tuple_binding() {
+    assert_code_findings(
+        &AnonymousTuple,
+        "AnonymousTuple",
+        "fn run(values: &[u8]) -> usize {\nlet bounds = values.iter().size_hint();\nbounds.0\n}",
+        &[2],
+    );
+}

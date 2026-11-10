@@ -24,6 +24,16 @@ fn given_traitless_data_codec_when_constructed_then_own_data_is_not_a_dependency
 }
 
 #[test]
+fn given_tdd_constructor_dependency_file_io_client_when_constructed_by_mail_sender_then_reports_factory_call()
+ {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::ConstructorDependency,
+        "use std::path::PathBuf;\nuse std::sync::Arc;\nstruct FileClient { path: PathBuf }\nimpl FileClient {\n    fn connect(path: PathBuf) -> Self { Self { path } }\n    fn load(&self) -> std::io::Result<String> { std::fs::read_to_string(&self.path) }\n}\nstruct FileMailSender;\nimpl FileMailSender {\n    fn new(path: PathBuf) -> Self {\n        let _client = Arc::new(FileClient::connect(path));\n        Self\n    }\n}",
+        &[11],
+    );
+}
+
+#[test]
 fn given_cfg_exclusive_io_behavior_when_constructed_then_inactive_behavior_is_not_a_dependency() {
     crate::test::module::util::assert_di_lines(
         &crate::module::rule::ConstructorDependency,
@@ -87,6 +97,16 @@ fn given_workspace_constructors_when_checked_then_own_state_and_di_are_exempt_an
         &crate::module::rule::ConstructorDependency,
         "trait Repo {} struct Concrete; impl Repo for Concrete {} impl Concrete { fn new() -> Self { Concrete } fn helper(&self) {} }\nmod di { struct OwnerModule; impl OwnerModule { fn new() -> Self { let repo = super::Concrete::new(); Self } } }",
         &[],
+    );
+}
+
+#[test]
+fn given_dependency_constructed_inside_macro_argument_when_checked_then_constructor_dependency_is_reported()
+ {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::ConstructorDependency,
+        "struct SmtpMailSender; impl SmtpMailSender { fn new() -> Self { Self } fn send(&self) { let _result = std::net::TcpStream::connect(\"localhost:25\"); } }\nstruct InvoiceReminder { senders: Vec<std::sync::Arc<SmtpMailSender>> }\nimpl InvoiceReminder { fn new() -> Self { Self { senders: vec![std::sync::Arc::new(SmtpMailSender::new())] } } }\nstruct SingleReminder { sender: std::sync::Arc<SmtpMailSender> }\nimpl SingleReminder { fn new() -> Self { Self { sender: std::sync::Arc::new(SmtpMailSender::new()) } } }",
+        &[3, 5],
     );
 }
 

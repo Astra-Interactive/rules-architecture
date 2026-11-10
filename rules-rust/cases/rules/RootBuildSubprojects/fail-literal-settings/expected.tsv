@@ -10,6 +10,7 @@ RootBuildSubprojects	modules/sample/Cargo.toml:11	sample patch	declare patch in 
 RootBuildSubprojects	modules/sample/Cargo.toml:13	sample dependencies.leaf	declare dependencies.leaf in the workspace root and inherit shared settings with workspace = true
 UnitDependency	modules/sample/Cargo.toml:13	sample -> leaf	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
 RootBuildSubprojects	modules/sample/Cargo.toml:15	sample dev-dependencies.leaf	declare dev-dependencies.leaf in the workspace root and inherit shared settings with workspace = true
+UnitDependency	modules/sample/Cargo.toml:15	sample -> leaf	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
 RootBuildSubprojects	modules/sample/Cargo.toml:17	sample build-dependencies.leaf	declare build-dependencies.leaf in the workspace root and inherit shared settings with workspace = true
 UnitDependency	modules/sample/Cargo.toml:17	sample -> leaf	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
 RootBuildSubprojects	modules/sample/Cargo.toml:19	sample target.cfg(windows).dependencies.leaf	declare target.cfg(windows).dependencies.leaf in the workspace root and inherit shared settings with workspace = true

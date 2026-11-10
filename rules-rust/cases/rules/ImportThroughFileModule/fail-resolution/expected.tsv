@@ -3,3 +3,4 @@ ModuleVisibility	modules/sample/src/lib.rs:1	case_sample::model	module visibilit
 ModuleVisibility	modules/sample/src/lib.rs:5	case_sample::util	module visibility must be Crate (arch-package.rs.md, Modules and directories)
 BareIdentifier	modules/sample/src/model/value.rs:2	case_sample::model::value::Value	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
 ImportThroughFileModule	modules/sample/src/util/value_ext.rs:1	crate::model::value::Value	Import and name an item through its kind block, without walking through its private file module
+VisibilityTier	modules/sample/src/util/value_ext.rs:4	Value	A crate-visible method used only in the file of its type is private

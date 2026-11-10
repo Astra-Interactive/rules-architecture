@@ -13,11 +13,111 @@ pub(crate) struct ModelMutationVisitor<'context> {
     module: usize,
     file: &'context str,
     bindings: BTreeMap<String, Vec<WorkspaceResolvedPath>>,
+    arguments: BTreeMap<String, Vec<Vec<WorkspaceResolvedPath>>>,
     model_places: BTreeSet<String>,
     findings: Vec<RuleFinding>,
 }
 
 impl<'context> ModelMutationVisitor<'context> {
+    fn resolve_binding(
+        &self,
+        index: usize,
+        module: usize,
+        typed: &syn::Type,
+    ) -> Vec<WorkspaceResolvedPath> {
+        let outer = self
+            .context
+            .resolve_outer_workspace_type(index, module, typed);
+        if outer.is_empty() {
+            self.context.resolve_workspace_type(index, module, typed)
+        } else {
+            outer
+        }
+    }
+
+    fn list_arguments(
+        &self,
+        index: usize,
+        module: usize,
+        typed: &syn::Type,
+    ) -> Vec<Vec<WorkspaceResolvedPath>> {
+        match typed {
+            syn::Type::Reference(reference) => self.list_arguments(index, module, &reference.elem),
+            syn::Type::Paren(paren) => self.list_arguments(index, module, &paren.elem),
+            syn::Type::Group(group) => self.list_arguments(index, module, &group.elem),
+            syn::Type::Slice(slice) => vec![self.resolve_binding(index, module, &slice.elem)],
+            syn::Type::Array(array) => vec![self.resolve_binding(index, module, &array.elem)],
+            syn::Type::Path(path) => path
+                .path
+                .segments
+                .last()
+                .map(|segment| match &segment.arguments {
+                    syn::PathArguments::AngleBracketed(arguments) => arguments
+                        .args
+                        .iter()
+                        .filter_map(|argument| match argument {
+                            syn::GenericArgument::Type(inner) => {
+                                Some(self.resolve_binding(index, module, inner))
+                            }
+                            _ => None,
+                        })
+                        .collect(),
+                    _ => Vec::new(),
+                })
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        }
+    }
+
+    fn bind_pattern(
+        &mut self,
+        pattern: &syn::Pat,
+        targets: Vec<WorkspaceResolvedPath>,
+        arguments: Vec<Vec<WorkspaceResolvedPath>>,
+    ) {
+        match pattern {
+            syn::Pat::Ident(binding) => {
+                let name = binding.ident.to_string();
+                self.model_places.remove(&name);
+                self.bindings.insert(name.clone(), targets);
+                self.arguments.insert(name, arguments);
+                if let Some((_, nested)) = &binding.subpat {
+                    self.bind_pattern(nested, Vec::new(), Vec::new());
+                }
+            }
+            syn::Pat::Type(typed) => self.bind_pattern(&typed.pat, targets, arguments),
+            syn::Pat::Tuple(tuple) => self.bind_elements(tuple.elems.iter(), &arguments),
+            syn::Pat::TupleStruct(tuple) => self.bind_elements(tuple.elems.iter(), &arguments),
+            syn::Pat::Struct(structure) => self.bind_elements(
+                structure.fields.iter().map(|field| field.pat.as_ref()),
+                &arguments,
+            ),
+            syn::Pat::Slice(slice) => self.bind_elements(slice.elems.iter(), &arguments),
+            syn::Pat::Reference(reference) => self.bind_pattern(&reference.pat, targets, arguments),
+            syn::Pat::Paren(paren) => self.bind_pattern(&paren.pat, targets, arguments),
+            syn::Pat::Guard(guard) => {
+                self.bind_pattern(&guard.pat, targets, arguments);
+                self.visit_expr(&guard.guard);
+            }
+            syn::Pat::Or(alternatives) => {
+                for alternative in &alternatives.cases {
+                    self.bind_pattern(alternative, Vec::new(), Vec::new());
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn bind_elements<'pattern>(
+        &mut self,
+        elements: impl Iterator<Item = &'pattern syn::Pat>,
+        arguments: &[Vec<WorkspaceResolvedPath>],
+    ) {
+        for element in elements {
+            self.bind_pattern(element, arguments.concat(), Vec::new());
+        }
+    }
+
     pub(crate) fn inspect(
         context: &'context RuleContext,
         ordinal: usize,
@@ -33,20 +133,26 @@ impl<'context> ModelMutationVisitor<'context> {
             module,
             file,
             bindings: BTreeMap::new(),
+            arguments: BTreeMap::new(),
             model_places: BTreeSet::new(),
             findings: Vec::new(),
         };
         if let Some(typed) = self_type {
             visitor.bindings.insert(
                 "self".to_owned(),
-                context.resolve_workspace_type(ordinal, module, typed),
+                visitor.resolve_binding(ordinal, module, typed),
+            );
+            visitor.arguments.insert(
+                "self".to_owned(),
+                visitor.list_arguments(ordinal, module, typed),
             );
         }
         for parameter in &signature.inputs {
             if let syn::FnArg::Typed(parameter) = parameter {
                 visitor.bind_pattern(
                     &parameter.pat,
-                    context.resolve_workspace_type(ordinal, module, &parameter.ty),
+                    visitor.resolve_binding(ordinal, module, &parameter.ty),
+                    visitor.list_arguments(ordinal, module, &parameter.ty),
                 );
             }
         }
@@ -54,46 +160,33 @@ impl<'context> ModelMutationVisitor<'context> {
         visitor.findings
     }
 
-    fn bind_pattern(&mut self, pattern: &syn::Pat, targets: Vec<WorkspaceResolvedPath>) {
-        match pattern {
-            syn::Pat::Ident(binding) => {
-                self.model_places.remove(&binding.ident.to_string());
-                self.bindings.insert(binding.ident.to_string(), targets);
-                if let Some((_, nested)) = &binding.subpat {
-                    self.bind_pattern(nested, Vec::new());
-                }
-            }
-            syn::Pat::Type(typed) => self.bind_pattern(&typed.pat, targets),
-            syn::Pat::Tuple(tuple) => {
-                for element in &tuple.elems {
-                    self.bind_pattern(element, Vec::new());
-                }
-            }
-            syn::Pat::TupleStruct(tuple) => {
-                for element in &tuple.elems {
-                    self.bind_pattern(element, Vec::new());
-                }
-            }
-            syn::Pat::Struct(structure) => {
-                for field in &structure.fields {
-                    self.bind_pattern(&field.pat, Vec::new());
-                }
-            }
-            syn::Pat::Slice(slice) => {
-                for element in &slice.elems {
-                    self.bind_pattern(element, Vec::new());
-                }
-            }
-            syn::Pat::Reference(reference) => self.bind_pattern(&reference.pat, targets),
-            syn::Pat::Paren(paren) => self.bind_pattern(&paren.pat, targets),
-            syn::Pat::Guard(guard) => self.bind_pattern(&guard.pat, targets),
-            syn::Pat::Or(alternatives) => {
-                for alternative in &alternatives.cases {
-                    self.bind_pattern(alternative, Vec::new());
-                }
-            }
-            _ => {}
+    fn find_field<'structure>(
+        structure: &'structure syn::ItemStruct,
+        member: &syn::Member,
+    ) -> Option<&'structure syn::Field> {
+        match member {
+            syn::Member::Named(name) => structure
+                .fields
+                .iter()
+                .find(|field| field.ident.as_ref() == Some(name)),
+            syn::Member::Unnamed(position) => structure.fields.iter().nth(position.index as usize),
         }
+    }
+
+    fn find_parameter_position(structure: &syn::ItemStruct, typed: &syn::Type) -> Option<usize> {
+        let syn::Type::Path(path) = typed else {
+            return None;
+        };
+        let name = path.path.get_ident()?;
+        structure
+            .generics
+            .params
+            .iter()
+            .filter_map(|parameter| match parameter {
+                syn::GenericParam::Type(parameter) => Some(&parameter.ident),
+                _ => None,
+            })
+            .position(|parameter| parameter == name)
     }
 
     fn field_targets(&self, field: &syn::ExprField) -> Vec<WorkspaceResolvedPath> {
@@ -106,28 +199,95 @@ impl<'context> ModelMutationVisitor<'context> {
             let syn::Item::Struct(structure) = &item.syntax else {
                 continue;
             };
-            let field = match &field.member {
-                syn::Member::Named(name) => structure
-                    .fields
-                    .iter()
-                    .find(|field| field.ident.as_ref() == Some(name)),
-                syn::Member::Unnamed(position) => {
-                    structure.fields.iter().nth(position.index as usize)
-                }
+            let Some(declared) = Self::find_field(structure, &field.member) else {
+                continue;
             };
-            if let Some(field) = field {
-                targets.extend(self.context.resolve_workspace_type(
-                    owner.index,
-                    item.module,
-                    &field.ty,
-                ));
+            match Self::find_parameter_position(structure, &declared.ty) {
+                Some(position) => targets.extend(
+                    self.arguments_of(&field.base)
+                        .get(position)
+                        .cloned()
+                        .unwrap_or_default(),
+                ),
+                None => {
+                    targets.extend(self.resolve_binding(owner.index, item.module, &declared.ty))
+                }
             }
         }
         targets
     }
 
+    fn field_arguments(&self, field: &syn::ExprField) -> Vec<Vec<WorkspaceResolvedPath>> {
+        self.targets(&field.base)
+            .iter()
+            .find_map(|owner| {
+                let item = &self.context.indexes[owner.index].items[owner.path.item?];
+                let syn::Item::Struct(structure) = &item.syntax else {
+                    return None;
+                };
+                let declared = Self::find_field(structure, &field.member)?;
+                Some(self.list_arguments(owner.index, item.module, &declared.ty))
+            })
+            .unwrap_or_default()
+    }
+
+    fn arguments_of(&self, expression: &syn::Expr) -> Vec<Vec<WorkspaceResolvedPath>> {
+        match expression {
+            syn::Expr::Path(path) => path
+                .path
+                .get_ident()
+                .and_then(|name| self.arguments.get(&name.to_string()))
+                .cloned()
+                .unwrap_or_default(),
+            syn::Expr::Reference(reference) => self.arguments_of(&reference.expr),
+            syn::Expr::Unary(unary) => self.arguments_of(&unary.expr),
+            syn::Expr::Paren(paren) => self.arguments_of(&paren.expr),
+            syn::Expr::Field(field) => self.field_arguments(field),
+            syn::Expr::MethodCall(call)
+                if Self::ELEMENT_ITERATORS.contains(&call.method.to_string().as_str()) =>
+            {
+                self.arguments_of(&call.receiver)
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    fn is_model(&self, target: &WorkspaceResolvedPath) -> bool {
+        target.path.item.is_some_and(|identity| {
+            is_model_item(
+                self.context,
+                target.index,
+                &self.context.indexes[target.index].items[identity],
+            )
+        })
+    }
+
+    fn call_targets(&self, call: &syn::ExprCall) -> Vec<WorkspaceResolvedPath> {
+        let syn::Expr::Path(callee) = call.func.as_ref() else {
+            return Vec::new();
+        };
+        self.context
+            .resolve_workspace_path(self.ordinal, self.module, &callee.path)
+            .into_iter()
+            .filter(|target| target.index == self.ordinal && target.path.cfg.is_satisfiable())
+            .filter_map(|target| {
+                let item = &self.context.indexes[target.index].items[target.path.item?];
+                let syn::Item::Fn(function) = &item.syntax else {
+                    return None;
+                };
+                let syn::ReturnType::Type(_, returned) = &function.sig.output else {
+                    return None;
+                };
+                Some(self.resolve_binding(target.index, item.module, returned))
+            })
+            .flatten()
+            .filter(|target| self.is_model(target))
+            .collect()
+    }
+
     fn targets(&self, expression: &syn::Expr) -> Vec<WorkspaceResolvedPath> {
         match expression {
+            syn::Expr::Call(call) => self.call_targets(call),
             syn::Expr::Path(path) => path
                 .path
                 .get_ident()
@@ -151,15 +311,11 @@ impl<'context> ModelMutationVisitor<'context> {
 
     fn model_place(&self, expression: &syn::Expr) -> bool {
         match expression {
-            syn::Expr::Field(field) => self.targets(&field.base).iter().any(|target| {
-                target.path.item.is_some_and(|identity| {
-                    is_model_item(
-                        self.context,
-                        target.index,
-                        &self.context.indexes[target.index].items[identity],
-                    )
-                })
-            }),
+            syn::Expr::Field(field) => self
+                .targets(&field.base)
+                .iter()
+                .any(|target| self.is_model(target)),
+            syn::Expr::Index(index) => self.model_place(&index.expr),
             syn::Expr::Reference(reference) => self.model_place(&reference.expr),
             syn::Expr::Paren(paren) => self.model_place(&paren.expr),
             syn::Expr::Unary(unary) => match unary.expr.as_ref() {
@@ -173,27 +329,131 @@ impl<'context> ModelMutationVisitor<'context> {
         }
     }
 
-    fn report_write(&mut self, target: &syn::Expr, span: proc_macro2::Span) {
-        if self.model_place(target) {
-            self.findings.push(build_node_finding(
-                "ModelShouldBeImmutable",
-                self.file,
-                find_node_span(span),
-                "model field".to_owned(),
-                "a model transition returns a new value instead of assigning a field".to_owned(),
-            ));
+    fn collection_field(expression: &syn::Expr) -> Option<&syn::ExprField> {
+        match expression {
+            syn::Expr::Field(field) => Some(field),
+            syn::Expr::Reference(reference) => Self::collection_field(&reference.expr),
+            syn::Expr::Paren(paren) => Self::collection_field(&paren.expr),
+            _ => None,
         }
     }
+
+    fn is_collection_type(typed: &syn::Type) -> bool {
+        match typed {
+            syn::Type::Paren(paren) => Self::is_collection_type(&paren.elem),
+            syn::Type::Group(group) => Self::is_collection_type(&group.elem),
+            syn::Type::Path(path) => path.path.segments.last().is_some_and(|segment| {
+                Self::COLLECTION_TYPES.contains(&segment.ident.to_string().as_str())
+            }),
+            _ => false,
+        }
+    }
+
+    fn has_collection_field(&self, field: &syn::ExprField) -> bool {
+        self.targets(&field.base).iter().any(|owner| {
+            let Some(identity) = owner.path.item else {
+                return false;
+            };
+            let item = &self.context.indexes[owner.index].items[identity];
+            let syn::Item::Struct(structure) = &item.syntax else {
+                return false;
+            };
+            Self::find_field(structure, &field.member)
+                .is_some_and(|declared| Self::is_collection_type(&declared.ty))
+        })
+    }
+
+    fn push_finding(&mut self, span: proc_macro2::Span) {
+        self.findings.push(build_node_finding(
+            "ModelShouldBeImmutable",
+            self.file,
+            find_node_span(span),
+            "model field".to_owned(),
+            "a model transition returns a new value instead of assigning a field".to_owned(),
+        ));
+    }
+
+    fn report_collection_mutation(&mut self, call: &syn::ExprMethodCall) {
+        let Some(field) = Self::collection_field(&call.receiver) else {
+            return;
+        };
+        if Self::COLLECTION_MUTATORS.contains(&call.method.to_string().as_str())
+            && self
+                .targets(&field.base)
+                .iter()
+                .any(|target| self.is_model(target))
+            && self.has_collection_field(field)
+        {
+            self.push_finding(call.span());
+        }
+    }
+
+    fn report_write(&mut self, target: &syn::Expr, span: proc_macro2::Span) {
+        if self.model_place(target) {
+            self.push_finding(span);
+        }
+    }
+
+    const COLLECTION_TYPES: &'static [&'static str] = &[
+        "Vec",
+        "VecDeque",
+        "HashMap",
+        "HashSet",
+        "BTreeMap",
+        "BTreeSet",
+        "BinaryHeap",
+    ];
+
+    const COLLECTION_MUTATORS: &'static [&'static str] = &[
+        "push",
+        "push_back",
+        "push_front",
+        "pop",
+        "pop_back",
+        "pop_front",
+        "insert",
+        "remove",
+        "clear",
+        "extend",
+        "append",
+        "retain",
+        "truncate",
+        "drain",
+        "dedup",
+        "reverse",
+        "sort",
+        "sort_by",
+        "sort_by_key",
+        "sort_unstable",
+        "swap_remove",
+        "resize",
+        "split_off",
+    ];
+
+    const ELEMENT_ITERATORS: &'static [&'static str] = &[
+        "iter",
+        "iter_mut",
+        "into_iter",
+        "drain",
+        "values",
+        "values_mut",
+    ];
 }
 
 impl<'ast> Visit<'ast> for ModelMutationVisitor<'_> {
     fn visit_expr_for_loop(&mut self, expression: &'ast syn::ExprForLoop) {
         self.visit_expr(&expression.expr);
         let bindings = self.bindings.clone();
+        let arguments = self.arguments.clone();
         let places = self.model_places.clone();
-        self.bind_pattern(&expression.pat, Vec::new());
+        self.bind_pattern(
+            &expression.pat,
+            self.arguments_of(&expression.expr).concat(),
+            Vec::new(),
+        );
         self.visit_block(&expression.body);
         self.bindings = bindings;
+        self.arguments = arguments;
         self.model_places = places;
     }
 
@@ -201,25 +461,37 @@ impl<'ast> Visit<'ast> for ModelMutationVisitor<'_> {
         self.visit_expr(&expression.expr);
         for arm in &expression.arms {
             let bindings = self.bindings.clone();
+            let arguments = self.arguments.clone();
             let places = self.model_places.clone();
-            self.bind_pattern(&arm.pat, self.targets(&expression.expr));
+            self.bind_pattern(
+                &arm.pat,
+                self.targets(&expression.expr),
+                self.arguments_of(&expression.expr),
+            );
             self.visit_expr(&arm.body);
             self.bindings = bindings;
+            self.arguments = arguments;
             self.model_places = places;
         }
     }
 
     fn visit_expr_let(&mut self, expression: &'ast syn::ExprLet) {
         self.visit_expr(&expression.expr);
-        self.bind_pattern(&expression.pat, self.targets(&expression.expr));
+        self.bind_pattern(
+            &expression.pat,
+            self.targets(&expression.expr),
+            self.arguments_of(&expression.expr),
+        );
     }
 
     fn visit_expr_if(&mut self, expression: &'ast syn::ExprIf) {
         let bindings = self.bindings.clone();
+        let arguments = self.arguments.clone();
         let places = self.model_places.clone();
         self.visit_expr(&expression.cond);
         self.visit_block(&expression.then_branch);
         self.bindings = bindings;
+        self.arguments = arguments;
         self.model_places = places;
         if let Some((_, expression)) = &expression.else_branch {
             self.visit_expr(expression);
@@ -228,29 +500,38 @@ impl<'ast> Visit<'ast> for ModelMutationVisitor<'_> {
 
     fn visit_expr_while(&mut self, expression: &'ast syn::ExprWhile) {
         let bindings = self.bindings.clone();
+        let arguments = self.arguments.clone();
         let places = self.model_places.clone();
         self.visit_expr(&expression.cond);
         self.visit_block(&expression.body);
         self.bindings = bindings;
+        self.arguments = arguments;
         self.model_places = places;
     }
 
     fn visit_expr_closure(&mut self, closure: &'ast syn::ExprClosure) {
         let bindings = self.bindings.clone();
+        let arguments = self.arguments.clone();
         let places = self.model_places.clone();
         for parameter in &closure.inputs {
-            let targets = match parameter {
-                syn::Pat::Type(typed) => {
-                    self.context
-                        .resolve_workspace_type(self.ordinal, self.module, &typed.ty)
-                }
-                _ => Vec::new(),
-            };
-            self.bind_pattern(parameter, targets);
+            match parameter {
+                syn::Pat::Type(typed) => self.bind_pattern(
+                    parameter,
+                    self.resolve_binding(self.ordinal, self.module, &typed.ty),
+                    self.list_arguments(self.ordinal, self.module, &typed.ty),
+                ),
+                _ => self.bind_pattern(parameter, Vec::new(), Vec::new()),
+            }
         }
         self.visit_expr(&closure.body);
         self.bindings = bindings;
+        self.arguments = arguments;
         self.model_places = places;
+    }
+
+    fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+        self.report_collection_mutation(call);
+        syn::visit::visit_expr_method_call(self, call);
     }
 
     fn visit_expr_assign(&mut self, expression: &'ast syn::ExprAssign) {
@@ -280,14 +561,19 @@ impl<'ast> Visit<'ast> for ModelMutationVisitor<'_> {
     fn visit_local(&mut self, local: &'ast syn::Local) {
         syn::visit::visit_local(self, local);
         let targets = match &local.pat {
-            syn::Pat::Type(typed) => {
-                self.context
-                    .resolve_workspace_type(self.ordinal, self.module, &typed.ty)
-            }
+            syn::Pat::Type(typed) => self.resolve_binding(self.ordinal, self.module, &typed.ty),
             _ => local
                 .init
                 .as_ref()
                 .map(|initializer| self.targets(&initializer.expr))
+                .unwrap_or_default(),
+        };
+        let arguments = match &local.pat {
+            syn::Pat::Type(typed) => self.list_arguments(self.ordinal, self.module, &typed.ty),
+            _ => local
+                .init
+                .as_ref()
+                .map(|initializer| self.arguments_of(&initializer.expr))
                 .unwrap_or_default(),
         };
         let pattern = match &local.pat {
@@ -298,7 +584,7 @@ impl<'ast> Visit<'ast> for ModelMutationVisitor<'_> {
             .init
             .as_ref()
             .is_some_and(|initializer| self.model_place(&initializer.expr));
-        self.bind_pattern(&local.pat, targets);
+        self.bind_pattern(&local.pat, targets, arguments);
         if let syn::Pat::Ident(binding) = pattern
             && place
         {
@@ -308,11 +594,26 @@ impl<'ast> Visit<'ast> for ModelMutationVisitor<'_> {
 
     fn visit_block(&mut self, block: &'ast syn::Block) {
         let bindings = self.bindings.clone();
+        let arguments = self.arguments.clone();
         let places = self.model_places.clone();
         syn::visit::visit_block(self, block);
         self.bindings = bindings;
+        self.arguments = arguments;
         self.model_places = places;
     }
 
-    fn visit_item(&mut self, _: &'ast syn::Item) {}
+    fn visit_item(&mut self, item: &'ast syn::Item) {
+        if let syn::Item::Fn(function) = item {
+            let findings = Self::inspect(
+                self.context,
+                self.ordinal,
+                self.module,
+                self.file,
+                &function.sig,
+                &function.block,
+                None,
+            );
+            self.findings.extend(findings);
+        }
+    }
 }

@@ -33,3 +33,13 @@ fn given_persistent_runtime_cases_when_checked_then_matches_exact_finding_anchor
     assert_code_fixture(&WatchTimeout, "WatchTimeout", "bad");
     assert_code_fixture(&WatchTimeout, "WatchTimeout", "good");
 }
+
+#[test]
+fn given_watch_timeout_receiver_from_subscribe_when_linted_then_reports_the_timeout() {
+    assert_code_findings(
+        &WatchTimeout,
+        "WatchTimeout",
+        "struct Gate { state: tokio::sync::watch::Sender<bool> }\nimpl Gate {\n    async fn wait(&self) {\n        let mut receiver = self.state.subscribe();\n        tokio::time::timeout(std::time::Duration::ZERO, receiver.wait_for(|_| true));\n        tokio::time::timeout(std::time::Duration::ZERO, receiver.wait_for(|ready| *ready));\n    }\n}",
+        &[5],
+    );
+}

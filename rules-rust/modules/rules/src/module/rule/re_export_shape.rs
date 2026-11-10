@@ -104,6 +104,36 @@ impl ReExportShape {
         matches!(visibility, syn::Visibility::Inherited)
     }
 
+    fn is_module_or_ancestor(index: &CrateIndex, ancestor: usize, module: usize) -> bool {
+        let mut current = Some(module);
+        while let Some(candidate) = current {
+            if candidate == ancestor {
+                return true;
+            }
+            current = index.modules[candidate].parent;
+        }
+        false
+    }
+
+    fn find_cross_block_exports<'a>(
+        index: &'a CrateIndex,
+        ordinal: usize,
+        item: &IndexedItem,
+    ) -> Vec<&'a ImportBinding> {
+        index
+            .imports
+            .iter()
+            .filter(|binding| {
+                binding.is_public
+                    && !binding.is_glob
+                    && index.modules[binding.module].tree == crate::source::model::SourceTree::Src
+                    && !Self::is_module_or_ancestor(index, binding.module, item.module)
+                    && item.cfg.and(&binding.cfg).is_satisfiable()
+                    && matches!(index.resolve_segments(binding.module, &binding.path, 0), Resolution::Internal(targets) if targets.iter().any(|target| target.item == Some(ordinal)))
+            })
+            .collect()
+    }
+
     fn check_index(index: &CrateIndex) -> Vec<RuleFinding> {
         let mut findings = Vec::new();
         for (ordinal, item) in index.items.iter().enumerate() {
@@ -129,6 +159,15 @@ impl ReExportShape {
                     ));
                 }
                 continue;
+            }
+            for export in Self::find_cross_block_exports(index, ordinal, item) {
+                findings.push(build_node_finding(
+                    "ReExportShape",
+                    &export.file,
+                    export.span,
+                    item.name.clone(),
+                    "A file-module item is re-exported once, in its own kind block".to_owned(),
+                ));
             }
             if !Self::has_exact_export(item, &exports) {
                 findings.push(build_node_finding("ReExportShape", &item.file, item.span, item.name.clone(), "A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block".to_owned()));

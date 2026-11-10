@@ -1,9 +1,40 @@
 use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
-use crate::module::util::{build_shape_item_finding, find_kind_name, resolve_shape_type};
+use crate::module::util::{build_shape_item_finding, find_kind_name, is_model_item};
+use crate::source::model::{CfgPredicate, IndexedItem, WorkspaceResolvedPath};
 use syn::{FnArg, Item};
 
 pub(crate) struct UtilFunctionAsExtension;
+
+impl UtilFunctionAsExtension {
+    fn is_model_target(
+        context: &RuleContext,
+        target: &WorkspaceResolvedPath,
+        function_cfg: &CfgPredicate,
+    ) -> bool {
+        let Some(identity) = target.path.item else {
+            return false;
+        };
+        is_model_item(
+            context,
+            target.index,
+            &context.indexes[target.index].items[identity],
+        ) && target.path.cfg.and(function_cfg).is_satisfiable()
+    }
+
+    fn is_model_parameter(
+        context: &RuleContext,
+        ordinal: usize,
+        item: &IndexedItem,
+        typed: &syn::Type,
+    ) -> bool {
+        let function_cfg = item.cfg.in_scope(ordinal);
+        context
+            .resolve_outer_workspace_type(ordinal, item.module, typed)
+            .iter()
+            .any(|target| Self::is_model_target(context, target, &function_cfg))
+    }
+}
 
 impl Rule for UtilFunctionAsExtension {
     fn check(&self, context: &RuleContext) -> Vec<RuleFinding> {
@@ -24,17 +55,7 @@ impl Rule for UtilFunctionAsExtension {
                     let Some(FnArg::Typed(parameter)) = function.sig.inputs.first() else {
                         return None;
                     };
-                    let model = resolve_shape_type(index, item.module, &parameter.ty)
-                        .iter()
-                        .any(|target| {
-                            let target = &index.items[*target];
-                            matches!(
-                                target.syntax,
-                                Item::Struct(_) | Item::Enum(_) | Item::Union(_)
-                            ) && find_kind_name(context, ordinal, target.module) == "model"
-                                && target.cfg.and(&item.cfg).is_satisfiable()
-                        });
-                    model.then(|| {
+                    Self::is_model_parameter(context, ordinal, item, &parameter.ty).then(|| {
                         build_shape_item_finding(
                             index,
                             item,

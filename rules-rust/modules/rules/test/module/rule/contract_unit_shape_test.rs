@@ -62,3 +62,33 @@ fn given_wire_types_and_function_bodies_when_checked_then_derives_and_data_only_
     context.project_config.crates[0].role = Some(Role::Contract);
     assert!(ContractUnitShape.check(&context).is_empty());
 }
+
+#[test]
+fn given_abstract_trait_in_contract_crate_when_checked_then_the_trait_is_reported() {
+    let mut context = read_shape_context(
+        "mod model { #[derive(serde::Serialize, serde::Deserialize)] struct Invoice; trait Contract { fn invoke(&self); } }",
+        &[],
+    );
+    context.project_config.crates[0].role = Some(Role::Contract);
+    let findings = ContractUnitShape.check(&context);
+    let subjects: Vec<_> = findings
+        .iter()
+        .map(|finding| finding.finding.subject.as_str())
+        .collect();
+    assert_eq!(subjects, ["case_sample::model::Contract"], "{findings:?}");
+}
+
+#[test]
+fn given_non_serde_derives_in_contract_crate_when_checked_then_the_wire_type_is_reported() {
+    let mut context = read_shape_context(
+        "mod model { #[derive(serde::Serialize, serde::Deserialize)] struct Invoice; #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)] struct InvoiceDto { id: u64 } }",
+        &[],
+    );
+    context.project_config.crates[0].role = Some(Role::Contract);
+    let findings = ContractUnitShape.check(&context);
+    let subjects: Vec<_> = findings
+        .iter()
+        .map(|finding| finding.finding.subject.as_str())
+        .collect();
+    assert_eq!(subjects, ["case_sample::model::InvoiceDto"], "{findings:?}");
+}

@@ -58,17 +58,29 @@ fn given_prescribed_code_when_checked_then_passes() {
 }
 
 #[test]
-fn given_collections_and_enum_payloads_when_checked_then_does_not_expand_callback_scope() {
+fn given_enum_variant_closure_and_collection_field_when_checked_then_reports_only_the_variant_closure()
+ {
     assert_code_findings(
         &CallbackDeclaration,
         "CallbackDeclaration",
         "enum Event { Dynamic { on_event: fn() } }\nstruct Callbacks { on_events: Vec<Box<dyn Fn()>> }",
-        &[],
+        &[1],
     );
     assert_code_findings(
         &CallbackDeclaration,
         "CallbackDeclaration",
         "impl External for Gateway { fn run(&self, on_result: fn()) { fn nested(on_event: fn()) {} } }",
         &[1],
+    );
+}
+
+#[test]
+fn given_one_shot_closure_in_enum_variant_fields_when_checked_then_reports_each_field_like_a_struct_field()
+ {
+    assert_code_findings(
+        &CallbackDeclaration,
+        "CallbackDeclaration",
+        "enum Job {\n    Run { task: Box<dyn FnOnce() + Send> },\n    Later(Box<dyn FnOnce() + Send>),\n    Named(String),\n    Done,\n}",
+        &[2, 3],
     );
 }

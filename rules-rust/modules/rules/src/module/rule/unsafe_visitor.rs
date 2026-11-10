@@ -1,6 +1,5 @@
 use crate::check::model::{RuleContext, RuleFinding};
 use crate::check::util::build_node_finding;
-use crate::config::model::Role;
 use crate::module::util::find_kind_name;
 use crate::source::model::SourceFile;
 use crate::source::util::{find_node_span, parse_macro_arguments};
@@ -22,9 +21,7 @@ impl UnsafeVisitor<'_> {
         let technology_unit = kind.is_empty()
             && self
                 .context
-                .find_role_config(&index.crate_name)
-                .and_then(|config| config.role)
-                == Some(Role::Technology);
+                .has_technology_implementation_role(&index.crate_name);
         if technology_unit || self.context.is_technology_kind(&index.crate_name, kind) {
             return;
         }
@@ -101,6 +98,13 @@ impl<'ast> Visit<'ast> for UnsafeVisitor<'_> {
             self.check_span(item.span());
         }
         syn::visit::visit_item_impl(self, item);
+    }
+
+    fn visit_item_foreign_mod(&mut self, item: &'ast syn::ItemForeignMod) {
+        if item.unsafety.is_some() {
+            self.check_span(item.span());
+        }
+        syn::visit::visit_item_foreign_mod(self, item);
     }
 
     fn visit_item_trait(&mut self, item: &'ast syn::ItemTrait) {

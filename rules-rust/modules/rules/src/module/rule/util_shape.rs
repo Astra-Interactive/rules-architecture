@@ -4,9 +4,18 @@ use crate::check::util::build_node_finding;
 use crate::module::util::{
     build_shape_item_finding, find_kind_name, list_shape_words, resolve_shape_type,
 };
+use crate::source::model::CrateIndex;
 use syn::Item;
 
 pub(crate) struct UtilShape;
+
+impl UtilShape {
+    fn holds_function(index: &CrateIndex, module: usize, file: &str) -> bool {
+        index.items.iter().any(|item| {
+            item.module == module && item.file == file && matches!(item.syntax, Item::Fn(_))
+        })
+    }
+}
 
 impl Rule for UtilShape {
     fn check(&self, context: &RuleContext) -> Vec<RuleFinding> {
@@ -25,7 +34,10 @@ impl Rule for UtilShape {
                         | Item::Const(_)
                         | Item::Static(_)
                 );
-                if data && find_kind_name(context, ordinal, item.module) == "util" {
+                let file_constant = matches!(item.syntax, Item::Const(_))
+                    && Self::holds_function(index, item.module, &item.file);
+                let util = find_kind_name(context, ordinal, item.module) == "util";
+                if data && !file_constant && util {
                     findings.push(build_shape_item_finding(index, item, "UtilShape", "util holds functions and extension implementations, never data declarations"));
                 }
             }

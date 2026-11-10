@@ -27,6 +27,16 @@ fn given_service_and_api_suffixes_when_checked_then_reports_only_misplaced_type_
 }
 
 #[test]
+fn given_service_word_inside_model_type_name_when_checked_then_reports_it() {
+    assert_code_findings(
+        &KindNameInPackage,
+        "KindNameInPackage",
+        "mod model { struct InvoiceServiceState { first: u32, second: u32 } }\nmod service { struct InvoiceServiceState; }",
+        &[1],
+    );
+}
+
+#[test]
 fn given_technology_before_model_when_checked_then_keeps_representation_names() {
     let mut context = read_case_context("KindNameInPackage", "pass-syntax");
     context.project_config.crates[0]

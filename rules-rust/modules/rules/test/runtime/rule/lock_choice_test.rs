@@ -55,3 +55,23 @@ fn given_persistent_runtime_cases_when_checked_then_matches_exact_finding_anchor
     assert_code_fixture(&LockChoice, "LockChoice", "bad");
     assert_code_fixture(&LockChoice, "LockChoice", "good");
 }
+
+#[test]
+fn given_lock_choice_typed_guard_binding_when_linted_then_reports_the_local() {
+    assert_code_findings(
+        &LockChoice,
+        "LockChoice",
+        "async fn run(gate: tokio::sync::Mutex<Vec<u32>>) {\n    let guard: tokio::sync::MutexGuard<'_, Vec<u32>> = gate.lock().await;\n    let count = guard.len();\n}\nasync fn run_crossing(gate: tokio::sync::Mutex<Vec<u32>>) {\n    let guard: tokio::sync::MutexGuard<'_, Vec<u32>> = gate.lock().await;\n    tokio::time::sleep(std::time::Duration::ZERO).await;\n    let count = guard.len();\n}",
+        &[2],
+    );
+}
+
+#[test]
+fn given_lock_choice_temporary_tokio_guard_when_linted_then_reports_the_statement() {
+    assert_code_findings(
+        &LockChoice,
+        "LockChoice",
+        "struct Cache { cache: tokio::sync::Mutex<std::collections::HashMap<u32, String>> }\nasync fn load() -> String { String::new() }\nimpl Cache {\n    async fn put(&self, id: u32, value: String) {\n        self.cache.lock().await.insert(id, value);\n    }\n    async fn put_loaded(&self, id: u32) {\n        self.cache.lock().await.insert(id, load().await);\n    }\n}",
+        &[5],
+    );
+}

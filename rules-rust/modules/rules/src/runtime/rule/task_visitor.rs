@@ -6,6 +6,7 @@ use crate::runtime::util::expects_lint;
 use crate::runtime::util::node_predicate;
 use crate::source::model::{Resolution, SourceFile};
 use crate::source::util::{find_node_span, parse_macro_arguments};
+use crate::workspace::model::TomlValue;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
 
@@ -24,13 +25,75 @@ pub(crate) struct TaskVisitor<'source> {
     handles: Vec<(String, proc_macro2::Span, bool)>,
     local_self: bool,
     closures: Vec<(String, Option<syn::ExprClosure>, usize)>,
-    bindings: Vec<(String, Option<usize>, Option<syn::Type>)>,
+    bindings: Vec<LocalBinding>,
     return_start: usize,
     self_type: Option<syn::Type>,
+    loop_prefix: Option<LoopPrefix>,
+    inherit_async: bool,
 }
 
 impl TaskVisitor<'_> {
+    fn build_callback_source_context(context: &RuleContext) -> RuleContext {
+        let mut indexes = context.indexes.clone();
+        let mut seen = std::collections::BTreeSet::new();
+        for dependency in context
+            .workspace
+            .members
+            .iter()
+            .flat_map(|member| &member.dependencies)
+        {
+            let Some(path) = &dependency.path else {
+                continue;
+            };
+            let root = context.workspace.root.join(path);
+            if !seen.insert(root.clone()) {
+                continue;
+            }
+            let workspace_member = context
+                .workspace
+                .members
+                .iter()
+                .any(|member| context.workspace.root.join(&member.directory) == root);
+            if workspace_member {
+                continue;
+            }
+            let manifest_path = root.join("Cargo.toml");
+            let Some(manifest) = std::fs::read_to_string(&manifest_path)
+                .ok()
+                .and_then(|text| {
+                    crate::workspace::util::parse_toml_file(&manifest_path.to_string_lossy(), &text)
+                        .ok()
+                })
+            else {
+                continue;
+            };
+            let source = manifest
+                .root
+                .find(&["lib", "path"])
+                .and_then(TomlValue::as_str)
+                .unwrap_or("src/lib.rs");
+            let sources = crate::source::syn::ModuleTreeWalker::new(
+                root,
+                dependency.name.clone(),
+                dependency.name.replace('-', "_"),
+            )
+            .walk_crate(source, crate::source::model::SourceTree::Src);
+            indexes.push(crate::source::syn::CrateIndexBuilder::new(&sources, Vec::new()).build());
+        }
+        RuleContext {
+            workspace: context.workspace.clone(),
+            project_config: context.project_config.clone(),
+            crates: context.crates.clone(),
+            indexes,
+            names: std::sync::OnceLock::new(),
+            rustfmt: context.rustfmt.clone(),
+        }
+    }
+
     pub(crate) fn check_context(context: &RuleContext, rule: &'static str) -> Vec<RuleFinding> {
+        let callback_context =
+            (rule == "CallbackBridgeShape").then(|| Self::build_callback_source_context(context));
+        let context = callback_context.as_ref().unwrap_or(context);
         let mut findings = Vec::new();
         for sources in &context.crates {
             for file in &sources.files {
@@ -70,6 +133,8 @@ impl TaskVisitor<'_> {
                     bindings: Vec::new(),
                     return_start: 0,
                     self_type: None,
+                    loop_prefix: None,
+                    inherit_async: false,
                 };
                 visitor.visit_file(&file.syntax);
                 findings.extend(visitor.findings);
@@ -104,9 +169,155 @@ impl TaskVisitor<'_> {
         )
     }
 
+    fn is_spawn_path(path: &str) -> bool {
+        matches!(path, "tokio::spawn" | "tokio::task::spawn")
+    }
+
+    fn is_blocking_spawn_path(path: &str) -> bool {
+        path == "tokio::task::spawn_blocking"
+    }
+
+    pub(crate) fn runs_off_async(path: &str) -> bool {
+        matches!(
+            path,
+            "tokio::task::spawn_blocking" | "tokio::task::block_in_place" | "std::thread::spawn"
+        )
+    }
+
+    fn is_foreign_crate(path: &crate::source::model::ExternalPath) -> bool {
+        !matches!(path.package.as_str(), "std" | "core" | "alloc")
+    }
+
+    fn is_boxed_closure(&self, argument: &syn::Expr) -> bool {
+        let syn::Expr::Call(call) = argument else {
+            return false;
+        };
+        let syn::Expr::Path(path) = &*call.func else {
+            return false;
+        };
+        matches!(call.args.first(), Some(syn::Expr::Closure(_)))
+            && self
+                .context
+                .resolve_external_call_paths(self.ordinal, self.module, &path.path)
+                .iter()
+                .any(|path| {
+                    matches!(
+                        path.format_path().as_str(),
+                        "std::boxed::Box::new" | "alloc::boxed::Box::new"
+                    )
+                })
+    }
+
+    fn boxed_to_foreign_function(&self, call: &syn::ExprCall, argument: &syn::Expr) -> bool {
+        let syn::Expr::Path(path) = &*call.func else {
+            return false;
+        };
+        self.is_boxed_closure(argument)
+            && self
+                .context
+                .resolve_external_call_paths(self.ordinal, self.module, &path.path)
+                .iter()
+                .any(Self::is_foreign_crate)
+    }
+
+    fn receiver_type(&self, expression: &syn::Expr) -> Option<syn::Type> {
+        match expression {
+            syn::Expr::Path(path) => self
+                .bindings
+                .iter()
+                .rev()
+                .find(|binding| path.path.is_ident(&binding.name))
+                .and_then(|binding| binding.typed.clone()),
+            syn::Expr::Reference(reference) => self.receiver_type(&reference.expr),
+            syn::Expr::Paren(paren) => self.receiver_type(&paren.expr),
+            syn::Expr::MethodCall(call) if call.method == "clone" => {
+                self.receiver_type(&call.receiver)
+            }
+            syn::Expr::Field(field) if matches!(&*field.base, syn::Expr::Path(path) if path.path.is_ident("self")) =>
+            {
+                let typed = self.self_type.as_ref()?;
+                self.context
+                    .resolve_workspace_type(self.ordinal, self.module, typed)
+                    .iter()
+                    .find_map(|target| {
+                        let item = &self.context.indexes[target.index].items[target.path.item?];
+                        let syn::Item::Struct(item) = &item.syntax else {
+                            return None;
+                        };
+                        item.fields
+                            .iter()
+                            .enumerate()
+                            .find_map(|(position, entry)| {
+                                let matching = match &field.member {
+                                    syn::Member::Named(name) => entry.ident.as_ref() == Some(name),
+                                    syn::Member::Unnamed(index) => position == index.index as usize,
+                                };
+                                matching.then(|| entry.ty.clone())
+                            })
+                    })
+            }
+            _ => None,
+        }
+    }
+
+    fn boxed_to_foreign_method(&self, call: &syn::ExprMethodCall, argument: &syn::Expr) -> bool {
+        self.is_boxed_closure(argument)
+            && self.receiver_type(&call.receiver).is_some_and(|typed| {
+                self.context
+                    .resolve_workspace_type(self.ordinal, self.module, &typed)
+                    .is_empty()
+                    && self
+                        .context
+                        .resolve_external_type_paths(self.ordinal, self.module, &typed)
+                        .iter()
+                        .any(Self::is_foreign_crate)
+            })
+    }
+
+    fn is_runtime_spawn(&self, call: &syn::ExprMethodCall) -> bool {
+        matches!(call.method.to_string().as_str(), "spawn" | "spawn_blocking")
+            && self.receiver_type(&call.receiver).is_some_and(|typed| {
+                self.context
+                    .resolve_outer_external_type_paths(self.ordinal, self.module, &typed)
+                    .iter()
+                    .any(|path| {
+                        matches!(
+                            path.format_path().as_str(),
+                            "tokio::runtime::Handle" | "tokio::runtime::Runtime"
+                        )
+                    })
+            })
+    }
+
     fn is_spawn(&self, expression: &syn::Expr) -> bool {
-        matches!(expression, syn::Expr::Call(call) if matches!(&*call.func, syn::Expr::Path(path)
-            if self.external(&path.path).as_deref() == Some("tokio::spawn")))
+        match expression {
+            syn::Expr::Paren(paren) => self.is_spawn(&paren.expr),
+            syn::Expr::Group(group) => self.is_spawn(&group.expr),
+            syn::Expr::Call(call) => matches!(&*call.func, syn::Expr::Path(path)
+                if self.external(&path.path).is_some_and(|path| Self::is_spawn_path(&path) || Self::is_blocking_spawn_path(&path))),
+            syn::Expr::MethodCall(call) => self.is_runtime_spawn(call),
+            _ => false,
+        }
+    }
+
+    fn is_workspace_receiver(&self, receiver: &syn::Expr) -> bool {
+        self.receiver_type(receiver).is_some_and(|typed| {
+            !self
+                .context
+                .resolve_workspace_type(self.ordinal, self.module, &typed)
+                .is_empty()
+        })
+    }
+
+    fn runs_local_logic(&self, effects: &ClosureEffects) -> bool {
+        effects.inline_logic
+            || self.local_self && effects.methods.iter().any(|call| matches!(&*call.receiver, syn::Expr::Path(path) if path.path.is_ident("self")))
+            || effects
+                .methods
+                .iter()
+                .any(|call| self.is_workspace_receiver(&call.receiver))
+            || effects.calls.iter().any(|call| matches!(&*call.func, syn::Expr::Path(path)
+                if matches!(self.context.indexes[self.ordinal].resolve_path(self.module, &path.path), Resolution::Internal(_))))
     }
 
     fn check_unwind(&mut self, expression: &syn::ExprCall, canonical: Option<&str>) {
@@ -120,10 +331,11 @@ impl TaskVisitor<'_> {
         {
             return;
         }
-        let calls_local = expression.args.iter().map(ClosureEffects::collect).any(|effects| effects.inline_logic
-            || self.local_self && effects.methods.iter().any(|call| matches!(&*call.receiver, syn::Expr::Path(path) if path.path.is_ident("self")))
-            || effects.calls.iter().any(|call| matches!(&*call.func, syn::Expr::Path(path)
-                if matches!(self.context.indexes[self.ordinal].resolve_path(self.module, &path.path), Resolution::Internal(_)))));
+        let calls_local = expression
+            .args
+            .iter()
+            .map(ClosureEffects::collect)
+            .any(|effects| self.runs_local_logic(&effects));
         if calls_local {
             self.report(expression.span());
         }
@@ -283,27 +495,182 @@ impl TaskVisitor<'_> {
             .collect()
     }
 
-    fn resolve_handle(&self, expression: &syn::Expr) -> Option<usize> {
-        let syn::Expr::Path(path) = expression else {
-            return None;
+    fn is_owning_call(&self, call: &syn::ExprCall) -> bool {
+        let syn::Expr::Path(path) = call.func.as_ref() else {
+            return false;
         };
-        self.bindings
-            .iter()
-            .rev()
-            .find(|(name, _, _)| path.path.is_ident(name))
-            .and_then(|(_, identity, _)| *identity)
+        path.path.is_ident("Some")
+            && matches!(
+                self.context.indexes[self.ordinal].resolve_path(self.module, &path.path),
+                Resolution::Local
+            )
+            || self
+                .context
+                .resolve_external_call_paths(self.ordinal, self.module, &path.path)
+                .iter()
+                .any(|path| {
+                    matches!(
+                        path.format_path().as_str(),
+                        "std::option::Option::Some"
+                            | "core::option::Option::Some"
+                            | "std::boxed::Box::new"
+                            | "alloc::boxed::Box::new"
+                    )
+                })
     }
 
-    fn consume_handle(&mut self, expression: &syn::Expr) {
-        if let Some(identity) = self.resolve_handle(expression) {
-            self.handles[identity].2 = true;
+    fn is_vec_macro(&self, mac: &syn::Macro) -> bool {
+        self.context
+            .resolve_external_call_paths(self.ordinal, self.module, &mac.path)
+            .iter()
+            .any(|path| matches!(path.format_path().as_str(), "std::vec" | "alloc::vec"))
+            || mac.path.is_ident("vec")
+                && matches!(
+                    self.context.indexes[self.ordinal].resolve_path(self.module, &mac.path),
+                    Resolution::Local
+                )
+    }
+
+    fn resolve_handles(&self, expression: &syn::Expr) -> Vec<usize> {
+        match expression {
+            syn::Expr::Path(path) => self
+                .bindings
+                .iter()
+                .rev()
+                .find(|binding| path.path.is_ident(&binding.name))
+                .map(|binding| binding.handles.clone())
+                .unwrap_or_default(),
+            syn::Expr::Call(call) if self.is_owning_call(call) => call
+                .args
+                .iter()
+                .flat_map(|argument| self.resolve_handles(argument))
+                .collect(),
+            syn::Expr::Array(array) => array
+                .elems
+                .iter()
+                .flat_map(|element| self.resolve_handles(element))
+                .collect(),
+            syn::Expr::Macro(mac) if self.is_vec_macro(&mac.mac) => parse_macro_arguments(&mac.mac)
+                .iter()
+                .flat_map(|argument| self.resolve_handles(argument))
+                .collect(),
+            syn::Expr::Paren(paren) => self.resolve_handles(&paren.expr),
+            syn::Expr::Group(group) => self.resolve_handles(&group.expr),
+            _ => Vec::new(),
+        }
+    }
+
+    fn collect_owned_handles(
+        &mut self,
+        expression: &syn::Expr,
+        span: proc_macro2::Span,
+    ) -> Vec<usize> {
+        if self.is_spawn(expression) {
+            let identity = self.handles.len();
+            self.handles.push((String::new(), span, false));
+            return vec![identity];
+        }
+        match expression {
+            syn::Expr::Call(call) if self.is_owning_call(call) => call
+                .args
+                .iter()
+                .flat_map(|argument| self.collect_owned_handles(argument, argument.span()))
+                .collect(),
+            syn::Expr::Array(array) => array
+                .elems
+                .iter()
+                .flat_map(|element| self.collect_owned_handles(element, element.span()))
+                .collect(),
+            syn::Expr::Macro(mac) if self.is_vec_macro(&mac.mac) => parse_macro_arguments(&mac.mac)
+                .iter()
+                .flat_map(|argument| self.collect_owned_handles(argument, argument.span()))
+                .collect(),
+            syn::Expr::Paren(paren) => self.collect_owned_handles(&paren.expr, span),
+            syn::Expr::Group(group) => self.collect_owned_handles(&group.expr, span),
+            _ => self.resolve_handles(expression),
+        }
+    }
+
+    fn resolve_ordered_handles(&self, expression: &syn::Expr) -> Option<Vec<usize>> {
+        match expression {
+            syn::Expr::Array(array) => array
+                .elems
+                .iter()
+                .map(|element| {
+                    let identities = self.resolve_handles(element);
+                    (identities.len() == 1).then(|| identities[0])
+                })
+                .collect(),
+            syn::Expr::Path(path) => self
+                .bindings
+                .iter()
+                .rev()
+                .find(|binding| path.path.is_ident(&binding.name))
+                .and_then(|binding| binding.is_ordered.then(|| binding.handles.clone())),
+            syn::Expr::Paren(paren) => self.resolve_ordered_handles(&paren.expr),
+            syn::Expr::Group(group) => self.resolve_ordered_handles(&group.expr),
+            _ => None,
+        }
+    }
+
+    fn has_ordered_handles(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Array(array) => array
+                .elems
+                .iter()
+                .all(|element| self.is_spawn(element) || self.resolve_handles(element).len() == 1),
+            syn::Expr::Paren(paren) => self.has_ordered_handles(&paren.expr),
+            syn::Expr::Group(group) => self.has_ordered_handles(&group.expr),
+            _ => self.resolve_ordered_handles(expression).is_some(),
+        }
+    }
+
+    fn is_straight_line_expression(expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Path(_) | syn::Expr::Lit(_) => true,
+            syn::Expr::Await(awaited) => Self::is_straight_line_expression(&awaited.base),
+            syn::Expr::Reference(reference) => Self::is_straight_line_expression(&reference.expr),
+            syn::Expr::Paren(paren) => Self::is_straight_line_expression(&paren.expr),
+            syn::Expr::Group(group) => Self::is_straight_line_expression(&group.expr),
+            syn::Expr::Call(call) => {
+                Self::is_straight_line_expression(&call.func)
+                    && call.args.iter().all(Self::is_straight_line_expression)
+            }
+            syn::Expr::MethodCall(call) => {
+                Self::is_straight_line_expression(&call.receiver)
+                    && call.args.iter().all(Self::is_straight_line_expression)
+            }
+            syn::Expr::Block(block) => {
+                block.label.is_none()
+                    && block
+                        .block
+                        .stmts
+                        .iter()
+                        .all(Self::is_straight_line_statement)
+            }
+            _ => false,
+        }
+    }
+
+    fn is_straight_line_statement(statement: &syn::Stmt) -> bool {
+        match statement {
+            syn::Stmt::Local(local) => local.init.as_ref().is_none_or(|init| {
+                init.diverge.is_none() && Self::is_straight_line_expression(&init.expr)
+            }),
+            syn::Stmt::Expr(expression, _) => Self::is_straight_line_expression(expression),
+            _ => false,
         }
     }
 
     fn shadow_pattern(&mut self, pattern: &syn::Pat) {
         match pattern {
             syn::Pat::Ident(name) => {
-                self.bindings.push((name.ident.to_string(), None, None));
+                self.bindings.push(LocalBinding {
+                    name: name.ident.to_string(),
+                    handles: Vec::new(),
+                    typed: None,
+                    is_ordered: false,
+                });
                 let environment = self.closures.len();
                 self.closures
                     .push((name.ident.to_string(), None, environment));
@@ -352,6 +719,68 @@ impl TaskVisitor<'_> {
         }
     }
 
+    fn record_loop_consumption(&mut self) {
+        if let Some(loop_prefix) = &mut self.loop_prefix {
+            loop_prefix.consumed = self
+                .handles
+                .iter()
+                .map(|(_, _, consumed)| *consumed)
+                .collect();
+        }
+    }
+
+    fn visit_ordered_array(&mut self, expression: &syn::ExprForLoop, identities: Vec<usize>) {
+        let prefix = expression
+            .body
+            .stmts
+            .iter()
+            .take_while(|statement| Self::is_straight_line_statement(statement))
+            .count();
+        let parent = self.loop_prefix.take();
+        for identity in identities {
+            let bindings = self.bindings.len();
+            let closures = self.closures.len();
+            let handles = self.handles.clone();
+            self.shadow_pattern(&expression.pat);
+            let binding = Self::pattern_name(&expression.pat).and_then(|name| {
+                self.bindings
+                    .iter_mut()
+                    .rev()
+                    .find(|binding| *name == binding.name)
+            });
+            if let Some(binding) = binding {
+                binding.handles = vec![identity];
+            }
+            self.loop_prefix = Some(LoopPrefix {
+                body: std::ptr::from_ref(&expression.body) as usize,
+                prefix,
+                consumed: handles.iter().map(|(_, _, consumed)| *consumed).collect(),
+            });
+            self.visit_block(&expression.body);
+            let consumed = self
+                .loop_prefix
+                .take()
+                .map(|loop_prefix| loop_prefix.consumed)
+                .unwrap_or_default();
+            self.bindings.truncate(bindings);
+            self.closures.truncate(closures);
+            self.handles = handles;
+            for (handle, consumed) in self.handles.iter_mut().zip(consumed) {
+                handle.2 |= consumed;
+            }
+            if prefix != expression.body.stmts.len() {
+                break;
+            }
+        }
+        self.loop_prefix = parent;
+    }
+
+    fn consume_handle(&mut self, expression: &syn::Expr) {
+        for identity in self.resolve_handles(expression) {
+            self.handles[identity].2 = true;
+        }
+    }
+
     fn bind_channel_sender(&mut self, local: &syn::Local) {
         let syn::Pat::Tuple(pattern) = &local.pat else {
             return;
@@ -376,53 +805,13 @@ impl TaskVisitor<'_> {
         {
             return;
         }
-        if let Some((_, _, typed)) = self
+        if let Some(binding) = self
             .bindings
             .iter_mut()
             .rev()
-            .find(|(binding, _, _)| *name == binding)
+            .find(|binding| *name == binding.name)
         {
-            *typed = Some(syn::parse_quote!(tokio::sync::mpsc::Sender<_>));
-        }
-    }
-
-    fn receiver_type(&self, expression: &syn::Expr) -> Option<syn::Type> {
-        match expression {
-            syn::Expr::Path(path) => self
-                .bindings
-                .iter()
-                .rev()
-                .find(|(name, _, _)| path.path.is_ident(name))
-                .and_then(|(_, _, typed)| typed.clone()),
-            syn::Expr::Reference(reference) => self.receiver_type(&reference.expr),
-            syn::Expr::Paren(paren) => self.receiver_type(&paren.expr),
-            syn::Expr::MethodCall(call) if call.method == "clone" => {
-                self.receiver_type(&call.receiver)
-            }
-            syn::Expr::Field(field) if matches!(&*field.base, syn::Expr::Path(path) if path.path.is_ident("self")) =>
-            {
-                let typed = self.self_type.as_ref()?;
-                self.context
-                    .resolve_workspace_type(self.ordinal, self.module, typed)
-                    .iter()
-                    .find_map(|target| {
-                        let item = &self.context.indexes[target.index].items[target.path.item?];
-                        let syn::Item::Struct(item) = &item.syntax else {
-                            return None;
-                        };
-                        item.fields
-                            .iter()
-                            .enumerate()
-                            .find_map(|(position, entry)| {
-                                let matching = match &field.member {
-                                    syn::Member::Named(name) => entry.ident.as_ref() == Some(name),
-                                    syn::Member::Unnamed(index) => position == index.index as usize,
-                                };
-                                matching.then(|| entry.ty.clone())
-                            })
-                    })
-            }
-            _ => None,
+            binding.typed = Some(syn::parse_quote!(tokio::sync::mpsc::Sender<_>));
         }
     }
 
@@ -434,36 +823,35 @@ impl TaskVisitor<'_> {
                 .as_ref()
                 .and_then(|init| self.receiver_type(&init.expr)),
         };
-        let alias = local
+        let handle = local
             .init
             .as_ref()
-            .and_then(|init| self.resolve_handle(&init.expr));
-        let handle = if self.rule == "DetachedTask"
-            && Self::pattern_name(&local.pat).is_some()
-            && local
-                .init
-                .as_ref()
-                .is_some_and(|init| self.is_spawn(&init.expr))
-        {
-            let identity = self.handles.len();
-            self.handles.push((String::new(), local.span(), false));
-            Some(identity)
-        } else {
-            alias
-        };
+            .map(|init| {
+                if self.rule == "DetachedTask" && Self::pattern_name(&local.pat).is_some() {
+                    self.collect_owned_handles(&init.expr, local.span())
+                } else {
+                    self.resolve_handles(&init.expr)
+                }
+            })
+            .unwrap_or_default();
+        let ordered = local
+            .init
+            .as_ref()
+            .is_some_and(|init| self.has_ordered_handles(&init.expr));
         self.shadow_pattern(&local.pat);
         self.bind_channel_sender(local);
         let Some(name) = Self::pattern_name(&local.pat) else {
             return;
         };
-        if let Some((_, identity, bound_type)) = self
+        if let Some(binding) = self
             .bindings
             .iter_mut()
             .rev()
-            .find(|(binding, _, _)| *name == binding)
+            .find(|binding| *name == binding.name)
         {
-            *identity = handle;
-            *bound_type = typed;
+            binding.handles = handle;
+            binding.typed = typed;
+            binding.is_ordered = ordered;
         }
         if self.rule == "CallbackBridgeShape" {
             let closure = local.init.as_ref().and_then(|init| match &*init.expr {
@@ -677,7 +1065,7 @@ impl TaskVisitor<'_> {
             .bindings
             .iter()
             .rev()
-            .any(|(name, _, _)| path.path.is_ident(name))
+            .any(|binding| path.path.is_ident(&binding.name))
         {
             return false;
         }
@@ -755,11 +1143,15 @@ impl TaskVisitor<'_> {
             return;
         }
         if is_drop {
-            let span = self.resolve_handle(argument).and_then(|identity| {
-                let (_, span, consumed) = self.handles[identity];
-                (!consumed).then_some(span)
-            });
-            if let Some(span) = span {
+            let spans = self
+                .resolve_handles(argument)
+                .into_iter()
+                .filter_map(|identity| {
+                    let (_, span, consumed) = self.handles[identity];
+                    (!consumed).then_some(span)
+                })
+                .collect::<Vec<_>>();
+            for span in spans {
                 self.report(span);
             }
         }
@@ -767,7 +1159,8 @@ impl TaskVisitor<'_> {
     }
 
     fn call_violation(&self, canonical: Option<&str>) -> bool {
-        let spawn = canonical == Some("tokio::spawn");
+        let spawn = canonical.is_some_and(Self::is_spawn_path);
+        let detached = spawn || canonical.is_some_and(Self::is_blocking_spawn_path);
         match self.rule {
             "ThreadPrimitive" => {
                 self.thread_expect
@@ -778,7 +1171,7 @@ impl TaskVisitor<'_> {
                         self.module,
                     )
             }
-            "DetachedTask" => spawn && self.discard,
+            "DetachedTask" => detached && self.discard,
             "BridgeCleanup" => spawn && self.drop_context,
             "CallbackBridgeShape" => spawn && self.callback_depth > 0,
             "BlockingCallInAsync" => {
@@ -801,13 +1194,13 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
         };
         self.shadow_pattern(&parameter.pat);
         if let Some(name) = Self::pattern_name(&parameter.pat)
-            && let Some((_, _, typed)) = self
+            && let Some(binding) = self
                 .bindings
                 .iter_mut()
                 .rev()
-                .find(|(binding, _, _)| *name == binding)
+                .find(|binding| *name == binding.name)
         {
-            *typed = Some((*parameter.ty).clone());
+            binding.typed = Some((*parameter.ty).clone());
         }
     }
     fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {
@@ -846,7 +1239,24 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
         let closures = self.closures.len();
         let bindings = self.bindings.len();
         let length = self.handles.len();
-        syn::visit::visit_block(self, block);
+        let capture = self
+            .loop_prefix
+            .as_ref()
+            .filter(|loop_prefix| loop_prefix.body == std::ptr::from_ref(block) as usize)
+            .map(|loop_prefix| loop_prefix.prefix);
+        if let Some(prefix) = capture {
+            for (position, statement) in block.stmts.iter().enumerate() {
+                if position == prefix {
+                    self.record_loop_consumption();
+                }
+                self.visit_stmt(statement);
+            }
+            if prefix == block.stmts.len() {
+                self.record_loop_consumption();
+            }
+        } else {
+            syn::visit::visit_block(self, block);
+        }
         if let Some(syn::Stmt::Expr(value, None)) = block.stmts.last() {
             self.consume_handle(value);
         }
@@ -866,6 +1276,15 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
 
     fn visit_expr_for_loop(&mut self, expression: &'ast syn::ExprForLoop) {
         self.visit_expr(&expression.expr);
+        let handle_pattern = Self::pattern_name(&expression.pat).is_some();
+        let inspect_order = self.rule == "DetachedTask" && handle_pattern;
+        let identities = inspect_order
+            .then(|| self.resolve_ordered_handles(&expression.expr))
+            .flatten();
+        if let Some(identities) = identities {
+            self.visit_ordered_array(expression, identities);
+            return;
+        }
         let bindings = self.bindings.len();
         let closures = self.closures.len();
         let handles = self.handles.clone();
@@ -1068,7 +1487,8 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
             self.shadow_pattern(parameter);
         }
         let parent = self.async_context;
-        self.async_context = expression.asyncness.is_some();
+        let inherited = std::mem::take(&mut self.inherit_async);
+        self.async_context = expression.asyncness.is_some() || inherited;
         syn::visit::visit_expr_closure(self, expression);
         self.async_context = parent;
         self.bindings.truncate(bindings);
@@ -1119,13 +1539,18 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
         let is_drop = canonical
             .as_deref()
             .is_some_and(|path| matches!(path, "std::mem::drop" | "core::mem::drop"));
+        let inherit_async =
+            self.async_context && !canonical.as_deref().is_some_and(Self::runs_off_async);
         for (position, argument) in expression.args.iter().enumerate() {
             let registered = self.rule == "CallbackBridgeShape"
-                && self.call_registers_callback(expression, position);
+                && (self.call_registers_callback(expression, position)
+                    || self.boxed_to_foreign_function(expression, argument));
             if registered {
                 self.visit_callback_argument(argument);
             }
-            self.consume_argument(argument, is_drop);
+            if self.rule != "DetachedTask" || !self.is_owning_call(expression) {
+                self.consume_argument(argument, is_drop);
+            }
             if self.rule == "DetachedTask" && is_drop && self.is_spawn(argument) {
                 self.report(argument.span());
                 let parent = self.discard;
@@ -1133,11 +1558,15 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
                 self.visit_expr(argument);
                 self.discard = parent;
             } else {
-                let callback = registered && matches!(argument, syn::Expr::Closure(_));
+                let callback = registered
+                    && (matches!(argument, syn::Expr::Closure(_))
+                        || self.is_boxed_closure(argument));
                 self.callback_depth += usize::from(callback);
                 let parent = self.discard;
                 self.discard = false;
+                self.inherit_async = inherit_async && matches!(argument, syn::Expr::Closure(_));
                 self.visit_expr(argument);
+                self.inherit_async = false;
                 self.discard = parent;
                 self.callback_depth -= usize::from(callback);
             }
@@ -1161,22 +1590,34 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
         {
             self.report(expression.span());
         }
+        if self.rule == "DetachedTask" && self.discard && self.is_runtime_spawn(expression) {
+            self.report(expression.span());
+        }
         if expression.method == "abort" {
             self.consume_handle(&expression.receiver);
         }
         let discard = self.discard;
         self.discard = false;
         self.visit_expr(&expression.receiver);
+        let inherit_async = self.async_context
+            && !matches!(
+                expression.method.to_string().as_str(),
+                "spawn" | "spawn_blocking" | "spawn_scoped"
+            );
         for (position, argument) in expression.args.iter().enumerate() {
             let registered = self.rule == "CallbackBridgeShape"
-                && self.method_registers_callback(expression, position);
+                && (self.method_registers_callback(expression, position)
+                    || self.boxed_to_foreign_method(expression, argument));
             if registered {
                 self.visit_callback_argument(argument);
             }
             self.consume_handle(argument);
-            let callback = registered && matches!(argument, syn::Expr::Closure(_));
+            let callback = registered
+                && (matches!(argument, syn::Expr::Closure(_)) || self.is_boxed_closure(argument));
             self.callback_depth += usize::from(callback);
+            self.inherit_async = inherit_async && matches!(argument, syn::Expr::Closure(_));
             self.visit_expr(argument);
+            self.inherit_async = false;
             self.callback_depth -= usize::from(callback);
         }
         self.discard = discard;
@@ -1187,4 +1628,17 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
             self.visit_expr(argument);
         }
     }
+}
+
+struct LocalBinding {
+    name: String,
+    handles: Vec<usize>,
+    typed: Option<syn::Type>,
+    is_ordered: bool,
+}
+
+struct LoopPrefix {
+    body: usize,
+    prefix: usize,
+    consumed: Vec<bool>,
 }

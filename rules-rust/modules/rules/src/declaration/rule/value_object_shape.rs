@@ -1,5 +1,6 @@
 use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
+use crate::module::rule::InvariantVisitor;
 use crate::module::util::{
     build_shape_item_finding, find_kind_name, is_model_item, owns_implementation,
 };
@@ -63,7 +64,7 @@ impl ValueObjectShape {
 
     fn has_invariant(context: &RuleContext, ordinal: usize, identity: usize) -> bool {
         let index = &context.indexes[ordinal];
-        is_model_item(context, ordinal, &index.items[identity]) && index.implementations.iter().filter(|implementation| implementation.syntax.trait_.is_none() && owns_implementation(index, identity, implementation)).any(|implementation| implementation.syntax.items.iter().any(|method| matches!(method, ImplItem::Fn(method) if method.sig.ident == "new" && method.block.stmts.iter().any(Self::is_assert))))
+        is_model_item(context, ordinal, &index.items[identity]) && index.implementations.iter().filter(|implementation| implementation.syntax.trait_.is_none() && owns_implementation(index, identity, implementation)).any(|implementation| implementation.syntax.items.iter().any(|method| matches!(method, ImplItem::Fn(method) if method.sig.ident == "new" && InvariantVisitor::calls_assertion(&method.block))))
     }
 
     fn parser_returns(
@@ -86,8 +87,10 @@ impl ValueObjectShape {
 
     fn is_assert(statement: &Stmt) -> bool {
         match statement {
-            Stmt::Macro(statement) => statement.mac.path.is_ident("assert"),
-            Stmt::Expr(Expr::Macro(expression), _) => expression.mac.path.is_ident("assert"),
+            Stmt::Macro(statement) => InvariantVisitor::is_assertion(&statement.mac.path),
+            Stmt::Expr(Expr::Macro(expression), _) => {
+                InvariantVisitor::is_assertion(&expression.mac.path)
+            }
             _ => false,
         }
     }
@@ -162,7 +165,7 @@ impl ValueObjectShape {
             })
             .collect();
         let constructor = methods.iter().find(|method| {
-            method.sig.ident == "new" && method.block.stmts.iter().any(Self::is_assert)
+            method.sig.ident == "new" && InvariantVisitor::calls_assertion(&method.block)
         })?;
         let exposed = structure
             .fields
@@ -276,6 +279,19 @@ impl<'ast> syn::visit::Visit<'ast> for ParserConstructionVisitor<'_> {
         syn::visit::visit_expr_return(self, returned);
     }
 
+    fn visit_expr_try(&mut self, attempt: &'ast syn::ExprTry) {
+        self.checked |= matches!(attempt.expr.as_ref(), Expr::Call(_) | Expr::MethodCall(_));
+        syn::visit::visit_expr_try(self, attempt);
+    }
+
+    fn visit_expr_match(&mut self, matched: &'ast syn::ExprMatch) {
+        self.checked |= matched
+            .arms
+            .iter()
+            .any(|arm| rejects_with_err(arm.body.as_ref()));
+        syn::visit::visit_expr_match(self, matched);
+    }
+
     fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
         if let Expr::Path(path) = call.func.as_ref() {
             let mut path = path.path.clone();
@@ -302,4 +318,12 @@ impl<'ast> syn::visit::Visit<'ast> for ParserConstructionVisitor<'_> {
 
     fn visit_expr_closure(&mut self, _: &'ast syn::ExprClosure) {}
     fn visit_expr_async(&mut self, _: &'ast syn::ExprAsync) {}
+}
+
+fn rejects_with_err(expression: &Expr) -> bool {
+    let rejection = match expression {
+        Expr::Return(returned) => returned.expr.as_deref(),
+        other => Some(other),
+    };
+    matches!(rejection, Some(Expr::Call(call)) if matches!(call.func.as_ref(), Expr::Path(path) if path.path.is_ident("Err")))
 }

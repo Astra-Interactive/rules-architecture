@@ -37,3 +37,13 @@ fn given_prescribed_code_when_checked_then_passes() {
         &[],
     );
 }
+
+#[test]
+fn given_tdd_rustdoc_html_multiline_tag_when_checked_then_reports_opening_line() {
+    assert_code_findings(
+        &RustdocHtmlTag,
+        "RustdocHtmlTag",
+        "/// <br\n/// class=\"spacing\">\npub fn render() {}",
+        &[1],
+    );
+}

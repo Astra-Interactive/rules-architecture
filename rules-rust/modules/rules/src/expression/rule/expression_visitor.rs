@@ -5,6 +5,7 @@ use crate::check::util::format_module_path;
 use crate::source::model::SourceFile;
 use crate::source::util::find_node_span;
 use crate::source::util::parse_macro_arguments;
+use std::collections::HashSet;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
 
@@ -12,6 +13,8 @@ pub(crate) struct ExpressionVisitor<'source> {
     file: &'source SourceFile,
     rule: &'static str,
     findings: Vec<RuleFinding>,
+    operator_traits: HashSet<&'static str>,
+    trailing_call: bool,
 }
 
 impl ExpressionVisitor<'_> {
@@ -44,12 +47,8 @@ impl ExpressionVisitor<'_> {
         if self.rule != "BooleanOperatorWrapping" {
             return;
         }
-        let syn::Expr::Binary(binary) = condition else {
-            return;
-        };
-        let is_boolean = matches!(binary.op, syn::BinOp::And(_) | syn::BinOp::Or(_));
         let is_multiline = condition.span().start().line != condition.span().end().line;
-        if is_boolean && is_multiline && !Self::is_simple_operand(condition) {
+        if is_multiline && !Self::is_simple_operand(condition) {
             self.report(condition.span(), "Split complex multiline boolean clauses into guards and named values (clean-code.rs.md)");
         }
     }
@@ -83,6 +82,93 @@ impl ExpressionVisitor<'_> {
             .any(|word| name == word)
     }
 
+    fn is_method_call(expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::MethodCall(_) => true,
+            syn::Expr::Paren(paren) => Self::is_method_call(&paren.expr),
+            syn::Expr::Group(group) => Self::is_method_call(&group.expr),
+            syn::Expr::Try(attempt) => Self::is_method_call(&attempt.expr),
+            syn::Expr::Await(awaited) => Self::is_method_call(&awaited.base),
+            _ => false,
+        }
+    }
+
+    fn find_operator_trait(name: &syn::Ident) -> Option<&'static str> {
+        ["Add", "Sub", "Mul", "Div", "Rem"]
+            .into_iter()
+            .find(|word| name == word)
+    }
+
+    fn find_method_trait(method: &syn::Ident) -> Option<&'static str> {
+        match method.to_string().as_str() {
+            "add" => Some("Add"),
+            "sub" => Some("Sub"),
+            "mul" => Some("Mul"),
+            "div" => Some("Div"),
+            "rem" => Some("Rem"),
+            _ => None,
+        }
+    }
+
+    fn is_operator_module(prefix: &[String]) -> bool {
+        let [root, module] = prefix else {
+            return false;
+        };
+        (root == "std" || root == "core") && module == "ops"
+    }
+
+    fn collect_operator_traits(
+        tree: &syn::UseTree,
+        prefix: &[String],
+        traits: &mut HashSet<&'static str>,
+    ) {
+        let in_ops = Self::is_operator_module(prefix);
+        match tree {
+            syn::UseTree::Path(path) => {
+                let mut prefix = prefix.to_vec();
+                prefix.push(path.ident.to_string());
+                Self::collect_operator_traits(&path.tree, &prefix, traits);
+            }
+            syn::UseTree::Group(group) => {
+                for tree in &group.items {
+                    Self::collect_operator_traits(tree, prefix, traits);
+                }
+            }
+            syn::UseTree::Name(name) if in_ops => {
+                traits.extend(Self::find_operator_trait(&name.ident));
+            }
+            syn::UseTree::Rename(rename) if in_ops => {
+                traits.extend(Self::find_operator_trait(&rename.ident));
+            }
+            syn::UseTree::Glob(_) if in_ops => traits.extend(["Add", "Sub", "Mul", "Div", "Rem"]),
+            _ => {}
+        }
+    }
+
+    fn collect_operator_imports(items: &[syn::Item]) -> HashSet<&'static str> {
+        let mut traits = HashSet::new();
+        for item in items {
+            match item {
+                syn::Item::Use(import) => {
+                    Self::collect_operator_traits(&import.tree, &[], &mut traits);
+                }
+                syn::Item::Mod(module) => {
+                    if let Some((_, children)) = &module.content {
+                        traits.extend(Self::collect_operator_imports(children));
+                    }
+                }
+                _ => {}
+            }
+        }
+        traits
+    }
+
+    fn is_imported_operator_call(&self, call: &syn::ExprMethodCall) -> bool {
+        call.args.len() == 1
+            && Self::find_method_trait(&call.method)
+                .is_some_and(|name| self.operator_traits.contains(name))
+    }
+
     pub(crate) fn check_context(context: &RuleContext, rule: &'static str) -> Vec<RuleFinding> {
         let mut findings = Vec::new();
         for file in context.crates.iter().flat_map(|sources| &sources.files) {
@@ -90,6 +176,8 @@ impl ExpressionVisitor<'_> {
                 file,
                 rule,
                 findings: Vec::new(),
+                operator_traits: Self::collect_operator_imports(&file.syntax.items),
+                trailing_call: false,
             };
             visitor.visit_file(&file.syntax);
             findings.extend(visitor.findings);
@@ -144,6 +232,7 @@ impl<'ast> Visit<'ast> for ExpressionVisitor<'_> {
     }
 
     fn visit_expr_method_call(&mut self, expression: &'ast syn::ExprMethodCall) {
+        let has_trailing_call = std::mem::take(&mut self.trailing_call);
         if self.rule == "OperatorBeforeTrailingCall" {
             let parenthesized_arithmetic = matches!(&*expression.receiver,
                 syn::Expr::Paren(paren) if matches!(&*paren.expr,
@@ -151,10 +240,16 @@ impl<'ast> Visit<'ast> for ExpressionVisitor<'_> {
             let chained_arithmetic = Self::is_arithmetic_method(&expression.method)
                 && matches!(&*expression.receiver, syn::Expr::MethodCall(receiver)
                     if Self::is_arithmetic_method(&receiver.method));
-            if parenthesized_arithmetic || chained_arithmetic {
+            let lone_call = !has_trailing_call && self.is_imported_operator_call(expression);
+            if parenthesized_arithmetic || chained_arithmetic || lone_call {
                 self.report(expression.span(), "Use one arithmetic method before a trailing call, or name a multi-operator result first (clean-code.rs.md)");
             }
         }
-        syn::visit::visit_expr_method_call(self, expression);
+        self.trailing_call = Self::is_method_call(&expression.receiver);
+        self.visit_expr(&expression.receiver);
+        self.trailing_call = false;
+        for argument in &expression.args {
+            self.visit_expr(argument);
+        }
     }
 }

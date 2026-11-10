@@ -118,6 +118,51 @@ fn given_watch_sender_aliases_when_kind_checked_then_entry_point_ownership_is_pr
 }
 
 #[test]
+fn given_a_third_concept_level_when_checked_then_only_the_third_level_reports() {
+    let context = read_shape_context(
+        "pub(crate) mod billing {\n    pub(crate) mod invoice {\n        pub(crate) mod line {\n            pub(crate) mod model {\n                pub(crate) use invoice_line::InvoiceLine;\n                mod invoice_line;\n            }\n        }\n    }\n}\npub(crate) mod shipping {\n    pub(crate) mod parcel {\n        pub(crate) mod model {\n            pub(crate) use parcel_record::ParcelRecord;\n            mod parcel_record;\n        }\n    }\n}",
+        &[
+            (
+                "billing/invoice/line/model/invoice_line.rs",
+                "pub(crate) struct InvoiceLine;",
+            ),
+            (
+                "shipping/parcel/model/parcel_record.rs",
+                "pub(crate) struct ParcelRecord;",
+            ),
+        ],
+    );
+    let findings = KindShape.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!("KindShape", findings[0].finding.rule_id.0);
+    assert_eq!(
+        findings[0].finding.subject,
+        "case_sample::billing::invoice::line"
+    );
+    assert_eq!(Some(3), findings[0].finding.location.line);
+}
+
+#[test]
+fn given_state_holder_interface_in_app_api_component_when_checked_then_only_the_struct_in_that_kind_reports()
+ {
+    let mut context = read_shape_context(
+        "mod offer { pub mod component { pub trait OfferComponent: Send + Sync { fn offer_count(&self) -> u32; } } }\nmod stock { pub mod component { pub struct StockComponent; } }",
+        &[],
+    );
+    context.project_config.crates[0].role = Some(crate::config::model::Role::Api);
+    context.workspace.root_manifest = crate::workspace::util::parse_toml_file(
+        "Cargo.toml",
+        "[workspace.metadata.klibs-rules]\nproduct-kind=\"app\"\nentry-point-words=[\"component\"]\n",
+    )
+    .expect("manifest");
+    let findings = KindShape.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!("KindShape", findings[0].finding.rule_id.0);
+    assert_eq!(findings[0].finding.subject, "case_sample::stock::component");
+    assert_eq!(Some(2), findings[0].finding.location.line);
+}
+
+#[test]
 fn given_cfg_specific_field_alias_when_checked_then_incompatible_watch_sender_alias_is_not_used() {
     crate::test::module::util::assert_di_lines(
         &crate::module::rule::KindShape,

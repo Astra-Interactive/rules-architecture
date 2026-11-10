@@ -33,6 +33,42 @@ fn given_global_state_alias_and_unrelated_mutex_when_checked_then_only_resolved_
 }
 
 #[test]
+fn given_immutable_static_service_when_checked_then_it_is_reported_and_plain_number_is_not() {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::GlobalState,
+        "mod api { pub trait Client { fn read(&self) -> std::io::Result<String>; } }\nstruct FileClient;\nimpl crate::api::Client for FileClient { fn read(&self) -> std::io::Result<String> { std::fs::read_to_string(\"input\") } }\nstatic CLIENT: FileClient = FileClient;\nstatic LIMIT: u64 = 1;",
+        &[4],
+    );
+}
+
+#[test]
+fn given_static_mut_when_checked_then_it_is_reported_and_plain_static_is_not() {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::GlobalState,
+        "pub static mut COUNTER: u64 = 0;\nstatic LIMIT: u64 = 1;",
+        &[1],
+    );
+}
+
+#[test]
+fn given_function_local_statics_when_checked_then_each_is_reported_once() {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::GlobalState,
+        "use std::sync::atomic::{AtomicU64, Ordering};\nstatic GLOBAL: std::sync::Mutex<u64> = std::sync::Mutex::new(0);\nfn next_id() -> u64 {\n    static NEXT: AtomicU64 = AtomicU64::new(0);\n    NEXT.fetch_add(1, Ordering::Relaxed)\n}\nfn instance() -> &'static String {\n    static CELL: std::sync::OnceLock<String> = std::sync::OnceLock::new();\n    CELL.get_or_init(String::new)\n}",
+        &[2, 4, 8],
+    );
+}
+
+#[test]
+fn given_logging_install_spellings_outside_main_when_checked_then_each_is_reported() {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::GlobalState,
+        "fn first() { tracing_subscriber::fmt::init(); }\nfn second() { tracing_subscriber::fmt().try_init(); }\nfn third() { log::set_logger(todo!()); }\nfn helper() { tracing_subscriber::fmt().init(); }",
+        &[1, 2, 3, 4],
+    );
+}
+
+#[test]
 fn given_persistent_di_policy_pairs_when_checked_then_exact_nodes_and_subjects_match() {
     for half in ["bad", "good"] {
         crate::test::module::util::assert_di_fixture(

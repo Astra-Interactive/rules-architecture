@@ -10,6 +10,7 @@ use crate::workspace::model::Member;
 use crate::workspace::model::TomlKind;
 use crate::workspace::model::TomlValue;
 use crate::workspace::model::Workspace;
+use std::fs;
 
 pub(crate) struct UnitReadme;
 
@@ -62,8 +63,26 @@ impl UnitReadme {
         Some(Self::build_finding(member, location, message))
     }
 
-    fn check_readme_text(member: &Member) -> Option<RuleFinding> {
-        let Some(readme) = &member.readme else {
+    fn read_inherited_readme(workspace: &Workspace, member: &Member) -> Option<String> {
+        let declared = member.manifest.root.find(&["package", "readme"])?;
+        let inherits = declared
+            .find(&["workspace"])
+            .and_then(TomlValue::as_bool)
+            .unwrap_or(false);
+        if !inherits {
+            return None;
+        }
+        let shared = workspace
+            .root_manifest
+            .root
+            .find(&["workspace", "package", "readme"])?;
+        let path = shared.as_str()?;
+        fs::read_to_string(workspace.root.join(path)).ok()
+    }
+
+    fn check_readme_text(workspace: &Workspace, member: &Member) -> Option<RuleFinding> {
+        let inherited = Self::read_inherited_readme(workspace, member);
+        let Some(readme) = inherited.as_ref().or(member.readme.as_ref()) else {
             let location = Location {
                 path: member.directory.clone(),
                 line: None,
@@ -103,7 +122,7 @@ impl Rule for UnitReadme {
             .flat_map(|member| {
                 [
                     Self::check_readme_key(&context.workspace, member),
-                    Self::check_readme_text(member),
+                    Self::check_readme_text(&context.workspace, member),
                 ]
             })
             .flatten()
