@@ -2,7 +2,7 @@
 # `cargo xtask gate-sync --docs <conf.ide>/.claude/docs` rewrites sha256 and conf-ide-commit; the rest is reviewed by hand.
 
 [sync]
-conf-ide-commit = "b0011a8"
+conf-ide-commit = "e27861e"
 
 [[example]]
 claim = "arch-package.rs:Modules:5"
@@ -108,7 +108,7 @@ half = "good"
 lines = "1-26"
 split = "files"
 wrap = "file"
-sha256 = "9370b4e86b09a2c88b0a0f2d74f979295dbecbc689092d79c6eb31cf529f6674"
+sha256 = "b99a6039b80d5123b92bfdd6484fe971d172081bd59838093bdd3fc91a833274"
 expected = []
 review = []
 [[example.fragment]]
@@ -118,7 +118,7 @@ fixture-lines = "1-1"
 [[example.fragment]]
 path = "modules/good/arch-domain-rs/src/invoice/model/invoice.rs"
 block-lines = "2-8"
-fixture-lines = "6-12"
+fixture-lines = "5-11"
 [[example.fragment]]
 path = "modules/good/arch-domain-rs/src/invoice/util/invoice_ext.rs"
 block-lines = "10-10"

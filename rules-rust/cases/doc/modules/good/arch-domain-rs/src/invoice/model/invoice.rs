@@ -2,8 +2,7 @@
 use crate::invoice::model::{InvoiceId, Money};
 use std::time::SystemTime;
 
-#[derive(Hash)]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct Invoice {
     pub(crate) id: InvoiceId,
     pub(crate) total: Money,
