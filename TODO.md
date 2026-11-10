@@ -15,17 +15,19 @@ wrongly, at `master` `7c2d81e`. Sections are named after the document; every ite
     linter; it is still not in the code.
   - `not mechanical`: the audit found no rule and judged that a checker cannot tell the case without a
     classifier.
+  - `candidate (round 11)`: found by the round 11 auditors after this list was first written; no decision and
+    no test. The confidence is the auditor's own.
 - **Doc** lines are those of `.claude/docs` on 2026-11-10 and were read for this file. **Rule** paths are under
   `rules-rust/modules/rules/src/` and **Test** paths under `rules-rust/modules/rules/test/`; both are copied from
   the audit and were not reopened.
-- Every round 9–10 case comes from reading the linter's source. None is confirmed by a run.
+- Every case of rounds 9–11 comes from reading the linter's source. None is confirmed by a run.
 
 Sources, under `.claude/reports/rust-linter-research/`: the ledger `uncovered-rust-doc-cases.md` (statuses),
-`reaudit-2026-11-10/seat-{t,s,a}.md` and `r10-seat-{t,s,a}.md` (the write-up of each case under
-`#### <ID>`), `claude-tdd-tracker.md` (case → test), `decisions.md` (F1–F31).
+`reaudit-2026-11-10/seat-{t,s,a}.md`, `r10-seat-{t,s,a}.md` and `r11-seat-{t,s,a}.md` (the write-up of each
+case under `#### <ID>`), `claude-tdd-tracker.md` (case → test), `decisions.md` (F1–F31).
 
-Totals: 63 items. 47 cases of rounds 9–10 (27 `test written`, 20 `undecided`; 9A01 is half and half), 7
-`closed by decision`, 9 `not mechanical`.
+Totals: 85 items. 47 cases of rounds 9–10 (27 `test written`, 20 `undecided`; 9A01 is half and half), 7
+`closed by decision`, 9 `not mechanical`, 22 `candidate (round 11)`.
 
 ## arch-context.md
 
@@ -70,6 +72,12 @@ Totals: 63 items. 47 cases of rounds 9–10 (27 `test written`, 20 `undecided`; 
     (`fn is_expired(invoice: Invoice, now: SystemTime) -> bool`) is accepted; only one-parameter functions are
     checked.
   - Rule: `UtilFunctionAsExtension`, `module/rule/util_function_as_extension.rs:18–23`
+- [ ] **11S03** — missed · candidate (round 11), confidence low to medium
+  - Doc (`arch-domain.md:101–102`): "The word `Service` appears in no type name, except for a component the
+    platform runs on its own lifecycle, which lives in `service/`."
+  - Gap: the exemption is tested against the words of the crate name too, so every type of a crate named
+    `…-service` may carry `Service` (`PaymentService` in `usecase`).
+  - Rule: `KindNameInPackage`, `naming/rule/name_visitor.rs:93–134`
 
 ## arch-domain.rs.md
 
@@ -121,7 +129,8 @@ Totals: 63 items. 47 cases of rounds 9–10 (27 `test written`, 20 `undecided`; 
   - Test: `module/rule/plural_package_name_test.rs` ·
     `given_concept_names_ending_in_as_when_checked_then_reports_only_the_real_plural`
 - See also **9T03** under `arch-package.rs.md` (`arch-package.md:75–76`), **10T04** and **10T11** under
-  `arch-context.md` (`arch-package.md:200`, `:55–56`).
+  `arch-context.md` (`arch-package.md:200`, `:55–56`), **11A05** and **11S06** under `error-handling.rs.md`
+  (`arch-package.md:255–256`).
 
 ## arch-package.rs.md
 
@@ -195,6 +204,13 @@ Totals: 63 items. 47 cases of rounds 9–10 (27 `test written`, 20 `undecided`; 
   - Gap: a package key (`edition`, `license`, …) written with the same literal in two members while the root
     declares none is accepted. The dependency half of 7T06 is fixed.
   - Rule: `RootBuildSubprojects`, `layout/rule/root_build_subprojects.rs`
+- [ ] **11T03** — missed · candidate (round 11), confidence medium to low (a private double of a foreign trait
+  may be meant as allowed)
+  - Doc (`arch-package.rs.md:321–323`): "A fake that tests of other crates need lives in the fixture tree of the
+    crate that owns the trait … and never copied into each consumer."
+  - Gap: a `Fake…` in a consumer crate's test tree that implements another workspace crate's trait is accepted;
+    the cross-crate condition is applied to the fixture tree only.
+  - Rule: `FakePlacement`, `module/rule/fake_placement.rs:14–74`
 
 ## async.rs.md
 
@@ -225,6 +241,31 @@ Totals: 63 items. 47 cases of rounds 9–10 (27 `test written`, 20 `undecided`; 
 - [ ] **seat A row 32** — no rule · not mechanical (choosing the primitive is semantic)
   - Doc (`async.rs.md:210–212`): "State a reader observes is a `watch` channel … A counter or a flag is an
     atomic. A resource that one task can own … is owned by that task and reached through an `mpsc` channel."
+- [ ] **11A03** — missed · candidate (round 11), confidence low to medium
+  - Doc (`async.rs.md:217–218`): "A synchronous function on a runtime thread (a `Drop`, a synchronous
+    `on_disable`) cannot lock it: `blocking_lock` panics there."
+  - Gap: only `Mutex::blocking_lock` inside `drop` or `on_disable` is reported. `RwLock::blocking_read` and
+    `blocking_write` are not looked at, nor are `on_enable` and `on_reload`. Document conflict:
+    `di-manual.rs.md:100–106` runs `on_disable` after `block_on`, off the runtime.
+  - Rule: `BlockingLockInSync`, `runtime/rule/typed_runtime_visitor.rs:1268–1310,1455–1461`
+- [ ] **11A11** — missed · candidate (round 11), confidence low to medium
+  - Doc (`async.rs.md:11–13`): "It never wraps a read that returns at once, `wait_for(|_| true)` or an `async`
+    block with no `.await` in it"
+  - Gap: `tokio::time::timeout_at` is not named, and `timeout(d, async { receiver.wait_for(|_| true).await })`
+    passes because the block holds an `.await`.
+  - Rule: `WatchTimeout`, `runtime/rule/typed_runtime_visitor.rs:968–1010,1508–1511`
+- [ ] **11A09** — missed · candidate (round 11), confidence low (the document names `tokio::spawn` only)
+  - Doc (`async.rs.md:122–123`): "`tokio::spawn` whose `JoinHandle` is dropped (a bare statement, `let _ =`,
+    `drop(…)`) detaches the task: nothing stops it, and its panic reaches no one."
+  - Gap: `tokio::task::spawn_local` and `tokio::task::Builder::spawn` are not in the set of spawn paths, while
+    `spawn_blocking`, which the document does not name either, is.
+  - Rule: `DetachedTask`, `runtime/rule/task_visitor.rs:172–178,277–301`
+- [ ] **11A07** — missed · candidate (round 11), confidence low (the reason is explanatory text)
+  - Doc (`async.rs.md:224–225`): "`clippy.toml` lists `std::sync::Mutex`, `std::sync::RwLock` and
+    `std::sync::PoisonError` under `disallowed-types`, with this rule as the reason."
+  - Gap: the required-configuration check compares the entry's `path` and `allow-invalid` only; a missing
+    `reason` is accepted.
+  - Rule: `LintConfig`, `config/rule/lint_config.rs:327–370`
 
 ## clean-code.rs.md
 
@@ -293,6 +334,18 @@ Totals: 63 items. 47 cases of rounds 9–10 (27 `test written`, 20 `undecided`; 
 - [ ] **seat A row 13** — no rule · not mechanical (needs a classifier of what a task does)
   - Doc (`di-manual.rs.md:141–142`): "A task that seeds or migrates a resource (`warmup`, `migration`) is built
     by the DI module of that resource and started by its `on_enable`."
+- [ ] **11A06** — missed · candidate (round 11), confidence low (is a constructor's type parameter "a type
+  parameter of a DI module"?)
+  - Doc (`di-manual.rs.md:11–12`): "A contract is never a type parameter of a DI module, a use case or an entry
+    point"
+  - Gap: only the generics of the struct or enum are read; `fn new<R: InvoiceRepository>(repository: R)` and an
+    `impl Clock` parameter of a DI module's constructor are not seen. 10A02 is the `impl<R: Contract>` bound.
+  - Rule: `DiModuleShape`, `module/rule/di_module_shape.rs:365–405,441–477`
+- [ ] **11A08** — missed · candidate (round 11), confidence low
+  - Doc (`di-manual.rs.md:145–146`): "The one global is the logging subscriber, which `main` installs once"
+  - Gap: only the installers of `tracing`, `tracing_subscriber` and `log` are known; `env_logger::init()`,
+    `fern::Dispatch::apply()` and `tracing_log::LogTracer::init()` outside `main` are accepted.
+  - Rule: `GlobalState`, `module/rule/global_state_visitor.rs:56–64,165–186`
 
 ## error-handling.rs.md
 
@@ -325,6 +378,33 @@ Totals: 63 items. 47 cases of rounds 9–10 (27 `test written`, 20 `undecided`; 
   required lints)
   - Doc (`error-handling.rs.md:12`): "Never panic for an expected business or validation failure: a panic is
     reserved for bugs."
+- [ ] **11A01** — missed · candidate (round 11), confidence medium
+  - Doc (`error-handling.rs.md:101–102`): "Your own logic returns `Err` and is never wrapped in
+    `std::panic::catch_unwind`"
+  - Gap: only a closure argument is inspected; `catch_unwind(run_batch)` and
+    `catch_unwind(AssertUnwindSafe(run_batch))` with a workspace function passed by name are accepted.
+  - Rule: `CatchUnwind`, `runtime/rule/task_visitor.rs:312–342`, `runtime/rule/closure_effects.rs:24–42`
+- [ ] **11A02** — missed · candidate (round 11), confidence medium (does "discard" include `.ok();`?)
+  - Doc (`error-handling.rs.md:155–156`): "never discard a `Result`: no call whose `Result` is left unused, and
+    no `let _ =` on it, with one exception."
+  - Gap: `save_order(order).ok();` and `let _ = save_order(order).ok();` drop the error and have no rule. That
+    no required lint fires on the resulting `Option` is the auditor's recollection, not checked.
+  - Rule: `ResultConsumption`, `runtime/rule/result_consumption.rs:26–54,90–107`
+- [ ] **11A05** — false positive (document conflict) · candidate (round 11), confidence low to medium
+  - Doc (`arch-package.md:255–256`): "Every error family is its own file in `model`, a sealed error with all its
+    subclasses or a single error class"
+  - Doc (`error-handling.rs.md:26–27`): "Model domain errors as one `enum` per family deriving `Debug` and
+    `thiserror::Error`"
+  - Gap: every struct that derives or implements `Error` is reported with "an error family is an enum, not a
+    struct", while 10T03 and 10T09 ask the placement rules to accept and place such a struct.
+  - Rule: `ErrorFamilyShape`, `declaration/rule/error_family_shape.rs:124–142`
+- [ ] **11S06** — false positive · candidate (round 11), confidence low to medium
+  - Doc (`arch-package.md:255–256`): "or a single error class"
+  - Doc (`error-handling.rs.md:28–29`): "A cause from code you do not own is the `#[source]` field
+    `source: Box<dyn Error + Send + Sync>`"
+  - Gap: every struct in `model` must derive `Clone` and `PartialEq` (and `Eq`, `Hash`); an error struct with a
+    boxed source cannot derive them and is reported. Enums are not checked, so the error enum passes.
+  - Rule: `ModelDerives`, `declaration/rule/model_derives.rs:230–287`
 
 ## imports.rs.md
 
@@ -335,6 +415,18 @@ Totals: 63 items. 47 cases of rounds 9–10 (27 `test written`, 20 `undecided`; 
   - Rule: `ImportOrdering`, `import/rule/import_order_visitor.rs:34–53`
   - Test: `import/rule/import_ordering_test.rs` ·
     `given_trailing_comment_on_last_import_when_checked_then_reports_that_import`
+- [ ] **11T02** — no rule · candidate (round 11), confidence low to medium (is `cargo fmt` a CI step of the
+  consumer or a check of the linter?)
+  - Doc (`imports.rs.md:7–8`): "in the order `cargo fmt` gives: rustfmt sorts a block of consecutive `use` lines"
+  - Gap: nothing compares the order of the `use` paths; only gaps, comments and position are checked, and no
+    required configuration makes a consumer run `cargo fmt --check`.
+  - Rule: `ImportOrdering`, `import/rule/import_order_visitor.rs:34–53`
+- [ ] **11T04** — missed · candidate (round 11), confidence low (the document words the rule for a file)
+  - Doc (`imports.rs.md:7`): "The imports of a file are one block at its top, with no blank line and no comment
+    inside it"
+  - Gap: a blank line or a comment between the `use` lines of an inline module block (a kind block of the root
+    file) is not reported; the gap check runs for file scopes only.
+  - Rule: `ImportOrdering`, `import/rule/import_order_visitor.rs:34–53,69–76`
 - See also **7T05** under `notes.rs.md` (`imports.rs.md:3`: "Never use wildcard imports").
 
 ## no-callbacks.rs.md
@@ -378,6 +470,12 @@ Totals: 63 items. 47 cases of rounds 9–10 (27 `test written`, 20 `undecided`; 
 - [ ] **seat A row 67** — no rule · not mechanical (what is "work that ends" needs a classifier)
   - Doc (`no-callbacks.rs.md:282–283`): "Blocking work that ends (a file read, a blocking client call, a heavy
     computation) runs in `tokio::task::spawn_blocking` and is awaited."
+- [ ] **11A04** — missed · candidate (round 11), confidence medium (the `?` half is a judgment call)
+  - Doc (`no-callbacks.rs.md:59–60`): "A loop over a `broadcast::Receiver` matches `Lagged` and goes on.
+    `while let Ok(event) = receiver.recv().await` ends at the first lag"
+  - Gap: `if let Ok(event) = receiver.recv().await { … } else { break; }` and `receiver.recv().await?` inside a
+    `loop` end at the first lag and are not reported; `while let`, `match` and `let … else` are.
+  - Rule: `BroadcastLag`, `runtime/rule/typed_runtime_visitor.rs:1078–1091,1491–1499`
 
 ## no-print.rs.md
 
@@ -419,6 +517,17 @@ Totals: 63 items. 47 cases of rounds 9–10 (27 `test written`, 20 `undecided`; 
   - Gap: an item-position macro call in a file module is not an `Unanalysable` site, and the code inside it (a
     glob import in `cfg_if!`, an `unsafe`) is read by no rule.
   - Rule: `Unanalysable`
+- [ ] **11T01** — false positive (a rule with no document) · candidate (round 11), confidence medium
+  - Doc (`notes.rs.md:3–4`): "If the project pins a toolchain in `rust-toolchain.toml`, use that one."
+  - Gap: a pinned stable toolchain below 1.93 (`channel = "1.88.0"`) is reported against a floor that no
+    document states; the committed fixture `cases/rules/LintConfig/fail-old-toolchain` pins the floor.
+  - Rule: `LintConfig`, `config/rule/lint_config.rs:451–491,609`
+- [ ] **11T05** — no rule · candidate (round 11), confidence low ("unrelated" is semantic)
+  - Doc (`notes.rs.md:21`): "One reason covers one item: there is no baseline and no reason shared by unrelated
+    items."
+  - Gap: only a missing or blank reason is rejected; the same reason string on any number of `expect`
+    attributes or manifest subjects passes.
+  - Rule: none; nearest `suppression/` (`expectation_parser.rs:57–68`, `expectation_validate.rs:54–101`)
 
 ## region.md
 
@@ -451,6 +560,19 @@ Totals: 63 items. 47 cases of rounds 9–10 (27 `test written`, 20 `undecided`; 
   - Gap: a backticked function name with parentheses (`` `compute_total()` ``) is not treated as a link
     candidate.
   - Rule: `IntraDocLink`, `comment/util/doc_inline_code.rs:29–72`
+- [ ] **11S01** — no rule · candidate (round 11), confidence medium (the exception "a reason that points outside
+  the code" is the reviewer's call, so only a partial rule is possible)
+  - Doc (`rustdoc.rs.md:9`): "In a plugin, an application or a service the code is understandable without doc
+    comments, and none is written."
+  - Gap: a plain prose doc comment on an item of an unpublished crate is accepted whatever it says; a non-`fn`
+    item is never reported, and a `fn` only for repeating its name or a trait's doc.
+  - Rule: `DocCommentScope`, `comment/rule/doc_scope_visitor.rs:47–78,151–227`
+- [ ] **11S05** — missed · candidate (round 11), confidence low (the document gives examples, not a list)
+  - Doc (`rustdoc.rs.md:62`): "Filler and signature restatement: "This function is responsible for...", "This
+    method allows you to...""
+  - Gap: the eight filler phrases all begin with "this function" or "this method"; "This struct is responsible
+    for …" and "This trait allows you to …" pass.
+  - Rule: `RustdocFiller`, `comment/rule/rustdoc_filler.rs:13–35`
 
 ## testing.rs.md
 
@@ -470,6 +592,16 @@ Totals: 63 items. 47 cases of rounds 9–10 (27 `test written`, 20 `undecided`; 
   - Gap: a root test block declared `pub mod test` or `pub(crate) mod test` is accepted.
   - Rule: `RootFileShape`, `module/rule/root_file_shape.rs:149–173`
   - Test: `module/rule/root_file_shape_test.rs` · `given_public_test_block_when_checked_then_only_that_block_reports`
+- [ ] **11S02** — missed · candidate (round 11), confidence low to medium (a renamed import is rare)
+  - Doc (`testing.rs.md:14`): "Test names use `given_<state>_when_<action>_then_<outcome>`"
+  - Gap: a test under a renamed attribute (`use tokio::test as async_test;` then `#[async_test]`) is not seen as
+    a test, so its name is not checked; `TestTimePaused` resolves the same import.
+  - Rule: `TestFunctionName`, `naming/rule/name_visitor.rs:159–184`
+- [ ] **11S04** — no rule · candidate (round 11), confidence low (round 9 gave the clause to the reviewer)
+  - Doc (`testing.rs.md:31–32`): "A race needs worker threads:
+    `#[tokio::test(flavor = "multi_thread", worker_threads = 2)]`."
+  - Gap: nothing reads `worker_threads`; `#[tokio::test(flavor = "multi_thread")]` without it is accepted.
+  - Rule: none; nearest `TestTimePaused`, `runtime/rule/test_runtime_visitor.rs:464–487`
 
 ## time-api.rs.md
 
@@ -479,6 +611,12 @@ Totals: 63 items. 47 cases of rounds 9–10 (27 `test written`, 20 `undecided`; 
   - Rule: `TimePrimitive`, `runtime/rule/time_primitive.rs:52–71,315–334`
   - Test: `runtime/rule/time_primitive_test.rs` ·
     `given_instant_sent_through_local_channel_when_checked_then_reports_the_send`
+- [ ] **11A10** — missed · candidate (round 11), confidence low (the suffix list is a design choice)
+  - Doc (`time-api.rs.md:43–46`): "the constant stays a `Duration`
+    (`const CARD_IN: Duration = Duration::from_millis(400);`, never `const CARD_IN_MS: u64 = 400;`)"
+  - Gap: the unit suffixes of an integer constant are `_MS`, `_MILLIS`, `_SECS`, `_SECONDS`, `_NANOS`,
+    `_MICROS`, `_MINUTES`, `_HOURS`; `_DAYS`, `_SEC`, `_MIN`, `_MILLISECONDS`, `_NS`, `_US` are not reported.
+  - Rule: `TimePrimitive`, `runtime/rule/time_primitive.rs:152–159,386–411`
 
 ## Not in this list
 
