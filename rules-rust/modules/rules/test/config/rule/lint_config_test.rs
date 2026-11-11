@@ -290,6 +290,29 @@ fn given_group_lowering_required_lints_when_checked_then_the_group_line_is_repor
 }
 
 #[test]
+fn given_workspace_lints_without_unused_result_ok_when_checked_then_reports_the_missing_lint() {
+    let mut context = read_case_context("LintConfig", "pass-dot-clippy-toml");
+    let required = render_required_configuration();
+    let line = "unused_result_ok = \"warn\"\n";
+    assert!(
+        required.workspace_lints.contains(line),
+        "the required configuration lacks unused_result_ok"
+    );
+    context.workspace.root_manifest = parse_toml_file(
+        "Cargo.toml",
+        &format!(
+            "[workspace]\nresolver=\"3\"\n{}",
+            required.workspace_lints.replace(line, "")
+        ),
+    )
+    .expect("required lints without unused_result_ok");
+    let findings = LintConfig::new(required).check(&context);
+    assert_eq!(1, findings.len(), "findings: {findings:?}");
+    assert_eq!("LintConfig", findings[0].finding.rule_id.0);
+    assert!(findings[0].finding.subject.contains("unused_result_ok"));
+}
+
+#[test]
 fn given_target_rustflags_setting_the_klibs_cfg_when_checked_then_reports_the_flags_line() {
     let mut context = read_case_context("LintConfig", "pass-dot-clippy-toml");
     context.workspace.cargo_config = Some(

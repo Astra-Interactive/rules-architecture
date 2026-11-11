@@ -4,39 +4,49 @@ use crate::config::model::Role;
 use crate::module::util::{
     build_shape_item_finding, external_trait, find_kind_name, owns_implementation,
 };
-use crate::source::model::CrateIndex;
 use crate::source::model::IndexedItem;
 use crate::source::model::Resolution;
-use syn::punctuated::Punctuated;
+use crate::source::util::list_derive_paths;
 
 pub(crate) struct EventPlacement;
 
 impl EventPlacement {
-    fn is_foreign_path(resolution: &Resolution) -> bool {
-        let Resolution::External(path) = resolution else {
-            return false;
-        };
+    fn is_foreign_path(path: &str) -> bool {
         path.split_once("::")
             .is_some_and(|(package, _)| !["std", "core", "alloc"].contains(&package))
     }
 
-    fn has_foreign_derive(index: &CrateIndex, item: &IndexedItem) -> bool {
+    fn is_host_path(context: &RuleContext, ordinal: usize, path: &str) -> bool {
+        let identity = context.resolve_external_identity(ordinal, path);
+        context.is_platform_identity(&identity)
+    }
+
+    fn is_host_derive_path(context: &RuleContext, ordinal: usize, path: &str) -> bool {
+        if context.project_config.platform_words.is_empty() {
+            return Self::is_foreign_path(path);
+        }
+        Self::is_host_path(context, ordinal, path)
+    }
+
+    fn is_host_trait_path(context: &RuleContext, ordinal: usize, path: &str) -> bool {
+        context.project_config.platform_words.is_empty()
+            || Self::is_host_path(context, ordinal, path)
+    }
+
+    fn has_host_derive(context: &RuleContext, ordinal: usize, item: &IndexedItem) -> bool {
+        let index = &context.indexes[ordinal];
         let attributes = match &item.syntax {
             syn::Item::Struct(value) => &value.attrs,
             syn::Item::Enum(value) => &value.attrs,
             syn::Item::Union(value) => &value.attrs,
             _ => return false,
         };
-        attributes
-            .iter()
-            .filter(|attribute| attribute.path().is_ident("derive"))
-            .filter_map(|attribute| {
-                attribute
-                    .parse_args_with(Punctuated::<syn::Path, syn::Token![,]>::parse_terminated)
-                    .ok()
-            })
-            .flatten()
-            .any(|path| Self::is_foreign_path(&index.resolve_path(item.module, &path)))
+        list_derive_paths(attributes).iter().any(|path| {
+            match index.resolve_path(item.module, path) {
+                Resolution::External(path) => Self::is_host_derive_path(context, ordinal, &path),
+                _ => false,
+            }
+        })
     }
 }
 
@@ -62,11 +72,12 @@ impl Rule for EventPlacement {
                 }
                 let implements_host_trait = index.implementations.iter().any(|implementation| {
                     owns_implementation(index, identity, implementation)
-                        && external_trait(context, ordinal, implementation).is_some()
+                        && external_trait(context, ordinal, implementation)
+                            .is_some_and(|path| Self::is_host_trait_path(context, ordinal, &path))
                 });
                 let platform_event = platform
                     && kind == "event"
-                    && (implements_host_trait || Self::has_foreign_derive(index, item));
+                    && (implements_host_trait || Self::has_host_derive(context, ordinal, item));
                 if !platform_event {
                     findings.push(build_shape_item_finding(index, item, "EventPlacement", "Domain Event types live in model; platform event implementations stay in event of a platform crate (arch-domain.rs.md)"));
                 }

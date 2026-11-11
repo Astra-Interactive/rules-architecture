@@ -231,6 +231,7 @@ pub(crate) mod source {
     }
     pub(crate) mod util {
         pub(crate) use comment_scan::scan_comments;
+        pub(crate) use derive_attribute::list_derive_paths;
         pub(crate) use expression_attribute::find_expression_attributes;
         pub(crate) use macro_arguments::parse_macro_arguments;
         pub(crate) use macro_arguments::parse_macro_expressions;
@@ -247,6 +248,7 @@ pub(crate) mod source {
         mod cfg_predicate_ext;
         mod comment_scan;
         mod crate_index_ext;
+        mod derive_attribute;
         mod expression_attribute;
         mod external_path_ext;
         mod macro_arguments;

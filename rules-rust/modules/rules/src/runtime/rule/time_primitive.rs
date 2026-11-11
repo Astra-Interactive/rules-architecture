@@ -3,10 +3,12 @@ use crate::check::model::{RuleContext, RuleFinding};
 use crate::check::util::{build_node_finding, format_module_path};
 use crate::config::model::Role;
 use crate::declaration::util::is_technology;
+use crate::module::util::find_kind_name;
 use crate::runtime::util::names_format_argument;
 use crate::runtime::util::node_predicate;
 use crate::source::model::Resolution;
 use crate::source::util::find_node_span;
+use crate::source::util::list_derive_paths;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
 
@@ -18,6 +20,7 @@ struct TimeVisitor<'context> {
     module: usize,
     spans: Vec<proc_macro2::Span>,
     bindings: Vec<LocalBinding>,
+    in_serde_entry_type: bool,
 }
 
 struct LocalBinding {
@@ -166,6 +169,40 @@ impl TimeVisitor<'_> {
             .find_role_config(&index.crate_name)
             .is_some_and(|config| config.role == Some(Role::Contract));
         is_contract || is_technology(self.context, index, self.module)
+    }
+
+    fn derives_serde(&self, attributes: &[syn::Attribute]) -> bool {
+        let index = &self.context.indexes[self.ordinal];
+        list_derive_paths(attributes).iter().any(|path| {
+            matches!(index.resolve_path(self.module, path), Resolution::External(resolved)
+            if matches!(
+                resolved.as_str(),
+                "serde::Serialize"
+                    | "serde::Deserialize"
+                    | "serde_derive::Serialize"
+                    | "serde_derive::Deserialize"
+            ))
+        })
+    }
+
+    fn is_under_model(&self) -> bool {
+        let index = &self.context.indexes[self.ordinal];
+        let mut current = Some(self.module);
+        while let Some(module) = current {
+            if index.modules[module].module.path.last().map(String::as_str) == Some("model") {
+                return true;
+            }
+            current = index.modules[module].parent;
+        }
+        false
+    }
+
+    fn is_serde_entry_type(&self, attributes: &[syn::Attribute]) -> bool {
+        let crate_name = &self.context.indexes[self.ordinal].crate_name;
+        let kind = find_kind_name(self.context, self.ordinal, self.module);
+        self.context.is_entry_kind(crate_name, kind)
+            && !self.is_under_model()
+            && self.derives_serde(attributes)
     }
 
     fn is_unit_named_primitive(&self, ident: &syn::Ident, typed: &syn::Type) -> bool {
@@ -463,6 +500,7 @@ impl<'ast> Visit<'ast> for TimeVisitor<'_> {
 
     fn visit_field(&mut self, field: &'ast syn::Field) {
         let is_unit_named = !self.is_wire_boundary()
+            && !self.in_serde_entry_type
             && field
                 .ident
                 .as_ref()
@@ -471,6 +509,20 @@ impl<'ast> Visit<'ast> for TimeVisitor<'_> {
             self.spans.push(field.span());
         }
         syn::visit::visit_field(self, field);
+    }
+
+    fn visit_item_struct(&mut self, item: &'ast syn::ItemStruct) {
+        let outer = self.in_serde_entry_type;
+        self.in_serde_entry_type = self.is_serde_entry_type(&item.attrs);
+        syn::visit::visit_item_struct(self, item);
+        self.in_serde_entry_type = outer;
+    }
+
+    fn visit_item_enum(&mut self, item: &'ast syn::ItemEnum) {
+        let outer = self.in_serde_entry_type;
+        self.in_serde_entry_type = self.is_serde_entry_type(&item.attrs);
+        syn::visit::visit_item_enum(self, item);
+        self.in_serde_entry_type = outer;
     }
 
     fn visit_return_type(&mut self, returned: &'ast syn::ReturnType) {
@@ -540,6 +592,7 @@ impl Rule for TimePrimitive {
                     module: module.id,
                     spans: Vec::new(),
                     bindings: Vec::new(),
+                    in_serde_entry_type: false,
                 };
                 visitor.visit_file(&file.syntax);
                 for span in visitor.spans {

@@ -320,6 +320,27 @@ fn given_workspace_result_of_a_method_associated_or_async_function_when_dropped_
 }
 
 #[test]
+fn given_proven_foreign_result_when_dropped_by_underscore_binding_or_ok_then_reports_each() {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "async fn persist(path: &std::path::Path, handle: tokio::task::JoinHandle<u8>) {\n    _ = std::fs::write(path, b\"x\");\n    _ = tokio::fs::write(path, b\"x\").await;\n    _ = handle.await;\n    let _removed = std::fs::remove_file(path);\n    std::fs::remove_file(path).ok();\n    _ = std::fs::read(path).ok();\n    let _ = tokio::fs::read(path).await.ok();\n    let _pending = tokio::fs::write(path, b\"x\");\n    let _kept = std::fs::read(path);\n    drop(_kept);\n    _ = path.exists();\n}",
+        &[2, 3, 4, 5, 6, 7, 8],
+    );
+}
+
+#[test]
+fn given_awaited_method_returning_join_handle_when_dropped_then_reports_each_and_not_the_unawaited()
+{
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "use tokio::task::JoinHandle;\nstruct Worker;\nimpl Worker {\n    fn start(&self) -> JoinHandle<u8> { loop {} }\n}\nasync fn run(worker: &Worker) {\n    _ = worker.start().await;\n    let _done = worker.start().await;\n    worker.start().await.ok();\n    let _pending = worker.start();\n}",
+        &[7, 8, 9],
+    );
+}
+
+#[test]
 fn given_two_fallible_steps_in_one_statement_when_checked_then_reports_the_statement() {
     assert_code_findings(
         &ResultConsumption,

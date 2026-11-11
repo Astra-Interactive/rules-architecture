@@ -48,6 +48,28 @@ fn given_atomic_io_and_watch_capture_when_checked_then_keeps_distinct_purity_con
 }
 
 #[test]
+fn given_blocking_io_on_a_typed_std_receiver_in_watch_closure_when_checked_then_reports_only_the_io_closures()
+ {
+    assert_code_findings(
+        &ImpureUpdateClosure,
+        "ImpureUpdateClosure",
+        "use std::io::Write;\nfn write_file(state: tokio::sync::watch::Sender<u32>, mut file: std::fs::File) {\n    state.send_modify(|current| { let written = file.write_all(b\"x\"); *current += 1; });\n}\nfn write_stream(state: tokio::sync::watch::Sender<u32>, mut stream: std::net::TcpStream) {\n    state.send_if_modified(|current| { let flushed = stream.flush(); *current += 1; true });\n}\nfn run_command(state: tokio::sync::watch::Sender<u32>, mut command: std::process::Command) {\n    state.send_modify(|current| { let status = command.status(); *current += 1; });\n}\nfn read_input(state: tokio::sync::watch::Sender<u32>) {\n    state.send_modify(|current| { let input = std::io::read_to_string(std::io::stdin()); *current += 1; });\n}\nfn write_buffer(state: tokio::sync::watch::Sender<u32>, mut buffer: Vec<u8>) {\n    state.send_modify(|current| { let written = buffer.write_all(b\"x\"); *current += 1; });\n}\nstruct Journal;\nimpl Journal { fn flush(&self) {} }\nfn flush_own(state: tokio::sync::watch::Sender<u32>, journal: Journal) {\n    state.send_modify(|current| { journal.flush(); *current += 1; });\n}\nfn build_error(state: tokio::sync::watch::Sender<String>) {\n    state.send_modify(|current| { *current = std::io::Error::other(\"x\").to_string(); });\n}",
+        &[3, 6, 9, 12],
+    );
+}
+
+#[test]
+fn given_command_output_status_stream_write_all_and_io_copy_in_watch_closure_when_checked_then_reports_each()
+ {
+    assert_code_findings(
+        &ImpureUpdateClosure,
+        "ImpureUpdateClosure",
+        "fn run_output(state: tokio::sync::watch::Sender<u32>, mut command: std::process::Command) {\n    state.send_modify(|current| { let output = command.output(); *current += 1; });\n}\nfn run_status(state: tokio::sync::watch::Sender<u32>, mut command: std::process::Command) {\n    state.send_modify(|current| { let status = command.status(); *current += 1; });\n}\nfn write_stream(state: tokio::sync::watch::Sender<u32>, mut stream: std::net::TcpStream) {\n    state.send_modify(|current| { let written = stream.write_all(b\"x\"); *current += 1; });\n}\nfn copy_all(state: tokio::sync::watch::Sender<u32>, mut left: std::fs::File, mut right: std::fs::File) {\n    state.send_modify(|current| { let copied = std::io::copy(&mut left, &mut right); *current += 1; });\n}",
+        &[2, 5, 8, 11],
+    );
+}
+
+#[test]
 fn given_runtime_counterexamples_when_checked_then_matches_exact_node_anchors() {
     assert_code_findings(
         &ImpureUpdateClosure,

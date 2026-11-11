@@ -45,6 +45,23 @@ fn given_platform_event_whose_host_trait_is_derived_when_checked_then_only_the_p
 }
 
 #[test]
+fn given_platform_words_when_event_derives_or_implements_a_non_host_trait_then_reports_it() {
+    let mut context = read_code_context(
+        "mod event {\n    use serde::Serialize;\n    use vendor::Event;\n    #[derive(Serialize)]\n    struct PlayerJailedEvent(u32);\n    #[derive(Event, Serialize)]\n    struct PlayerJoinEvent(u32);\n    struct PlayerQuitEvent(u32);\n    impl tokio::Marker for PlayerQuitEvent {}\n    struct PlayerMoveEvent(u32);\n    impl vendor::HostEvent for PlayerMoveEvent {}\n}",
+    );
+    context.project_config.crates[0].role = Some(Role::Platform);
+    context.project_config.platform_words = vec!["vendor".to_owned()];
+    assert_placement_findings(
+        &EventPlacement,
+        "EventPlacement",
+        &context,
+        &[("src/lib.rs", 4, "Node"), ("src/lib.rs", 8, "Node")],
+    );
+    context.project_config.platform_words = Vec::new();
+    assert_placement_findings(&EventPlacement, "EventPlacement", &context, &[]);
+}
+
+#[test]
 fn given_persistent_placement_cases_when_checked_then_match_exact_node_anchors() {
     assert_code_fixture(&EventPlacement, "EventPlacement", "bad");
     assert_code_fixture(&EventPlacement, "EventPlacement", "good");

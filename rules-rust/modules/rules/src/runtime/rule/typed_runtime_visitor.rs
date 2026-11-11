@@ -577,6 +577,18 @@ impl TypedRuntimeVisitor<'_> {
         blocking_channel || blocking_file_call
     }
 
+    fn is_blocking_io_method(&self, call: &syn::ExprMethodCall) -> bool {
+        let method = call.method.to_string();
+        let method = method.as_str();
+        let file_call = Self::FILE_BLOCKING_METHODS.contains(&method)
+            && self.receiver_has(&call.receiver, &["std::fs::File"]);
+        let stream_call = Self::TCP_STREAM_IO_METHODS.contains(&method)
+            && self.receiver_has(&call.receiver, &["std::net::TcpStream"]);
+        let command_call = Self::COMMAND_IO_METHODS.contains(&method)
+            && self.receiver_has(&call.receiver, &["std::process::Command"]);
+        file_call || stream_call || command_call
+    }
+
     fn bind_signature(&mut self, signature: &syn::Signature) {
         for argument in &signature.inputs {
             if let syn::FnArg::Typed(parameter) = argument
@@ -865,10 +877,11 @@ impl TypedRuntimeVisitor<'_> {
                         && self.receiver_has(&call.receiver, OPTION_TYPES);
                     let channel = matches!(method.as_str(), "send" | "try_send" | "send_replace" | "send_modify" | "send_if_modified")
                         && self.receiver_has(&call.receiver, &["tokio::sync::watch::Sender", "tokio::sync::mpsc::Sender", "tokio::sync::mpsc::UnboundedSender", "tokio::sync::broadcast::Sender", "tokio::sync::oneshot::Sender", "std::sync::mpsc::Sender", "std::sync::mpsc::SyncSender"]);
-                    lock || channel || mutation || option_write || atomic_write
+                    lock || channel || mutation || option_write || atomic_write || self.is_blocking_io_method(call)
                 }) || effects.calls.iter().any(|call| matches!(&*call.func, syn::Expr::Path(path)
                     if self.context.resolve_external_call_paths(self.ordinal, self.module, &path.path).iter().any(|path|
-                        ["std::fs::", "tokio::fs::", "std::net::", "tokio::net::"].iter().any(|prefix| path.format_path().starts_with(prefix))))));
+                        ["std::fs::", "tokio::fs::", "std::net::", "tokio::net::"].iter().any(|prefix| path.format_path().starts_with(prefix))
+                            || Self::STD_IO_FUNCTIONS.contains(&path.format_path().as_str())))));
             if impure {
                 self.report(argument.span());
             }
@@ -1024,12 +1037,19 @@ impl TypedRuntimeVisitor<'_> {
         let syn::ReturnType::Type(_, returned) = &signature.output else {
             return false;
         };
-        signature.asyncness.is_some() == is_awaited
-            && self
-                .context
-                .resolve_outer_external_type_paths(ordinal, module, returned)
+        let returned_paths = self
+            .context
+            .resolve_outer_external_type_paths(ordinal, module, returned);
+        let returns_result = signature.asyncness.is_some() == is_awaited
+            && returned_paths
                 .iter()
-                .any(|path| RESULT_TYPES.contains(&path.format_path().as_str()))
+                .any(|path| RESULT_TYPES.contains(&path.format_path().as_str()));
+        let returns_join_handle = is_awaited
+            && signature.asyncness.is_none()
+            && returned_paths
+                .iter()
+                .any(|path| path.format_path() == "tokio::task::JoinHandle");
+        returns_result || returns_join_handle
     }
 
     fn has_result_method(
@@ -1117,11 +1137,33 @@ impl TypedRuntimeVisitor<'_> {
         })
     }
 
+    fn is_foreign_result_call(&self, call: &syn::ExprCall, is_awaited: bool) -> bool {
+        let syn::Expr::Path(path) = &*call.func else {
+            return false;
+        };
+        let functions = if is_awaited {
+            [Self::TOKIO_FS_RESULT_FUNCTIONS, Self::TOKIO_SPAWN_FUNCTIONS].concat()
+        } else {
+            Self::STD_FS_RESULT_FUNCTIONS.to_vec()
+        };
+        self.context
+            .resolve_external_call_paths(self.ordinal, self.module, &path.path)
+            .iter()
+            .any(|resolved| functions.contains(&resolved.format_path().as_str()))
+    }
+
+    fn is_awaited_join_handle(&self, base: &syn::Expr) -> bool {
+        self.receiver_has(base, &["tokio::task::JoinHandle"])
+    }
+
     fn is_workspace_result_source(&self, expression: &syn::Expr, is_awaited: bool) -> bool {
         match expression {
-            syn::Expr::Call(call) => self.is_result_function_call(call, is_awaited),
+            syn::Expr::Call(call) => {
+                self.is_result_function_call(call, is_awaited)
+                    || self.is_foreign_result_call(call, is_awaited)
+            }
             syn::Expr::MethodCall(call) => self.is_result_method_call(call, is_awaited),
-            _ => false,
+            _ => is_awaited && self.is_awaited_join_handle(expression),
         }
     }
 
@@ -1574,6 +1616,77 @@ impl TypedRuntimeVisitor<'_> {
         "metadata",
         "try_clone",
         "set_permissions",
+    ];
+
+    const TCP_STREAM_IO_METHODS: &'static [&'static str] = &[
+        "read",
+        "read_exact",
+        "read_to_end",
+        "read_to_string",
+        "write",
+        "write_all",
+        "flush",
+        "peek",
+        "shutdown",
+    ];
+
+    const COMMAND_IO_METHODS: &'static [&'static str] = &["spawn", "output", "status"];
+
+    const STD_IO_FUNCTIONS: &'static [&'static str] = &[
+        "std::io::stdin",
+        "std::io::stdout",
+        "std::io::stderr",
+        "std::io::copy",
+        "std::io::read_to_string",
+    ];
+
+    const STD_FS_RESULT_FUNCTIONS: &'static [&'static str] = &[
+        "std::fs::canonicalize",
+        "std::fs::copy",
+        "std::fs::create_dir",
+        "std::fs::create_dir_all",
+        "std::fs::exists",
+        "std::fs::hard_link",
+        "std::fs::metadata",
+        "std::fs::read",
+        "std::fs::read_dir",
+        "std::fs::read_link",
+        "std::fs::read_to_string",
+        "std::fs::remove_dir",
+        "std::fs::remove_dir_all",
+        "std::fs::remove_file",
+        "std::fs::rename",
+        "std::fs::set_permissions",
+        "std::fs::symlink_metadata",
+        "std::fs::write",
+    ];
+
+    const TOKIO_FS_RESULT_FUNCTIONS: &'static [&'static str] = &[
+        "tokio::fs::canonicalize",
+        "tokio::fs::copy",
+        "tokio::fs::create_dir",
+        "tokio::fs::create_dir_all",
+        "tokio::fs::hard_link",
+        "tokio::fs::metadata",
+        "tokio::fs::read",
+        "tokio::fs::read_dir",
+        "tokio::fs::read_link",
+        "tokio::fs::read_to_string",
+        "tokio::fs::remove_dir",
+        "tokio::fs::remove_dir_all",
+        "tokio::fs::remove_file",
+        "tokio::fs::rename",
+        "tokio::fs::set_permissions",
+        "tokio::fs::symlink_metadata",
+        "tokio::fs::try_exists",
+        "tokio::fs::write",
+    ];
+
+    const TOKIO_SPAWN_FUNCTIONS: &'static [&'static str] = &[
+        "tokio::spawn",
+        "tokio::task::spawn",
+        "tokio::task::spawn_blocking",
+        "tokio::task::spawn_local",
     ];
 }
 

@@ -163,3 +163,35 @@ fn given_fields_named_with_a_time_unit_when_primitive_then_reports_each_field() 
         &[2, 3, 8],
     );
 }
+
+#[test]
+fn given_unit_suffixed_fields_of_serde_types_when_in_model_or_route_then_reports_only_the_model_field()
+ {
+    assert_code_findings(
+        &TimePrimitive,
+        "TimePrimitive",
+        "mod model {\n    #[derive(serde::Deserialize)]\n    pub(crate) struct ReminderConfig {\n        pub(crate) timeout_seconds: u32,\n    }\n}\nmod route {\n    #[derive(serde::Deserialize)]\n    pub(crate) struct CreateReminderRequest {\n        pub(crate) timeout_seconds: u32,\n    }\n    pub(crate) struct ReminderRoute {\n        pub(crate) retry_delay_ms: u64,\n    }\n}",
+        &[4, 13],
+    );
+}
+
+#[test]
+fn given_serde_type_in_an_entry_kind_nested_under_model_when_checked_then_still_reports_the_field()
+{
+    assert_code_findings(
+        &TimePrimitive,
+        "TimePrimitive",
+        "mod model {\n    mod route {\n        #[derive(serde::Deserialize)]\n        pub(crate) struct ReminderConfig {\n            pub(crate) timeout_seconds: u32,\n        }\n    }\n}",
+        &[5],
+    );
+}
+
+#[test]
+fn given_enum_variant_field_in_route_when_serde_derived_then_exempt_and_otherwise_reported() {
+    assert_code_findings(
+        &TimePrimitive,
+        "TimePrimitive",
+        "mod route {\n    #[derive(serde::Deserialize)]\n    pub(crate) enum Wait {\n        Fixed { delay_millis: u64 },\n    }\n    pub(crate) enum Plain {\n        Fixed { delay_millis: u64 },\n    }\n}",
+        &[7],
+    );
+}

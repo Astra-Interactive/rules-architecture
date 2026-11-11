@@ -4,15 +4,15 @@ LintConfig	Cargo.toml:2	[workspace] resolver	`resolver = "3"` keeps dependency v
 LintConfig	Cargo.toml:9	[workspace.lints.rust] dead_code	a default-on lint the documents rely on is lowered
 LintConfig	Cargo.toml:11	[workspace.lints.rust] unexpected_cfgs check-cfg	check-cfg must contain "cfg(klibs_rules)", or the exception attributes stop the build
 LintConfig	Cargo.toml:13	[workspace.lints.clippy] dbg_macro	missing: the required configuration sets it to warn
-LintConfig	Cargo.toml:17	[workspace.lints.clippy] unwrap_used	lowered to allow: it is required at warn, deny or forbid
-LintConfig	Cargo.toml:26	[workspace.lints.clippy] await_holding_invalid_type	the group `all` lowers it
-LintConfig	Cargo.toml:26	[workspace.lints.clippy] await_holding_lock	the group `all` lowers it
-LintConfig	Cargo.toml:26	[workspace.lints.clippy] disallowed_methods	the group `all` lowers it
-LintConfig	Cargo.toml:26	[workspace.lints.clippy] disallowed_types	the group `all` lowers it
-LintConfig	Cargo.toml:26	[workspace.lints.clippy] excessive_nesting	the group `all` lowers it
-LintConfig	Cargo.toml:26	[workspace.lints.clippy] missing_safety_doc	the group `all` lowers it
-LintConfig	Cargo.toml:26	[workspace.lints.clippy] new_without_default	the group `all` lowers it
-LintConfig	Cargo.toml:26	[workspace.lints.clippy] redundant_closure	the group `all` lowers it
+LintConfig	Cargo.toml:18	[workspace.lints.clippy] unwrap_used	lowered to allow: it is required at warn, deny or forbid
+LintConfig	Cargo.toml:27	[workspace.lints.clippy] await_holding_invalid_type	the group `all` lowers it
+LintConfig	Cargo.toml:27	[workspace.lints.clippy] await_holding_lock	the group `all` lowers it
+LintConfig	Cargo.toml:27	[workspace.lints.clippy] disallowed_methods	the group `all` lowers it
+LintConfig	Cargo.toml:27	[workspace.lints.clippy] disallowed_types	the group `all` lowers it
+LintConfig	Cargo.toml:27	[workspace.lints.clippy] excessive_nesting	the group `all` lowers it
+LintConfig	Cargo.toml:27	[workspace.lints.clippy] missing_safety_doc	the group `all` lowers it
+LintConfig	Cargo.toml:27	[workspace.lints.clippy] new_without_default	the group `all` lowers it
+LintConfig	Cargo.toml:27	[workspace.lints.clippy] redundant_closure	the group `all` lowers it
 LintConfig	clippy.toml	clippy.toml allow-expect-in-tests	required: true
 LintConfig	clippy.toml	clippy.toml disallowed-methods std::thread::spawn	a required path is missing
 LintConfig	clippy.toml	clippy.toml too-many-lines-threshold	required: the clippy default differs from the documents' threshold

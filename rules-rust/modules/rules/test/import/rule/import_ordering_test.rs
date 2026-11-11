@@ -78,6 +78,43 @@ fn given_leading_comments_and_scope_imports_when_checked_then_keeps_them() {
 }
 
 #[test]
+fn given_blank_line_or_comment_inside_the_imports_of_a_function_body_when_checked_then_reports_the_import()
+ {
+    let source = "fn spaced() {\n    use std::fmt::Debug;\n\n    use std::fmt::Display;\n    let value = 1;\n}\nfn commented() {\n    use std::fmt::Debug;\n    // reason\n    use std::fmt::Display;\n    let value = 1;\n}\nfn trailing() {\n    use std::fmt::Debug;\n    use std::fmt::Display; // rendered in the message\n    let value = 1;\n}\nfn conforming() {\n    // comment above the block\n    use std::fmt::Debug;\n    use std::fmt::Display;\n\n    let value = 1;\n}";
+    assert_code_findings(&ImportOrdering, "ImportOrdering", source, &[4, 10, 15]);
+}
+
+#[test]
+fn given_comment_after_a_block_closing_on_the_use_line_when_checked_then_reports_nothing() {
+    for source in [
+        "fn f() {\n    let value = { use std::fmt::Write; make() }; // why\n}",
+        "fn g(items: Vec<u8>) {\n    items.iter().map(|v| { use a::T; v.t() }) // why\n}",
+    ] {
+        assert_code_findings(&ImportOrdering, "ImportOrdering", source, &[]);
+    }
+}
+
+#[test]
+fn given_last_body_import_after_blank_line_with_trailing_comment_when_checked_then_reports_once() {
+    assert_code_findings(
+        &ImportOrdering,
+        "ImportOrdering",
+        "fn f() {\n    use std::fmt::Debug;\n\n    use std::fmt::Display; // why\n    let value = 1;\n}",
+        &[4],
+    );
+}
+
+#[test]
+fn given_trailing_comment_on_a_non_last_body_import_when_checked_then_reports_the_next_import() {
+    assert_code_findings(
+        &ImportOrdering,
+        "ImportOrdering",
+        "fn f() {\n    use std::fmt::Debug; // why\n    use std::fmt::Display;\n    let value = 1;\n}",
+        &[3],
+    );
+}
+
+#[test]
 fn given_forbidden_syntax_when_checked_then_reports_the_rule() {
     let context = read_case_context("ImportOrdering", "fail-syntax");
     assert!(!ImportOrdering.check(&context).is_empty());

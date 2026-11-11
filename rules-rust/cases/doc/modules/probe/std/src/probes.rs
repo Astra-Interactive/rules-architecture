@@ -33,6 +33,10 @@ pub(crate) fn probe_let_underscore_must_use() {
     let _ = "1".parse::<u8>();
 }
 
+pub(crate) fn probe_unused_result_ok() {
+    "1".parse::<u8>().ok();
+}
+
 pub(crate) fn probe_undocumented_unsafe_blocks(values: &[u8]) -> u8 {
     unsafe { *values.get_unchecked(0) }
 }

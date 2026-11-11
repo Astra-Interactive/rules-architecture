@@ -22,6 +22,7 @@ const PROBES: &str = r#"probes = [
   { file = "probe_mod_rs/mod.rs", item = "", lint = "clippy::mod_module_files" },
   { file = "probe_named.rs", item = "", lint = "clippy::self_named_module_files" },
   { file = "probes.rs", item = "probe_let_underscore_must_use", lint = "clippy::let_underscore_must_use" },
+  { file = "probes.rs", item = "probe_unused_result_ok", lint = "clippy::unused_result_ok" },
   { file = "probes.rs", item = "probe_unwrap_used", lint = "clippy::unwrap_used" },
   { file = "probes.rs", item = "probe_expect_used", lint = "clippy::expect_used" },
   { file = "probes.rs", item = "probe_print_stdout", lint = "clippy::print_stdout" },
@@ -233,7 +234,7 @@ fn read_probes() -> Vec<Value> {
         .get("probes")
         .and_then(Value::as_array)
         .expect("the probe table has records");
-    assert_eq!(probes.len(), 41);
+    assert_eq!(probes.len(), 42);
     probes.clone()
 }
 

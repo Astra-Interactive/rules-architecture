@@ -21,6 +21,7 @@ unexpected_cfgs = { level = "warn", check-cfg = ["cfg(klibs_rules)"] }
 mod_module_files = "warn"
 self_named_module_files = "warn"
 let_underscore_must_use = "warn"
+unused_result_ok = "warn"
 unwrap_used = "warn"
 expect_used = "warn"
 print_stdout = "warn"

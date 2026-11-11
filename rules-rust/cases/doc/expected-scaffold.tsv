@@ -262,40 +262,41 @@ ReExportShape	modules/probe/std/src/probes.rs:22	probe_dbg_macro	A non-private f
 ReExportShape	modules/probe/std/src/probes.rs:26	probe_allow_attributes	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 ExpectScope	modules/probe/std/src/probes.rs:29	probe::probes	Expect only a prescribed lint on the smallest item, never an inner attribute or module (notes.rs.md)
 ReExportShape	modules/probe/std/src/probes.rs:32	probe_let_underscore_must_use	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-ReExportShape	modules/probe/std/src/probes.rs:36	probe_undocumented_unsafe_blocks	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-UnsafePlacement	modules/probe/std/src/probes.rs:37	modules/probe/std/src/probes.rs	Keep unsafe code behind a safe technology implementation (arch-package.rs.md)
-UnsafePlacement	modules/probe/std/src/probes.rs:40	modules/probe/std/src/probes.rs	Keep unsafe code behind a safe technology implementation (arch-package.rs.md)
-UnsafePlacement	modules/probe/std/src/probes.rs:42	modules/probe/std/src/probes.rs	Keep unsafe code behind a safe technology implementation (arch-package.rs.md)
-ReExportShape	modules/probe/std/src/probes.rs:45	probe_redundant_closure_for_method_calls	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-LockChoice	modules/probe/std/src/probes.rs:49	probe::probes	Follow the LockChoice typed runtime requirement (async.rs.md; time-api.rs.md)
-ReExportShape	modules/probe/std/src/probes.rs:49	probe_std_mutex	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:36	probe_unused_result_ok	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:40	probe_undocumented_unsafe_blocks	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+UnsafePlacement	modules/probe/std/src/probes.rs:41	modules/probe/std/src/probes.rs	Keep unsafe code behind a safe technology implementation (arch-package.rs.md)
+UnsafePlacement	modules/probe/std/src/probes.rs:44	modules/probe/std/src/probes.rs	Keep unsafe code behind a safe technology implementation (arch-package.rs.md)
+UnsafePlacement	modules/probe/std/src/probes.rs:46	modules/probe/std/src/probes.rs	Keep unsafe code behind a safe technology implementation (arch-package.rs.md)
+ReExportShape	modules/probe/std/src/probes.rs:49	probe_redundant_closure_for_method_calls	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 LockChoice	modules/probe/std/src/probes.rs:53	probe::probes	Follow the LockChoice typed runtime requirement (async.rs.md; time-api.rs.md)
-ReExportShape	modules/probe/std/src/probes.rs:53	probe_std_rw_lock	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-ReExportShape	modules/probe/std/src/probes.rs:57	probe_poison_error	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-ReExportShape	modules/probe/std/src/probes.rs:61	probe_thread_spawn	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-ReExportShape	modules/probe/std/src/probes.rs:66	probe_thread_builder_spawn	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-ReExportShape	modules/probe/std/src/probes.rs:71	probe_io_stdout	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-ReExportShape	modules/probe/std/src/probes.rs:75	probe_io_stderr	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-ReExportShape	modules/probe/std/src/probes.rs:79	probe_system_time_now	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-SystemClockOutsideDi	modules/probe/std/src/probes.rs:80	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
-ReExportShape	modules/probe/std/src/probes.rs:83	probe_system_time_elapsed	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-ReExportShape	modules/probe/std/src/probes.rs:87	probe_await_holding_watch_ref	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-ReExportShape	modules/probe/std/src/probes.rs:93	probe_watch_sender_send	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-ReExportShape	modules/probe/std/src/probes.rs:97	probe_unreachable_pub	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-ReExportShape	modules/probe/std/src/probes.rs:99	probe_unexpected_cfgs	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-ReExportShape	modules/probe/std/src/probes.rs:102	probe_silent_klibs_rules_cfg	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-UnfulfilledExpectation	modules/probe/std/src/probes.rs:102	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
-UnfulfilledExpectation	modules/probe/std/src/probes.rs:117	Unanalysable	no `Unanalysable` finding is anchored in the scope of this exception
-ReExportShape	modules/probe/std/src/probes.rs:126	probe_excessive_nesting	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-ReExportShape	modules/probe/std/src/probes.rs:142	probe_too_many_lines	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-ModuleVisibility	modules/probe/std/src/probes.rs:207	probe::probes::tests	module visibility must be Crate (arch-package.rs.md, Modules and directories)
-PluralPackageName	modules/probe/std/src/probes.rs:207	probe::probes::tests	name a concept in the singular, or declare its project word in plural-concepts
-RootFileShape	modules/probe/std/src/probes.rs:207	probe::probes	only the crate root declares modules
-TestMirror	modules/probe/std/src/probes.rs:207	probe::probes	tests live in the root test block; path attributes belong only to the root test and fixture blocks
-TestMirror	modules/probe/std/src/probes.rs:209	probe::probes	tests live in the root test block; path attributes belong only to the root test and fixture blocks
-TestFunctionName	modules/probe/std/src/probes.rs:210	probe::probes::tests::probe_silent_allow_unwrap_in_tests	Use given_<state>_when_<action>_then_<outcome> for a test (testing.rs.md)
-TestMirror	modules/probe/std/src/probes.rs:215	probe::probes	tests live in the root test block; path attributes belong only to the root test and fixture blocks
-TestFunctionName	modules/probe/std/src/probes.rs:216	probe::probes::tests::probe_silent_allow_expect_in_tests	Use given_<state>_when_<action>_then_<outcome> for a test (testing.rs.md)
+ReExportShape	modules/probe/std/src/probes.rs:53	probe_std_mutex	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+LockChoice	modules/probe/std/src/probes.rs:57	probe::probes	Follow the LockChoice typed runtime requirement (async.rs.md; time-api.rs.md)
+ReExportShape	modules/probe/std/src/probes.rs:57	probe_std_rw_lock	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:61	probe_poison_error	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:65	probe_thread_spawn	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:70	probe_thread_builder_spawn	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:75	probe_io_stdout	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:79	probe_io_stderr	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:83	probe_system_time_now	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/probe/std/src/probes.rs:84	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
+ReExportShape	modules/probe/std/src/probes.rs:87	probe_system_time_elapsed	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:91	probe_await_holding_watch_ref	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:97	probe_watch_sender_send	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:101	probe_unreachable_pub	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:103	probe_unexpected_cfgs	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:106	probe_silent_klibs_rules_cfg	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+UnfulfilledExpectation	modules/probe/std/src/probes.rs:106	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
+UnfulfilledExpectation	modules/probe/std/src/probes.rs:121	Unanalysable	no `Unanalysable` finding is anchored in the scope of this exception
+ReExportShape	modules/probe/std/src/probes.rs:130	probe_excessive_nesting	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:146	probe_too_many_lines	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ModuleVisibility	modules/probe/std/src/probes.rs:211	probe::probes::tests	module visibility must be Crate (arch-package.rs.md, Modules and directories)
+PluralPackageName	modules/probe/std/src/probes.rs:211	probe::probes::tests	name a concept in the singular, or declare its project word in plural-concepts
+RootFileShape	modules/probe/std/src/probes.rs:211	probe::probes	only the crate root declares modules
+TestMirror	modules/probe/std/src/probes.rs:211	probe::probes	tests live in the root test block; path attributes belong only to the root test and fixture blocks
+TestMirror	modules/probe/std/src/probes.rs:213	probe::probes	tests live in the root test block; path attributes belong only to the root test and fixture blocks
+TestFunctionName	modules/probe/std/src/probes.rs:214	probe::probes::tests::probe_silent_allow_unwrap_in_tests	Use given_<state>_when_<action>_then_<outcome> for a test (testing.rs.md)
+TestMirror	modules/probe/std/src/probes.rs:219	probe::probes	tests live in the root test block; path attributes belong only to the root test and fixture blocks
+TestFunctionName	modules/probe/std/src/probes.rs:220	probe::probes::tests::probe_silent_allow_expect_in_tests	Use given_<state>_when_<action>_then_<outcome> for a test (testing.rs.md)
 KindShape	modules/probe/time/src/lib.rs:1	probe_time::probes	a concept holds kind blocks; files live in a named kind
 RootFileShape	modules/probe/time/src/lib.rs:1	probe_time	the root file holds only the module tree and the items the platform calls
 ReExportShape	modules/probe/time/src/probes.rs:1	probe_chrono_utc_now	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
