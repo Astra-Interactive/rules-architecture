@@ -2,7 +2,8 @@
 
 What `.claude/docs` says and the Rust linter (`rules-rust`, crate `klibs-rules`) did not check, or checked
 wrongly, at `master` `7c2d81e`, and what became of each case. Sections are named after the document; every item
-quotes the document's words. A ticked item needs nothing more; an unticked one is still not in the code.
+quotes the document's words. A ticked item needs nothing more beyond its `Left out` line, if it has one; an
+unticked one is still not in the code. The candidates of round 14 were read at `35b8d3b`.
 
 ## How to read an item
 
@@ -15,6 +16,13 @@ quotes the document's words. A ticked item needs nothing more; an unticked one i
     take is named there and stays a gap. The rule is in the linter and the test (first sub-item) passes.
   - `not a gap (round 13)`: the case's test passed on the unchanged rule; the code already followed the
     document.
+  - `accepted, not in the code (found 2026-11-11)`: a round 13 decision accepted the case, and the verification
+    of 2026-11-11 found that the code lacks it.
+  - `Left out (found 2026-11-11)`: a sub-item of a ticked item; the verification of that day found a part the
+    code does not take, and the status above it claims no more than what is left.
+  - `candidate (round 14)`: found on 2026-11-11 by reading the documents and the source at `35b8d3b`; never
+    executed; no decision taken, the line numbers are those of `35b8d3b`. `low confidence` after it means the
+    report itself doubts the candidate. A `Near` line names the nearest item and how the mechanism differs.
   - `document (round 13)`: the document was changed in `conf.ide` and the linter was not (`decisions.md` F34).
   - `kept (round 13)`: the brainstorm of round 13 (`decisions.md` F35) found no mechanical form that reports no
     conforming code, or found that the code already follows the document; no test.
@@ -31,10 +39,13 @@ quotes the document's words. A ticked item needs nothing more; an unticked one i
 Sources, under `.claude/reports/rust-linter-research/`: the ledger `uncovered-rust-doc-cases.md`,
 `reaudit-2026-11-10/seat-{t,s,a}.md`, `r10-seat-{t,s,a}.md`, `r11-seat-{t,s,a}.md` and `r12-seat-{t,s,a}.md`
 (the write-up of each case under `#### <ID>`), `reaudit-2026-11-10/owner-questions-brainstorm-r13.md` and
-`owner-questions-brainstorm-r13-9s08.md` (the bound of each round 13 case), `decisions.md` (F1–F36).
+`owner-questions-brainstorm-r13-9s08.md` (the bound of each round 13 case), `decisions.md` (F1–F36),
+`reaudit-2026-11-11/r14-seat-{t,s,a}.md` (the round 14 candidates, each under `#### 14<letter><nn>`, with its
+Continuation section) and `reaudit-2026-11-11/todo-verification.md` (the check of this list against the code).
 
-Totals: 111 items. Ticked, 82: 76 implemented (27 of rounds 9–10, 9A01 with both halves among them, and 49 of
-round 13), 1 `not a gap`, 5 `document`. Open, 29: 16 `kept`, 4 `closed by decision`, 9 `not mechanical`.
+Totals: 146 items. Ticked, 81: 76 implemented (26 of rounds 9–10, 9A01 with both halves among them, and 50 of
+round 13), 5 `document`. Open, 65: 16 `kept`, 4 `closed by decision`, 9 `not mechanical`, 1 `accepted, not in
+the code`, 35 `candidate (round 14)`.
 
 ## arch-context.md
 
@@ -63,6 +74,15 @@ round 13), 1 `not a gap`, 5 `document`. Open, 29: 16 `kept`, 4 `closed by decisi
   - Gap: a concrete `InvoiceRepository` struct doing file I/O in `core` is accepted; only traits with the
     `Repository` suffix are checked.
   - Rule: `CoreShape`, `module/rule/core_shape.rs:39–57`
+
+- [ ] **14T03** — not mechanical · candidate (round 14): a router's implementation may import the UI kinds it
+  opens
+  - Doc (`arch-context.md:71`): "a router's implementation also the UI kinds it opens"
+  - Gap: an implementation in a technology module is allowed `api`, `model`, `util` and its own technology
+    only; the router row's extra allowance (the UI kinds it opens) has no carrier, and a router is told by
+    behaviour, not by a word the linter knows.
+  - Rule: `KindImportDirection`, `module/rule/kind_import_direction.rs:146–173`
+  - Near: **10T11** — that item is `memory` in an app `api`; no item concerns the router row.
 
 ## arch-domain.md
 
@@ -98,11 +118,17 @@ round 13), 1 `not a gap`, 5 `document`. Open, 29: 16 `kept`, 4 `closed by decisi
   - Gap: the exemption is tested against the words of the crate name too, so every type of a crate named
     `…-service` may carry `Service` (`PaymentService` in `usecase`).
   - Rule: `KindNameInPackage`, `naming/rule/name_visitor.rs:93–134`
-- [x] **12S06** — missed · not a gap (round 13): the test below passed on the unchanged rule in the RED run, so
-  the code already reports `NonZero*`, `Cow<str>`, `Rc<str>` and `Box`/`Rc`/`Arc<String>` in an `id` field; the
-  test stays as the pin
-  - Test: `declaration/rule/bare_identifier_test.rs` ·
-    `given_standard_library_string_and_integer_wrappers_when_checked_then_requires_typed_ids`
+- [ ] **12S06** — missed · accepted, not in the code (found 2026-11-11): round 13 took the case as `not a gap
+  (round 13)`: the test below passed on the unchanged rule in the RED run, so the code was taken to report
+  `NonZero*`, `Cow<str>`, `Rc<str>` and `Box`/`Rc`/`Arc<String>` in an `id` field; the test stays as the pin
+  - Found 2026-11-11: the test passes because every struct of its input has one named field inside `mod model`,
+    which `BareIdentifier` reports through its single-property check
+    (`declaration/rule/bare_identifier.rs:128–132`) whatever the field type; and `is_bare_resolved`
+    (`bare_identifier.rs:38–94`) has no branch for `NonZero*`, `Cow<str>`, `Rc<str>`, `Arc<String>` or
+    `Box<String>`.
+  - Test: `declaration/rule/bare_identifier_test.rs:58` ·
+    `given_standard_library_string_and_integer_wrappers_when_checked_then_requires_typed_ids`; it does not
+    isolate the case and needs structs of two fields
   - Doc (`arch-domain.md:37–38`): "It carries a typed identifier (`PlayerId`, `JailId`), never a bare string or
     number."
   - Gap: a field named `id` or `*_id` of type `Cow<str>`, `Rc<str>`, `Arc<String>` or a `NonZero*` integer is
@@ -153,6 +179,34 @@ round 13), 1 `not a gap`, 5 `document`. Open, 29: 16 `kept`, 4 `closed by decisi
 - See also **10S06** under `code-ordering.rs.md` (`arch-domain.rs.md:100–101`: "A struct that only its variants
   carry sits in its file.").
 
+- [ ] **14S01** — false positive · candidate (round 14): a platform event type whose host trait comes from a
+  derive is reported
+  - Doc (`arch-domain.rs.md:174–175`): "A platform's event type that carries it, declared only for other
+    programs, lives in the `event` kind of the platform unit."
+  - Gap: the platform-event exemption looks for a written `impl` of an external trait; a host trait supplied by
+    `#[derive(..)]` is invisible, so the platform event type is reported as a domain event outside `model`.
+  - Rule: `EventPlacement`, `module/rule/event_placement.rs:27–32`
+  - Near: **10T04** — a different rule (`ContractPlacement`); no item names `EventPlacement`.
+- [ ] **14S06** — false positive · candidate (round 14, low confidence): an accessor whose body is a method call
+  on the field is not taken as an accessor
+  - Doc (`arch-domain.rs.md:13,63–64`): "its `new` and accessors"; "each field gets an accessor named after what
+    it holds"
+  - Gap: only a bare field read counts as an accessor; `self.0.as_deref()` or `self.0.as_str()` is reported as a
+    rule method and as a missing accessor. The document does not give the body of an accessor, and `&self.0` is
+    a conforming alternative for `String`.
+  - Rule: `ModelContainsFunctions`, `module/rule/model_contains_functions.rs:13–32`; `ValueObjectShape`,
+    `declaration/rule/value_object_shape.rs:13–27,247–249`
+  - Near: **12S03** — that item is the `new` form of a value object; no item concerns the accessor body.
+- [ ] **14S09** — false positive (document conflict) · candidate (round 14): a `&mut self` method of a std
+  operator or library trait on a model type is reported
+  - Doc (`arch-domain.rs.md:13–15,19–20`): "an operator of `std::ops` … any trait a library's API requires"
+    against "No method of a model type takes `&mut self`"
+  - Gap: a trait impl whose trait signature takes `&mut self` (`AddAssign`, `Iterator`) on a model type is
+    reported as a mutable transition; the document allows the trait and forbids the receiver.
+  - Rule: `ModelShouldBeImmutable`, `module/rule/model_should_be_immutable.rs:103–108`
+  - Near: **12S05** — that item bounds the receiver type to `Pin<&mut Self>`; the trait-impl conflict is not
+    named.
+
 ## arch-package.md
 
 - [x] **9T06** — missed · implemented
@@ -191,6 +245,9 @@ round 13), 1 `not a gap`, 5 `document`. Open, 29: 16 `kept`, 4 `closed by decisi
   - Rule: `PluralPackageName`, `module/rule/plural_package_name.rs:13–14`
   - Test: `module/rule/plural_package_name_test.rs` ·
     `given_concept_names_ending_in_as_when_checked_then_reports_only_the_real_plural`
+  - Left out (found 2026-11-11): the rule takes a closed list of four words (`alias`, `atlas`, `bias`,
+    `canvas`; `module/rule/plural_package_name.rs:8`); every other singular name ending in `-as` (`gas`,
+    `pancreas`) is still reported as plural.
 - [ ] **12T02** — missed · kept (round 13): `status` and `analysis` are singular; the document leaves plurality
   to the reviewer
   - Doc (`arch-package.md:178–179`): "Every package name is singular, except an inherently plural concept
@@ -240,6 +297,9 @@ round 13), 1 `not a gap`, 5 `document`. Open, 29: 16 `kept`, 4 `closed by decisi
   - Rule: `DocHiddenUse`, `module/rule/doc_hidden_use.rs:51–58`
   - Test: `module/rule/workspace_visibility_test.rs` ·
     `given_unused_public_hidden_constant_and_method_when_workspace_only_then_reports_each`
+  - Left out (found 2026-11-11): the rule covers constants, statics and `impl` or trait members
+    (`module/rule/doc_hidden_use.rs:25,99–117`), but the test (`module/rule/workspace_visibility_test.rs:325`)
+    pins only a constant and an inherent method; a `static` and a trait member have no test.
 - [x] **10T01** — missed · implemented (round 13): a `pub` field or method whose name no other workspace crate
   uses; unpublished crates only
   - Test: `module/rule/visibility_tier_test.rs` ·
@@ -350,6 +410,64 @@ round 13), 1 `not a gap`, 5 `document`. Open, 29: 16 `kept`, 4 `closed by decisi
   - Gap: the crate at `modules/core` itself is detected as `core-api`, though the table speaks of crates under
     that directory and gives an unsplit `core` the detection "never"; `role_resolve_test.rs` pins the code.
   - Rule: role resolution, `config/util/role_resolve.rs:75–87`
+
+- [ ] **14T01** — missed · candidate (round 14): a compound test `cfg` on code in `src/` is not test code to
+  `TestMirror`
+  - Doc (`arch-package.rs.md:312–313`): "Apart from that block and the fixture block, no `#[cfg(test)]` code
+    sits in `src/`."
+  - Gap: only a `cfg` equivalent to bare `test` counts as test code; `cfg(all(test, ..))` and
+    `cfg(any(test, feature = "fake"))` on an item of a src file module are accepted.
+  - Rule: `TestMirror`, `module/rule/test_attribute_visitor.rs:50–53`, `source/util/cfg_predicate_ext.rs:52–58`
+  - Near: **12T07** — that item and the `TestMirror` items of rounds 9–10 concern the test target path and the
+    `tests/` directory, not the predicate test of the attribute check.
+- [ ] **14T02** — missed · candidate (round 14): a `contract` crate accepts a union, a static and a type alias
+  - Doc (`arch-package.rs.md:236–237`): "A `contract` crate holds only types that derive `serde`'s `Serialize`
+    and `Deserialize`, and route constants"
+  - Gap: only structs and enums are tested; a union, a `static`, a type alias to a non-wire type and an item
+    macro are accepted.
+  - Rule: `ContractUnitShape`, `module/rule/contract_unit_shape.rs:47–55`
+- [ ] **14T05** — not mechanical · candidate (round 14): build automation outside the workspace root and member
+  directories
+  - Doc (`arch-package.rs.md:241–243`): "Build automation … is a subcommand of the `xtask` crate …, never a
+    shell script."
+  - Gap: a shell script in a non-member subdirectory is reported only when it runs `cargo`; a release or
+    code-generation script that calls other tools passes, and what is build automation needs a classifier.
+  - Rule: `ShellAutomation`, `layout/rule/shell_automation.rs:92–101`
+  - Near: **10T14** — that item is the extensionless shebang inside the same directory scope; this is the
+    directory scope itself.
+- [ ] **14T06** — missed · candidate (round 14): a `pub` tuple-struct field no other crate uses is not reported
+  - Doc (`arch-package.rs.md:131–133`): "Fields and methods take the tier of their widest user the same way:
+    private unless another file uses them"
+  - Gap: a `pub` field of a tuple struct is never checked for a workspace user (its name is empty); a use is
+    `.0`, which the name index cannot attribute.
+  - Rule: `VisibilityTier`, `module/rule/visibility_tier.rs` (`check_tier_members`, `is_unused_public`)
+  - Near: **10T01** — that item covers named members; the tuple field is the branch it skips.
+- [ ] **14T07** — false positive · candidate (round 14): a static (or const) named in `host-items` is not an
+  accepted host item at the entry-point root
+  - Doc (`arch-package.rs.md:258–259`): "the functions or the plugin type the host calls, in `src/lib.rs`"
+  - Gap: `is_host` takes functions, structs, enums and impls only; a host-loaded `static` or `const` named in
+    `host-items` is reported as a root item that is not the module tree; the new `EntryPointShape` host test
+    also reads `fn` only. The document speaks of functions and the plugin type; the `host-items` key of
+    `rules-rust/README.md` ("items a host loads by name") is what the code contradicts.
+  - Rule: `RootFileShape`, `module/rule/root_file_shape.rs:52–78`; `EntryPointShape`,
+    `module/rule/entry_point_shape.rs` (`is_host_function`)
+  - Near: **9T04** — that item and 12T06 are about `fn` visibility, not the item kinds a host loads.
+- [ ] **14T08** — missed · candidate (round 14): `ShellAutomation` knows three shell interpreters and three
+  shell extensions
+  - Doc (`arch-package.rs.md:241–243`): "Build automation … is a subcommand of the `xtask` crate …, never a
+    shell script."
+  - Gap: only `sh`, `bash`, `zsh` shebangs and `.sh`, `.bash`, `.zsh` extensions are taken as shell; `fish`,
+    `dash`, `ksh`, `ash`, `csh`, `tcsh` scripts pass.
+  - Rule: `ShellAutomation`, `layout/rule/shell_automation.rs:72–73`
+  - Near: **10T14** — its bound is a shebang that runs `sh`, `bash` or `zsh`; the other shells are not named as
+    left out.
+- [ ] **14T09** — missed · candidate (round 14): an inherited workspace `readme` satisfies `UnitReadme` for a
+  crate with no `README.md` of its own
+  - Doc (`arch-package.rs.md:246`): "Every crate has a one-sentence `README.md`; Cargo takes it as the package
+    readme."
+  - Gap: with `readme.workspace = true`, the workspace README is counted for the crate and a crate directory
+    without its own `README.md` is accepted.
+  - Rule: `UnitReadme`, `readme/rule/unit_readme.rs:83–95`
 
 ## async.rs.md
 
@@ -478,6 +596,15 @@ round 13), 1 `not a gap`, 5 `document`. Open, 29: 16 `kept`, 4 `closed by decisi
     visited.
   - Rule: `ExplicitItName`, `macro_arguments.rs:7–13`
 
+- [ ] **14S10** — missed · candidate (round 14): names inside `futures::select!` and other non-comma-list
+  macros are never visited
+  - Doc (`closure-naming.rs.md:6–7`): "Never name anything `it`: not a closure parameter, not a function
+    parameter, not a `let` or `match` binding"
+  - Gap: only `tokio::select!` has a parser of its own; `futures::select!` and `select_biased!` branches
+    (`pattern = future => handler`) fail the comma-list parse and are skipped.
+  - Rule: `ExplicitItName`, `ClosureParameterName`, `naming/rule/name_visitor.rs:366–386`
+  - Near: **10S04** — its bound is the grammar of `tokio::select!`; 7T05 is about item-position macros.
+
 ## code-ordering.rs.md
 
 - [ ] **10S06** — false positive (to confirm) · kept (round 13): not a false positive, a payload type with a
@@ -488,6 +615,14 @@ round 13), 1 `not a gap`, 5 `document`. Open, 29: 16 `kept`, 4 `closed by decisi
   - Gap: a trait `impl` or an inherent `impl` with functions on a payload type in its owner's file is reported
     as a second type with behaviour.
   - Rule: `OneTypeFamilyPerFile`, `family/rule/one_type_family_per_file.rs:113–147,225–229`
+
+- [ ] **14S02** — no rule · candidate (round 14): a constant with a value inside a trait body is accepted
+  - Doc (`code-ordering.rs.md:106–109`): "a constant of a trait itself, one with a value … An associated
+    constant without a value, which each implementation supplies, stays in the trait"
+  - Gap: a `const NAME: T = value;` declared inside a trait body is not reported; the document puts it at the
+    top of the file.
+  - Rule: none; nearest `DeclarationOrder`, `ordering/rule/declaration_order.rs:26–59`
+  - Near: **10S06** — that item is about payload types; no item concerns trait constants.
 
 ## di-manual-constructors.rs.md
 
@@ -507,6 +642,18 @@ round 13), 1 `not a gap`, 5 `document`. Open, 29: 16 `kept`, 4 `closed by decisi
   - Gap: only implementations declared in the workspace are seen; `reqwest::Client::new()` inside `new` passes,
     while `RootModuleConstruction` does report calls into dependency crates.
   - Rule: `ConstructorDependency`, `module/rule/constructor_dependency.rs:71–113`
+
+- [ ] **14A06** — missed · candidate (round 14): a free function outside the entry-point root builds a
+  workspace dependency
+  - Doc (`di-manual-constructors.rs.md:10–11`): "Dependencies must be created only at the composition root / DI
+    module"
+  - Gap: a free function in a non-root module of an entry-point crate, or in any library crate, that builds a
+    workspace implementation outside `di` is accepted when the crate has a DI module; only the entry-point
+    root's free functions are read.
+  - Rule: `ConstructorDependency`, `module/rule/constructor_dependency.rs:19–26,74–82`
+  - Near: **10A06** — its round 13 bound leaves free functions of other files out on purpose ("the wider form
+    would report conforming builders"), and the document's sentence contradicts that bound; if the owner keeps
+    the bound, this is a `kept` item.
 
 ## di-manual.rs.md
 
@@ -567,6 +714,31 @@ round 13), 1 `not a gap`, 5 `document`. Open, 29: 16 `kept`, 4 `closed by decisi
     constant data."
   - Gap: the statics declared inside `thread_local!` are not read.
   - Rule: `GlobalState`, `module/rule/global_state_visitor.rs:150–167`
+
+- [ ] **14A07** — missed · candidate (round 14): a contract-bounded generic or `impl Contract` parameter on a
+  use case function is not seen
+  - Doc (`di-manual.rs.md:11–12`): "A contract is never a type parameter of a DI module, a use case or an entry
+    point"
+  - Gap: `fn invoke<R: Contract>(&self, r: &R)` and an `impl Contract` parameter on a use case are accepted;
+    the function-level bound is read for DI modules and entry points only.
+  - Rule: `DiModuleShape`, `module/rule/di_module_shape.rs:515–522`
+  - Near: **11A06** — its bound is a function of a DI module or entry point and leans on `UseCaseShape` for a
+    use case, which reads constructor parameters only (`module/rule/use_case_shape.rs:482–500`).
+- [ ] **14A14** — missed · candidate (round 14): `RootModuleConstruction` does not read macro arguments
+  - Doc (`di-manual.rs.md:97–99`): "`RootModule` … constructs no service itself."
+  - Gap: a service built inside a macro argument (`vec![SmtpMailSender::new()]`) in `RootModule::new` is
+    accepted; the visitor does not read macros.
+  - Rule: `RootModuleConstruction`, `module/rule/root_construction_visitor.rs:133–160`
+  - Near: **12A09** — that item is foreign constructors in `new` of ordinary types; no item covers a macro
+    argument in the root.
+- [ ] **14A16** — false positive · candidate (round 14): a shutdown wait inside an associated `async fn` of a
+  workspace type is not accepted
+  - Doc (`di-manual.rs.md:101–102`): "calls `on_enable` and waits for the shutdown signal"
+  - Gap: `main` that awaits an associated `async fn` or a method of a workspace type that holds the signal wait
+    is rejected; only an awaited free `async fn` is followed. The resolver result for an associated function
+    path was inferred from two callers, not read.
+  - Rule: `MainShape`, `module/rule/main_shape_visitor.rs:158–189`
+  - Near: **12A08** — implemented with a free `fn` in its test; the associated form is not named in its bound.
 
 ## error-handling.rs.md
 
@@ -638,6 +810,58 @@ round 13), 1 `not a gap`, 5 `document`. Open, 29: 16 `kept`, 4 `closed by decisi
   - Gap: every struct in `model` must derive `Clone` and `PartialEq` (and `Eq`, `Hash`); an error struct with a
     boxed source cannot derive them and is reported. Enums are not checked, so the error enum passes.
   - Rule: `ModelDerives`, `declaration/rule/model_derives.rs:230–287`
+
+- [ ] **14A02** — missed · candidate (round 14): `_ = save().ok();` is not a discarded `Result`
+  - Doc (`error-handling.rs.md:155–156`): "never discard a `Result`: no call whose `Result` is left unused, and
+    no `let _ =` on it, with one exception."
+  - Gap: `_ = workspace_call().ok();` drops the error and is not reported; `check_discarded_assignment` does
+    not use the `.ok()` predicate.
+  - Rule: `ResultConsumption`, `runtime/rule/typed_runtime_visitor.rs:1055–1066,1140–1147`
+  - Near: **11A02** — it states `.ok();` and `let _ = ….ok();`, and 9A01 states `_ = call();`; the combination
+    goes through neither branch.
+- [ ] **14A03** — missed · candidate (round 14): a later `let _name` shadow makes the first `let _name = call();`
+  count as read
+  - Doc (`error-handling.rs.md:155–156`): "never discard a `Result` … no `let _ =` on it"
+  - Gap: `let _x = call(); let _x = other(); use(_x);` is accepted: a later binding of the same name counts as
+    a read of the first.
+  - Rule: `ResultConsumption`, `runtime/rule/typed_runtime_visitor.rs:1068–1111`
+  - Near: **9A01** — its bound is "never read again"; the shadowing is a mis-read of "read".
+- [ ] **14A04** — missed · candidate (round 14): the `_ =`, `let _name` and `.ok()` forms see only a
+  synchronous free workspace function
+  - Doc (`error-handling.rs.md:155–156`): "never discard a `Result`: no call whose `Result` is left unused, and
+    no `let _ =` on it"
+  - Gap: `_ = store.save();`, `let _saved = store.save();` and `_ = persist_later().await;` (method call,
+    associated function or `async fn` returning a workspace `Result`) are accepted;
+    `is_workspace_result_call` takes a synchronous free function only.
+  - Rule: `ResultConsumption`, `runtime/rule/typed_runtime_visitor.rs:1017–1053`
+  - Near: **9A01** — its bound and that of 11A02 is a call the visitor types as a workspace `Result`, which the
+    written tests give as a free `fn`; the method, associated-function and `async fn` forms are a part the
+    bound did not take and the items do not name.
+- [ ] **14A05** — missed · candidate (round 14): `catch_unwind` of a locally bound closure is not inspected
+  - Doc (`error-handling.rs.md:101–102`): "Your own logic returns `Err` and is never wrapped in
+    `std::panic::catch_unwind`"
+  - Gap: `let work = || own_fn(..); catch_unwind(AssertUnwindSafe(work))` is accepted (a local closure binding
+    is not followed); a local closure named like a workspace function is reported as that function.
+  - Rule: `CatchUnwind`, `runtime/rule/task_visitor.rs:441–505`
+  - Near: **11A01** — it takes a workspace function path; a closure bound to a local is another argument shape.
+- [ ] **14A12** — missed · candidate (round 14): two `?` steps in one expression statement are not reported
+  - Doc (`error-handling.rs.md:110–111`): "chain steps with `?`, one step per `let`, and the happy path stays
+    flat"
+  - Gap: `save(parse(raw)?)?;` and `return Ok(a(b()?)?);` (an expression statement or a `return` outside a
+    tail) compose two `?` steps and are accepted; only `let` initializers, conditions, loop heads and tails are
+    counted. The README row states the `let` scope; the document's "per `let`" is read to reach a statement
+    with no `let`.
+  - Rule: `ResultConsumption`, `runtime/rule/result_consumption.rs:56–114`
+
+## function-reference.rs.md
+
+- [ ] **14S07** — missed · candidate (round 14): the two-step closure path is recognised only after `lines()`
+  and `split(<char>)` on a `&str` parameter
+  - Doc (`function-reference.rs.md:28–29`): "When the closure first adapts its parameter with a method and then
+    calls one function, move the adaptation into the chain and use the path"
+  - Gap: the adapt-then-call closure is reported only after `.lines()` or `.split(<char>)` on a `&str`
+    parameter or literal; `.split(", ")`, `split_whitespace()` and a `&str` local are accepted.
+  - Rule: `TrivialClosurePath`, `expression/rule/adapter_chain_visitor.rs:50–69,159–208`
 
 ## imports.rs.md
 
@@ -749,6 +973,43 @@ round 13), 1 `not a gap`, 5 `document`. Open, 29: 16 `kept`, 4 `closed by decisi
     a cell (`Mutex<Option<Box<dyn FnOnce()>>>`, `RefCell<…>`) passes, and it is not a container of closures.
   - Rule: `CallbackDeclaration`, `declaration/util/callback_field_type.rs:81–104`
 
+- [ ] **14A01** — missed · candidate (round 14): `_ = std::thread::spawn(..)` is not a dropped thread handle
+  - Doc (`no-callbacks.rs.md:274–275`): "start only blocking work that runs until shutdown, in a technology
+    module, and the owner joins the thread when it stops"
+  - Gap: `_ = std::thread::spawn(..);` and `_ = Builder::new().spawn(..);` in a technology module drop the
+    handle and are not reported; the `ExprAssign` is not discard transparent for `ThreadPrimitive`.
+  - Rule: `ThreadPrimitive`, `runtime/rule/task_visitor.rs:396–419,1643–1649,1681–1686`
+  - Near: **10A04** — it lists the statement, `let _ =` and `drop(…)`; the assignment is a fourth spelling of
+    the same discard, through the `ExprAssign` reset.
+- [ ] **14A08** — missed · candidate (round 14): a contract method takes a `watch::Sender` or a std channel
+  sender as a sink
+  - Doc (`no-callbacks.rs.md:134–136`): "The contract in `api` declares only `async fn`s, `watch::Receiver`s
+    and streams"
+  - Gap: a contract method with a `tokio::sync::watch::Sender` or `std::sync::mpsc::Sender`/`SyncSender`
+    parameter (a registration sink) is accepted; the sender list is three tokio types.
+  - Rule: `ContractShape`, `declaration/util/contract_method_shape.rs:99–115,302–305`
+  - Near: **10A10** — its bound names three tokio senders and passes `oneshot`; `watch::Sender` and the std
+    senders are neither taken nor excluded.
+- [ ] **14A09** — missed · candidate (round 14): a task started per event through a `Handle` (or
+  `spawn_blocking`, `spawn_local`) inside a library callback
+  - Doc (`no-callbacks.rs.md:188–190`): "never `tokio::spawn` per event (order lost, a task per event)"
+  - Gap: `handle.spawn(..)`, `Runtime::spawn`, `spawn_blocking` and `spawn_local` inside a registered library
+    callback are accepted; only the two `tokio::spawn` paths are reported in a callback.
+  - Rule: `CallbackBridgeShape`, `runtime/rule/task_visitor.rs:174–176,1304–1318,1741–1755`
+  - Near: **11A09** — it and 12A07 extend `DetachedTask` to these spawn forms; `CallbackBridgeShape` was not
+    touched.
+- [ ] **14A13** — missed · candidate (round 14, low confidence): a blocking `block_on` in `Drop::drop` of a
+  technology module
+  - Doc (`no-callbacks.rs.md:261–263`): "`Drop` is synchronous and short … a destructor that may block needs a
+    separate teardown method"
+  - Gap: `Handle::block_on` (and `std::thread::sleep`) in `fn drop` of a technology module is accepted;
+    `block_on` is allowed in technology modules and no rule reads `drop` for it. The document says "may
+    block", and the join of an owned thread in `drop` (`no-callbacks.rs.md:275`) must stay allowed, so a form
+    is limited to `block_on`.
+  - Rule: `BlockingLockInSync`, `runtime/rule/typed_runtime_visitor.rs:1432–1434,1776–1786`
+  - Near: **11A03** — it widens the lock calls of `BlockingLockInSync`; no item reads `block_on` or
+    `thread::sleep` in `drop`.
+
 ## no-print.rs.md
 
 - [x] **10A01** — missed · implemented (round 13): a `map_err` after any call resolved into `std`, `core` or
@@ -760,6 +1021,16 @@ round 13), 1 `not a gap`, 5 `document`. Open, 29: 16 `kept`, 4 `closed by decisi
   - Gap: an error formatted into the message in a `map_err` after a call the linter cannot type
     (`std::fs::File::open`) is accepted.
   - Rule: `ErrorLogging`, `runtime/rule/error_logging.rs:120–185,561–586`
+
+- [ ] **14A15** — missed · candidate (round 14): `#[expect(clippy::…)]` on an `impl`, a trait or a whole
+  function is accepted as the smallest item
+  - Doc (`no-print.rs.md:30–31`): "the function that writes carries `#[expect(clippy::print_stdout, reason =
+    "…")]`"
+  - Gap: an `#[expect(clippy::…)]` on an `impl`, trait or struct that holds several functions is accepted; only
+    inner and module-level expectations are reported. The same words stand in `async.rs.md:229–231` and
+    `no-callbacks.rs.md:280–281`, and `notes.rs.md:6–8` says "on the smallest item that needs it"; the
+    mechanical form is limited to `impl`, `trait` and `struct` containers.
+  - Rule: `ExpectScope`, `suppression/rule/lint_expectation_visitor.rs:22–73`
 
 ## no-tuples.rs.md
 
@@ -777,6 +1048,15 @@ round 13), 1 `not a gap`, 5 `document`. Open, 29: 16 `kept`, 4 `closed by decisi
   - Rule: `AnonymousTuple`, `tuple/rule/tuple_binding_visitor.rs:329–353`
   - Test: `tuple/rule/tuple_binding_visitor_test.rs` ·
     `given_tuple_bound_through_branch_initializer_when_checked_then_requires_destructuring`
+
+- [ ] **14S05** — false positive · candidate (round 14): a destructured, annotated closure parameter reports its
+  tuple type
+  - Doc (`no-tuples.rs.md:5–8`): "Inside a function body a tuple is destructured where it appears"
+  - Gap: a closure parameter with a destructuring pattern and a tuple type annotation
+    (`|(name, count): (&String, &u32)|`) is reported, while the same pair on a `let` is not.
+  - Rule: `AnonymousTuple`, `tuple/rule/tuple_type_visitor.rs:111–140`
+  - Near: **9S06** — it and 10S01 are bindings to one name, which the linter missed; this is the converse, a
+    destructured form reported.
 
 ## notes.rs.md
 
@@ -841,7 +1121,7 @@ round 13), 1 `not a gap`, 5 `document`. Open, 29: 16 `kept`, 4 `closed by decisi
     `given_hidden_public_function_named_by_another_workspace_crate_when_published_then_reports_nothing`
 - [x] **10S05** — missed · implemented (round 13): a code span `name()` or `Type::name()` that resolves to a
   function is a link candidate
-  - Test: `comment/rule/doc_comment_visitor_test.rs` ·
+  - Test: `comment/rule/intra_doc_link_test.rs` ·
     `given_resolved_function_names_with_empty_parentheses_in_code_when_checked_then_reports_only_those`
   - Doc (`rustdoc.rs.md:56`): "Items are linked with intra-doc links …, never named in plain backticks where a
     link resolves."
@@ -864,6 +1144,10 @@ round 13), 1 `not a gap`, 5 `document`. Open, 29: 16 `kept`, 4 `closed by decisi
   - Gap: the eight filler phrases all begin with "this function" or "this method"; "This struct is responsible
     for …" and "This trait allows you to …" pass.
   - Rule: `RustdocFiller`, `comment/rule/rustdoc_filler.rs:13–35`
+  - Left out (found 2026-11-11): the rule takes only "This {struct|enum|trait|type} is responsible for"
+    (`comment/rule/rustdoc_filler.rs:24–26,41`); the Gap line's "This trait allows you to" is not reported, and
+    `comment/rule/rustdoc_filler_test.rs:32` pins "This struct allows you to" and "This trait is intended for"
+    as unreported.
 - [x] **12S07** — missed · implemented (round 13): `unwrap_err` and `expect_err` on a parameter, and a panic in
   the closure of `unwrap_or_else` on a parameter
   - Test: `comment/rule/doc_scope_visitor_test.rs` ·
@@ -873,6 +1157,47 @@ round 13), 1 `not a gap`, 5 `document`. Open, 29: 16 `kept`, 4 `closed by decisi
   - Gap: `unwrap_err` and `expect_err` on a parameter, and a `panic!` inside an `unwrap_or_else` closure, do not
     make `# Panics` required.
   - Rule: `DocCommentScope`, `comment/rule/panic_doc_visitor.rs:69–101,420–429`
+
+- [ ] **14S04** — not mechanical · candidate (round 14): a parameter line that paraphrases the name, and a
+  signature-restating summary, are not reported
+  - Doc (`rustdoc.rs.md:62–63`): "A parameter description that restates the name: "`user_id` — the identifier
+    of the user"."
+  - Gap: only a word-for-word restatement is reported; a paraphrase (`identifier of the user`) and a summary
+    that restates the signature need a synonym classifier.
+  - Rule: `RustdocFiller`, `comment/rule/rustdoc_parameter_visitor.rs:46–50`
+  - Near: **9S02** — that item is the getter and struct case; this is paraphrase and summary restatement.
+- [ ] **14S08** — missed · candidate (round 14, low confidence): `todo!` and `unimplemented!` do not require
+  `# Panics`
+  - Doc (`rustdoc.rs.md:5`): "`# Panics` is documented when a function of a published library panics on input
+    or state its caller controls"
+  - Gap: the panicking macros are `panic`, `assert*`, `debug_assert*` and `unreachable`; `todo!` and
+    `unimplemented!` are not counted. The document speaks of input or state, and its list holds `unreachable!`,
+    which does not depend on input either.
+  - Rule: `DocCommentScope`, `comment/rule/panic_doc_visitor.rs:357–383`
+  - Near: **12S07** — it names `unwrap_err`, `expect_err` and a closure, not these macros.
+
+## struct-default-values.rs.md
+
+- [ ] **14S11** — missed · candidate (round 14): the rules other than naming do not see the branches of
+  `tokio::select!`
+  - Doc (`struct-default-values.rs.md:3–4`): "Do not give a struct or an enum default values"
+  - Gap: the handler bodies of a `tokio::select!` are skipped by every visitor that reads macro arguments as a
+    comma list (struct update, tuple types, expression rules); only `NameVisitor` has the select grammar. The
+    probe also names `no-tuples.rs.md:8–9` ("it is never bound to one name").
+  - Rule: `StructDefaultValue`, `default/rule/struct_update_visitor.rs:89–93` (also `AnonymousTuple`,
+    `tuple/rule/tuple_type_visitor.rs:126–130`; `ClosureSingleIfGuard`,
+    `expression/rule/expression_visitor.rs:190–194`)
+  - Near: **10S04** — it added the `tokio::select!` grammar to the naming visitor only; 7T05 is about
+    item-position macros.
+
+## testing-no-useless.rs.md
+
+- [ ] **14S03** — not mechanical · candidate (round 14): the Bad example of the document is reported by nothing
+  - Doc (`testing-no-useless.rs.md:3,5–17`): "Do not write tests that only verify language/library behavior or
+    trivial data storage."
+  - Gap: the document's own Bad example (a field asserted against the literal it was just built with) has no
+    carrier; the gate records it as review. Only a narrow literal-then-field form is syntactic.
+  - Rule: none; nearest `ModelRuleTest`
 
 ## testing.rs.md
 
@@ -942,6 +1267,25 @@ round 13), 1 `not a gap`, 5 `document`. Open, 29: 16 `kept`, 4 `closed by decisi
   - Gap: an `Instant` counts as shown only inside a `tracing` or `log` macro; `format!`, `write!` and an
     assertion message pass.
   - Rule: `TimePrimitive`, `runtime/rule/time_primitive.rs:345–354`
+
+- [ ] **14A10** — no rule · candidate (round 14): a field or parameter named with a time-unit suffix and typed
+  as a primitive is read by no rule
+  - Doc (`time-api.rs.md:21–24`): Bad `timeout_seconds: u32,` ("do not represent moments in time or durations as
+    raw primitive or text types")
+  - Gap: a field or parameter named with a time-unit suffix and typed as a primitive or `String` is read by no
+    rule; only constants are; the Bad example of the document has no carrier. The document gives the
+    classification to the reviewer (line 4), but the suffix is its own example and the rule already reads the
+    same suffixes on constants.
+  - Rule: none; nearest `TimePrimitive`, `runtime/rule/time_primitive.rs:160–167,452–494`
+  - Near: **11A10** — that item is the suffix list of constants; no item names a field or parameter.
+- [ ] **14A11** — not mechanical · candidate (round 14): a moment held as an integer or text under a name that
+  carries no unit
+  - Doc (`time-api.rs.md:3–4`): "Which values are moments or durations is the reviewer's call."
+  - Gap: `created_at: i64` and `expires_at: String` (the first two lines of the Bad example) cannot be told from
+    other integers without a name classifier.
+  - Rule: none
+  - Near: **14A10** — the third line of the same Bad example, `timeout_seconds: u32`, carries a unit suffix the
+    rule reads on constants.
 
 ## Not in this list
 
