@@ -25,7 +25,7 @@ name = "xtask"
 edition = "2024"
 
 [dependencies]
-klibs-rules = "=0.1.0"
+klibs-rules = "=0.1.1"
 
 [lints]
 workspace = true
@@ -201,7 +201,7 @@ rollout (the reason names that document line), and the user approves each one (`
   the message says so). `Unanalysable` takes the attribute exception at its anchor.
 - **Not expectable**: `ForbiddenComment`, `UnitDependencyCycle`, `EntryPointDependency`, `LintConfig` and the meta
   findings.
-- **Retired ids** (0.1.0): `ActualFileSuffix` → `PlatformFileSuffix`, `CallbackFlowShape` → `CallbackBridgeShape`,
+- **Retired ids** (0.1.1): `ActualFileSuffix` → `PlatformFileSuffix`, `CallbackFlowShape` → `CallbackBridgeShape`,
   `ClockSystemOutsideDi` → `SystemClockOutsideDi`, `CompanionFactoryFunction` → `AssociatedFactoryFunction`,
   `ConstantOutsideCompanion` → `ConstantOutsideImpl`, `DataClassContainsFunctions` → `ModelContainsFunctions`,
   `DataClassDefaultValue` → `StructDefaultValue`, `DataClassShouldBeImmutable` → `ModelShouldBeImmutable`,
@@ -243,7 +243,7 @@ and the groups `clippy::restriction`, `clippy::pedantic` and `clippy::nursery` a
 
 The floor is 1.93.0; the library declares `rust-version = "1.93"`.
 
-## Rules in 0.1.0
+## Rules in 0.1.1
 
 | Id | Anchor | Reports |
 |---|---|---|
@@ -432,5 +432,5 @@ rules-rust/
   version, runs the gate sync on it, tags it `rules-rust-<version>`, publishes from the tag through crates.io Trusted
   Publishing (`rust-lang/crates-io-auth-action@v1`) and creates the GitHub release; every step resumes after a failure.
   When the documents drifted after the bump, the release stops before tagging: re-sync the gate and bump the version
-  in one commit, which abandons the drifted version. 0.1.0 is published by hand from its tag with the owner's token
-  read from the environment, after which the Trusted Publisher is registered.
+  in one commit, which abandons the drifted version. The first release, 0.1.1, is published by hand from its tag
+  with the owner's token read from the environment, after which the Trusted Publisher is registered.

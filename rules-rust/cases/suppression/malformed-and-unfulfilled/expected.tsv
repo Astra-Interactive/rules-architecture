@@ -31,7 +31,7 @@ MalformedExpectation	modules/sample/src/sample/checks.rs:18	AnonymousTuple	a sec
 ReExportShape	modules/sample/src/sample/checks.rs:18	id_twice	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 VisibilityTier	modules/sample/src/sample/checks.rs:18	id_twice	visibility follows the actual workspace users of the item
 ReExportShape	modules/sample/src/sample/checks.rs:20	unknown	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-UnknownRule	modules/sample/src/sample/checks.rs:20	NoSuchRule	klibs-rules 0.1.0 knows no rule `NoSuchRule`
+UnknownRule	modules/sample/src/sample/checks.rs:20	NoSuchRule	klibs-rules 0.1.1 knows no rule `NoSuchRule`
 VisibilityTier	modules/sample/src/sample/checks.rs:20	unknown	visibility follows the actual workspace users of the item
 ReExportShape	modules/sample/src/sample/checks.rs:22	retired	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 RetiredRule	modules/sample/src/sample/checks.rs:22	KDocFiller	`KDocFiller` is retired in klibs-rules: use `RustdocFiller`

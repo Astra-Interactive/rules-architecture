@@ -1,6 +1,6 @@
 [package]
 name = "klibs-rules"
-version = "0.1.0"
+version = "0.1.1"
 description = "Checks a Cargo workspace against the Astra-Interactive architecture rules"
 edition.workspace = true
 rust-version.workspace = true
