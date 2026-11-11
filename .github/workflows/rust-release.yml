@@ -72,6 +72,7 @@ jobs:
         run: |
           git worktree add "$RUNNER_TEMP/bump" "$BUMP"
           cd "$RUNNER_TEMP/bump/rules-rust"
+          rustup show active-toolchain || rustup toolchain install
           cargo xtask gate-sync --docs "$GITHUB_WORKSPACE/conf.ide/.claude/docs" --check
       - name: Tag the bump commit
         if: steps.state.outputs.tag == 'missing'
@@ -96,7 +97,9 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
         run: |
           git checkout "$TAG"
-          if ! (cd rules-rust && cargo publish -p klibs-rules); then
+          cd rules-rust
+          rustup show active-toolchain || rustup toolchain install
+          if ! cargo publish -p klibs-rules; then
             code=$(curl -s -o /dev/null -w '%{http_code}' -A "$USER_AGENT" "https://crates.io/api/v1/crates/klibs-rules/$VERSION")
             test "$code" = 200
           fi
