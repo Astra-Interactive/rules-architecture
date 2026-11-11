@@ -54,7 +54,17 @@ fn given_it_names_inside_tokio_select_when_checked_then_reports_each_position_bu
         &ExplicitItName,
         "ExplicitItName",
         "pub(crate) async fn forward(mut receiver: tokio::sync::mpsc::Receiver<String>, mut other: tokio::sync::mpsc::Receiver<String>) -> Option<String> {\n    tokio::select! {\n        biased;\n        message = receiver.recv() => {\n            let it = message;\n            it\n        }\n        it = other.recv() => it,\n        Some(value) = other.recv(), if [1].iter().any(|it| *it > 0) => value,\n        _ = std::future::ready([1].iter().map(|it| *it)) => None,\n        else => { let it = 0; None }\n    }\n}\npub(crate) async fn other_select() {\n    futures::select! { message = first() => { let it = message; } }\n}",
-        &[5, 8, 9, 10, 11],
+        &[5, 8, 9, 10, 11, 15],
+    );
+}
+
+#[test]
+fn given_it_names_inside_futures_select_when_checked_then_reports_pattern_and_handler_bindings() {
+    crate::test::declaration::util::assert_code_findings(
+        &ExplicitItName,
+        "ExplicitItName",
+        "pub(crate) async fn watch() {\n    futures::select_biased! {\n        it = first() => drop(it),\n        other = second() => drop(other),\n        complete => {},\n        default => { let it = 1; drop(it); }\n    }\n}",
+        &[3, 6],
     );
 }
 

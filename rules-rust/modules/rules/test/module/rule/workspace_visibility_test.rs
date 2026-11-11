@@ -330,6 +330,14 @@ fn given_unused_public_hidden_constant_and_method_when_workspace_only_then_repor
 }
 
 #[test]
+fn given_unused_hidden_static_and_trait_member_when_workspace_only_then_reports_each() {
+    let context = read_private_context(
+        "pub trait Bridge {\n    #[doc(hidden)] fn reset_for_bridge(&self);\n    fn visible(&self);\n}\n#[doc(hidden)] pub static BRIDGE_COUNT: u32 = 3;",
+    );
+    assert_doc_hidden_lines(&context, &[2, 5]);
+}
+
+#[test]
 fn given_unused_public_hidden_function_when_published_then_reports_the_item() {
     assert_published_doc_hidden_lines(
         "#[doc(hidden)]\npub fn compute_total(subtotal: u32, tax: u32) -> u32 { subtotal + tax }\npub fn visible_total(subtotal: u32, tax: u32) -> u32 { subtotal + tax }",

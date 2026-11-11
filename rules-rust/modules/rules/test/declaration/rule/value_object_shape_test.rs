@@ -14,6 +14,15 @@ fn given_validated_value_objects_when_checked_then_private_fields_accessors_and_
 }
 
 #[test]
+fn given_accessor_adapting_its_field_by_a_borrow_method_when_checked_then_counts_as_the_accessor() {
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ValueObjectShape,
+        "mod model {\nstruct CustomerNote(Option<String>); impl CustomerNote { fn new(value: Option<String>) -> Self { assert!(value.is_some()); Self(value) } fn value(&self) -> Option<&str> { self.0.as_deref() } }\nstruct CustomerName(String); impl CustomerName { fn new(value: String) -> Self { assert!(!value.is_empty()); Self(value) } fn value(&self) -> usize { self.0.len() } }\n}",
+        &[3],
+    );
+}
+
+#[test]
 fn given_di_alias_shape_when_checked_then_preserves_defined_exceptions() {
     crate::test::module::util::assert_di_lines(
         &crate::declaration::rule::ValueObjectShape,

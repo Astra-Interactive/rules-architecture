@@ -1603,8 +1603,8 @@ lines = "1-3"
 split = "none"
 wrap = "fields"
 sha256 = "c4feca723e209c96491f823dd805f2e552bbd2b907a53f43042905f19432d1d2"
-expected = []
-review = [{ why = "Primitive temporal intent and valid external-boundary conversions require review; exact Instant/constant checks remain active (phase4-async-syntax.md)." }]
+expected = [{ line = 3, carrier = "TimePrimitive" }]
+review = [{ why = "`created_at` and `expires_at` carry no unit in their name: primitive temporal intent and valid external-boundary conversions require review; the unit-named field, Instant and constant checks are active (phase4-async-syntax.md)." }]
 [[example.fragment]]
 path = "modules/bad/time-api-rs/src/example_64.rs"
 block-lines = "1-3"

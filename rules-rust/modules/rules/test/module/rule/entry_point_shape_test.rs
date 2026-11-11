@@ -63,6 +63,20 @@ fn given_cdylib_without_host_items_when_host_function_is_private_then_only_it_re
 }
 
 #[test]
+fn given_cdylib_host_static_when_checked_then_only_the_private_one_reports() {
+    let context = read_unconfigured_cdylib_context(
+        "#[unsafe(no_mangle)] pub static PLUGIN_VERSION: u32 = 1;",
+    );
+    assert!(EntryPointShape.check(&context).is_empty());
+    let context =
+        read_unconfigured_cdylib_context("#[unsafe(no_mangle)] static PLUGIN_VERSION: u32 = 1;");
+    let findings = EntryPointShape.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].finding.subject, "case_sample::PLUGIN_VERSION");
+    assert_eq!(findings[0].finding.location.line, Some(1));
+}
+
+#[test]
 fn given_declaration_shapes_when_checked_then_exact_wrong_sites_report_and_correct_shapes_pass() {
     let context = read_case_context("EntryPointShape", "fail-declaration-shape");
     let mut actual: Vec<String> = EntryPointShape

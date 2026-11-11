@@ -348,3 +348,21 @@ fn given_tdd_callback_bridge_external_library_per_event_spawn_when_registered_th
         4,
     );
 }
+
+#[test]
+fn given_task_started_per_event_through_a_handle_or_the_blocking_pool_when_registered_then_reports_call()
+ {
+    for spawn in [
+        "handle.spawn(async move { let _ = event; })",
+        "handle.spawn_blocking(move || { let _ = event; })",
+        "tokio::task::spawn_blocking(move || { let _ = event; })",
+        "tokio::task::spawn_local(async move { let _ = event; })",
+    ] {
+        assert_tdd_callback_bridge_external_library_finding(
+            &format!(
+                "use vendor::Library;\nfn run(library: &mut Library, handle: tokio::runtime::Handle) {{\n    library.register(move |event| {{\n        let task = {spawn};\n        drop(task);\n    }});\n}}"
+            ),
+            4,
+        );
+    }
+}

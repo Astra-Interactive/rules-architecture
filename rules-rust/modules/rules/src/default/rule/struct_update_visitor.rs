@@ -7,7 +7,7 @@ use crate::source::model::CrateIndex;
 use crate::source::model::Resolution;
 use crate::source::model::SourceFile;
 use crate::source::util::find_node_span;
-use crate::source::util::parse_macro_arguments;
+use crate::source::util::parse_macro_expressions;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
 
@@ -87,7 +87,7 @@ impl StructUpdateVisitor<'_> {
 
 impl<'ast> Visit<'ast> for StructUpdateVisitor<'_> {
     fn visit_macro(&mut self, item: &'ast syn::Macro) {
-        for argument in &parse_macro_arguments(item) {
+        for argument in &parse_macro_expressions(item) {
             self.visit_expr(argument);
         }
     }

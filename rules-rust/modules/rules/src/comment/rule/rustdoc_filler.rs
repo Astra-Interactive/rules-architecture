@@ -16,18 +16,15 @@ impl RustdocFiller {
             .collect::<Vec<_>>()
             .join(" ")
             .to_lowercase();
-        let is_function_filler = Self::FUNCTION_KINDS.iter().any(|kind| {
-            Self::FUNCTION_PREDICATES
+        let is_kind_filler = Self::ITEM_KINDS.iter().any(|kind| {
+            Self::FILLER_PREDICATES
                 .iter()
                 .any(|predicate| normalized.contains(&format!("this {kind} {predicate}")))
         });
-        let is_item_filler = Self::ITEM_KINDS
-            .iter()
-            .any(|kind| normalized.contains(&format!("this {kind} is responsible for")));
         let is_result_filler = Self::RESULT_PHRASES
             .iter()
             .any(|phrase| normalized.contains(phrase));
-        if is_function_filler || is_item_filler || is_result_filler {
+        if is_kind_filler || is_result_filler {
             return true;
         }
         normalized
@@ -35,10 +32,8 @@ impl RustdocFiller {
             .any(|sentence| sentence.trim() == "returns the result")
     }
 
-    const FUNCTION_KINDS: [&str; 2] = ["function", "method"];
-    const FUNCTION_PREDICATES: [&str; 3] =
-        ["is responsible for", "allows you to", "is intended for"];
-    const ITEM_KINDS: [&str; 4] = ["struct", "enum", "trait", "type"];
+    const FILLER_PREDICATES: [&str; 3] = ["is responsible for", "allows you to", "is intended for"];
+    const ITEM_KINDS: [&str; 6] = ["function", "method", "struct", "enum", "trait", "type"];
     const RESULT_PHRASES: [&str; 2] = [
         "returns the result of the operation",
         "returns the returned value",

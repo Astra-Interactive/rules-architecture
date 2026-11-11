@@ -51,6 +51,19 @@ fn given_rule_in_util_file_and_trait_impl_in_model_file_when_checked_then_preser
 }
 
 #[test]
+fn given_accessor_adapting_its_field_by_a_borrow_method_when_checked_then_only_the_rule_reports() {
+    let context = read_code_context(
+        "mod model {\nstruct CustomerNote(Option<String>);\nimpl CustomerNote {\nfn new(value: Option<String>) -> Self { assert!(value.is_some()); Self(value) }\nfn value(&self) -> Option<&str> { self.0.as_deref() }\nfn label(&self) -> String { self.0.clone().unwrap_or_default() }\n}\n}",
+    );
+    assert_placement_findings(
+        &ModelContainsFunctions,
+        "ModelContainsFunctions",
+        &context,
+        &[("src/lib.rs", 6, "Node")],
+    );
+}
+
+#[test]
 fn given_persistent_placement_cases_when_checked_then_match_exact_node_anchors() {
     assert_code_fixture(&ModelContainsFunctions, "ModelContainsFunctions", "bad");
     assert_code_fixture(&ModelContainsFunctions, "ModelContainsFunctions", "good");

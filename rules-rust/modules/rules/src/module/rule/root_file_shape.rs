@@ -49,19 +49,25 @@ impl RootFileShape {
         }
     }
 
+    fn is_exported(attributes: &[syn::Attribute]) -> bool {
+        attributes.iter().any(|attribute| {
+            let tokens = format_tokens(&attribute.meta).replace(' ', "");
+            tokens == "no_mangle"
+                || tokens == "unsafe(no_mangle)"
+                || tokens.starts_with("export_name=")
+                || tokens.starts_with("unsafe(export_name=")
+        })
+    }
+
     fn is_host(item: &Item, host_items: &[String]) -> bool {
         match item {
             Item::Fn(function) => {
-                if host_items.contains(&function.sig.ident.to_string()) {
-                    return true;
-                }
-                if function.sig.abi.is_some() {
-                    return true;
-                }
-                function.attrs.iter().any(|attribute| {
-                    let tokens = format_tokens(&attribute.meta).replace(' ', "");
-                    tokens == "no_mangle" || tokens == "unsafe(no_mangle)"
-                })
+                host_items.contains(&function.sig.ident.to_string())
+                    || function.sig.abi.is_some()
+                    || Self::is_exported(&function.attrs)
+            }
+            Item::Static(item) => {
+                host_items.contains(&item.ident.to_string()) || Self::is_exported(&item.attrs)
             }
             Item::Struct(item) => host_items.contains(&item.ident.to_string()),
             Item::Enum(item) => host_items.contains(&item.ident.to_string()),

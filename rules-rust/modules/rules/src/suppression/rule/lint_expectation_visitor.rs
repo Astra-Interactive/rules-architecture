@@ -6,6 +6,7 @@ use syn::visit::Visit;
 
 pub(crate) struct LintExpectationVisitor {
     is_module: bool,
+    is_container: bool,
     allows_print: bool,
     findings: Vec<proc_macro2::Span>,
 }
@@ -14,6 +15,7 @@ impl LintExpectationVisitor {
     pub(crate) fn new(allows_print: bool) -> Self {
         Self {
             is_module: false,
+            is_container: false,
             allows_print,
             findings: Vec::new(),
         }
@@ -64,18 +66,42 @@ impl LintExpectationVisitor {
         if lints.is_empty() {
             return false;
         }
+        let names: Vec<String> = lints
+            .iter()
+            .map(|path| format_tokens(path).replace(' ', ""))
+            .collect();
+        let covers_functions = self.is_container
+            && names
+                .iter()
+                .any(|name| Self::EXPRESSION_LINTS.contains(&name.as_str()));
         is_inner
             || self.is_module
             || is_allow
-            || lints
-                .iter()
-                .any(|path| !self.is_prescribed_lint(&format_tokens(path).replace(' ', "")))
+            || covers_functions
+            || names.iter().any(|name| !self.is_prescribed_lint(name))
+    }
+
+    fn visit_container_attributes(&mut self, attributes: &[syn::Attribute]) {
+        self.is_container = true;
+        for attribute in attributes {
+            self.visit_attribute(attribute);
+        }
+        self.is_container = false;
     }
 
     pub(crate) fn collect_findings(mut self, syntax: &syn::File) -> Vec<proc_macro2::Span> {
         self.visit_file(syntax);
         self.findings
     }
+
+    const EXPRESSION_LINTS: [&'static str; 6] = [
+        "clippy::unwrap_used",
+        "clippy::expect_used",
+        "clippy::let_underscore_must_use",
+        "clippy::disallowed_methods",
+        "clippy::print_stdout",
+        "clippy::print_stderr",
+    ];
 }
 
 impl<'ast> Visit<'ast> for LintExpectationVisitor {
@@ -89,6 +115,20 @@ impl<'ast> Visit<'ast> for LintExpectationVisitor {
         let is_inner = matches!(attribute.style, syn::AttrStyle::Inner(_));
         if self.violates_scope(&attribute.meta, is_inner, false) {
             self.findings.push(attribute.span());
+        }
+    }
+
+    fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
+        self.visit_container_attributes(&item.attrs);
+        for child in &item.items {
+            self.visit_impl_item(child);
+        }
+    }
+
+    fn visit_item_trait(&mut self, item: &'ast syn::ItemTrait) {
+        self.visit_container_attributes(&item.attrs);
+        for child in &item.items {
+            self.visit_trait_item(child);
         }
     }
 

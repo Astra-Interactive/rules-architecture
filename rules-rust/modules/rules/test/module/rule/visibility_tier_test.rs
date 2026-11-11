@@ -164,6 +164,30 @@ fn given_public_members_named_by_no_other_crate_when_checked_then_reports_each_m
 }
 
 #[test]
+fn given_public_tuple_fields_no_other_crate_reads_when_checked_then_reports_each_struct_field() {
+    let billing = "pub struct InvoiceTotal(pub u64);\npub struct InvoiceCount(pub u64);\npub struct InvoiceLabel(pub u64, pub bool);\npub struct InvoiceNote(\n    pub u64,\n    pub bool,\n);";
+    let ledger = "use shop_billing_api::InvoiceCount;\nfn show(\n    total: &shop_billing_api::InvoiceTotal,\n    count: InvoiceCount,\n    label: &shop_billing_api::InvoiceLabel,\n    note: &shop_billing_api::InvoiceNote,\n) -> bool {\n    let InvoiceCount(value) = count;\n    value > 0 && note.1\n}";
+    let context = crate::test::module::util::read_workspace_shape_context(&[
+        ("shop_billing_api", "", billing),
+        (
+            "shop_ledger",
+            "shop_billing_api={path=\"../shop_billing_api\"}",
+            ledger,
+        ),
+    ]);
+    assert_placement_findings(
+        &VisibilityTier,
+        "VisibilityTier",
+        &context,
+        &[
+            ("shop_billing_api/src/lib.rs", 1, "Node"),
+            ("shop_billing_api/src/lib.rs", 3, "Node"),
+            ("shop_billing_api/src/lib.rs", 5, "Node"),
+        ],
+    );
+}
+
+#[test]
 fn given_super_and_self_visibility_when_checked_then_reports_item_field_and_method() {
     let context = read_private_placement_context(&[
         ("src/lib.rs", "mod table;"),

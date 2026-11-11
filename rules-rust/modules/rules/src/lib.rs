@@ -188,6 +188,7 @@ pub(crate) mod source {
         pub(crate) use node_span::NodeSpan;
         pub(crate) use reference_site::ReferenceSite;
         pub(crate) use resolved_type_syntax::ResolvedTypeSyntax;
+        pub(crate) use select_part::SelectPart;
         pub(crate) use source_file::SourceFile;
         pub(crate) use source_load_error::SourceLoadError;
         pub(crate) use source_module::DeclaredVisibility;
@@ -214,6 +215,7 @@ pub(crate) mod source {
         mod node_span;
         mod reference_site;
         mod resolved_type_syntax;
+        mod select_part;
         mod source_file;
         mod source_load_error;
         mod source_module;
@@ -231,6 +233,9 @@ pub(crate) mod source {
         pub(crate) use comment_scan::scan_comments;
         pub(crate) use expression_attribute::find_expression_attributes;
         pub(crate) use macro_arguments::parse_macro_arguments;
+        pub(crate) use macro_arguments::parse_macro_expressions;
+        pub(crate) use macro_arguments::parse_select_parts;
+        pub(crate) use select_arguments::parse_select_arguments;
         pub(crate) use syntax_record::find_declared_visibility;
         pub(crate) use syntax_record::find_node_span;
         pub(crate) use syntax_record::find_path_attribute;
@@ -246,6 +251,7 @@ pub(crate) mod source {
         mod external_path_ext;
         mod macro_arguments;
         mod node_span_ext;
+        mod select_arguments;
         mod syntax_record;
         mod target_predicate;
         mod workspace_name_index_ext;
@@ -410,14 +416,6 @@ pub(crate) mod naming {
         mod roleless_type_name;
         mod test_function_name;
     }
-    pub(crate) mod model {
-        pub(crate) use select_part::SelectPart;
-        mod select_part;
-    }
-    pub(crate) mod util {
-        pub(crate) use select_arguments::parse_select_arguments;
-        mod select_arguments;
-    }
 
     pub(crate) mod di {
         pub(crate) use naming_rule_module::NamingRuleModule;
@@ -488,7 +486,7 @@ pub(crate) mod default {
 pub(crate) mod syntax {
     pub(crate) mod util {
         pub(crate) use item_shape::{
-            find_self_name, find_type_name, is_constructor, to_snake_case,
+            find_self_name, find_type_name, is_accessor_adapter, is_constructor, to_snake_case,
         };
         mod item_shape;
     }

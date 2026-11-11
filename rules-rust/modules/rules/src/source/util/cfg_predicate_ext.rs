@@ -49,12 +49,12 @@ impl CfgPredicate {
         )
     }
 
-    pub(crate) fn is_test_only(&self) -> bool {
+    pub(crate) fn requires_test(&self) -> bool {
         let test = Self::Atom {
             key: "test".to_owned(),
             value: None,
         };
-        self.implies(&test) && test.implies(self)
+        self.is_satisfiable() && self.implies(&test)
     }
 
     fn from_meta(meta: Meta) -> Self {

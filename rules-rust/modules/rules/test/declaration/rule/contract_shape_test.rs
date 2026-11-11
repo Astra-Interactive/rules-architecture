@@ -201,6 +201,15 @@ fn given_contract_method_returning_a_non_static_boxstream_under_any_name_when_ch
 }
 
 #[test]
+fn given_contract_method_taking_a_watch_or_std_sender_when_checked_then_reports_all_but_oneshot() {
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ContractShape,
+        "mod api { use tokio::sync::watch;\ntrait Publisher: Send + Sync { fn bind(&self, sink: watch::Sender<u8>); }\ntrait Feed: Send + Sync { fn bind(&self, sink: std::sync::mpsc::Sender<u8>); }\ntrait Queue: Send + Sync { fn bind(&self, sink: std::sync::mpsc::SyncSender<u8>); }\ntrait Ack: Send + Sync { fn confirm(&self, answer: tokio::sync::oneshot::Sender<u8>); }\ntrait Level: Send + Sync { fn level(&self) -> watch::Receiver<u8>; }\n}",
+        &[2, 3, 4],
+    );
+}
+
+#[test]
 fn given_contract_method_taking_a_channel_sender_when_checked_then_reports_all_but_oneshot() {
     crate::test::module::util::assert_di_lines(
         &crate::declaration::rule::ContractShape,

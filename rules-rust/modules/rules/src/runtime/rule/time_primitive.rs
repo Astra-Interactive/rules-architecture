@@ -1,6 +1,8 @@
 use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
 use crate::check::util::{build_node_finding, format_module_path};
+use crate::config::model::Role;
+use crate::declaration::util::is_technology;
 use crate::runtime::util::names_format_argument;
 use crate::runtime::util::node_predicate;
 use crate::source::model::Resolution;
@@ -157,12 +159,22 @@ impl TimeVisitor<'_> {
                 ["u8","u16","u32","u64","u128","usize","i8","i16","i32","i64","i128","isize","f32","f64","str"].contains(&name.to_string().as_str()))))
     }
 
-    fn unit_constant(&self, ident: &syn::Ident, typed: &syn::Type) -> bool {
+    fn is_wire_boundary(&self) -> bool {
+        let index = &self.context.indexes[self.ordinal];
+        let is_contract = self
+            .context
+            .find_role_config(&index.crate_name)
+            .is_some_and(|config| config.role == Some(Role::Contract));
+        is_contract || is_technology(self.context, index, self.module)
+    }
+
+    fn is_unit_named_primitive(&self, ident: &syn::Ident, typed: &syn::Type) -> bool {
+        let name = ident.to_string().to_uppercase();
         [
             "_MS", "_MILLIS", "_SECS", "_SECONDS", "_NANOS", "_MICROS", "_MINUTES", "_HOURS",
         ]
         .iter()
-        .any(|suffix| ident.to_string().ends_with(suffix))
+        .any(|suffix| name.ends_with(suffix))
             && self.primitive(typed)
     }
 
@@ -450,7 +462,12 @@ impl<'ast> Visit<'ast> for TimeVisitor<'_> {
     }
 
     fn visit_field(&mut self, field: &'ast syn::Field) {
-        if self.instant(&field.ty) {
+        let is_unit_named = !self.is_wire_boundary()
+            && field
+                .ident
+                .as_ref()
+                .is_some_and(|ident| self.is_unit_named_primitive(ident, &field.ty));
+        if self.instant(&field.ty) || is_unit_named {
             self.spans.push(field.span());
         }
         syn::visit::visit_field(self, field);
@@ -466,28 +483,28 @@ impl<'ast> Visit<'ast> for TimeVisitor<'_> {
     }
 
     fn visit_item_const(&mut self, item: &'ast syn::ItemConst) {
-        if self.unit_constant(&item.ident, &item.ty) {
+        if self.is_unit_named_primitive(&item.ident, &item.ty) {
             self.spans.push(item.span());
         }
         syn::visit::visit_item_const(self, item);
     }
 
     fn visit_item_static(&mut self, item: &'ast syn::ItemStatic) {
-        if self.unit_constant(&item.ident, &item.ty) {
+        if self.is_unit_named_primitive(&item.ident, &item.ty) {
             self.spans.push(item.span());
         }
         syn::visit::visit_item_static(self, item);
     }
 
     fn visit_impl_item_const(&mut self, item: &'ast syn::ImplItemConst) {
-        if self.unit_constant(&item.ident, &item.ty) {
+        if self.is_unit_named_primitive(&item.ident, &item.ty) {
             self.spans.push(item.span());
         }
         syn::visit::visit_impl_item_const(self, item);
     }
 
     fn visit_trait_item_const(&mut self, item: &'ast syn::TraitItemConst) {
-        if self.unit_constant(&item.ident, &item.ty) {
+        if self.is_unit_named_primitive(&item.ident, &item.ty) {
             self.spans.push(item.span());
         }
         syn::visit::visit_trait_item_const(self, item);

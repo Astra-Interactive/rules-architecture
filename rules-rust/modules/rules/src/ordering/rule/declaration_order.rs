@@ -86,6 +86,18 @@ impl DeclarationOrder {
         }
     }
 
+    fn list_valued_constants(item: &syn::ItemTrait) -> Vec<proc_macro2::Span> {
+        item.items
+            .iter()
+            .filter_map(|child| match child {
+                syn::TraitItem::Const(constant) if constant.default.is_some() => {
+                    Some(constant.span())
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
     fn check_items(items: &[syn::Item]) -> Vec<proc_macro2::Span> {
         let mut findings = Vec::new();
         let mut has_type_or_function = false;
@@ -96,6 +108,9 @@ impl DeclarationOrder {
         for item in items {
             if matches!(item, syn::Item::Const(_) | syn::Item::Static(_)) && has_type_or_function {
                 findings.push(item.span());
+            }
+            if let syn::Item::Trait(value) = item {
+                findings.extend(Self::list_valued_constants(value));
             }
             if matches!(item, syn::Item::Fn(_)) {
                 has_function = true;

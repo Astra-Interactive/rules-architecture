@@ -176,5 +176,19 @@ fn given_entry_root_functions_constructing_implementation_when_checked_then_repo
         .filter_map(|finding| finding.finding.location.line)
         .collect();
     lines.sort_unstable();
-    assert_eq!(vec![7, 10], lines, "{findings:?}");
+    assert_eq!(vec![7, 10, 12], lines, "{findings:?}");
+}
+
+#[test]
+fn given_free_function_constructing_implementation_outside_di_when_checked_then_reports_only_it() {
+    let context = crate::test::module::util::read_di_context(
+        "mod mail {\n    pub(crate) mod api { pub(crate) trait MailSender: Send + Sync {} }\n    pub(crate) mod smtp { pub(crate) struct SmtpMailSender; impl crate::mail::api::MailSender for SmtpMailSender {} impl SmtpMailSender { pub(crate) fn new() -> Self { Self } } pub(crate) fn connect() -> SmtpMailSender { SmtpMailSender::new() } }\n}\nmod di { pub struct RootModule; impl RootModule { pub fn new() -> Self { Self } } pub(crate) fn assemble() { let mail_sender = crate::mail::smtp::SmtpMailSender::new(); } }\nmod command { pub(crate) fn start() { let mail_sender = crate::mail::smtp::SmtpMailSender::new(); } }",
+    );
+    let findings =
+        crate::check::api::Rule::check(&crate::module::rule::ConstructorDependency, &context);
+    let lines: Vec<u32> = findings
+        .iter()
+        .filter_map(|finding| finding.finding.location.line)
+        .collect();
+    assert_eq!(vec![6], lines, "{findings:?}");
 }

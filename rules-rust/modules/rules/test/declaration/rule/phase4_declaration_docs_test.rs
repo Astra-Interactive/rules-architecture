@@ -253,6 +253,42 @@ fn given_two_step_string_adaptation_when_checked_then_only_equivalent_function_p
 }
 
 #[test]
+fn given_two_step_adaptation_after_other_string_iterators_when_checked_then_reports_each_closure() {
+    assert_lines(
+        &TrivialClosurePath,
+        &read_code_context(
+            "fn parse_order(value: &str) -> usize { value.len() }\nfn run(text: &str, custom: Custom) {\nlet by_text = text.split(\", \").map(|part| parse_order(part.trim()));\nlet by_space = text.split_whitespace().map(|part| parse_order(part.trim()));\nlet by_end = text.split_terminator(';').map(|part| parse_order(part.trim()));\nlet from_end = text.rsplit(',').map(|part| parse_order(part.trim()));\nlet other = custom.split_whitespace().map(|part| parse_order(part.trim()));\n}\nstruct Custom;",
+        ),
+        &[3, 4, 5, 6],
+    );
+}
+
+#[test]
+fn given_closure_parameter_destructuring_an_annotated_tuple_when_checked_then_only_the_named_tuple_reports()
+ {
+    assert_lines(
+        &AnonymousTuple,
+        &read_code_context(
+            "fn names(counts: &std::collections::HashMap<String, u32>) -> Vec<String> {\n    counts.iter().map(|(name, count): (&String, &u32)| format!(\"{name}:{count}\")).collect()\n}\nfn sizes(counts: &std::collections::HashMap<String, u32>) -> usize {\n    counts.iter().map(|pair: (&String, &u32)| pair.1).count()\n}",
+        ),
+        &[5, 5],
+    );
+}
+
+#[test]
+fn given_published_todo_and_unimplemented_when_checked_then_requires_a_panics_section() {
+    let mut context = read_code_context(
+        "pub fn export_invoice(total: u64) -> String { unimplemented!() }\npub fn import_invoice(raw: &str) -> u64 { todo!() }\n/// Reads the total.\n///\n/// # Panics\n///\n/// Always: the reader is not written yet.\npub fn read_total(raw: &str) -> u64 { todo!() }\npub fn count(total: u64) -> u64 { total }",
+    );
+    context.workspace.members[0].manifest = crate::workspace::util::parse_toml_file(
+        "Cargo.toml",
+        "[package]\nname=\"case-sample\"\nversion=\"0.1.0\"",
+    )
+    .expect("version");
+    assert_lines(&DocCommentScope, &context, &[1, 2]);
+}
+
+#[test]
 fn given_case_conversion_adapter_closure_when_checked_then_reports_the_closure() {
     assert_lines(
         &TrivialClosurePath,

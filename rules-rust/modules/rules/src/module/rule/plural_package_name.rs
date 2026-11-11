@@ -5,7 +5,15 @@ use crate::module::util::{build_shape_module_finding, list_shape_words};
 pub(crate) struct PluralPackageName;
 
 impl PluralPackageName {
-    const SINGULAR_AS_WORDS: [&'static str; 4] = ["alias", "atlas", "bias", "canvas"];
+    const SINGULAR_AS_WORDS: [&'static str; 7] = [
+        "alias",
+        "atlas",
+        "bias",
+        "canvas",
+        "christmas",
+        "gas",
+        "pancreas",
+    ];
 }
 
 impl Rule for PluralPackageName {

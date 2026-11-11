@@ -155,6 +155,54 @@ impl MainShapeVisitor<'_> {
         }
     }
 
+    fn waits_for_signal(&self, ordinal: usize, module: usize, block: &syn::Block) -> bool {
+        let mut helper = Self::new(self.context, ordinal, module);
+        helper.follows_helpers = false;
+        helper.in_block = true;
+        helper.enabled = true;
+        helper.visit_block(block);
+        helper.shutdown_waited
+    }
+
+    fn is_associated_signal_helper(&self, path: &syn::Path) -> bool {
+        let Some(name) = path.segments.last().map(|segment| &segment.ident) else {
+            return false;
+        };
+        let mut owner = path.clone();
+        owner.segments.pop();
+        owner.segments.pop_punct();
+        if owner.segments.is_empty() {
+            return false;
+        }
+        self.context
+            .resolve_workspace_path(self.ordinal, self.module, &owner)
+            .iter()
+            .any(|target| {
+                let Some(identity) = target.path.item else {
+                    return false;
+                };
+                let index = &self.context.indexes[target.index];
+                index
+                    .implementations
+                    .iter()
+                    .filter(|implementation| {
+                        crate::module::util::owns_implementation(index, identity, implementation)
+                    })
+                    .any(|implementation| {
+                        implementation.syntax.items.iter().any(|member| {
+                            matches!(member, syn::ImplItem::Fn(method)
+                            if method.sig.ident == *name
+                                && method.sig.asyncness.is_some()
+                                && self.waits_for_signal(
+                                    target.index,
+                                    implementation.module,
+                                    &method.block,
+                                ))
+                        })
+                    })
+            })
+    }
+
     fn is_signal_helper(&self, expression: &syn::Expr) -> bool {
         let syn::Expr::Call(call) = expression else {
             return false;
@@ -165,7 +213,8 @@ impl MainShapeVisitor<'_> {
         if !self.follows_helpers {
             return false;
         }
-        self.context
+        let is_free_helper = self
+            .context
             .resolve_workspace_path(self.ordinal, self.module, &callee.path)
             .iter()
             .any(|target| {
@@ -173,19 +222,11 @@ impl MainShapeVisitor<'_> {
                     return false;
                 };
                 let item = &self.context.indexes[target.index].items[identity];
-                let syn::Item::Fn(function) = &item.syntax else {
-                    return false;
-                };
-                if function.sig.asyncness.is_none() {
-                    return false;
-                }
-                let mut helper = Self::new(self.context, target.index, item.module);
-                helper.follows_helpers = false;
-                helper.in_block = true;
-                helper.enabled = true;
-                helper.visit_block(&function.block);
-                helper.shutdown_waited
-            })
+                matches!(&item.syntax, syn::Item::Fn(function)
+                    if function.sig.asyncness.is_some()
+                        && self.waits_for_signal(target.index, item.module, &function.block))
+            });
+        is_free_helper || self.is_associated_signal_helper(&callee.path)
     }
 
     pub(crate) fn valid(

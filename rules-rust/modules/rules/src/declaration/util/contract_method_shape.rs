@@ -109,7 +109,15 @@ fn is_channel_sender(
         .any(|path| {
             is_tokio_channel(
                 path,
-                &["broadcast::Sender", "mpsc::Sender", "mpsc::UnboundedSender"],
+                &[
+                    "broadcast::Sender",
+                    "mpsc::Sender",
+                    "mpsc::UnboundedSender",
+                    "watch::Sender",
+                ],
+            ) || matches!(
+                path.format_path().as_str(),
+                "std::sync::mpsc::Sender" | "std::sync::mpsc::SyncSender"
             )
         })
 }

@@ -37,6 +37,12 @@ fn returns_self(value: &Type, own_name: &str) -> bool {
     })
 }
 
+pub(crate) fn is_accessor_adapter(call: &syn::ExprMethodCall) -> bool {
+    let name = call.method.to_string();
+    call.args.is_empty()
+        && (name.starts_with("as_") || ["clone", "copied", "cloned"].contains(&name.as_str()))
+}
+
 pub(crate) fn is_constructor(signature: &Signature, own_name: &str) -> bool {
     if signature.receiver().is_some() {
         return false;

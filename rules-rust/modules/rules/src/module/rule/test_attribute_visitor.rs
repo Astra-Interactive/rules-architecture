@@ -49,7 +49,7 @@ impl<'ast> Visit<'ast> for TestAttributeVisitor {
             .is_some_and(|segment| segment.ident == "test");
         let is_test = is_test_function
             || CfgPredicate::find_condition(attribute)
-                .is_some_and(|condition| condition.is_test_only());
+                .is_some_and(|condition| condition.requires_test());
         if is_test && !self.in_test || attribute.path().is_ident("path") {
             self.findings.push(build_node_finding("TestMirror", &self.file,
                 find_node_span(attribute.pound_token.span), self.subject.clone(),

@@ -157,3 +157,37 @@ fn given_builder_spawn_unwrapped_or_scoped_in_technology_module_when_checked_the
     lines.sort_unstable();
     assert_eq!(vec![Some(4), Some(8)], lines, "{source}");
 }
+
+#[test]
+fn given_thread_handle_assigned_to_underscore_in_technology_module_when_checked_then_reports_it() {
+    let expectation =
+        "#[expect(clippy::disallowed_methods, reason = \"reads the device until shutdown\")]";
+    let source = [
+        "struct Device;",
+        "impl Device { fn run(&self) {} }",
+        expectation,
+        "pub(crate) fn start(device: Device) {",
+        "    _ = std::thread::spawn(move || device.run());",
+        "}",
+        expectation,
+        "pub(crate) fn start_named(device: Device) {",
+        "    _ = std::thread::Builder::new().spawn(move || device.run());",
+        "}",
+        expectation,
+        "pub(crate) fn start_kept(device: Device) -> std::thread::JoinHandle<()> {",
+        "    let handle;",
+        "    handle = std::thread::spawn(move || device.run());",
+        "    handle",
+        "}",
+    ]
+    .join("\n");
+    let mut context = read_code_context(&source);
+    context.project_config.crates[0].role = Some(Role::Technology);
+    let mut lines = ThreadPrimitive
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect::<Vec<_>>();
+    lines.sort_unstable();
+    assert_eq!(vec![Some(5), Some(9)], lines, "{source}");
+}

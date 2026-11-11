@@ -2,11 +2,11 @@ use crate::check::model::RuleContext;
 use crate::check::model::RuleFinding;
 use crate::check::util::build_node_finding;
 use crate::check::util::format_module_path;
-use crate::naming::model::SelectPart;
-use crate::naming::util::parse_select_arguments;
+use crate::source::model::SelectPart;
 use crate::source::model::SourceFile;
 use crate::source::util::find_node_span;
 use crate::source::util::parse_macro_arguments;
+use crate::source::util::parse_select_parts;
 use syn::ext::IdentExt;
 use syn::parse::ParseStream;
 use syn::parse::Parser;
@@ -240,12 +240,10 @@ impl<'source> NameVisitor<'source> {
     }
 
     fn try_visit_select(&mut self, item: &syn::Macro) -> bool {
-        if !self.is_tokio_item(&item.path, "select") {
+        let parts = parse_select_parts(item);
+        if parts.is_empty() {
             return false;
         }
-        let Ok(parts) = parse_select_arguments.parse2(item.tokens.clone()) else {
-            return false;
-        };
         for part in &parts {
             match part {
                 SelectPart::Pattern(pattern) => self.visit_pat(pattern),

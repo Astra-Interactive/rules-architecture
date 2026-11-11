@@ -4,6 +4,7 @@ use crate::check::util::build_node_finding;
 use crate::config::model::Role;
 use crate::module::util::find_kind_name;
 use crate::module::util::{is_di_type, workspace_implementation_under};
+use crate::source::model::SourceTree;
 use crate::source::model::WorkspaceUse;
 
 pub(crate) struct ConstructorDependency;
@@ -23,6 +24,14 @@ impl ConstructorDependency {
             && !index.implementations.iter().any(|implementation| {
                 implementation.file == usage.file && implementation.span.contains(&usage.span)
             })
+    }
+
+    fn is_outside_free_function(context: &RuleContext, usage: &WorkspaceUse) -> bool {
+        let source = &context.indexes[usage.source_index].modules[usage.source_module];
+        let declaration = context.indexes[usage.target_index].items[usage.target_item].module;
+        let is_beside_type =
+            usage.source_index == usage.target_index && usage.source_module == declaration;
+        source.tree == SourceTree::Src && !is_beside_type
     }
 
     fn inside_constructor(context: &RuleContext, usage: &WorkspaceUse) -> bool {
@@ -73,9 +82,12 @@ impl ConstructorDependency {
         });
         let entry_root_function =
             implementations.is_empty() && Self::is_entry_root_function(context, usage);
+        let outside_free_function =
+            implementations.is_empty() && Self::is_outside_free_function(context, usage);
         !root
             && (!implementations.is_empty()
                 || entry_root_function
+                || outside_free_function
                 || function == "new"
                 || function.starts_with("with_")
                 || function.starts_with("from_")

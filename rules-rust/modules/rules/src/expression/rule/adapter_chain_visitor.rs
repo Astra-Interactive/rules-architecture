@@ -47,14 +47,21 @@ impl<'context> AdapterChainVisitor<'context> {
         })
     }
 
+    fn is_literal_pattern(argument: &syn::Expr) -> bool {
+        matches!(argument, syn::Expr::Lit(literal)
+            if matches!(literal.lit, syn::Lit::Char(_) | syn::Lit::Str(_)))
+    }
+
     fn string_lines(&self, expression: &syn::Expr) -> bool {
         let syn::Expr::MethodCall(lines) = expression else {
             return false;
         };
-        let lines_iterator = lines.method == "lines" && lines.args.is_empty();
-        let split_iterator = lines.method == "split"
+        let name = lines.method.to_string();
+        let lines_iterator =
+            Self::WHOLE_STRING_ITERATORS.contains(&name.as_str()) && lines.args.is_empty();
+        let split_iterator = Self::PATTERN_STRING_ITERATORS.contains(&name.as_str())
             && lines.args.len() == 1
-            && matches!(lines.args.first(), Some(syn::Expr::Lit(literal)) if matches!(literal.lit, syn::Lit::Char(_)));
+            && lines.args.first().is_some_and(Self::is_literal_pattern);
         if !lines_iterator && !split_iterator {
             return false;
         }
@@ -258,6 +265,11 @@ impl<'context> AdapterChainVisitor<'context> {
         self.strings = previous;
         self.bindings = bindings;
     }
+
+    const WHOLE_STRING_ITERATORS: [&'static str; 3] =
+        ["lines", "split_whitespace", "split_ascii_whitespace"];
+    const PATTERN_STRING_ITERATORS: [&'static str; 4] =
+        ["split", "rsplit", "split_terminator", "rsplit_terminator"];
 }
 
 impl<'ast> Visit<'ast> for AdapterChainVisitor<'_> {

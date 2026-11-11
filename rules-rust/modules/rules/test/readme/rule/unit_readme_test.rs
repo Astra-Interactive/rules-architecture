@@ -65,6 +65,34 @@ fn given_inherited_readme_when_the_root_readme_has_two_sentences_then_the_member
 }
 
 #[test]
+fn given_inherited_readme_and_no_readme_of_its_own_when_checked_then_the_missing_file_reports() {
+    let root = tempfile::tempdir().expect("workspace directory");
+    write_file(
+        root.path(),
+        "Cargo.toml",
+        "[workspace]\nresolver = \"3\"\nmembers = [\"modules/sample\"]\n\n[workspace.package]\nreadme = \"README.md\"\n",
+    );
+    write_file(root.path(), "README.md", "Holds the shop crates.\n");
+    write_file(
+        root.path(),
+        "modules/sample/Cargo.toml",
+        "[package]\nname = \"case-sample\"\nedition = \"2024\"\nreadme.workspace = true\n",
+    );
+    write_file(root.path(), "modules/sample/src/lib.rs", "");
+    let mut context = read_case_context("UnitReadme", "pass-one-sentence");
+    context.workspace = CargoWorkspaceReader::new(resolve_cargo_path())
+        .read_workspace(root.path())
+        .expect("Cargo-valid workspace");
+    let messages: Vec<String> = UnitReadme
+        .check(&context)
+        .into_iter()
+        .map(|finding| finding.finding.message)
+        .collect();
+    assert_eq!(messages.len(), 1, "{messages:?}");
+    assert!(messages[0].contains("Add a README.md"), "{messages:?}");
+}
+
+#[test]
 fn given_unterminated_second_sentence_when_checked_then_both_sentences_are_counted() {
     let mut context = read_case_context("UnitReadme", "pass-one-sentence");
     context.workspace.members[0].readme =

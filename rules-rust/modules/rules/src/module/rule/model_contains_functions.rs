@@ -5,6 +5,7 @@ use crate::module::rule::InvariantVisitor;
 use crate::module::util::{is_model_item, owns_implementation};
 use crate::source::model::{CfgPredicate, CrateIndex, IndexedImpl, IndexedItem};
 use crate::source::util::find_node_span;
+use crate::syntax::util::is_accessor_adapter;
 use syn::spanned::Spanned;
 
 pub(crate) struct ModelContainsFunctions;
@@ -16,6 +17,9 @@ impl ModelContainsFunctions {
                 matches!(field.base.as_ref(), syn::Expr::Path(path) if path.path.is_ident("self"))
             }
             syn::Expr::Reference(reference) => Self::reads_field(&reference.expr),
+            syn::Expr::MethodCall(call) if is_accessor_adapter(call) => {
+                Self::reads_field(&call.receiver)
+            }
             syn::Expr::Return(value) => value
                 .expr
                 .as_ref()

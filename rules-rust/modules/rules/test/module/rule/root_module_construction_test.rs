@@ -57,3 +57,12 @@ fn given_dependency_crate_client_built_under_non_constructor_name_when_root_cons
         &[3, 4],
     );
 }
+
+#[test]
+fn given_service_built_inside_a_macro_argument_when_root_constructs_then_it_is_rejected() {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::RootModuleConstruction,
+        "struct Service; impl Service { fn open() -> Self { Self } }\nmod di { struct RootModule; impl RootModule { fn new() -> Self {\n let services = vec![super::Service::open()];\n let sizes = vec![1, 2];\n Self } } }",
+        &[3],
+    );
+}

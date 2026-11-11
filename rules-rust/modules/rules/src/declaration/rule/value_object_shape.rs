@@ -4,6 +4,7 @@ use crate::module::rule::InvariantVisitor;
 use crate::module::util::{
     build_shape_item_finding, find_kind_name, is_model_item, owns_implementation,
 };
+use crate::syntax::util::is_accessor_adapter;
 use crate::syntax::util::to_snake_case;
 use syn::{Expr, ImplItem, Item, Stmt, Visibility};
 
@@ -17,6 +18,9 @@ impl ValueObjectShape {
                     && matches!(field.base.as_ref(), Expr::Path(path) if path.path.is_ident("self"))
             }
             Expr::Reference(reference) => Self::accesses_field(&reference.expr, member),
+            Expr::MethodCall(call) if is_accessor_adapter(call) => {
+                Self::accesses_field(&call.receiver, member)
+            }
             Expr::Return(returned) => returned
                 .expr
                 .as_deref()

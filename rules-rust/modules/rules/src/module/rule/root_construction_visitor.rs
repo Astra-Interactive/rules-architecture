@@ -1,6 +1,7 @@
 use crate::check::model::RuleContext;
 use crate::module::util::resolved_di_type;
 use crate::source::util::find_node_span;
+use crate::source::util::parse_macro_arguments;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
 
@@ -131,6 +132,12 @@ impl<'context> RootConstructionVisitor<'context> {
 }
 
 impl<'ast> Visit<'ast> for RootConstructionVisitor<'_> {
+    fn visit_macro(&mut self, item: &'ast syn::Macro) {
+        for argument in &parse_macro_arguments(item) {
+            self.visit_expr(argument);
+        }
+    }
+
     fn visit_expr_struct(&mut self, expression: &'ast syn::ExprStruct) {
         if self
             .context

@@ -17,6 +17,16 @@ fn given_equivalent_test_cfg_in_production_source_when_checked_then_only_the_cfg
 }
 
 #[test]
+fn given_compound_cfg_that_requires_test_in_production_source_when_checked_then_reports_it() {
+    assert_code_findings(
+        &TestMirror,
+        "TestMirror",
+        "mod util {\n    #[cfg(all(test, unix))]\n    pub(crate) fn helper() {}\n    #[cfg(all(test, feature = \"slow\"))]\n    fn slow() {}\n    #[cfg(any(test, feature = \"fake\"))]\n    fn shared() {}\n    #[cfg(unix)]\n    fn native() {}\n}",
+        &[2, 4],
+    );
+}
+
+#[test]
 fn given_tokio_test_function_in_production_source_when_checked_then_the_attribute_reports() {
     assert_code_findings(
         &TestMirror,

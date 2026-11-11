@@ -30,6 +30,16 @@ fn given_persistent_cases_when_checked_then_rejects_unexpected_unresolved_source
 }
 
 #[test]
+fn given_blocking_wait_in_drop_when_checked_then_reports_block_on_and_sleep_only_there() {
+    assert_code_findings(
+        &BridgeCleanup,
+        "BridgeCleanup",
+        "struct Registration { handle: tokio::runtime::Handle }\nimpl Drop for Registration {\n    fn drop(&mut self) {\n        self.handle.block_on(async {});\n    }\n}\nstruct Pause;\nimpl Drop for Pause {\n    fn drop(&mut self) {\n        std::thread::sleep(std::time::Duration::from_millis(1));\n    }\n}\nstruct Queue;\nimpl Queue { fn block_on(&self, _: u32) {} }\nstruct Flush { queue: Queue }\nimpl Drop for Flush {\n    fn drop(&mut self) { self.queue.block_on(1); }\n}\nstruct Teardown { handle: tokio::runtime::Handle }\nimpl Teardown {\n    fn close(&self) { self.handle.block_on(async {}); }\n}",
+        &[4, 10],
+    );
+}
+
+#[test]
 fn given_persistent_runtime_cases_when_checked_then_matches_exact_finding_anchors() {
     assert_code_fixture(&BridgeCleanup, "BridgeCleanup", "bad");
     assert_code_fixture(&BridgeCleanup, "BridgeCleanup", "good");

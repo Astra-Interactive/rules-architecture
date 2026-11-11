@@ -232,7 +232,7 @@ fn given_result_consumption_underscore_named_send_result_when_linted_then_report
         &ResultConsumption,
         "ResultConsumption",
         "fn deliver(sender: tokio::sync::oneshot::Sender<bool>, outcome: bool) {\n    let _outcome = sender.send(outcome);\n}\nstruct CustomSender;\nimpl CustomSender { fn send(&self, _: bool) -> Result<(), ()> { Ok(()) } }\nfn custom(sender: CustomSender) {\n    let _outcome = sender.send(true);\n}",
-        &[2],
+        &[2, 7],
     );
 }
 
@@ -285,6 +285,47 @@ fn given_underscore_binding_read_through_format_argument_when_checked_then_repor
         "ResultConsumption",
         "fn load_config() -> Result<u8, ()> { Ok(1) }\nfn inline() {\n    let _error = load_config();\n    tracing::warn!(\"config result: {_error:?}\");\n}\nfn positional() {\n    let _error = load_config();\n    tracing::warn!(\"config result: {:?}\", _error);\n}\nfn never_read() {\n    let _ignored = load_config();\n    tracing::warn!(\"config loaded\");\n}",
         &[11],
+    );
+}
+
+#[test]
+fn given_ok_of_workspace_result_assigned_to_underscore_when_checked_then_reports_the_statement() {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "fn save_order() -> Result<(), ()> { Ok(()) }\nfn persist() {\n    _ = save_order().ok();\n    let kept;\n    kept = save_order().ok();\n    drop(kept);\n}",
+        &[3],
+    );
+}
+
+#[test]
+fn given_underscore_binding_shadowed_before_any_read_when_checked_then_reports_the_first_binding() {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "fn call() -> Result<u8, ()> { Ok(1) }\nfn run() {\n    let _outcome = call();\n    let _outcome = 1_u8;\n    drop(_outcome);\n}\nfn chained() {\n    let _outcome = call();\n    let _outcome = _outcome.is_ok();\n    drop(_outcome);\n}",
+        &[3],
+    );
+}
+
+#[test]
+fn given_workspace_result_of_a_method_associated_or_async_function_when_dropped_then_reports_each()
+{
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "struct InvoiceStore;\nimpl InvoiceStore {\n    fn save(&self) -> Result<(), ()> { Ok(()) }\n    fn open() -> Result<Self, ()> { Ok(Self) }\n    fn count(&self) -> u8 { 1 }\n}\nasync fn persist_later() -> Result<(), ()> { Ok(()) }\nasync fn persist(store: &InvoiceStore) {\n    _ = store.save();\n    let _saved = store.save();\n    _ = persist_later().await;\n    _ = InvoiceStore::open();\n    store.save().ok();\n    _ = store.count();\n    let _pending = persist_later();\n}",
+        &[9, 10, 11, 12, 13],
+    );
+}
+
+#[test]
+fn given_two_fallible_steps_in_one_statement_when_checked_then_reports_the_statement() {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "fn parse(_: &str) -> Result<u8, ()> { Ok(1) }\nfn save(_: u8) -> Result<(), ()> { Ok(()) }\nfn run(raw: &str) -> Result<(), ()> {\n    save(parse(raw)?)?;\n    let parsed = parse(raw)?;\n    save(parsed)?;\n    Ok(())\n}\nfn stop(raw: &str) -> Result<(), ()> {\n    if raw.is_empty() {\n        return Ok(save(parse(raw)?)?);\n    }\n    Ok(())\n}",
+        &[4, 11],
     );
 }
 

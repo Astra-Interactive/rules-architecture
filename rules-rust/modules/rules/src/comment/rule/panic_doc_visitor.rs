@@ -363,6 +363,8 @@ impl<'ast> Visit<'ast> for PanicDocVisitor<'_> {
             "debug_assert_eq",
             "debug_assert_ne",
             "unreachable",
+            "todo",
+            "unimplemented",
         ];
         self.found |=
             match self.context.indexes[self.ordinal].resolve_path(self.module, &expression.path) {

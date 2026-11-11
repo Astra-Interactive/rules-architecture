@@ -44,6 +44,17 @@ fn given_inner_module_or_nonprescribed_expectations_when_checked_then_reports_sc
 }
 
 #[test]
+fn given_expression_lint_expected_on_an_impl_or_trait_when_checked_then_reports_the_container() {
+    let source = "struct ReportCommand;\n#[expect(clippy::print_stdout, reason = \"the report is the product\")]\nimpl ReportCommand {\n    fn run(&self) { println!(\"report\"); }\n    #[expect(clippy::print_stdout, reason = \"the summary is the product\")]\n    fn summary(&self) { println!(\"summary\"); }\n}\n#[expect(clippy::unwrap_used, reason = \"fixture\")]\ntrait Reader { fn read(&self) -> u8 { Some(1).unwrap() } }\n#[expect(clippy::disallowed_types, reason = \"the library demands a std lock\")]\nimpl Holder<std::sync::Mutex<u8>> {}";
+    let mut lines: Vec<_> = check_source_in_role(source, Role::EntryPoint)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect();
+    lines.sort_unstable();
+    assert_eq!(lines, [Some(2), Some(8)]);
+}
+
+#[test]
 fn given_prescribed_lints_and_architecture_expectations_when_checked_then_keeps_them() {
     let source = "#[cfg_attr(klibs_rules, expect(UnknownRule, reason = \"fixture\"))] mod nested {} #[expect(clippy::unwrap_used, clippy::expect_used, clippy::let_underscore_must_use, clippy::disallowed_methods, clippy::disallowed_types, clippy::print_stdout, reason = \"fixture\")] fn valid() {} #[cfg_attr(feature = \"case\", expect(clippy::expect_used, reason = \"fixture\"))] fn conditional() {}";
     let findings = check_source_in_role(source, Role::EntryPoint);

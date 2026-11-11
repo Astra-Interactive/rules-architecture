@@ -72,25 +72,30 @@ impl BareIdentifier {
             .skip(1)
             .map(String::as_str)
             .collect::<Vec<_>>();
+        let is_standard = ["std", "core", "alloc"].contains(&identity.package.as_str());
+        let is_non_zero =
+            matches!(segments.as_slice(), ["num", name] if name.starts_with("NonZero"));
         if (identity.package == "uuid" && segments == ["Uuid"])
-            || (["std", "alloc"].contains(&identity.package.as_str())
-                && segments == ["string", "String"])
+            || (is_standard && (segments == ["string", "String"] || is_non_zero))
         {
             return true;
         }
         let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments else {
             return false;
         };
-        let Some(syn::GenericArgument::Type(inner)) = arguments.args.first() else {
+        let Some(inner) = arguments.args.iter().find_map(|argument| match argument {
+            syn::GenericArgument::Type(inner) => Some(inner),
+            _ => None,
+        }) else {
             return false;
         };
-        if ["std", "core"].contains(&identity.package.as_str()) && segments == ["option", "Option"]
-        {
-            return Self::is_bare(context, ordinal, module, inner, depth + 1);
-        }
-        ["std", "alloc"].contains(&identity.package.as_str())
-            && (segments == ["boxed", "Box"] || segments == ["sync", "Arc"])
-            && matches!(inner, syn::Type::Path(path) if path.path.is_ident("str"))
+        let is_wrapper = Self::STANDARD_WRAPPERS
+            .iter()
+            .any(|wrapper| segments == *wrapper);
+        is_standard
+            && is_wrapper
+            && (matches!(inner, syn::Type::Path(path) if path.path.is_ident("str"))
+                || Self::is_bare(context, ordinal, module, inner, depth + 1))
     }
 
     fn check_fields(
@@ -141,6 +146,14 @@ impl BareIdentifier {
         }
         spans
     }
+
+    const STANDARD_WRAPPERS: [[&'static str; 2]; 5] = [
+        ["option", "Option"],
+        ["boxed", "Box"],
+        ["sync", "Arc"],
+        ["rc", "Rc"],
+        ["borrow", "Cow"],
+    ];
 }
 
 impl Rule for BareIdentifier {

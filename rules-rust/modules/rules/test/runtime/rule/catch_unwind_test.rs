@@ -59,3 +59,13 @@ fn given_workspace_function_path_when_caught_then_reports_local_logic() {
         &[3, 6],
     );
 }
+
+#[test]
+fn given_closure_bound_to_a_local_when_caught_then_reports_only_the_one_running_own_logic() {
+    assert_code_findings(
+        &CatchUnwind,
+        "CatchUnwind",
+        "fn compute_total(raw: &str) -> usize { raw.len() }\npub(crate) fn run(raw: &str) -> bool {\n    let work = || compute_total(raw);\n    std::panic::catch_unwind(std::panic::AssertUnwindSafe(work)).is_err()\n}\npub(crate) fn read() -> bool {\n    let load = || std::fs::read(\"file\");\n    std::panic::catch_unwind(load).is_err()\n}\npub(crate) fn shadowed() -> bool {\n    let compute_total = |text: &str| std::fs::read(text);\n    std::panic::catch_unwind(|| compute_total(\"file\")).is_err()\n}",
+        &[4],
+    );
+}

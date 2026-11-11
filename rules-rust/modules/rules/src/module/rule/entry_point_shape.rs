@@ -11,11 +11,20 @@ use syn::{Item, Visibility};
 pub(crate) struct EntryPointShape;
 
 impl EntryPointShape {
-    fn is_host_function(item: &Item) -> bool {
-        let Item::Fn(function) = item else {
-            return false;
+    fn find_root_visibility(item: &Item) -> Option<&Visibility> {
+        match item {
+            Item::Static(value) => Some(&value.vis),
+            _ => find_shape_visibility(item),
+        }
+    }
+
+    fn is_host_symbol(item: &Item) -> bool {
+        let attributes = match item {
+            Item::Fn(function) => &function.attrs,
+            Item::Static(value) => &value.attrs,
+            _ => return false,
         };
-        function.attrs.iter().any(|attribute| {
+        attributes.iter().any(|attribute| {
             let tokens = format_tokens(&attribute.meta).replace(' ', "");
             tokens == "no_mangle"
                 || tokens == "unsafe(no_mangle)"
@@ -31,7 +40,7 @@ impl EntryPointShape {
     ) -> Vec<RuleFinding> {
         let mut findings = Vec::new();
         for item in index.items.iter().filter(|item| item.module == 0) {
-            let visibility = find_shape_visibility(&item.syntax);
+            let visibility = Self::find_root_visibility(&item.syntax);
             let is_public = matches!(visibility, Some(Visibility::Public(_)));
             let is_visible_main = item.name == "main"
                 && matches!(item.syntax, Item::Fn(_))
@@ -41,7 +50,7 @@ impl EntryPointShape {
                 );
             let is_hidden_host = host_library
                 && !is_public
-                && (host_items.contains(&item.name) || Self::is_host_function(&item.syntax));
+                && (host_items.contains(&item.name) || Self::is_host_symbol(&item.syntax));
             if is_visible_main || is_hidden_host {
                 findings.push(build_shape_item_finding(
                     index,

@@ -24,6 +24,23 @@ fn given_root_declarations_when_checked_then_only_ordered_platform_items_and_mod
 }
 
 #[test]
+fn given_host_loaded_statics_in_entry_root_when_checked_then_only_the_plain_static_reports() {
+    let mut context = read_case_context("RootFileShape", "pass-tree");
+    context.project_config.crates[0].role = Some(Role::EntryPoint);
+    context.project_config.crates[0].host_items = vec!["PLUGIN_DECLARATION".to_owned()];
+    context.crates[0].files[0].syntax = syn::parse_file(
+        "pub(crate) mod di {}\npub static PLUGIN_DECLARATION: u32 = 1;\n#[unsafe(no_mangle)]\npub static PLUGIN_VERSION: u32 = 1;\nstatic COUNTER: u32 = 0;",
+    )
+    .expect("valid syntax");
+    let lines: Vec<_> = RootFileShape
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect();
+    assert_eq!(lines, [Some(5)]);
+}
+
+#[test]
 fn given_macro_definition_in_root_when_checked_then_only_the_macro_reports() {
     let mut context = read_case_context("RootFileShape", "pass-tree");
     context.crates[0].files[0].syntax = syn::parse_file(

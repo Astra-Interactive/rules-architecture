@@ -153,3 +153,13 @@ fn given_escaped_braces_naming_an_instant_binding_when_formatted_then_reports_on
         &[4],
     );
 }
+
+#[test]
+fn given_fields_named_with_a_time_unit_when_primitive_then_reports_each_field() {
+    assert_code_findings(
+        &TimePrimitive,
+        "TimePrimitive",
+        "struct Session {\n    timeout_seconds: u32,\n    retry_delay_ms: u64,\n    timeout: std::time::Duration,\n    seconds_label: String,\n    pause_secs: std::time::Duration,\n}\nenum Wait { Fixed { delay_millis: u64 }, Timed(std::time::Duration) }\nfn decode(delay_millis: u64) -> std::time::Duration { std::time::Duration::from_millis(delay_millis) }\nmod file { struct Row { timeout_seconds: u32 } }",
+        &[2, 3, 8],
+    );
+}

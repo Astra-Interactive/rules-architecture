@@ -53,7 +53,11 @@ impl Rule for ContractUnitShape {
                     !Self::derives(attrs, "Serialize") || !Self::derives(attrs, "Deserialize")
                 });
                 let function_body = matches!(item.syntax, Item::Fn(_) | Item::Trait(_));
-                if untyped_wire || function_body {
+                let other_item = matches!(
+                    item.syntax,
+                    Item::Type(_) | Item::Union(_) | Item::Static(_)
+                );
+                if untyped_wire || function_body || other_item {
                     findings.push(build_shape_item_finding(index, item, "ContractUnitShape", "contract units hold Serialize + Deserialize wire types and route constants, without function bodies"));
                 }
             }

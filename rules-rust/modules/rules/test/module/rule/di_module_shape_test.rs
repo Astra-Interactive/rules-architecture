@@ -228,3 +228,32 @@ fn given_contract_bound_on_di_module_function_when_checked_then_reports_the_stru
         );
     }
 }
+
+#[test]
+fn given_contract_bound_on_use_case_function_when_checked_then_reports_the_struct() {
+    for (signature, expected) in [
+        (
+            "<R: crate::api::InvoiceRepository>(&self, repository: &R)",
+            3,
+        ),
+        (
+            "<R>(&self, repository: &R) where R: crate::api::InvoiceRepository",
+            3,
+        ),
+        (
+            "(&self, repository: &impl crate::api::InvoiceRepository)",
+            3,
+        ),
+        ("(&self, repository: &dyn crate::api::InvoiceRepository)", 0),
+        ("(&self, label: impl Into<String>)", 0),
+    ] {
+        let source = format!(
+            "mod api {{ pub trait InvoiceRepository {{}} }}\nmod usecase {{\npub struct PayInvoiceUseCase;\nimpl PayInvoiceUseCase {{\npub fn invoke{signature} {{}}\n}}\n}}"
+        );
+        crate::test::module::util::assert_di_lines(
+            &crate::module::rule::DiModuleShape,
+            &source,
+            if expected == 0 { &[] } else { &[3] },
+        );
+    }
+}

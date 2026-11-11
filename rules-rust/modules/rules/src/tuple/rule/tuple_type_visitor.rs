@@ -1,7 +1,7 @@
 use crate::check::model::RuleFinding;
 use crate::check::util::build_node_finding;
 use crate::source::util::find_node_span;
-use crate::source::util::parse_macro_arguments;
+use crate::source::util::parse_macro_expressions;
 use proc_macro2::Span;
 use syn::Fields;
 use syn::ImplItem;
@@ -123,8 +123,21 @@ impl<'ast> Visit<'ast> for TupleTypeVisitor {
         syn::visit::visit_local(self, local);
     }
 
+    fn visit_expr_closure(&mut self, closure: &'ast syn::ExprClosure) {
+        for input in &closure.inputs {
+            if let syn::Pat::Type(pattern) = input {
+                self.visit_pat(&pattern.pat);
+                self.visit_destructured_type(&pattern.pat, &pattern.ty);
+            } else {
+                self.visit_pat(input);
+            }
+        }
+        self.visit_return_type(&closure.output);
+        self.visit_expr(&closure.body);
+    }
+
     fn visit_macro(&mut self, item: &'ast syn::Macro) {
-        for argument in &parse_macro_arguments(item) {
+        for argument in &parse_macro_expressions(item) {
             self.visit_expr(argument);
         }
     }

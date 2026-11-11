@@ -31,6 +31,20 @@ fn given_external_event_impl_when_checked_then_exempts_only_platform_event_types
 }
 
 #[test]
+fn given_platform_event_whose_host_trait_is_derived_when_checked_then_only_the_plain_one_reports() {
+    let mut context = read_code_context(
+        "mod event {\n    use vendor::Event;\n    #[derive(Event)]\n    struct PlayerJoinEvent(u32);\n    #[derive(Debug, Clone)]\n    struct PlayerQuitEvent(u32);\n}",
+    );
+    context.project_config.crates[0].role = Some(Role::Platform);
+    assert_placement_findings(
+        &EventPlacement,
+        "EventPlacement",
+        &context,
+        &[("src/lib.rs", 5, "Node")],
+    );
+}
+
+#[test]
 fn given_persistent_placement_cases_when_checked_then_match_exact_node_anchors() {
     assert_code_fixture(&EventPlacement, "EventPlacement", "bad");
     assert_code_fixture(&EventPlacement, "EventPlacement", "good");

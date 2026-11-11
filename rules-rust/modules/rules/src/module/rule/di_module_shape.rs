@@ -444,7 +444,12 @@ impl DiModuleShape {
             })
     }
 
-    fn has_contract_bound_in_impl(context: &RuleContext, ordinal: usize, identity: usize) -> bool {
+    fn has_contract_bound_in_impl(
+        context: &RuleContext,
+        ordinal: usize,
+        identity: usize,
+        reads_constructor: bool,
+    ) -> bool {
         let index = &context.indexes[ordinal];
         index
             .implementations
@@ -461,9 +466,12 @@ impl DiModuleShape {
                             .items
                             .iter()
                             .any(|member| match member {
-                                syn::ImplItem::Fn(method) => Self::is_contract_bound_function(
-                                    context, ordinal, module, method,
-                                ),
+                                syn::ImplItem::Fn(method) => {
+                                    (reads_constructor || method.sig.ident != "new")
+                                        && Self::is_contract_bound_function(
+                                            context, ordinal, module, method,
+                                        )
+                                }
                                 _ => false,
                             }))
             })
@@ -517,8 +525,8 @@ impl Rule for DiModuleShape {
                     && Self::item_generics(item).is_some_and(|generics| {
                         Self::generic_contract(context, ordinal, item.module, generics)
                     });
-                let impl_bound =
-                    (di || entry) && Self::has_contract_bound_in_impl(context, ordinal, identity);
+                let impl_bound = relevant
+                    && Self::has_contract_bound_in_impl(context, ordinal, identity, di || entry);
                 let bound = struct_bound || impl_bound;
                 let constructs_outside_new =
                     di && Self::constructs_outside_new(context, ordinal, identity);

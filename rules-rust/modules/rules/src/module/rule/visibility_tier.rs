@@ -17,6 +17,10 @@ use syn::spanned::Spanned;
 pub(crate) struct VisibilityTier;
 
 impl VisibilityTier {
+    fn format_tuple_constructor(type_name: &str) -> String {
+        format!("{type_name}(")
+    }
+
     fn is_punct(token: Option<&TokenTree>, expected: char) -> bool {
         matches!(token, Some(TokenTree::Punct(punct)) if punct.as_char() == expected)
     }
@@ -49,6 +53,18 @@ impl VisibilityTier {
         }
     }
 
+    fn is_tuple_call(next: Option<&TokenTree>) -> bool {
+        matches!(next, Some(TokenTree::Group(group)) if group.delimiter() == Delimiter::Parenthesis)
+    }
+
+    fn collect_tuple_indexes(literal: &str, names: &mut BTreeSet<String>) {
+        for part in literal.split('.') {
+            if !part.is_empty() && part.chars().all(|character| character.is_ascii_digit()) {
+                names.insert(part.to_owned());
+            }
+        }
+    }
+
     fn collect_member_names(stream: TokenStream, braced: bool, names: &mut BTreeSet<String>) {
         let tokens: Vec<TokenTree> = stream.into_iter().collect();
         for (position, token) in tokens.iter().enumerate() {
@@ -58,11 +74,23 @@ impl VisibilityTier {
                     group.delimiter() == Delimiter::Brace,
                     names,
                 ),
-                TokenTree::Ident(ident) if Self::is_member_position(&tokens, position, braced) => {
-                    names.insert(ident.to_string());
+                TokenTree::Ident(ident) => {
+                    if Self::is_member_position(&tokens, position, braced) {
+                        names.insert(ident.to_string());
+                    }
+                    if Self::is_tuple_call(tokens.get(position + 1)) {
+                        names.insert(Self::format_tuple_constructor(&ident.to_string()));
+                    }
                 }
                 TokenTree::Literal(literal) => {
-                    Self::collect_inline_names(&literal.to_string(), names);
+                    let text = literal.to_string();
+                    let previous = position
+                        .checked_sub(1)
+                        .and_then(|before| tokens.get(before));
+                    if Self::is_punct(previous, '.') {
+                        Self::collect_tuple_indexes(&text, names);
+                    }
+                    Self::collect_inline_names(&text, names);
                 }
                 _ => {}
             }
@@ -196,18 +224,23 @@ impl VisibilityTier {
         identity: usize,
         item: &'a IndexedItem,
     ) -> Vec<VisibilityMember<'a>> {
-        let fields = Self::declared_fields(item)
-            .into_iter()
-            .map(move |field| VisibilityMember {
-                file: &item.file,
-                span: find_node_span(field.span()),
-                name: field
-                    .ident
-                    .as_ref()
-                    .map(ToString::to_string)
-                    .unwrap_or_default(),
-                visibility: &field.vis,
-            });
+        let fields =
+            Self::declared_fields(item)
+                .into_iter()
+                .enumerate()
+                .map(move |(position, field)| VisibilityMember {
+                    file: &item.file,
+                    span: find_node_span(field.span()),
+                    name: field
+                        .ident
+                        .as_ref()
+                        .map_or_else(|| position.to_string(), ToString::to_string),
+                    tuple_constructor: field
+                        .ident
+                        .is_none()
+                        .then(|| Self::format_tuple_constructor(&item.name)),
+                    visibility: &field.vis,
+                });
         let methods = index
             .implementations
             .iter()
@@ -223,11 +256,20 @@ impl VisibilityTier {
                         file: &implementation.file,
                         span: find_node_span(method.span()),
                         name: method.sig.ident.to_string(),
+                        tuple_constructor: None,
                         visibility: &method.vis,
                     })
                 })
             });
         fields.chain(methods).collect()
+    }
+
+    fn is_named_by(names: &BTreeSet<String>, member: &VisibilityMember) -> bool {
+        names.contains(&member.name)
+            || member
+                .tuple_constructor
+                .as_ref()
+                .is_some_and(|constructor| names.contains(constructor))
     }
 
     fn check_tier_members(
@@ -247,15 +289,15 @@ impl VisibilityTier {
             .filter_map(|member| {
                 let is_unused_public = is_reachable
                     && matches!(member.visibility, syn::Visibility::Public(_))
-                    && !member.name.is_empty()
-                    && !foreign_names
-                        .get_or_init(|| {
+                    && !Self::is_named_by(
+                        foreign_names.get_or_init(|| {
                             Self::collect_foreign_member_names(
                                 context,
                                 &context.indexes[ordinal].crate_name,
                             )
-                        })
-                        .contains(&member.name);
+                        }),
+                        &member,
+                    );
                 let message = if Self::is_non_tier(member.visibility) {
                     Self::NON_TIER_MESSAGE
                 } else if is_unused_public {

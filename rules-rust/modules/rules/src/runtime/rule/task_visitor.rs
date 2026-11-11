@@ -5,7 +5,7 @@ use crate::runtime::rule::ClosureEffects;
 use crate::runtime::util::expects_lint;
 use crate::runtime::util::node_predicate;
 use crate::source::model::{Resolution, SourceFile};
-use crate::source::util::{find_node_span, parse_macro_arguments};
+use crate::source::util::{find_node_span, parse_macro_arguments, parse_macro_expressions};
 use crate::workspace::model::TomlValue;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
@@ -333,6 +333,19 @@ impl TaskVisitor<'_> {
         }
     }
 
+    fn is_block_on_in_drop(&self, call: &syn::ExprMethodCall) -> bool {
+        if self.rule != "BridgeCleanup" || !self.drop_context || call.method != "block_on" {
+            return false;
+        }
+        self.is_runtime_handle_call(&call.receiver)
+            || self.receiver_type(&call.receiver).is_some_and(|typed| {
+                self.has_external_type(
+                    &typed,
+                    &["tokio::runtime::Handle", "tokio::runtime::Runtime"],
+                )
+            })
+    }
+
     fn constructed_type(expression: &syn::Expr) -> Option<syn::Type> {
         let syn::Expr::Call(call) = expression else {
             return None;
@@ -393,15 +406,20 @@ impl TaskVisitor<'_> {
         )
     }
 
+    fn is_underscore_assignment(expression: &syn::ExprAssign) -> bool {
+        matches!(&*expression.left, syn::Expr::Infer(_))
+    }
+
     fn is_discard_transparent(expression: &syn::Expr) -> bool {
-        matches!(
-            expression,
+        match expression {
             syn::Expr::Call(_)
-                | syn::Expr::MethodCall(_)
-                | syn::Expr::Try(_)
-                | syn::Expr::Paren(_)
-                | syn::Expr::Group(_)
-        )
+            | syn::Expr::MethodCall(_)
+            | syn::Expr::Try(_)
+            | syn::Expr::Paren(_)
+            | syn::Expr::Group(_) => true,
+            syn::Expr::Assign(assignment) => Self::is_underscore_assignment(assignment),
+            _ => false,
+        }
     }
 
     fn is_dropped_thread_spawn(&self, is_drop: bool, argument: &syn::Expr) -> bool {
@@ -438,6 +456,28 @@ impl TaskVisitor<'_> {
         })
     }
 
+    fn is_local_name(&self, path: &syn::Path) -> bool {
+        self.closures.iter().any(|(name, _, _)| path.is_ident(name))
+    }
+
+    fn find_local_closure(&self, expression: &syn::Expr) -> Option<&syn::ExprClosure> {
+        match expression {
+            syn::Expr::Paren(paren) => self.find_local_closure(&paren.expr),
+            syn::Expr::Group(group) => self.find_local_closure(&group.expr),
+            syn::Expr::Path(path) => self
+                .closures
+                .iter()
+                .rev()
+                .find(|(name, _, _)| path.path.is_ident(name))
+                .and_then(|(_, closure, _)| closure.as_ref()),
+            syn::Expr::Call(call) => call
+                .args
+                .iter()
+                .find_map(|argument| self.find_local_closure(argument)),
+            _ => None,
+        }
+    }
+
     fn runs_local_logic(&self, effects: &ClosureEffects) -> bool {
         effects.inline_logic
             || self.local_self && effects.methods.iter().any(|call| matches!(&*call.receiver, syn::Expr::Path(path) if path.path.is_ident("self")))
@@ -446,13 +486,23 @@ impl TaskVisitor<'_> {
                 .iter()
                 .any(|call| self.is_workspace_receiver(&call.receiver))
             || effects.calls.iter().any(|call| matches!(&*call.func, syn::Expr::Path(path)
-                if matches!(self.context.indexes[self.ordinal].resolve_path(self.module, &path.path), Resolution::Internal(_))))
+                if !self.is_local_name(&path.path)
+                    && matches!(self.context.indexes[self.ordinal].resolve_path(self.module, &path.path), Resolution::Internal(_))))
+    }
+
+    fn runs_local_closure_logic(&self, argument: &syn::Expr) -> bool {
+        self.find_local_closure(argument).is_some_and(|closure| {
+            self.runs_local_logic(&ClosureEffects::collect(&syn::Expr::Closure(
+                closure.clone(),
+            )))
+        })
     }
 
     fn is_workspace_function_reference(&self, expression: &syn::Expr) -> bool {
         match expression {
             syn::Expr::Paren(paren) => self.is_workspace_function_reference(&paren.expr),
             syn::Expr::Group(group) => self.is_workspace_function_reference(&group.expr),
+            syn::Expr::Path(path) if self.is_local_name(&path.path) => false,
             syn::Expr::Path(path) => {
                 let index = &self.context.indexes[self.ordinal];
                 let Resolution::Internal(targets) = index.resolve_path(self.module, &path.path)
@@ -498,6 +548,7 @@ impl TaskVisitor<'_> {
         let calls_local = expression.args.iter().any(|argument| {
             self.is_workspace_function_reference(argument)
                 || self.runs_local_logic(&ClosureEffects::collect(argument))
+                || self.runs_local_closure_logic(argument)
         });
         if calls_local {
             self.report(expression.span());
@@ -996,7 +1047,7 @@ impl TaskVisitor<'_> {
             binding.typed = typed;
             binding.is_ordered = ordered;
         }
-        if self.rule == "CallbackBridgeShape" {
+        if matches!(self.rule, "CallbackBridgeShape" | "CatchUnwind") {
             let closure = local.init.as_ref().and_then(|init| match &*init.expr {
                 syn::Expr::Closure(closure) => Some(closure.clone()),
                 _ => None,
@@ -1313,8 +1364,10 @@ impl TaskVisitor<'_> {
                         || self.thread_expect && !self.is_technology_module())
             }
             "DetachedTask" => detached && self.discard,
-            "BridgeCleanup" => spawn && self.drop_context,
-            "CallbackBridgeShape" => spawn && self.callback_depth > 0,
+            "BridgeCleanup" => {
+                (spawn || canonical == Some("std::thread::sleep")) && self.drop_context
+            }
+            "CallbackBridgeShape" => detached && self.callback_depth > 0,
             "BlockingCallInAsync" => {
                 self.async_context
                     && canonical.is_some_and(|path| {
@@ -1680,7 +1733,8 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
 
     fn visit_expr_assign(&mut self, expression: &'ast syn::ExprAssign) {
         let discard = self.discard;
-        self.discard = self.discard && self.rule != "ThreadPrimitive";
+        self.discard = self.discard
+            && (self.rule != "ThreadPrimitive" || Self::is_underscore_assignment(expression));
         syn::visit::visit_expr_assign(self, expression);
         self.discard = discard;
     }
@@ -1756,6 +1810,15 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
         if self.rule == "DetachedTask" && self.discard && self.is_runtime_spawn(expression) {
             self.report(expression.span());
         }
+        if self.rule == "CallbackBridgeShape"
+            && self.callback_depth > 0
+            && self.is_runtime_spawn(expression)
+        {
+            self.report(expression.span());
+        }
+        if self.is_block_on_in_drop(expression) {
+            self.report(expression.span());
+        }
         if self.is_discarded_builder_spawn(expression) {
             self.report(expression.span());
         }
@@ -1793,7 +1856,7 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
     }
 
     fn visit_macro(&mut self, item: &'ast syn::Macro) {
-        for argument in &parse_macro_arguments(item) {
+        for argument in &parse_macro_expressions(item) {
             self.visit_expr(argument);
         }
     }

@@ -1,4 +1,4 @@
-use crate::naming::model::SelectPart;
+use crate::source::model::SelectPart;
 use syn::parse::ParseStream;
 
 fn parse_select_handler(input: ParseStream) -> syn::Result<syn::Expr> {
@@ -15,6 +15,8 @@ fn parse_select_handler(input: ParseStream) -> syn::Result<syn::Expr> {
 fn parse_select_branch(input: ParseStream, parts: &mut Vec<SelectPart>) -> syn::Result<()> {
     if input.peek(syn::Token![else]) {
         input.parse::<syn::Token![else]>()?;
+    } else if input.peek(syn::Ident) && input.peek2(syn::Token![=>]) {
+        input.parse::<syn::Ident>()?;
     } else {
         let pattern = syn::Pat::parse_multi_with_leading_vert(input)?;
         parts.push(SelectPart::Pattern(pattern));

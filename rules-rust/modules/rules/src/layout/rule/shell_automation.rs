@@ -69,8 +69,12 @@ impl ShellAutomation {
     }
 
     const SHEBANG_LIMIT: u64 = 256;
-    const SHELL_INTERPRETERS: [&str; 3] = ["sh", "bash", "zsh"];
-    const SCRIPT_EXTENSIONS: [&str; 6] = [".sh", ".bash", ".zsh", ".ps1", ".bat", ".cmd"];
+    const SHELL_INTERPRETERS: [&str; 9] = [
+        "sh", "bash", "zsh", "dash", "ash", "ksh", "fish", "csh", "tcsh",
+    ];
+    const SCRIPT_EXTENSIONS: [&str; 9] = [
+        ".sh", ".bash", ".zsh", ".ksh", ".fish", ".csh", ".ps1", ".bat", ".cmd",
+    ];
     const SCRIPT_NAMES: [&str; 5] = [
         "Makefile",
         "makefile",

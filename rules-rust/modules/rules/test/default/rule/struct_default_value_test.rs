@@ -128,6 +128,16 @@ fn given_default_derived_through_cfg_attr_when_checked_then_reports_it() {
 }
 
 #[test]
+fn given_default_update_inside_a_select_handler_when_checked_then_reports_it() {
+    assert_code_findings(
+        &StructDefaultValue,
+        "StructDefaultValue",
+        "struct TickerConfig { retries: u8, limit: u8 }\npub(crate) async fn watch(mut tick: tokio::sync::mpsc::Receiver<u32>) {\n    tokio::select! {\n        value = tick.recv() => {\n            let config = TickerConfig { retries: 3, ..Default::default() };\n            drop(config);\n        }\n        else => {\n            let config = TickerConfig { retries: 3, limit: 1 };\n            drop(config);\n        }\n    }\n}",
+        &[5],
+    );
+}
+
+#[test]
 fn given_forbidden_syntax_when_checked_then_reports_the_rule() {
     let context = read_case_context("StructDefaultValue", "fail-syntax");
     assert!(!StructDefaultValue.check(&context).is_empty());

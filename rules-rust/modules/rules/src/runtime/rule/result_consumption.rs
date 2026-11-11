@@ -2,6 +2,7 @@ use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
 use crate::check::util::{build_node_finding, format_module_path};
 use crate::runtime::rule::{FallibleStepVisitor, TypedRuntimeVisitor};
+use crate::source::model::NodeSpan;
 use crate::source::model::SourceFile;
 use crate::source::util::find_node_span;
 use syn::spanned::Spanned;
@@ -58,6 +59,34 @@ impl ConsumptionVisitor<'_> {
             self.check_expression(tail);
         }
     }
+
+    fn check_statements(&mut self, block: &syn::Block) {
+        let last = block.stmts.len().saturating_sub(1);
+        for (position, statement) in block.stmts.iter().enumerate() {
+            if let syn::Stmt::Expr(expression, semicolon) = statement
+                && (semicolon.is_some() || position != last)
+            {
+                self.check_expression(expression);
+            }
+        }
+    }
+
+    fn list_outermost_steps(&self) -> Vec<NodeSpan> {
+        let spans: Vec<NodeSpan> = self
+            .composed_steps
+            .iter()
+            .map(|span| find_node_span(*span))
+            .collect();
+        spans
+            .iter()
+            .filter(|span| {
+                !spans
+                    .iter()
+                    .any(|outer| outer != *span && outer.contains(span))
+            })
+            .copied()
+            .collect()
+    }
 }
 
 fn expects_discard(attribute: &syn::Attribute) -> bool {
@@ -85,6 +114,11 @@ impl<'ast> Visit<'ast> for ConsumptionVisitor<'_> {
     fn visit_impl_item_fn(&mut self, item: &'ast syn::ImplItemFn) {
         self.check_tail(&item.block);
         syn::visit::visit_impl_item_fn(self, item);
+    }
+
+    fn visit_block(&mut self, block: &'ast syn::Block) {
+        self.check_statements(block);
+        syn::visit::visit_block(self, block);
     }
 
     fn visit_local(&mut self, local: &'ast syn::Local) {
@@ -128,16 +162,17 @@ impl Rule for ResultConsumption {
                     composed_steps: Vec::new(),
                 };
                 visitor.visit_file(&visitor.file.syntax);
+                let composed_steps = visitor.list_outermost_steps();
                 for span in visitor.spans {
                     findings.push(build_node_finding("ResultConsumption", &file.path, find_node_span(span),
                         format_module_path(&file.module.crate_name, &file.module.path),
                         "Scope let_underscore_must_use expectations to the intentional discard statement (error-handling.rs.md)".to_owned()));
                 }
-                for span in visitor.composed_steps {
+                for span in composed_steps {
                     findings.push(build_node_finding(
                         "ResultConsumption",
                         &file.path,
-                        find_node_span(span),
+                        span,
                         format_module_path(&file.module.crate_name, &file.module.path),
                         "Name each fallible step in its own let before composing the next step (error-handling.rs.md)".to_owned(),
                     ));

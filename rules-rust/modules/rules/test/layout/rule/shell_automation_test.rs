@@ -121,6 +121,43 @@ fn given_other_script_spellings_at_the_root_when_checked_then_each_is_reported()
 }
 
 #[test]
+fn given_scripts_of_other_shells_at_the_root_when_checked_then_each_shell_script_is_reported() {
+    let root = tempfile::tempdir().expect("workspace directory");
+    write_file(
+        root.path(),
+        "Cargo.toml",
+        "[workspace]\nresolver = \"3\"\nmembers = [\"modules/sample\"]\n",
+    );
+    write_file(
+        root.path(),
+        "modules/sample/Cargo.toml",
+        "[package]\nname = \"case-sample\"\nedition = \"2024\"\n",
+    );
+    write_file(root.path(), "modules/sample/src/lib.rs", "");
+    write_file(root.path(), "release.fish", "cargo publish\n");
+    write_file(root.path(), "pack.ksh", "tar -cf pack.tar target\n");
+    write_file(root.path(), "build", "#!/usr/bin/env fish\ncargo build\n");
+    write_file(root.path(), "deploy", "#!/bin/dash\n./server\n");
+    write_file(
+        root.path(),
+        "report",
+        "#!/usr/bin/env python3\nprint('x')\n",
+    );
+    write_file(root.path(), "notes.txt", "fish and dash\n");
+    let mut context = read_case_context("RootFileShape", "pass-tree");
+    context.workspace = CargoWorkspaceReader::new(resolve_cargo_path())
+        .read_workspace(root.path())
+        .expect("Cargo-valid workspace");
+    let mut subjects: Vec<String> = ShellAutomation
+        .check(&context)
+        .into_iter()
+        .map(|finding| finding.finding.subject)
+        .collect();
+    subjects.sort();
+    assert_eq!(subjects, ["build", "deploy", "pack.ksh", "release.fish"]);
+}
+
+#[test]
 fn given_extensionless_shell_scripts_when_checked_then_only_root_and_cargo_scripts_are_reported() {
     let root = tempfile::tempdir().expect("workspace directory");
     write_file(

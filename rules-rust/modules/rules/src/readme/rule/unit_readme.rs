@@ -81,8 +81,7 @@ impl UnitReadme {
     }
 
     fn check_readme_text(workspace: &Workspace, member: &Member) -> Option<RuleFinding> {
-        let inherited = Self::read_inherited_readme(workspace, member);
-        let Some(readme) = inherited.as_ref().or(member.readme.as_ref()) else {
+        let Some(own_readme) = member.readme.as_ref() else {
             let location = Location {
                 path: member.directory.clone(),
                 line: None,
@@ -93,7 +92,8 @@ impl UnitReadme {
             );
             return Some(Self::build_finding(member, location, message));
         };
-        let sentences = count_sentences(readme);
+        let inherited_readme = Self::read_inherited_readme(workspace, member);
+        let sentences = count_sentences(inherited_readme.as_ref().unwrap_or(own_readme));
         if sentences == 1 {
             return None;
         }

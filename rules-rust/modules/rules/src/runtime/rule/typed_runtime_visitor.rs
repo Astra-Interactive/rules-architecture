@@ -1014,41 +1014,123 @@ impl TypedRuntimeVisitor<'_> {
         }
     }
 
+    fn returns_workspace_result(
+        &self,
+        ordinal: usize,
+        module: usize,
+        signature: &syn::Signature,
+        is_awaited: bool,
+    ) -> bool {
+        let syn::ReturnType::Type(_, returned) = &signature.output else {
+            return false;
+        };
+        signature.asyncness.is_some() == is_awaited
+            && self
+                .context
+                .resolve_outer_external_type_paths(ordinal, module, returned)
+                .iter()
+                .any(|path| RESULT_TYPES.contains(&path.format_path().as_str()))
+    }
+
+    fn has_result_method(
+        &self,
+        ordinal: usize,
+        identity: usize,
+        name: &syn::Ident,
+        is_awaited: bool,
+    ) -> bool {
+        let index = &self.context.indexes[ordinal];
+        index
+            .implementations
+            .iter()
+            .filter(|implementation| {
+                crate::module::util::owns_implementation(index, identity, implementation)
+            })
+            .any(|implementation| {
+                implementation.syntax.items.iter().any(|member| {
+                    matches!(member, syn::ImplItem::Fn(method)
+                    if method.sig.ident == *name
+                        && self.returns_workspace_result(
+                            ordinal,
+                            implementation.module,
+                            &method.sig,
+                            is_awaited,
+                        ))
+                })
+            })
+    }
+
+    fn is_result_function_call(&self, call: &syn::ExprCall, is_awaited: bool) -> bool {
+        let syn::Expr::Path(path) = &*call.func else {
+            return false;
+        };
+        let is_free_function = self
+            .context
+            .resolve_workspace_path(self.ordinal, self.module, &path.path)
+            .iter()
+            .any(|target| {
+                let Some(identity) = target.path.item else {
+                    return false;
+                };
+                let item = &self.context.indexes[target.index].items[identity];
+                matches!(&item.syntax, syn::Item::Fn(function)
+                if self.returns_workspace_result(
+                    target.index,
+                    item.module,
+                    &function.sig,
+                    is_awaited,
+                ))
+            });
+        if is_free_function || path.path.segments.len() < 2 {
+            return is_free_function;
+        }
+        let Some(name) = path.path.segments.last().map(|segment| &segment.ident) else {
+            return false;
+        };
+        let syn::Type::Path(owner) = Self::build_owner_type(&path.path) else {
+            return false;
+        };
+        self.context
+            .resolve_workspace_path(self.ordinal, self.module, &owner.path)
+            .iter()
+            .any(|target| {
+                target.path.item.is_some_and(|identity| {
+                    self.has_result_method(target.index, identity, name, is_awaited)
+                })
+            })
+    }
+
+    fn is_result_method_call(&self, call: &syn::ExprMethodCall, is_awaited: bool) -> bool {
+        self.receiver_types(&call.receiver).iter().any(|receiver| {
+            let mut typed = &receiver.typed;
+            while let syn::Type::Reference(reference) = typed {
+                typed = &reference.elem;
+            }
+            self.context
+                .resolve_workspace_type(receiver.index, receiver.module, typed)
+                .iter()
+                .any(|target| {
+                    target.path.item.is_some_and(|identity| {
+                        self.has_result_method(target.index, identity, &call.method, is_awaited)
+                    })
+                })
+        })
+    }
+
+    fn is_workspace_result_source(&self, expression: &syn::Expr, is_awaited: bool) -> bool {
+        match expression {
+            syn::Expr::Call(call) => self.is_result_function_call(call, is_awaited),
+            syn::Expr::MethodCall(call) => self.is_result_method_call(call, is_awaited),
+            _ => false,
+        }
+    }
+
     fn is_workspace_result_call(&self, expression: &syn::Expr) -> bool {
         match expression {
             syn::Expr::Paren(paren) => self.is_workspace_result_call(&paren.expr),
             syn::Expr::Group(group) => self.is_workspace_result_call(&group.expr),
-            syn::Expr::Call(call) => {
-                let syn::Expr::Path(path) = &*call.func else {
-                    return false;
-                };
-                self.context
-                    .resolve_workspace_path(self.ordinal, self.module, &path.path)
-                    .iter()
-                    .any(|target| {
-                        let Some(identity) = target.path.item else {
-                            return false;
-                        };
-                        let item = &self.context.indexes[target.index].items[identity];
-                        let syn::Item::Fn(function) = &item.syntax else {
-                            return false;
-                        };
-                        let syn::ReturnType::Type(_, returned) = &function.sig.output else {
-                            return false;
-                        };
-                        function.sig.asyncness.is_none()
-                            && self
-                                .context
-                                .resolve_outer_external_type_paths(
-                                    target.index,
-                                    item.module,
-                                    returned,
-                                )
-                                .iter()
-                                .any(|path| RESULT_TYPES.contains(&path.format_path().as_str()))
-                    })
-            }
-            _ => false,
+            syn::Expr::Await(awaited) => self.is_workspace_result_source(&awaited.base, true),
+            _ => self.is_workspace_result_source(expression, false),
         }
     }
 
@@ -1077,12 +1159,33 @@ impl TypedRuntimeVisitor<'_> {
         })
     }
 
-    fn is_read_later(following: &[syn::Stmt], name: &str) -> bool {
-        let mut tokens = proc_macro2::TokenStream::new();
-        for statement in following {
-            statement.to_tokens(&mut tokens);
+    fn find_shadowing_local<'syntax>(
+        statement: &'syntax syn::Stmt,
+        name: &str,
+    ) -> Option<&'syntax syn::Local> {
+        match statement {
+            syn::Stmt::Local(local) => {
+                matches!(&local.pat, syn::Pat::Ident(binding) if binding.ident == name)
+                    .then_some(local)
+            }
+            _ => None,
         }
-        Self::stream_mentions(tokens, name)
+    }
+
+    fn is_read_later(following: &[syn::Stmt], name: &str) -> bool {
+        for statement in following {
+            let Some(shadow) = Self::find_shadowing_local(statement, name) else {
+                if Self::stream_mentions(statement.to_token_stream(), name) {
+                    return true;
+                }
+                continue;
+            };
+            return shadow
+                .init
+                .as_ref()
+                .is_some_and(|init| Self::stream_mentions(init.expr.to_token_stream(), name));
+        }
+        false
     }
 
     fn check_unread_binding(&mut self, statement: &syn::Stmt, following: &[syn::Stmt]) {
@@ -1141,7 +1244,9 @@ impl TypedRuntimeVisitor<'_> {
         if self.rule != "ResultConsumption" || !matches!(&*expression.left, syn::Expr::Infer(_)) {
             return;
         }
-        if self.is_workspace_result_call(&expression.right) {
+        if self.is_workspace_result_call(&expression.right)
+            || self.is_ok_of_workspace_result(&expression.right)
+        {
             self.report_discarded_result(expression.span());
         }
     }

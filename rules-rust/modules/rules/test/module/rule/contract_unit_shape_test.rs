@@ -92,3 +92,26 @@ fn given_non_serde_derives_in_contract_crate_when_checked_then_the_wire_type_is_
         .collect();
     assert_eq!(subjects, ["case_sample::model::InvoiceDto"], "{findings:?}");
 }
+
+#[test]
+fn given_alias_union_and_static_in_contract_crate_when_checked_then_each_is_reported() {
+    let mut context = read_shape_context(
+        "mod model { #[derive(serde::Serialize, serde::Deserialize)] struct Invoice; pub type WireHook = Box<dyn Fn(u32) -> u32 + Send>; pub union RawWire { pub bits: u32, pub value: f32 } pub static SEQUENCE: u32 = 0; pub const INVOICE_ROUTE: &str = \"/invoice\"; }",
+        &[],
+    );
+    context.project_config.crates[0].role = Some(Role::Contract);
+    let findings = ContractUnitShape.check(&context);
+    let subjects: Vec<_> = findings
+        .iter()
+        .map(|finding| finding.finding.subject.as_str())
+        .collect();
+    assert_eq!(
+        subjects,
+        [
+            "case_sample::model::WireHook",
+            "case_sample::model::RawWire",
+            "case_sample::model::SEQUENCE",
+        ],
+        "{findings:?}"
+    );
+}
