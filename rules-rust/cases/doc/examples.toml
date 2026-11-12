@@ -2,7 +2,7 @@
 # `cargo xtask gate-sync --docs <conf.ide>/.claude/docs` rewrites sha256 and conf-ide-commit; the rest is reviewed by hand.
 
 [sync]
-conf-ide-commit = "1efda3a"
+conf-ide-commit = "dab82f0"
 
 [[example]]
 claim = "arch-package.rs:Modules:5"
