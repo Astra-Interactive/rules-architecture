@@ -1,0 +1,1 @@
+KindContent	modules/sample/src/event/view_cache.rs:1	case_sample::event::ViewCache	event holds listeners and platform event types: a job goes to job or service, state behind a contract in api, a flow of several steps to usecase, a platform effect to util (arch-package.md, Concepts and kinds 8)
