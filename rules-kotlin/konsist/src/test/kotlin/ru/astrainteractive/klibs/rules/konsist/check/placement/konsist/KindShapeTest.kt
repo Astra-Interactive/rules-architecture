@@ -4,6 +4,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.placement.konsist
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.model.SourceTree
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
@@ -279,6 +280,270 @@ internal class KindShapeTest {
                     "composable.",
             ),
             messages
+        )
+    }
+
+    @Test
+    fun GIVEN_memory_packages_in_an_app_api_unit_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main(
+                packageName = "x.payment.api.offer.memory",
+                fileName = "InMemoryOfferRepository.kt",
+                code = "class InMemoryOfferRepository"
+            )
+            .main(
+                packageName = "x.payment.api.offer.memory.cache",
+                fileName = "InMemoryOfferCache.kt",
+                code = "class InMemoryOfferCache"
+            )
+            .main(
+                packageName = "x.payment.api.offer.api",
+                fileName = "OfferRepository.kt",
+                code = "interface OfferRepository"
+            )
+            .load(
+                UnitKind.API,
+                rootPackage = "x.payment.api",
+                productKind = ProductKind.APP
+            )
+
+        val messages = KindShape().check(sources).map(Violation::message).sorted()
+
+        assertEquals(
+            expected = listOf(
+                "Move InMemoryOfferCache out of 'offer/memory/cache': an app's api unit holds no memory " +
+                    "implementation; move it to the feature's impl unit, or make it a stub.",
+                "Move InMemoryOfferRepository out of 'offer/memory': an app's api unit holds no memory " +
+                    "implementation; move it to the feature's impl unit, or make it a stub.",
+            ),
+            actual = messages
+        )
+    }
+
+    @Test
+    fun GIVEN_technology_and_entry_point_kinds_in_an_app_api_unit_WHEN_checked_THEN_reports_each(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                packageName = "x.payment.api.offer.exposed",
+                fileName = "ExposedOfferRepository.kt",
+                code = "class ExposedOfferRepository"
+            )
+            .main(
+                packageName = "x.payment.api.offer.command",
+                fileName = "OfferCommand.kt",
+                code = "class OfferCommand"
+            )
+            .main(
+                packageName = "x.payment.api.offer.api",
+                fileName = "OfferRepository.kt",
+                code = "interface OfferRepository"
+            )
+            .load(
+                UnitKind.API,
+                rootPackage = "x.payment.api",
+                productKind = ProductKind.APP
+            )
+
+        val messages = KindShape().check(sources).map(Violation::message).sorted()
+
+        assertEquals(
+            expected = listOf(
+                "Move ExposedOfferRepository out of 'offer/exposed': an app's api unit holds only the api, model, " +
+                    "util, usecase, stub, di, component, viewmodel kinds, not exposed.",
+                "Move OfferCommand out of 'offer/command': an app's api unit holds only the api, model, util, " +
+                    "usecase, stub, di, component, viewmodel kinds, not command.",
+            ),
+            actual = messages
+        )
+    }
+
+    @Test
+    fun GIVEN_state_holder_implementations_in_an_app_api_unit_WHEN_checked_THEN_reports_each(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                packageName = "x.payment.api.offer.component",
+                fileName = "DefaultOfferComponent.kt",
+                code = "class DefaultOfferComponent : OfferComponent"
+            )
+            .main(
+                packageName = "x.payment.api.offer.component",
+                fileName = "OfferComponent.kt",
+                code = "interface OfferComponent"
+            )
+            .main(
+                packageName = "x.payment.api.offer.viewmodel",
+                fileName = "OfferState.kt",
+                code = "interface OfferState"
+            )
+            .main(
+                packageName = "x.payment.api.offer.viewmodel",
+                fileName = "OfferHelpers.kt",
+                code = "interface OfferViewModel\n\nfun format() = Unit"
+            )
+            .load(
+                UnitKind.API,
+                rootPackage = "x.payment.api",
+                productKind = ProductKind.APP
+            )
+
+        val messages = KindShape().check(sources).map(Violation::message).sorted()
+
+        assertEquals(
+            expected = listOf(
+                "Move DefaultOfferComponent out of 'offer/component': an app's api unit holds only interfaces " +
+                    "named ...Component in component; move the implementation to the feature's impl unit.",
+                "Move OfferHelpers out of 'offer/viewmodel': an app's api unit holds only interfaces " +
+                    "named ...ViewModel in viewmodel; move the implementation to the feature's impl unit.",
+                "Move OfferState out of 'offer/viewmodel': an app's api unit holds only interfaces " +
+                    "named ...ViewModel in viewmodel; move the implementation to the feature's impl unit.",
+            ),
+            actual = messages
+        )
+    }
+
+    @Test
+    fun GIVEN_technology_and_entry_point_kinds_in_a_plugin_api_unit_WHEN_checked_THEN_accepts_them(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                packageName = "x.jail.api.jail.command",
+                fileName = "JailCommand.kt",
+                code = "class JailCommand"
+            )
+            .main(
+                packageName = "x.jail.api.jail.file",
+                fileName = "FileJailRepository.kt",
+                code = "class FileJailRepository"
+            )
+            .load(
+                UnitKind.API,
+                rootPackage = "x.jail.api",
+                productKind = ProductKind.PLATFORM_PLUGIN
+            )
+
+        assertEquals(expected = emptyList(), actual = KindShape().check(sources))
+    }
+
+    @Test
+    fun GIVEN_api_unit_without_product_kind_WHEN_checked_THEN_reports_no_kind(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main(
+                packageName = "x.payment.api.offer.memory",
+                fileName = "InMemoryOfferRepository.kt",
+                code = "class InMemoryOfferRepository"
+            )
+            .main(
+                packageName = "x.payment.api.offer.command",
+                fileName = "OfferCommand.kt",
+                code = "class OfferCommand"
+            )
+            .load(
+                UnitKind.API,
+                rootPackage = "x.payment.api",
+                productKind = null
+            )
+
+        assertEquals(expected = emptyList(), actual = KindShape().check(sources))
+    }
+
+    @Test
+    fun GIVEN_contracts_models_use_cases_stubs_and_state_holders_in_an_app_api_unit_WHEN_checked_THEN_accepts_them(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                packageName = "x.payment.api.offer.api",
+                fileName = "OfferRepository.kt",
+                code = "interface OfferRepository"
+            )
+            .main(
+                packageName = "x.payment.api.offer.model",
+                fileName = "Offer.kt",
+                code = "data class Offer(val id: String)"
+            )
+            .main(
+                packageName = "x.payment.api.offer.util",
+                fileName = "OfferExt.kt",
+                code = "fun Offer.isFree(): Boolean = id.isEmpty()"
+            )
+            .main(
+                packageName = "x.payment.api.offer.usecase",
+                fileName = "LoadOfferUseCase.kt",
+                code = "interface LoadOfferUseCase"
+            )
+            .main(
+                packageName = "x.payment.api.offer.stub",
+                fileName = "StubOfferRepository.kt",
+                code = "class StubOfferRepository"
+            )
+            .main(
+                packageName = "x.payment.api.offer.di",
+                fileName = "OfferModule.kt",
+                code = "class OfferModule"
+            )
+            .main(
+                packageName = "x.payment.api.offer.component",
+                fileName = "OfferComponent.kt",
+                code = "interface OfferComponent"
+            )
+            .main(
+                packageName = "x.payment.api.offer.viewmodel",
+                fileName = "OfferViewModel.kt",
+                code = "interface OfferViewModel"
+            )
+            .load(
+                UnitKind.API,
+                rootPackage = "x.payment.api",
+                productKind = ProductKind.APP
+            )
+
+        assertEquals(expected = emptyList(), actual = KindShape().check(sources))
+    }
+
+    @Test
+    fun GIVEN_memory_package_outside_an_app_api_unit_WHEN_checked_THEN_accepts_it(@TempDir directory: File) {
+        val pluginApi = SourceTree(File(directory, "plugin-api"))
+            .main(
+                packageName = "x.jail.api.jail.memory",
+                fileName = "InMemoryJailRepository.kt",
+                code = "class InMemoryJailRepository"
+            )
+            .load(
+                UnitKind.API,
+                rootPackage = "x.jail.api",
+                productKind = ProductKind.PLATFORM_PLUGIN
+            )
+        val storageContract = SourceTree(File(directory, "storage-contract"))
+            .main(
+                packageName = "x.data.dao.rating.memory",
+                fileName = "InMemoryRatingRepository.kt",
+                code = "class InMemoryRatingRepository"
+            )
+            .load(
+                UnitKind.STORAGE_CONTRACT,
+                rootPackage = "x.data.dao",
+                productKind = ProductKind.APP
+            )
+        val appImpl = SourceTree(File(directory, "app-impl"))
+            .main(
+                packageName = "x.payment.impl.offer.memory",
+                fileName = "InMemoryOfferRepository.kt",
+                code = "class InMemoryOfferRepository"
+            )
+            .load(
+                UnitKind.IMPL,
+                rootPackage = "x.payment.impl",
+                productKind = ProductKind.APP
+            )
+
+        assertEquals(
+            expected = emptyList(),
+            actual = KindShape().check(pluginApi) + KindShape().check(storageContract) + KindShape().check(appImpl)
         )
     }
 }

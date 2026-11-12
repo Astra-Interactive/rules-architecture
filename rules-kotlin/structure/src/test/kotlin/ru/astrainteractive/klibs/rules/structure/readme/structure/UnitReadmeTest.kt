@@ -53,6 +53,53 @@ internal class UnitReadmeTest {
     }
 
     @Test
+    fun GIVEN_closing_abbreviation_before_uppercase_word_WHEN_checked_THEN_period_ends_a_sentence(
+        @TempDir directory: File
+    ) {
+        assertEquals(expected = 1, actual = countReported(directory, "Stores ratings, etc. The next."))
+        assertEquals(expected = 1, actual = countReported(directory, "Compares ratings vs. The next."))
+        assertEquals(expected = 1, actual = countReported(directory, "Stores ratings, ETC. The next."))
+        assertEquals(expected = 1, actual = countReported(directory, readme("Stores ratings, etc.", "The next.")))
+    }
+
+    @Test
+    fun GIVEN_abbreviation_not_before_uppercase_word_WHEN_checked_THEN_counts_one_sentence(
+        @TempDir directory: File
+    ) {
+        assertEquals(expected = 0, actual = countReported(directory, "Stores ratings, files, etc. for players."))
+        assertEquals(expected = 0, actual = countReported(directory, "Stores ratings, etc."))
+        assertEquals(expected = 0, actual = countReported(directory, "Stores ratings, etc.The next."))
+        assertEquals(expected = 0, actual = countReported(directory, "Formats durations, e.g. Monday."))
+        assertEquals(expected = 0, actual = countReported(directory, "Formats durations, i.e. The time left."))
+    }
+
+    @Test
+    fun GIVEN_text_after_last_terminal_WHEN_checked_THEN_it_counts_as_a_sentence(@TempDir directory: File) {
+        assertEquals(expected = 1, actual = countReported(directory, "Jails players. Frees them"))
+        assertEquals(expected = 1, actual = countReported(directory, "Jails players! Frees them later? And more"))
+        assertEquals(expected = 0, actual = countReported(directory, "Jails players. "))
+    }
+
+    @Test
+    fun GIVEN_initialism_WHEN_checked_THEN_its_periods_do_not_end_a_sentence(@TempDir directory: File) {
+        assertEquals(expected = 0, actual = countReported(directory, "Serves players in the U.S. and Canada."))
+        assertEquals(expected = 0, actual = countReported(directory, "Serves players in the U.S."))
+        assertEquals(expected = 0, actual = countReported(directory, "Serves players in the U.S. Frees them."))
+        assertEquals(expected = 1, actual = countReported(directory, "Serves players in the US. Frees them."))
+    }
+
+    @Test
+    fun GIVEN_abbreviation_glued_to_a_word_WHEN_checked_THEN_it_is_not_an_abbreviation(@TempDir directory: File) {
+        assertEquals(expected = 1, actual = countReported(directory, "Хранит рейтингиetc. for players."))
+        assertEquals(expected = 1, actual = countReported(directory, "Хранит рейтингиetc. The next."))
+        assertEquals(expected = 1, actual = countReported(directory, "Stores top10etc. for players."))
+        assertEquals(expected = 1, actual = countReported(directory, "Stores top_etc. for players."))
+        assertEquals(expected = 1, actual = countReported(directory, "Stores top²etc. for players."))
+        assertEquals(expected = 1, actual = countReported(directory, "Stores topⅧetc. for players."))
+        assertEquals(expected = 0, actual = countReported(directory, "Хранит рейтинги, etc. for players."))
+    }
+
+    @Test
     fun GIVEN_unit_without_readme_WHEN_checked_THEN_asks_for_one(@TempDir directory: File) {
         val violation = UnitReadme().check(unit(directory, isRoot = false)).single()
 

@@ -239,7 +239,7 @@ Rules marked *types* need type resolution and report only in `architectureLint`.
 
 | Check                       | Reports                                                                          |
 |-----------------------------|----------------------------------------------------------------------------------|
-| `KindShape`                 | a file loose in the unit root or a concept, a package below a kind package       |
+| `KindShape`                 | a file loose in the unit root or a concept, a package below a kind package, a kind package in an app's `api` unit other than `api`, `model`, `util`, `usecase`, `stub`, `di`, `component`, `viewmodel` (`memory` included), or a class in `component`/`viewmodel` instead of a state holder's interface |
 | `RootPackagePath`           | a root package that does not end with the unit name                              |
 | `KindImportDirection`       | an import against the kind table: `model` imports only `model`, nothing imports `di` |
 | `PackageDependencyCycle`    | an import cycle between packages                                                 |

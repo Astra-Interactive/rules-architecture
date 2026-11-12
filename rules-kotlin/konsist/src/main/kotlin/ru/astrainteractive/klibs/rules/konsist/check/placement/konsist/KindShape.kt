@@ -1,11 +1,14 @@
 package ru.astrainteractive.klibs.rules.konsist.check.placement.konsist
 
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
+import com.lemonappdev.konsist.api.provider.KoNameProvider
+import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.baseName
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelNames
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Placement
 import ru.astrainteractive.klibs.rules.konsist.layout.util.describe
@@ -42,6 +45,32 @@ internal class KindShape : ArchitectureCheck {
         return "Move ${file.baseName} out of '$path': a composable sub-package holds only files."
     }
 
+    private fun declaresOnlyInterfacesNamed(file: KoFileDeclaration, suffix: String): Boolean {
+        val interfaceNames = file.interfaces(includeNested = false).map(KoNameProvider::name)
+        val allEndWithSuffix = interfaceNames.all { name -> name.endsWith(suffix) }
+        return interfaceNames.isNotEmpty() && allEndWithSuffix && file.topLevelNames().size == interfaceNames.size
+    }
+
+    private fun findAppApiMessage(sources: UnitSources, file: KoFileDeclaration, placement: Placement): String? {
+        val isAppApi = sources.kind == UnitKind.API && sources.context.productKind == ProductKind.APP
+        val kindWord = placement.kindWord ?: return null
+        if (!isAppApi) return null
+        val path = packagePath(placement)
+        val stateHolderSuffix = STATE_HOLDER_SUFFIXES[kindWord]
+        if (stateHolderSuffix != null) {
+            if (declaresOnlyInterfacesNamed(file, stateHolderSuffix)) return null
+            return "Move ${file.baseName} out of '$path': an app's api unit holds only interfaces named " +
+                "...$stateHolderSuffix in $kindWord; move the implementation to the feature's impl unit."
+        }
+        if (kindWord in APP_API_KIND_WORDS) return null
+        if (kindWord == MEMORY_WORD) {
+            return "Move ${file.baseName} out of '$path': an app's api unit holds no memory implementation; move " +
+                "it to the feature's impl unit, or make it a stub."
+        }
+        return "Move ${file.baseName} out of '$path': an app's api unit holds only the " +
+            "${APP_API_KIND_WORDS.joinToString(", ")} kinds, not $kindWord."
+    }
+
     private fun findMessage(sources: UnitSources, file: KoFileDeclaration, placement: Placement): String? {
         val kind = placement.kind
         if (kind == null && placement.concepts.isEmpty()) {
@@ -52,6 +81,12 @@ internal class KindShape : ArchitectureCheck {
             return "Move ${file.baseName} into a kind package of ${placement.describe()}: a concept package " +
                 "holds only packages."
         }
+        val appApiMessage = findAppApiMessage(
+            sources,
+            file,
+            placement
+        )
+        if (appApiMessage != null) return appApiMessage
         val subKind = placement.subKind
         if (subKind != null) {
             return findComposableMessage(
@@ -105,6 +140,25 @@ internal class KindShape : ArchitectureCheck {
 
     private companion object {
         const val RULE = "KindShape"
+        const val MEMORY_WORD = "memory"
+
+        @JvmField
+        val STATE_HOLDER_SUFFIXES = mapOf(
+            "component" to "Component",
+            "viewmodel" to "ViewModel"
+        )
+
+        @JvmField
+        val APP_API_KIND_WORDS = listOf(
+            "api",
+            "model",
+            "util",
+            "usecase",
+            "stub",
+            "di",
+            "component",
+            "viewmodel"
+        )
 
         @JvmField
         val LEVEL_KINDS = setOf(
