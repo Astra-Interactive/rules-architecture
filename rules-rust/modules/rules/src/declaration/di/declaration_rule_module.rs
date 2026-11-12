@@ -1,7 +1,8 @@
 use crate::check::api::Rule;
 use crate::declaration::rule::{
-    BareIdentifier, CallbackDeclaration, ContractShape, ErrorFamilyShape, LocalItem, ModelDerives,
-    NamespaceType, ValueObjectShape,
+    BareIdentifier, CallbackDeclaration, ContractShape, ErrorFamilyShape,
+    InitializerOnDeclarationLine, LocalItem, ModelDerives, NamespaceType, TypeAliasOnOneLine,
+    ValueObjectShape,
 };
 use std::sync::Arc;
 
@@ -21,6 +22,8 @@ impl DeclarationRuleModule {
             Arc::new(ContractShape),
             Arc::new(ValueObjectShape),
             Arc::new(ErrorFamilyShape),
+            Arc::new(TypeAliasOnOneLine),
+            Arc::new(InitializerOnDeclarationLine),
         ];
         let active_rule_ids = vec![
             "BareIdentifier",
@@ -31,6 +34,8 @@ impl DeclarationRuleModule {
             "ContractShape",
             "ValueObjectShape",
             "ErrorFamilyShape",
+            "TypeAliasOnOneLine",
+            "InitializerOnDeclarationLine",
         ];
         Self {
             rules: rules.into(),

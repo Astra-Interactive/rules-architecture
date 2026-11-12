@@ -46,6 +46,7 @@ dependencies = [
 name = "bad-clean-code-rs"
 version = "0.0.0"
 dependencies = [
+ "thiserror",
  "tokio",
 ]
 
@@ -342,6 +343,7 @@ name = "good-clean-code-rs"
 version = "0.0.0"
 dependencies = [
  "parking_lot",
+ "thiserror",
  "tokio",
 ]
 

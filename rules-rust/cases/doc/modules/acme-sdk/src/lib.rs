@@ -36,8 +36,8 @@ impl Acme {
     }
 
     pub fn request_consent(&self) {
-        let pending: Vec<ConsentCallback> =
-            self.callbacks.lock().drain().map(|entry| entry.1).collect();
+        let callbacks = &self.callbacks;
+        let pending: Vec<_> = callbacks.lock().drain().map(|entry| entry.1).collect();
         for callback in pending {
             callback(Ok(AcmeStatus { granted: true }));
         }

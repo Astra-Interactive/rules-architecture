@@ -2,7 +2,7 @@
 # `cargo xtask gate-sync --docs <conf.ide>/.claude/docs` rewrites sha256 and conf-ide-commit; the rest is reviewed by hand.
 
 [sync]
-conf-ide-commit = "e27861e"
+conf-ide-commit = "1efda3a"
 
 [[example]]
 claim = "arch-package.rs:Modules:5"
@@ -535,6 +535,80 @@ block-lines = "15-27"
 fixture-lines = "5-17"
 
 [[example]]
+claim = "clean-code.rs:7:19"
+document = "clean-code.rs.md"
+anchor = "### 7. Prefer clarity over cleverness"
+first-line = "// Bad"
+occurrence = 4
+half = "bad"
+lines = "2-6"
+split = "markers"
+wrap = "fn-body"
+sha256 = "9907127bc4a79ee89faf2d2acdf97d716266c849a94411e8c1feb51bd95cc20e"
+expected = [{ line = 2, carrier = "InitializerOnDeclarationLine" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/clean-code-rs/src/example_70.rs"
+block-lines = "2-6"
+fixture-lines = "26-30"
+translate = [{ from = "serde_json::to_string", to = "to_json", why = "the gate has no serde_json crate; to_json is the scaffold's stand-in" }]
+
+[[example]]
+claim = "clean-code.rs:7:19"
+document = "clean-code.rs.md"
+anchor = "### 7. Prefer clarity over cleverness"
+first-line = "// Bad"
+occurrence = 4
+half = "good"
+lines = "9-13"
+split = "markers"
+wrap = "fn-body"
+sha256 = "343aef759e1ce3319bbf6e9e61c5c174af693a4260b6579536998ccf7f1647e4"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/clean-code-rs/src/invoice/util/invoice_serialization.rs"
+block-lines = "9-13"
+fixture-lines = "8-12"
+translate = [{ from = "serde_json::to_string", to = "to_json", why = "the gate has no serde_json crate; to_json is the scaffold's stand-in" }]
+
+[[example]]
+claim = "clean-code.rs:7:20"
+document = "clean-code.rs.md"
+anchor = "### 7. Prefer clarity over cleverness"
+first-line = "// Bad"
+occurrence = 5
+half = "bad"
+lines = "2-3"
+split = "markers"
+wrap = "items"
+sha256 = "fd15ee5e86077a3edf27dea5fa17f2a35661ed6864c51598d4283fa9b3e858a8"
+expected = [{ line = 2, carrier = "TypeAliasOnOneLine" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/clean-code-rs/src/example_71.rs"
+block-lines = "2-3"
+fixture-lines = "14-15"
+
+[[example]]
+claim = "clean-code.rs:7:20"
+document = "clean-code.rs.md"
+anchor = "### 7. Prefer clarity over cleverness"
+first-line = "// Bad"
+occurrence = 5
+half = "good"
+lines = "6-7"
+split = "markers"
+wrap = "items"
+sha256 = "eb2a2afeefc6e84f479041b2417da7dde65ccb6aae6c2e1aaf59bd524f4644ee"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/clean-code-rs/src/reminder/model/reminder_gate.rs"
+block-lines = "6-7"
+fixture-lines = "5-6"
+
+[[example]]
 claim = "closure-naming.rs:Rule:7"
 document = "closure-naming.rs.md"
 anchor = "### Bad"
@@ -648,7 +722,7 @@ half = "good"
 lines = "1-20"
 split = "none"
 wrap = "file"
-sha256 = "ed5fce6adf13a0d107c640665adbd791519495de407919de75bcc274402c6468"
+sha256 = "f055f8324b69b1c6a0380e9339c70e3cd10b1e8cccc532d6c4d4f303b41e0222"
 expected = []
 review = []
 [[example.fragment]]

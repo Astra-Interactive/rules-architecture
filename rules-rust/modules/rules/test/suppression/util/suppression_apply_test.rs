@@ -7,7 +7,7 @@ use crate::test::check::usecase::read_case_context;
 use std::collections::BTreeSet;
 use std::fs;
 
-fn build_workspace() -> tempfile::TempDir {
+pub(crate) fn build_workspace() -> tempfile::TempDir {
     let context = read_case_context("ForbiddenPackageName", "pass-names");
     let temporary = tempfile::tempdir().expect("temporary workspace");
     for file in &context.workspace.files {

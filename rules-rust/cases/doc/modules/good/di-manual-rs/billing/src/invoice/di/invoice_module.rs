@@ -13,8 +13,8 @@ pub struct InvoiceModule {
 
 impl InvoiceModule {
     pub fn new(core_module: &CoreModule) -> Self {
-        let invoice_repository: Arc<dyn InvoiceRepository> =
-            Arc::new(InMemoryInvoiceRepository::new());
+        let in_memory_invoice_repository = InMemoryInvoiceRepository::new();
+        let invoice_repository: Arc<dyn InvoiceRepository> = Arc::new(in_memory_invoice_repository);
         let pay_invoice_use_case = Arc::new(PayInvoiceUseCase::new(
             Arc::clone(&invoice_repository),
             Arc::clone(&core_module.clock),

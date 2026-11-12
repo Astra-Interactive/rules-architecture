@@ -36,6 +36,7 @@ pub mod check {
     pub(crate) mod util {
         pub(crate) use api_ownership_build::build_api_ownership;
         pub(crate) use report_build::build_report;
+        pub(crate) use rule_finding_build::build_child_module_path;
         pub(crate) use rule_finding_build::build_node_finding;
         pub(crate) use rule_finding_build::format_module_path;
         pub(crate) use unanalysable_findings::build_unanalysable_findings;
@@ -183,6 +184,7 @@ pub(crate) mod source {
         pub(crate) use expectation::Expectation;
         pub(crate) use expectation::ExpectationPosition;
         pub(crate) use external_path::ExternalPath;
+        pub(crate) use macro_body::MacroBody;
         pub(crate) use module_frame::ModuleFrame;
         pub(crate) use module_id::ModuleId;
         pub(crate) use node_span::NodeSpan;
@@ -210,6 +212,7 @@ pub(crate) mod source {
         mod crate_sources;
         mod expectation;
         mod external_path;
+        mod macro_body;
         mod module_frame;
         mod module_id;
         mod node_span;
@@ -236,6 +239,7 @@ pub(crate) mod source {
         pub(crate) use macro_arguments::parse_macro_arguments;
         pub(crate) use macro_arguments::parse_macro_expressions;
         pub(crate) use macro_arguments::parse_select_parts;
+        pub(crate) use macro_arguments::visit_macro_body;
         pub(crate) use select_arguments::parse_select_arguments;
         pub(crate) use syntax_record::find_declared_visibility;
         pub(crate) use syntax_record::find_node_span;
@@ -883,18 +887,26 @@ pub(crate) mod declaration {
         pub(crate) use callback_visitor::CallbackVisitor;
         pub(crate) use contract_shape::ContractShape;
         pub(crate) use error_family_shape::ErrorFamilyShape;
+        pub(crate) use initializer_on_declaration_line::InitializerOnDeclarationLine;
+        pub(crate) use initializer_visitor::InitializerVisitor;
         pub(crate) use local_item::LocalItem;
         pub(crate) use model_derives::ModelDerives;
         pub(crate) use namespace_type::NamespaceType;
+        pub(crate) use type_alias_on_one_line::TypeAliasOnOneLine;
+        pub(crate) use type_alias_visitor::TypeAliasVisitor;
         pub(crate) use value_object_shape::ValueObjectShape;
         mod bare_identifier;
         mod callback_declaration;
         mod callback_visitor;
         mod contract_shape;
         mod error_family_shape;
+        mod initializer_on_declaration_line;
+        mod initializer_visitor;
         mod local_item;
         mod model_derives;
         mod namespace_type;
+        mod type_alias_on_one_line;
+        mod type_alias_visitor;
         mod value_object_shape;
     }
     pub(crate) mod util {
@@ -998,10 +1010,12 @@ mod test {
             mod callback_declaration_test;
             mod contract_shape_test;
             mod error_family_shape_test;
+            mod initializer_on_declaration_line_test;
             mod local_item_test;
             mod model_derives_test;
             mod namespace_type_test;
             mod phase4_declaration_docs_test;
+            mod type_alias_on_one_line_test;
             mod value_object_shape_test;
         }
     }
@@ -1201,7 +1215,8 @@ mod test {
         }
     }
     mod suppression {
-        mod util {
+        pub(crate) mod util {
+            pub(crate) use suppression_apply_test::build_workspace;
             mod suppression_apply_test;
         }
         mod rule {

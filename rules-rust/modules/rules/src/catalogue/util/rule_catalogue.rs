@@ -144,6 +144,8 @@ fn build_code_style_entries() -> Vec<CatalogueEntry> {
         build_entry("RustdocHtmlTag", 2, NODE, false),
         build_entry("RustdocFiller", 2, NODE, false),
         build_entry("BooleanOperatorWrapping", 2, NODE, false),
+        build_entry("TypeAliasOnOneLine", 2, NODE, false),
+        build_entry("InitializerOnDeclarationLine", 2, NODE, false),
         build_entry("ClosureSingleIfGuard", 2, NODE, false),
         build_entry("OperatorBeforeTrailingCall", 2, NODE, false),
         build_entry("TrivialClosurePath", 4, NODE, false),

@@ -65,6 +65,9 @@ ReExportShape	modules/bad/clean-code-rs/src/example_18.rs:13	CheckoutContent	A n
 ReExportShape	modules/bad/clean-code-rs/src/example_18.rs:20	CheckoutState	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 OneTypeFamilyPerFile	modules/bad/clean-code-rs/src/example_18.rs:25	bad_clean_code_rs::example_18::start_checkout	Place free functions in a function file, separate from a type family (arch-package.rs.md)
 ReExportShape	modules/bad/clean-code-rs/src/example_18.rs:25	start_checkout	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ErrorPlacement	modules/bad/clean-code-rs/src/example_70.rs:11	bad_clean_code_rs::InvoiceError	Error families and result enums live in model, including replacements for old error modules (error-handling.rs.md)
+OneTypeFamilyPerFile	modules/bad/clean-code-rs/src/example_70.rs:21	bad_clean_code_rs::example_70::to_json	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+OneTypeFamilyPerFile	modules/bad/clean-code-rs/src/example_70.rs:25	bad_clean_code_rs::example_70::serialize_reminder	Place free functions in a function file, separate from a type family (arch-package.rs.md)
 KindShape	modules/bad/clean-code-rs/src/lib.rs:1	bad_clean_code_rs::example_16	a concept holds kind blocks; files live in a named kind
 OneTypeFamilyPerFile	modules/bad/clean-code-rs/src/lib.rs:1	bad_clean_code_rs::example_16	Name the file after its primary type family (arch-package.rs.md)
 RootFileShape	modules/bad/clean-code-rs/src/lib.rs:1	bad_clean_code_rs	the root file holds only the module tree and the items the platform calls
@@ -73,6 +76,12 @@ RootFileShape	modules/bad/clean-code-rs/src/lib.rs:2	bad_clean_code_rs	the root 
 KindShape	modules/bad/clean-code-rs/src/lib.rs:3	bad_clean_code_rs::example_18	a concept holds kind blocks; files live in a named kind
 OneTypeFamilyPerFile	modules/bad/clean-code-rs/src/lib.rs:3	bad_clean_code_rs::example_18	Name the file after its primary type family (arch-package.rs.md)
 RootFileShape	modules/bad/clean-code-rs/src/lib.rs:3	bad_clean_code_rs	the root file holds only the module tree and the items the platform calls
+KindShape	modules/bad/clean-code-rs/src/lib.rs:4	bad_clean_code_rs::example_70	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/clean-code-rs/src/lib.rs:4	bad_clean_code_rs::example_70	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/clean-code-rs/src/lib.rs:4	bad_clean_code_rs	the root file holds only the module tree and the items the platform calls
+KindShape	modules/bad/clean-code-rs/src/lib.rs:5	bad_clean_code_rs::example_71	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/clean-code-rs/src/lib.rs:5	bad_clean_code_rs::example_71	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/clean-code-rs/src/lib.rs:5	bad_clean_code_rs	the root file holds only the module tree and the items the platform calls
 ReExportShape	modules/bad/closure-naming-rs/src/example_19.rs:3	Invoice	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 OneTypeFamilyPerFile	modules/bad/closure-naming-rs/src/example_19.rs:8	bad_closure_naming_rs::example_19::build_overdue_report	Place free functions in a function file, separate from a type family (arch-package.rs.md)
 ReExportShape	modules/bad/closure-naming-rs/src/example_19.rs:8	build_overdue_report	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
@@ -207,6 +216,7 @@ KindImportDirection	modules/good/clean-code-rs/src/banner/component/banner_compo
 KindImportDirection	modules/good/clean-code-rs/src/banner/component/banner_component.rs:12	banner::component::banner_component	This kind may not use `task::service::task_scope` (arch-context.md, Direction and enforcement)
 BareIdentifier	modules/good/clean-code-rs/src/checkout/model/cart.rs:4	good_clean_code_rs::checkout::model::cart::Cart	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
 ModelDerives	modules/good/clean-code-rs/src/checkout/model/cart.rs:4	good_clean_code_rs::checkout::model::cart::Cart	Derive Hash on this model struct (arch-domain.rs.md)
+ForeignErrorType	modules/good/clean-code-rs/src/invoice/util/json_format.rs:3	good_clean_code_rs::invoice::util::to_json	inner layers return the concept's own error family, not a foreign error type (error-handling.rs.md)
 ModelDerives	modules/good/closure-naming-rs/src/invoice/model/invoice.rs:4	good_closure_naming_rs::invoice::model::invoice::Invoice	Derive Hash on this model struct (arch-domain.rs.md)
 BareIdentifier	modules/good/di-manual-constructors-rs/src/reminder/model/reminder_schedule.rs:4	good_di_manual_constructors_rs::reminder::model::reminder_schedule::ReminderSchedule	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
 ModelDerives	modules/good/di-manual-constructors-rs/src/reminder/model/reminder_schedule.rs:4	good_di_manual_constructors_rs::reminder::model::reminder_schedule::ReminderSchedule	Derive Hash on this model struct (arch-domain.rs.md)

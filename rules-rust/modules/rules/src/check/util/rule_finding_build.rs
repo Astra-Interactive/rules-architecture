@@ -4,6 +4,8 @@ use crate::check::model::Location;
 use crate::check::model::RuleFinding;
 use crate::check::model::RuleId;
 use crate::source::model::NodeSpan;
+use syn::ItemMod;
+use syn::ext::IdentExt;
 
 pub(crate) fn build_node_finding(
     rule_id: &str,
@@ -27,6 +29,10 @@ pub(crate) fn build_node_finding(
             span,
         },
     }
+}
+
+pub(crate) fn build_child_module_path(parent: &str, item: &ItemMod) -> String {
+    format!("{parent}::{}", item.ident.unraw())
 }
 
 pub(crate) fn format_module_path(crate_name: &str, path: &[String]) -> String {
