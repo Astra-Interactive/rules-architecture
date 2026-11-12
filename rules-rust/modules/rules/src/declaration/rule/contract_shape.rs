@@ -33,8 +33,12 @@ impl ContractShape {
         module: usize,
         bound: &syn::TypeParamBound,
     ) -> Option<String> {
-        let syn::TypeParamBound::Trait(bound) = bound else {
-            return None;
+        let bound = match bound {
+            syn::TypeParamBound::Trait(bound) => bound,
+            syn::TypeParamBound::Lifetime(lifetime) if lifetime.ident == "static" => {
+                return Some("'static".to_owned());
+            }
+            _ => return None,
         };
         if bound.modifiers.require_empty().is_err() || bound.lifetimes.is_some() {
             return None;
@@ -68,11 +72,7 @@ impl ContractShape {
         let has_send = bounds.iter().any(|bound| bound.as_deref() == Some("Send"));
         let has_sync = bounds.iter().any(|bound| bound.as_deref() == Some("Sync"));
         let invalid_api = has_kind(index, item.module, "api")
-            && (!value.generics.params.is_empty()
-                || value.generics.where_clause.is_some()
-                || !has_send
-                || !has_sync
-                || bounds.iter().any(Option::is_none));
+            && (!has_send || !has_sync || bounds.iter().any(Option::is_none));
         let missing_async =
             Self::is_async_trait(value) && !Self::has_async_trait(index, item.module, &value.attrs);
         if !invalid_api && !missing_async {

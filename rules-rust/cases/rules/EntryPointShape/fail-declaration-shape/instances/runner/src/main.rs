@@ -1,2 +1,2 @@
-pub(crate) mod model {}
+pub(crate) mod util {}
 pub fn main() {}

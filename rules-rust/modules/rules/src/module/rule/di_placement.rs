@@ -1,5 +1,6 @@
 use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
+use crate::module::rule::PlacementTypeVisitor;
 use crate::module::util::{build_shape_item_finding, build_shape_module_finding, find_kind_name};
 
 pub(crate) struct DiPlacement;
@@ -36,22 +37,50 @@ impl DiPlacement {
         })
     }
 
-    fn missing_module(context: &RuleContext, ordinal: usize) -> Vec<RuleFinding> {
+    fn holds_as_field(context: &RuleContext, ordinal: usize, identity: usize) -> bool {
         let index = &context.indexes[ordinal];
-        if index
+        index
             .items
             .iter()
-            .any(|item| crate::module::util::is_di_type(context, ordinal, item))
-        {
-            return Vec::new();
-        }
+            .filter(|holder| find_kind_name(context, ordinal, holder.module) == "di")
+            .any(|holder| {
+                let syn::Item::Struct(structure) = &holder.syntax else {
+                    return false;
+                };
+                structure.fields.iter().any(|field| {
+                    PlacementTypeVisitor::collect_paths(&field.ty)
+                        .into_iter()
+                        .any(|path| {
+                            let typed: syn::Type = syn::parse_quote!(#path);
+                            index
+                                .resolve_type_items(holder.module, &typed)
+                                .contains(&identity)
+                        })
+                })
+            })
+    }
+
+    fn is_owned_by_di(context: &RuleContext, ordinal: usize, identity: usize) -> bool {
+        let constructed_in_di = context.name_index().uses.iter().any(|usage| {
+            usage.target_index == ordinal
+                && usage.target_item == identity
+                && find_kind_name(context, usage.source_index, usage.source_module) == "di"
+                && crate::module::util::is_construction_use(context, usage)
+        });
+        constructed_in_di || Self::holds_as_field(context, ordinal, identity)
+    }
+
+    fn missing_module(context: &RuleContext, ordinal: usize) -> Vec<RuleFinding> {
+        let index = &context.indexes[ordinal];
         let mut findings: Vec<_> = index
             .items
             .iter()
             .enumerate()
             .filter(|(identity, item)| {
                 index.modules[item.module].tree == crate::source::model::SourceTree::Src
+                    && !crate::module::util::is_di_type(context, ordinal, item)
                     && crate::module::util::lifecycle_implementation(context, ordinal, *identity)
+                    && !Self::is_owned_by_di(context, ordinal, *identity)
             })
             .map(|(_, item)| {
                 build_shape_item_finding(
@@ -62,6 +91,13 @@ impl DiPlacement {
                 )
             })
             .collect();
+        if index
+            .items
+            .iter()
+            .any(|item| crate::module::util::is_di_type(context, ordinal, item))
+        {
+            return findings;
+        }
         if let Some(usage) = context
             .name_index()
             .uses
@@ -77,6 +113,32 @@ impl DiPlacement {
             ));
         }
         findings
+    }
+
+    fn has_module_shape(context: &RuleContext, ordinal: usize, identity: usize) -> bool {
+        let index = &context.indexes[ordinal];
+        let syn::Item::Struct(structure) = &index.items[identity].syntax else {
+            return false;
+        };
+        let has_constructor = index.implementations.iter().any(|implementation| {
+            implementation.syntax.trait_.is_none()
+                && crate::module::util::owns_implementation(index, identity, implementation)
+                && implementation.syntax.items.iter().any(
+                    |member| matches!(member, syn::ImplItem::Fn(function) if function.sig.ident == "new"),
+                )
+        });
+        let holds_module = structure.fields.iter().any(|field| {
+            PlacementTypeVisitor::collect_paths(&field.ty)
+                .iter()
+                .any(|path| {
+                    path.segments
+                        .last()
+                        .is_some_and(|segment| segment.ident.to_string().ends_with("Module"))
+                })
+        });
+        has_constructor
+            || holds_module
+            || crate::module::util::lifecycle_implementation(context, ordinal, identity)
     }
 
     fn only_contracts(context: &RuleContext, ordinal: usize) -> bool {
@@ -102,10 +164,10 @@ impl Rule for DiPlacement {
     fn check(&self, context: &RuleContext) -> Vec<RuleFinding> {
         let mut findings = Vec::new();
         for (ordinal, index) in context.indexes.iter().enumerate() {
-            for item in &index.items {
-                if matches!(item.syntax, syn::Item::Struct(_))
-                    && item.name.ends_with("Module")
+            for (identity, item) in index.items.iter().enumerate() {
+                if item.name.ends_with("Module")
                     && find_kind_name(context, ordinal, item.module) != "di"
+                    && Self::has_module_shape(context, ordinal, identity)
                 {
                     findings.push(build_shape_item_finding(
                         index,

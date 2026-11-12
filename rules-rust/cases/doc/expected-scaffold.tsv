@@ -80,7 +80,6 @@ KindShape	modules/bad/closure-naming-rs/src/lib.rs:1	bad_closure_naming_rs::exam
 OneTypeFamilyPerFile	modules/bad/closure-naming-rs/src/lib.rs:1	bad_closure_naming_rs::example_19	Name the file after its primary type family (arch-package.rs.md)
 RootFileShape	modules/bad/closure-naming-rs/src/lib.rs:1	bad_closure_naming_rs	the root file holds only the module tree and the items the platform calls
 ReExportShape	modules/bad/code-ordering-rs/src/example_22.rs:4	TaskScope	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-DiPlacement	modules/bad/code-ordering-rs/src/example_22.rs:6	bad_code_ordering_rs::CoreModule	dependency wiring structs live in di
 ReExportShape	modules/bad/code-ordering-rs/src/example_22.rs:6	CoreModule	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 ReExportShape	modules/bad/code-ordering-rs/src/example_22.rs:10	IntervalFeatureFlagReloader	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 KindShape	modules/bad/code-ordering-rs/src/lib.rs:1	bad_code_ordering_rs::example_22	a concept holds kind blocks; files live in a named kind
@@ -198,8 +197,14 @@ OneTypeFamilyPerFile	modules/bad/time-api-rs/src/lib.rs:1	bad_time_api_rs::examp
 RootFileShape	modules/bad/time-api-rs/src/lib.rs:1	bad_time_api_rs	the root file holds only the module tree and the items the platform calls
 BareIdentifier	modules/good/arch-package-rs-tree/src/invoice/model/invoice.rs:2	good_arch_package_rs_tree::invoice::model::invoice::Invoice	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
 ModelDerives	modules/good/arch-package-rs-tree/src/invoice/model/invoice.rs:2	good_arch_package_rs_tree::invoice::model::invoice::Invoice	Derive Hash on this model struct (arch-domain.rs.md)
+KindImportDirection	modules/good/async-rs/src/checkout/component/checkout_component.rs:3	checkout::component::checkout_component	This kind may not use `reminder::service::task_scope` (arch-context.md, Direction and enforcement)
+KindImportDirection	modules/good/async-rs/src/checkout/component/checkout_component.rs:9	checkout::component::checkout_component	This kind may not use `reminder::service::task_scope` (arch-context.md, Direction and enforcement)
+KindImportDirection	modules/good/async-rs/src/checkout/component/checkout_component.rs:16	checkout::component::checkout_component	This kind may not use `reminder::service::task_scope` (arch-context.md, Direction and enforcement)
 ReExportShape	modules/good/async-rs/src/invoice/memory/in_memory_invoice_cache.rs:29	CachedInvoice	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 ModelDerives	modules/good/async-rs/src/invoice/model/invoice.rs:4	good_async_rs::invoice::model::invoice::Invoice	Derive Hash on this model struct (arch-domain.rs.md)
+KindImportDirection	modules/good/clean-code-rs/src/banner/component/banner_component.rs:3	banner::component::banner_component	This kind may not use `task::service::task_scope` (arch-context.md, Direction and enforcement)
+KindImportDirection	modules/good/clean-code-rs/src/banner/component/banner_component.rs:8	banner::component::banner_component	This kind may not use `task::service::task_scope` (arch-context.md, Direction and enforcement)
+KindImportDirection	modules/good/clean-code-rs/src/banner/component/banner_component.rs:12	banner::component::banner_component	This kind may not use `task::service::task_scope` (arch-context.md, Direction and enforcement)
 BareIdentifier	modules/good/clean-code-rs/src/checkout/model/cart.rs:4	good_clean_code_rs::checkout::model::cart::Cart	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
 ModelDerives	modules/good/clean-code-rs/src/checkout/model/cart.rs:4	good_clean_code_rs::checkout::model::cart::Cart	Derive Hash on this model struct (arch-domain.rs.md)
 ModelDerives	modules/good/closure-naming-rs/src/invoice/model/invoice.rs:4	good_closure_naming_rs::invoice::model::invoice::Invoice	Derive Hash on this model struct (arch-domain.rs.md)
@@ -228,7 +233,6 @@ KindImportDirection	modules/good/no-callbacks-rs-1/src/offer/service/offer_refre
 EnumFamilyFile	modules/good/no-callbacks-rs-1/src/timer/model/timer_config.rs:1	good_no_callbacks_rs_1::timer::model::TimerConfig	A struct used only by one enum's payloads lives in that enum's file (arch-package.rs.md)
 BareIdentifier	modules/good/no-callbacks-rs-1/src/timer/model/timer_config.rs:2	good_no_callbacks_rs_1::timer::model::timer_config::TimerConfig	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
 ModelDerives	modules/good/no-callbacks-rs-1/src/timer/model/timer_config.rs:2	good_no_callbacks_rs_1::timer::model::timer_config::TimerConfig	Derive Hash on this model struct (arch-domain.rs.md)
-BareIdentifier	modules/good/no-print-rs/src/order/model/order.rs:4	good_no_print_rs::order::model::order::Order	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
 ModelDerives	modules/good/no-print-rs/src/order/model/order.rs:4	good_no_print_rs::order::model::order::Order	Derive Hash on this model struct (arch-domain.rs.md)
 UtilFunctionAsExtension	modules/good/no-print-rs/src/order/util/order_load.rs:3	good_no_print_rs::order::util::load_order	a one-model rule is an inherent extension method in util
 ContractShape	modules/good/no-tuples-rs/src/shape/api/shape.rs:3	good_no_tuples_rs::shape::api::shape::Shape	Declare contracts as non-generic Send + Sync traits, with async_trait for async methods (arch-domain.rs.md)
@@ -239,7 +243,6 @@ ModelDerives	modules/good/rustdoc-rs/src/order/model/order.rs:2	good_rustdoc_rs:
 ModelDerives	modules/good/rustdoc-rs/src/pricing/model/money.rs:2	good_rustdoc_rs::pricing::model::money::Money	Derive Hash on this model struct (arch-domain.rs.md)
 ModelContainsFunctions	modules/good/rustdoc-rs/src/pricing/model/money.rs:5	Money	A model's own file holds constants and invariant construction/accessors; rules live in util (arch-domain.rs.md)
 ModelContainsFunctions	modules/good/rustdoc-rs/src/pricing/model/money.rs:9	Money	A model's own file holds constants and invariant construction/accessors; rules live in util (arch-domain.rs.md)
-BareIdentifier	modules/good/rustdoc-rs/src/user/model/user.rs:4	good_rustdoc_rs::user::model::user::User	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
 ModelDerives	modules/good/rustdoc-rs/src/user/model/user.rs:4	good_rustdoc_rs::user::model::user::User	Derive Hash on this model struct (arch-domain.rs.md)
 ErrorFamilyShape	modules/good/rustdoc-rs/src/user/model/user_error.rs:1	good_rustdoc_rs::user::model::UserError	an error enum derives Debug + thiserror::Error, labels each variant, and boxes source errors as dyn Error + Send + Sync
 ModelDerives	modules/good/testing-rs-1/src/order/model/create_order_command.rs:4	good_testing_rs_1::order::model::create_order_command::CreateOrderCommand	Derive Hash on this model struct (arch-domain.rs.md)
@@ -280,6 +283,7 @@ ReExportShape	modules/probe/std/src/probes.rs:79	probe_io_stderr	A non-private f
 ReExportShape	modules/probe/std/src/probes.rs:83	probe_system_time_now	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 SystemClockOutsideDi	modules/probe/std/src/probes.rs:84	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
 ReExportShape	modules/probe/std/src/probes.rs:87	probe_system_time_elapsed	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/probe/std/src/probes.rs:88	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
 ReExportShape	modules/probe/std/src/probes.rs:91	probe_await_holding_watch_ref	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 ReExportShape	modules/probe/std/src/probes.rs:97	probe_watch_sender_send	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 ReExportShape	modules/probe/std/src/probes.rs:101	probe_unreachable_pub	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
@@ -300,11 +304,18 @@ TestFunctionName	modules/probe/std/src/probes.rs:220	probe::probes::tests::probe
 KindShape	modules/probe/time/src/lib.rs:1	probe_time::probes	a concept holds kind blocks; files live in a named kind
 RootFileShape	modules/probe/time/src/lib.rs:1	probe_time	the root file holds only the module tree and the items the platform calls
 ReExportShape	modules/probe/time/src/probes.rs:1	probe_chrono_utc_now	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/probe/time/src/probes.rs:2	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
 ReExportShape	modules/probe/time/src/probes.rs:5	probe_chrono_local_now	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/probe/time/src/probes.rs:6	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
 ReExportShape	modules/probe/time/src/probes.rs:9	probe_jiff_timestamp_now	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/probe/time/src/probes.rs:10	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
 ReExportShape	modules/probe/time/src/probes.rs:13	probe_jiff_zoned_now	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/probe/time/src/probes.rs:14	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
 ReExportShape	modules/probe/time/src/probes.rs:17	probe_time_offset_date_time_now_utc	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/probe/time/src/probes.rs:18	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
 ReExportShape	modules/probe/time/src/probes.rs:21	probe_time_offset_date_time_now_local	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/probe/time/src/probes.rs:22	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
 ReExportShape	modules/probe/time/src/probes.rs:25	probe_time_utc_date_time_now	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/probe/time/src/probes.rs:26	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
 ReExportShape	modules/probe/time/src/probes.rs:29	probe_deprecated_chrono_utc_today	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 ReExportShape	modules/probe/time/src/probes.rs:33	probe_deprecated_chrono_local_today	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block

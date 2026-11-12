@@ -14,6 +14,19 @@ fn given_abbreviations_and_a_missing_stop_when_counted_then_returns_one() {
 }
 
 #[test]
+fn given_etc_followed_by_an_uppercase_sentence_when_counted_then_returns_two() {
+    assert_eq!(
+        2,
+        count_sentences("Wraps the tracking calls, etc. The client is separate.")
+    );
+}
+
+#[test]
+fn given_e_g_followed_by_an_uppercase_word_when_counted_then_returns_one() {
+    assert_eq!(1, count_sentences("Wraps the host API, e.g. Bukkit"));
+}
+
+#[test]
 fn given_two_sentences_over_lines_when_counted_then_returns_two() {
     assert_eq!(2, count_sentences("Parses invoices.\nPrints them!\n"));
 }

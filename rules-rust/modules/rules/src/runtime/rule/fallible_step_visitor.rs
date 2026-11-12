@@ -262,6 +262,13 @@ impl<'ast> Visit<'ast> for FallibleStepVisitor {
         }
     }
 
+    fn visit_macro(&mut self, item: &'ast syn::Macro) {
+        let arguments = crate::source::util::parse_macro_arguments(item);
+        for argument in &arguments {
+            self.visit_expr(argument);
+        }
+    }
+
     fn visit_expr_try(&mut self, expression: &'ast syn::ExprTry) {
         self.visit_expr(&expression.expr);
         if self.continues {

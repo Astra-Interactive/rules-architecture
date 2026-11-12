@@ -81,6 +81,22 @@ impl<'ast> Visit<'ast> for UnsafeVisitor<'_> {
         self.module = parent;
     }
 
+    fn visit_attribute(&mut self, attribute: &'ast syn::Attribute) {
+        let is_unsafe_attribute =
+            matches!(&attribute.meta, syn::Meta::List(list) if list.path.is_ident("unsafe"));
+        let index = &self.context.indexes[self.ordinal];
+        let is_host_entry = self.module == 0
+            && self
+                .context
+                .find_role_config(&index.crate_name)
+                .and_then(|config| config.role)
+                == Some(crate::config::model::Role::EntryPoint);
+        if is_unsafe_attribute && !is_host_entry {
+            self.check_span(attribute.span());
+        }
+        syn::visit::visit_attribute(self, attribute);
+    }
+
     fn visit_expr_unsafe(&mut self, expression: &'ast syn::ExprUnsafe) {
         self.check_span(expression.span());
         syn::visit::visit_expr_unsafe(self, expression);

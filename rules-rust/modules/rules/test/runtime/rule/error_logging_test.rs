@@ -3,6 +3,37 @@ use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
 
 #[test]
+fn given_error_taken_by_err_or_unwrap_err_when_formatted_into_a_message_then_reports_the_log() {
+    assert_code_findings(
+        &ErrorLogging,
+        "ErrorLogging",
+        "fn run(outcome: Result<(), std::io::Error>, queue: &mut Vec<String>) {\n    if let Some(error) = outcome.err() {\n        tracing::warn!(\"could not sync: {error}\");\n    }\n    if let Some(item) = queue.pop() {\n        tracing::warn!(\"dropped {item}\");\n    }\n}\nfn load(outcome: Result<(), std::io::Error>) {\n    let error = outcome.unwrap_err();\n    tracing::warn!(\"could not load: {error}\");\n}",
+        &[3, 11],
+    );
+}
+
+#[test]
+fn given_logged_error_returned_inside_a_wrapper_when_checked_then_reports_each_log() {
+    assert_code_findings(
+        &ErrorLogging,
+        "ErrorLogging",
+        "fn load() -> Result<(), std::io::Error> { Ok(()) }\nenum SyncError { Io { source: std::io::Error }, Parse }\nimpl From<std::io::Error> for SyncError { fn from(source: std::io::Error) -> Self { Self::Io { source } } }\nfn sync() -> Result<(), SyncError> {\n    if let Err(error) = load() {\n        tracing::warn!(error = &error as &dyn std::error::Error, \"could not load\");\n        return Err(SyncError::Io { source: error });\n    }\n    if let Err(error) = load() {\n        tracing::warn!(error = &error as &dyn std::error::Error, \"could not load\");\n        return Err(error.into());\n    }\n    if let Err(error) = load() {\n        tracing::warn!(error = &error as &dyn std::error::Error, \"could not load\");\n        return Err(SyncError::from(error));\n    }\n    if let Err(error) = load() {\n        tracing::warn!(error = &error as &dyn std::error::Error, \"could not load\");\n        return Err(SyncError::Parse);\n    }\n    Ok(())\n}",
+        &[6, 10, 14],
+    );
+}
+
+#[test]
+fn given_error_logged_in_if_let_then_its_result_propagated_with_try_when_checked_then_reports_the_log()
+ {
+    assert_code_findings(
+        &ErrorLogging,
+        "ErrorLogging",
+        "fn load() -> Result<u32, std::io::Error> { Ok(1) }\nfn sync() -> Result<u32, std::io::Error> {\n    let result = load();\n    if let Err(error) = &result {\n        tracing::warn!(error = error as &dyn std::error::Error, \"could not load\");\n    }\n    let value = result?;\n    Ok(value)\n}\nfn sync_quiet() -> Result<u32, std::io::Error> {\n    let result = load();\n    if let Err(error) = &result {\n        tracing::warn!(error = error as &dyn std::error::Error, \"could not load\");\n    }\n    let value = result.unwrap_or_default();\n    Ok(value)\n}",
+        &[5],
+    );
+}
+
+#[test]
 fn given_shadowed_result_in_pattern_scopes_when_inspected_then_does_not_infer_custom_errors() {
     let declarations = "fn load() -> Result<(), std::io::Error> { Ok(()) } struct Value; impl Value { fn map_err(&self, callback: impl Fn(u32)) { callback(1); } }";
     for body in [

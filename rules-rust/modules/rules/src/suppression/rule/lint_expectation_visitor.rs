@@ -33,6 +33,53 @@ impl LintExpectationVisitor {
         }
     }
 
+    fn has_blank_reason(
+        arguments: &syn::punctuated::Punctuated<syn::Meta, syn::Token![,]>,
+    ) -> bool {
+        arguments.iter().any(|argument| {
+            let syn::Meta::NameValue(pair) = argument else {
+                return false;
+            };
+            let syn::Expr::Lit(literal) = &pair.value else {
+                return false;
+            };
+            let syn::Lit::Str(reason) = &literal.lit else {
+                return false;
+            };
+            pair.path.is_ident("reason") && reason.value().trim().is_empty()
+        })
+    }
+
+    fn expects_disallowed_methods(attribute: &syn::Attribute) -> bool {
+        let syn::Meta::List(list) = &attribute.meta else {
+            return false;
+        };
+        let parser = syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated;
+        list.path.is_ident("expect")
+            && parser.parse2(list.tokens.clone()).is_ok_and(|arguments| {
+                arguments.iter().any(|argument| {
+                    matches!(argument, syn::Meta::Path(path)
+                        if format_tokens(path).replace(' ', "") == "clippy::disallowed_methods")
+                })
+            })
+    }
+
+    fn writes_console(block: &syn::Block) -> bool {
+        let text = format_tokens(block).replace(' ', "");
+        text.contains("io::stdout(") || text.contains("io::stderr(")
+    }
+
+    fn check_console_expectation(&mut self, attributes: &[syn::Attribute], block: &syn::Block) {
+        if self.allows_print || !Self::writes_console(block) {
+            return;
+        }
+        let spans = attributes
+            .iter()
+            .filter(|attribute| Self::expects_disallowed_methods(attribute))
+            .map(Spanned::span);
+        self.findings.extend(spans);
+    }
+
     fn violates_scope(&self, meta: &syn::Meta, is_inner: bool, is_conditional: bool) -> bool {
         let syn::Meta::List(list) = meta else {
             return false;
@@ -65,6 +112,9 @@ impl LintExpectationVisitor {
             .collect();
         if lints.is_empty() {
             return false;
+        }
+        if is_expect && Self::has_blank_reason(&arguments) {
+            return true;
         }
         let names: Vec<String> = lints
             .iter()
@@ -116,6 +166,16 @@ impl<'ast> Visit<'ast> for LintExpectationVisitor {
         if self.violates_scope(&attribute.meta, is_inner, false) {
             self.findings.push(attribute.span());
         }
+    }
+
+    fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
+        self.check_console_expectation(&item.attrs, &item.block);
+        syn::visit::visit_item_fn(self, item);
+    }
+
+    fn visit_impl_item_fn(&mut self, item: &'ast syn::ImplItemFn) {
+        self.check_console_expectation(&item.attrs, &item.block);
+        syn::visit::visit_impl_item_fn(self, item);
     }
 
     fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {

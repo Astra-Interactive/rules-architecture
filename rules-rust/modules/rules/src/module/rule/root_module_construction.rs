@@ -29,7 +29,7 @@ impl RootModuleConstruction {
                         context,
                         ordinal,
                         implementation.module,
-                        &method.block,
+                        method,
                     )),
                     _ => None,
                 })

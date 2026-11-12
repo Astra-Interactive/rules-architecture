@@ -3,6 +3,44 @@ use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
 
 #[test]
+fn given_write_all_on_a_generic_tokio_writer_in_looping_select_when_checked_then_reports_the_branch()
+ {
+    assert_code_findings(
+        &SelectCancelSafety,
+        "SelectCancelSafety",
+        "use tokio::io::AsyncWriteExt;\nasync fn pump<S: AsyncWriteExt + Unpin>(stream: &mut S, mut shutdown: tokio::sync::watch::Receiver<bool>) {\n    loop { tokio::select! { written = stream.write_all(b\"x\") => { drop(written); }, _ = shutdown.changed() => return, } }\n}\nasync fn pump_where<S>(stream: &mut S, mut shutdown: tokio::sync::watch::Receiver<bool>) where S: tokio::io::AsyncWriteExt + Unpin {\n    loop { tokio::select! { written = stream.write_all(b\"x\") => { drop(written); }, _ = shutdown.changed() => return, } }\n}\ntrait Sink { async fn write_all(&mut self, _: &[u8]) {} }\nasync fn own<S: Sink>(stream: &mut S, mut shutdown: tokio::sync::watch::Receiver<bool>) {\n    loop { tokio::select! { written = stream.write_all(b\"x\") => { drop(written); }, _ = shutdown.changed() => return, } }\n}",
+        &[3, 6],
+    );
+}
+
+#[test]
+fn given_workspace_async_fn_awaiting_a_cancel_unsafe_read_in_looping_select_when_checked_then_reports_the_branch()
+ {
+    assert_code_findings(
+        &SelectCancelSafety,
+        "SelectCancelSafety",
+        "use tokio::io::AsyncReadExt;\nasync fn read_frame(stream: &mut tokio::net::TcpStream, buffer: &mut [u8; 4]) -> std::io::Result<()> { stream.read_exact(buffer).await.map(|_| ()) }\nasync fn next_value(inbox: &mut tokio::sync::mpsc::Receiver<u32>) -> Option<u32> { inbox.recv().await }\nasync fn pump(stream: &mut tokio::net::TcpStream, mut inbox: tokio::sync::mpsc::Receiver<u32>, mut shutdown: tokio::sync::watch::Receiver<bool>) {\n    let mut buffer = [0u8; 4];\n    loop {\n        tokio::select! { read = read_frame(stream, &mut buffer) => { drop(read); }, _ = shutdown.changed() => return, }\n    }\n    loop {\n        tokio::select! { value = next_value(&mut inbox) => { drop(value); }, _ = shutdown.changed() => return, }\n    }\n}",
+        &[7],
+    );
+    assert_code_findings(
+        &SelectCancelSafety,
+        "SelectCancelSafety",
+        "use tokio::io::AsyncReadExt;\nstruct Reader { stream: tokio::net::TcpStream, buffer: [u8; 4] }\nimpl Reader {\n    async fn fill(&mut self) { drop(self.stream.read_exact(&mut self.buffer).await); }\n    async fn pump(&mut self, mut shutdown: tokio::sync::watch::Receiver<bool>) {\n        loop { tokio::select! { filled = self.fill() => { drop(filled); }, _ = shutdown.changed() => return, } }\n    }\n}",
+        &[6],
+    );
+}
+
+#[test]
+fn given_other_cancel_unsafe_reads_in_looping_select_when_checked_then_reports_each_branch() {
+    assert_code_findings(
+        &SelectCancelSafety,
+        "SelectCancelSafety",
+        "use tokio::io::AsyncBufReadExt;\nuse tokio::io::AsyncReadExt;\nasync fn pump(reader: &mut tokio::io::BufReader<tokio::net::TcpStream>, mut shutdown: tokio::sync::watch::Receiver<bool>) {\n    let mut line = String::new();\n    let mut buffer = [0u8; 4];\n    loop {\n        tokio::select! { read = reader.read_line(&mut line) => { drop(read); }, _ = shutdown.changed() => return, }\n    }\n    loop {\n        tokio::select! { value = reader.read_u32() => { drop(value); }, _ = shutdown.changed() => return, }\n    }\n    loop {\n        tokio::select! { read = reader.read(&mut buffer) => { drop(read); }, _ = shutdown.changed() => return, }\n    }\n}",
+        &[7, 10],
+    );
+}
+
+#[test]
 fn given_normative_runtime_counterexamples_when_checked_then_matches_exact_node_anchors() {
     assert_code_findings(
         &SelectCancelSafety,
@@ -60,6 +98,16 @@ fn given_awaited_connection_bound_through_try_or_unwrap_when_looping_select_then
             &[7],
         );
     }
+}
+
+#[test]
+fn given_callee_from_another_module_awaiting_read_exact_when_looping_select_then_reports_branch() {
+    assert_code_findings(
+        &SelectCancelSafety,
+        "SelectCancelSafety",
+        "mod net {\n    use tokio::{io::AsyncReadExt, net::TcpStream};\n    pub(crate) async fn read_frame(s: &mut TcpStream, b: &mut [u8]) { s.read_exact(b).await.unwrap(); }\n}\nmod app {\n    pub(crate) async fn pump(mut s: tokio::net::TcpStream, mut shutdown: tokio::sync::watch::Receiver<bool>) {\n        let mut b = [0u8; 4];\n        loop {\n            tokio::select! { read = crate::net::read_frame(&mut s, &mut b) => { drop(read); }, _ = shutdown.changed() => return, }\n        }\n    }\n}",
+        &[9],
+    );
 }
 
 #[test]

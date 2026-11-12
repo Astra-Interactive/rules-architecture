@@ -2,8 +2,11 @@ use crate::check::model::RuleContext;
 use crate::check::model::RuleFinding;
 use crate::check::util::build_node_finding;
 use crate::check::util::format_module_path;
+use crate::default::rule::StructDefaultValue;
+use crate::module::util::owns_implementation;
 use crate::source::model::CfgPredicate;
 use crate::source::model::CrateIndex;
+use crate::source::model::IndexedItem;
 use crate::source::model::Resolution;
 use crate::source::model::SourceFile;
 use crate::source::util::find_node_span;
@@ -21,6 +24,23 @@ pub(crate) struct StructUpdateVisitor<'source> {
 }
 
 impl StructUpdateVisitor<'_> {
+    fn is_default_exempt(&self, identity: usize, item: &IndexedItem) -> bool {
+        let attributes = match &item.syntax {
+            syn::Item::Struct(value) => &value.attrs,
+            syn::Item::Enum(value) => &value.attrs,
+            _ => return false,
+        };
+        let has_empty_new = self.index.implementations.iter().any(|implementation| {
+            implementation.syntax.trait_.is_none()
+                && owns_implementation(self.index, identity, implementation)
+                && implementation.syntax.items.iter().any(|member| {
+                    matches!(member, syn::ImplItem::Fn(function)
+                        if function.sig.ident == "new" && function.sig.inputs.is_empty())
+                })
+        });
+        StructDefaultValue::derives(attributes, "Deserialize") || has_empty_new
+    }
+
     fn is_own_data(&self, module: usize, path: &syn::Path, depth: usize) -> bool {
         if depth > 8 {
             return false;
@@ -29,10 +49,11 @@ impl StructUpdateVisitor<'_> {
             return false;
         };
         targets.iter().any(|target| {
-            let Some(item) = target.item.and_then(|identity| self.index.items.get(identity)) else { return false; };
+            let Some(identity) = target.item else { return false; };
+            let Some(item) = self.index.items.get(identity) else { return false; };
             if !item.cfg.and(&self.cfg).is_satisfiable() { return false; }
             match &item.syntax {
-                syn::Item::Struct(_) | syn::Item::Enum(_) => true,
+                syn::Item::Struct(_) | syn::Item::Enum(_) => !self.is_default_exempt(identity, item),
                 syn::Item::Type(alias) => matches!(&*alias.ty, syn::Type::Path(path) if self.is_own_data(item.module, &path.path, depth + 1)),
                 _ => false,
             }

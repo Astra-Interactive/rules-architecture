@@ -2,6 +2,7 @@ use crate::check::model::RuleContext;
 use crate::module::util::resolved_di_type;
 use crate::source::util::find_node_span;
 use crate::source::util::parse_macro_arguments;
+use std::collections::HashMap;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
 
@@ -10,9 +11,70 @@ pub(crate) struct RootConstructionVisitor<'context> {
     ordinal: usize,
     module: usize,
     invalid: Vec<crate::source::model::NodeSpan>,
+    typed_names: HashMap<String, syn::Type>,
 }
 
 impl<'context> RootConstructionVisitor<'context> {
+    fn peel_reference(typed: &syn::Type) -> &syn::Type {
+        match typed {
+            syn::Type::Reference(reference) => Self::peel_reference(&reference.elem),
+            other => other,
+        }
+    }
+
+    fn returns_service(&self, ordinal: usize, module: usize, method: &syn::ImplItemFn) -> bool {
+        let syn::ReturnType::Type(_, returned) = &method.sig.output else {
+            return false;
+        };
+        let is_self =
+            matches!(returned.as_ref(), syn::Type::Path(path) if path.path.is_ident("Self"));
+        is_self
+            || self
+                .context
+                .resolve_workspace_type(ordinal, module, returned)
+                .iter()
+                .any(|value| !resolved_di_type(self.context, value))
+    }
+
+    fn builds_service(&self, call: &syn::ExprMethodCall) -> bool {
+        let syn::Expr::Path(receiver) = call.receiver.as_ref() else {
+            return false;
+        };
+        let Some(typed) = receiver
+            .path
+            .get_ident()
+            .and_then(|name| self.typed_names.get(&name.to_string()))
+        else {
+            return false;
+        };
+        let typed = Self::peel_reference(typed);
+        self.context
+            .resolve_workspace_type(self.ordinal, self.module, typed)
+            .iter()
+            .filter(|target| !resolved_di_type(self.context, target))
+            .any(|target| {
+                let Some(identity) = target.path.item else {
+                    return false;
+                };
+                let index = &self.context.indexes[target.index];
+                index
+                    .implementations
+                    .iter()
+                    .filter(|implementation| {
+                        implementation.syntax.trait_.is_none()
+                            && crate::module::util::owns_implementation(index, identity, implementation)
+                    })
+                    .any(|implementation| {
+                        implementation.syntax.items.iter().any(|member| {
+                            matches!(member, syn::ImplItem::Fn(method)
+                                if method.sig.ident == call.method
+                                    && method.sig.receiver().is_some()
+                                    && self.returns_service(target.index, implementation.module, method))
+                        })
+                    })
+            })
+    }
+
     fn associated_factory(&self, path: &syn::Path) -> bool {
         let Some(name) = path
             .segments
@@ -118,15 +180,30 @@ impl<'context> RootConstructionVisitor<'context> {
         context: &'context RuleContext,
         ordinal: usize,
         module: usize,
-        block: &syn::Block,
+        method: &syn::ImplItemFn,
     ) -> Vec<crate::source::model::NodeSpan> {
+        let typed_names = method
+            .sig
+            .inputs
+            .iter()
+            .filter_map(|input| match input {
+                syn::FnArg::Typed(parameter) => match parameter.pat.as_ref() {
+                    syn::Pat::Ident(name) => {
+                        Some((name.ident.to_string(), (*parameter.ty).clone()))
+                    }
+                    _ => None,
+                },
+                syn::FnArg::Receiver(_) => None,
+            })
+            .collect();
         let mut visitor = Self {
             context,
             ordinal,
             module,
             invalid: Vec::new(),
+            typed_names,
         };
-        visitor.visit_block(block);
+        visitor.visit_block(&method.block);
         visitor.invalid
     }
 }
@@ -162,6 +239,23 @@ impl<'ast> Visit<'ast> for RootConstructionVisitor<'_> {
         }
         for argument in &call.args {
             self.visit_expr(argument);
+        }
+    }
+
+    fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+        if self.builds_service(call) {
+            self.invalid.push(find_node_span(call.span()));
+        }
+        syn::visit::visit_expr_method_call(self, call);
+    }
+
+    fn visit_local(&mut self, local: &'ast syn::Local) {
+        syn::visit::visit_local(self, local);
+        if let syn::Pat::Type(typed) = &local.pat
+            && let syn::Pat::Ident(name) = typed.pat.as_ref()
+        {
+            self.typed_names
+                .insert(name.ident.to_string(), (*typed.ty).clone());
         }
     }
 }

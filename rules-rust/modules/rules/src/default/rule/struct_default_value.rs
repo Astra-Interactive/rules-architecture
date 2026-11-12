@@ -73,7 +73,7 @@ impl StructDefaultValue {
             .collect()
     }
 
-    fn derives(attributes: &[syn::Attribute], name: &str) -> bool {
+    pub(crate) fn derives(attributes: &[syn::Attribute], name: &str) -> bool {
         attributes
             .iter()
             .flat_map(Self::derive_names)

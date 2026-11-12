@@ -57,6 +57,22 @@ fn given_macro_definition_in_root_when_checked_then_only_the_macro_reports() {
 }
 
 #[test]
+fn given_macro_definition_inside_a_root_module_block_when_checked_then_the_definition_reports() {
+    let mut context = read_case_context("RootFileShape", "pass-tree");
+    context.crates[0].files[0].syntax = syn::parse_file(
+        "pub(crate) mod invoice {\n    macro_rules! double {\n        ($value:expr) => {\n            $value * 2\n        };\n    }\n    mod record;\n}",
+    )
+    .expect("valid syntax");
+    let findings = RootFileShape.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(Some(2), findings[0].finding.location.line);
+    context.crates[0].files[0].syntax =
+        syn::parse_file("pub(crate) mod invoice {\n    include_modules!();\n    mod record;\n}")
+            .expect("valid syntax");
+    assert!(RootFileShape.check(&context).is_empty());
+}
+
+#[test]
 fn given_test_block_without_cfg_test_when_checked_then_only_that_block_reports() {
     let mut context = read_case_context("RootFileShape", "pass-tree");
     context.crates[0].files[0].syntax = syn::parse_file(

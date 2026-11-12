@@ -3,6 +3,47 @@ use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
 
 #[test]
+fn given_futures_crate_ready_futures_under_a_timeout_when_checked_then_each_is_reported() {
+    assert_code_findings(
+        &WatchTimeout,
+        "WatchTimeout",
+        "async fn run(receiver: tokio::sync::watch::Receiver<bool>) {\n    tokio::time::timeout(std::time::Duration::ZERO, futures::future::ready(1));\n    tokio::time::timeout(std::time::Duration::ZERO, futures::future::ok::<u32, ()>(1));\n    tokio::time::timeout(std::time::Duration::ZERO, futures::future::err::<u32, ()>(()));\n    tokio::time::timeout(std::time::Duration::ZERO, futures::future::pending::<u32>());\n    tokio::time::timeout(std::time::Duration::ZERO, async { futures::future::ready(1).await });\n}",
+        &[2, 3, 4, 6],
+    );
+}
+
+#[test]
+fn given_workspace_async_fn_without_await_under_a_timeout_when_checked_then_the_timeout_is_reported()
+ {
+    assert_code_findings(
+        &WatchTimeout,
+        "WatchTimeout",
+        "struct Gate { value: u32, receiver: tokio::sync::watch::Receiver<bool> }\nimpl Gate {\n    async fn snapshot(&self) -> u32 { self.value }\n    async fn wait(&mut self) { let _ = self.receiver.changed().await; }\n    async fn run(&mut self) {\n        tokio::time::timeout(std::time::Duration::ZERO, self.snapshot());\n        tokio::time::timeout(std::time::Duration::ZERO, self.wait());\n    }\n}\nasync fn settle() -> u32 { 1 }\nasync fn run_free() { tokio::time::timeout(std::time::Duration::ZERO, settle()); }",
+        &[6, 11],
+    );
+}
+
+#[test]
+fn given_async_fns_suspending_in_join_or_select_when_under_timeout_then_reports_only_idle_one() {
+    assert_code_findings(
+        &WatchTimeout,
+        "WatchTimeout",
+        "async fn joined() { tokio::join!(async {}, async {}); }\nasync fn selected() { tokio::select! { _ = tokio::task::yield_now() => {} } }\nasync fn idle() -> u32 { 1 }\nasync fn run() {\n    let limit = std::time::Duration::from_secs(1);\n    let _ = tokio::time::timeout(limit, joined()).await;\n    let _ = tokio::time::timeout(limit, selected()).await;\n    let _ = tokio::time::timeout(limit, idle()).await;\n}",
+        &[8],
+    );
+}
+
+#[test]
+fn given_try_join_or_select_biased_fns_when_under_timeout_then_reports_only_idle_one() {
+    assert_code_findings(
+        &WatchTimeout,
+        "WatchTimeout",
+        "async fn tried() -> Result<(), ()> { tokio::try_join!(async { Ok::<(), ()>(()) }, async { Ok::<(), ()>(()) })?; Ok(()) }\nasync fn biased() { futures::select_biased! { _ = tokio::task::yield_now() => {} } }\nasync fn idle() -> u32 { 1 }\nasync fn run() {\n    let limit = std::time::Duration::from_secs(1);\n    let _ = tokio::time::timeout(limit, tried()).await;\n    let _ = tokio::time::timeout(limit, biased()).await;\n    let _ = tokio::time::timeout(limit, idle()).await;\n}",
+        &[8],
+    );
+}
+
+#[test]
 fn given_ready_future_or_tautological_predicate_when_checked_then_reports_proven_immediacy() {
     assert_code_findings(
         &WatchTimeout,

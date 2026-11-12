@@ -34,6 +34,16 @@ fn given_inherent_lookup_names_without_a_key_when_checked_then_reports_only_the_
 }
 
 #[test]
+fn given_field_accessors_named_after_a_banned_verb_when_checked_then_only_non_accessors_report() {
+    crate::test::declaration::util::assert_code_findings(
+        &FunctionVerb,
+        "FunctionVerb",
+        "struct Schedule { handle: u32, process: Process, id: u32 }\nimpl Schedule {\n    fn handle(&self) -> u32 { self.handle }\n    fn process(&self) -> &Process { &self.process }\n    fn handle_id(&self) -> u32 { self.handle }\n    fn process_next(&self) -> u32 { self.id }\n    fn map(&self) -> u32 { self.handle + 1 }\n}",
+        &[5, 6, 7],
+    );
+}
+
+#[test]
 fn given_forbidden_syntax_when_checked_then_reports_the_rule() {
     let context = read_case_context("FunctionVerb", "fail-syntax");
     assert!(!FunctionVerb.check(&context).is_empty());

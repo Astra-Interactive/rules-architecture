@@ -116,6 +116,11 @@ impl<'ast> Visit<'ast> for ConsumptionVisitor<'_> {
         syn::visit::visit_impl_item_fn(self, item);
     }
 
+    fn visit_expr_closure(&mut self, closure: &'ast syn::ExprClosure) {
+        self.check_expression(&closure.body);
+        syn::visit::visit_expr_closure(self, closure);
+    }
+
     fn visit_block(&mut self, block: &'ast syn::Block) {
         self.check_statements(block);
         syn::visit::visit_block(self, block);

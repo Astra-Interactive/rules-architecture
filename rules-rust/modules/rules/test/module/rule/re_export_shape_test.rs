@@ -47,6 +47,19 @@ fn given_file_module_exports_when_checked_then_named_export_is_required_and_priv
 }
 
 #[test]
+fn given_restricted_re_export_when_checked_then_only_that_re_export_is_reported() {
+    let mut context = read_case_context("ImportOrdering", "pass-syntax");
+    context.indexes = vec![build_index_files(
+        "mod model {\n    pub(super) use value::Good;\n    pub(crate) use value::Other;\n    mod value;\n}",
+        BTreeMap::from([("model/value.rs", "pub struct Good; pub struct Other;")]),
+    )];
+    let findings = ReExportShape.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].finding.subject, "Good");
+    assert_eq!(findings[0].finding.location.path, "lib.rs");
+}
+
+#[test]
 fn given_duplicate_and_glob_exports_when_checked_then_each_non_private_item_needs_one_exact_export()
 {
     let mut context = read_case_context("ImportOrdering", "pass-syntax");

@@ -5,7 +5,7 @@ use crate::check::util::format_module_path;
 use crate::source::model::SourceFile;
 use crate::source::util::find_node_span;
 use crate::source::util::parse_macro_expressions;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use syn::spanned::Spanned;
 use syn::visit::Visit;
 
@@ -15,9 +15,74 @@ pub(crate) struct ExpressionVisitor<'source> {
     findings: Vec<RuleFinding>,
     operator_traits: HashSet<&'static str>,
     trailing_call: bool,
+    inherent_methods: HashMap<String, HashSet<String>>,
+    discarded: Option<proc_macro2::LineColumn>,
 }
 
 impl ExpressionVisitor<'_> {
+    fn collect_inherent_methods(
+        items: &[syn::Item],
+        methods: &mut HashMap<String, HashSet<String>>,
+    ) {
+        for item in items {
+            match item {
+                syn::Item::Impl(implementation) if implementation.trait_.is_none() => {
+                    let syn::Type::Path(owner) = &*implementation.self_ty else {
+                        continue;
+                    };
+                    let Some(owner) = owner.path.segments.last() else {
+                        continue;
+                    };
+                    let names = implementation
+                        .items
+                        .iter()
+                        .filter_map(|member| match member {
+                            syn::ImplItem::Fn(function) => Some(function.sig.ident.to_string()),
+                            _ => None,
+                        });
+                    methods
+                        .entry(owner.ident.to_string())
+                        .or_default()
+                        .extend(names);
+                }
+                syn::Item::Mod(module) => {
+                    if let Some((_, children)) = &module.content {
+                        Self::collect_inherent_methods(children, methods);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn find_chain_root(expression: &syn::Expr) -> &syn::Expr {
+        match expression {
+            syn::Expr::MethodCall(call) => Self::find_chain_root(&call.receiver),
+            syn::Expr::Paren(paren) => Self::find_chain_root(&paren.expr),
+            other => other,
+        }
+    }
+
+    fn is_builder_chain(&self, call: &syn::ExprMethodCall) -> bool {
+        let syn::Expr::Call(root) = Self::find_chain_root(&call.receiver) else {
+            return false;
+        };
+        let syn::Expr::Path(function) = &*root.func else {
+            return false;
+        };
+        let segments = &function.path.segments;
+        let Some(owner) = segments.iter().rev().nth(1) else {
+            return false;
+        };
+        self.inherent_methods
+            .get(&owner.ident.to_string())
+            .is_some_and(|methods| methods.contains(&call.method.to_string()))
+    }
+
+    fn is_discarded(&self, call: &syn::ExprMethodCall) -> bool {
+        self.discarded == Some(call.span().start())
+    }
+
     fn report(&mut self, span: proc_macro2::Span, message: &str) {
         self.findings.push(build_node_finding(
             self.rule,
@@ -172,12 +237,16 @@ impl ExpressionVisitor<'_> {
     pub(crate) fn check_context(context: &RuleContext, rule: &'static str) -> Vec<RuleFinding> {
         let mut findings = Vec::new();
         for file in context.crates.iter().flat_map(|sources| &sources.files) {
+            let mut inherent_methods = HashMap::new();
+            Self::collect_inherent_methods(&file.syntax.items, &mut inherent_methods);
             let mut visitor = ExpressionVisitor {
                 file,
                 rule,
                 findings: Vec::new(),
                 operator_traits: Self::collect_operator_imports(&file.syntax.items),
                 trailing_call: false,
+                inherent_methods,
+                discarded: None,
             };
             visitor.visit_file(&file.syntax);
             findings.extend(visitor.findings);
@@ -187,6 +256,21 @@ impl ExpressionVisitor<'_> {
 }
 
 impl<'ast> Visit<'ast> for ExpressionVisitor<'_> {
+    fn visit_stmt(&mut self, statement: &'ast syn::Stmt) {
+        let discarded = match statement {
+            syn::Stmt::Expr(syn::Expr::MethodCall(call), Some(_)) => Some(call.span().start()),
+            syn::Stmt::Local(local) if matches!(local.pat, syn::Pat::Wild(_)) => local
+                .init
+                .as_ref()
+                .filter(|init| matches!(&*init.expr, syn::Expr::MethodCall(_)))
+                .map(|init| init.expr.span().start()),
+            _ => None,
+        };
+        let parent = std::mem::replace(&mut self.discarded, discarded);
+        syn::visit::visit_stmt(self, statement);
+        self.discarded = parent;
+    }
+
     fn visit_macro(&mut self, item: &'ast syn::Macro) {
         for argument in &parse_macro_expressions(item) {
             self.visit_expr(argument);
@@ -239,9 +323,12 @@ impl<'ast> Visit<'ast> for ExpressionVisitor<'_> {
                     syn::Expr::Binary(binary) if Self::is_arithmetic(&binary.op)));
             let chained_arithmetic = Self::is_arithmetic_method(&expression.method)
                 && matches!(&*expression.receiver, syn::Expr::MethodCall(receiver)
-                    if Self::is_arithmetic_method(&receiver.method));
+                    if Self::is_arithmetic_method(&receiver.method)
+                        && (self.is_imported_operator_call(expression)
+                            || self.is_imported_operator_call(receiver)));
             let lone_call = !has_trailing_call && self.is_imported_operator_call(expression);
-            if parenthesized_arithmetic || chained_arithmetic || lone_call {
+            let is_method = self.is_discarded(expression) || self.is_builder_chain(expression);
+            if parenthesized_arithmetic || (!is_method && (chained_arithmetic || lone_call)) {
                 self.report(expression.span(), "Use one arithmetic method before a trailing call, or name a multi-operator result first (clean-code.rs.md)");
             }
         }

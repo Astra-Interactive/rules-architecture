@@ -24,22 +24,33 @@ impl RustdocParameterVisitor {
             .collect()
     }
 
-    fn repeats(line: &str, parameters: &[String]) -> bool {
+    fn split_named_line(line: &str) -> Option<NamedLine<'_>> {
         let line = line.trim_start();
-        let line = line.strip_prefix("- ").unwrap_or(line).trim_start();
-        let Some(rest) = line.strip_prefix('`') else {
-            return false;
-        };
-        let Some((name, description)) = rest.split_once('`') else {
+        let item = line.strip_prefix("- ").or_else(|| line.strip_prefix("* "));
+        let line = item.unwrap_or(line).trim_start();
+        if let Some(rest) = line.strip_prefix('`') {
+            let (name, description) = rest.split_once('`')?;
+            return Some(NamedLine { name, description });
+        }
+        item?;
+        let length = line
+            .find(|character: char| !character.is_alphanumeric() && character != '_')
+            .unwrap_or(line.len());
+        let (name, description) = line.split_at(length);
+        Some(NamedLine { name, description })
+    }
+
+    fn repeats(line: &str, parameters: &[String]) -> bool {
+        let Some(NamedLine { name, description }) = Self::split_named_line(line) else {
             return false;
         };
         if !parameters.iter().any(|parameter| parameter == name) {
             return false;
         }
         let description = description.trim_start();
-        let Some(description) = description
-            .strip_prefix('—')
-            .or_else(|| description.strip_prefix('-'))
+        let Some(description) = Self::DESCRIPTION_SEPARATORS
+            .iter()
+            .find_map(|separator| description.strip_prefix(*separator))
         else {
             return false;
         };
@@ -117,6 +128,8 @@ impl RustdocParameterVisitor {
             self.spans.push(span);
         }
     }
+
+    const DESCRIPTION_SEPARATORS: [char; 4] = ['—', '–', '-', ':'];
 }
 
 impl<'ast> Visit<'ast> for RustdocParameterVisitor {
@@ -132,4 +145,9 @@ impl<'ast> Visit<'ast> for RustdocParameterVisitor {
         self.inspect(&function.sig, &function.attrs);
         syn::visit::visit_trait_item_fn(self, function);
     }
+}
+
+struct NamedLine<'text> {
+    name: &'text str,
+    description: &'text str,
 }

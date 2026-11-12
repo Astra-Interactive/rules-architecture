@@ -45,6 +45,16 @@ fn given_second_wall_clock_reader_under_expect_when_checked_then_only_system_clo
 }
 
 #[test]
+fn given_time_crate_clock_reads_and_epoch_elapsed_outside_system_clock_when_checked_then_each_is_reported()
+ {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::SystemClockOutsideDi,
+        "trait Clock { fn now(&self) -> std::time::SystemTime; }\nmod system {\n pub struct SystemClock;\n impl super::Clock for SystemClock {\n  #[expect(clippy::disallowed_methods, reason = \"the single wall clock reader\")]\n  fn now(&self) -> std::time::SystemTime { std::time::SystemTime::now() }\n }\n}\nmod usecase {\n #[expect(clippy::disallowed_methods, reason = \"reads the wall clock\")]\n pub fn stamp() -> chrono::DateTime<chrono::Utc> { chrono::Utc::now() }\n #[expect(clippy::disallowed_methods, reason = \"reads the wall clock\")]\n pub fn uptime() -> std::time::Duration { std::time::UNIX_EPOCH.elapsed().unwrap_or_default() }\n pub fn tick() -> std::time::Instant { std::time::Instant::now() }\n}",
+        &[11, 13],
+    );
+}
+
+#[test]
 fn given_persistent_di_policy_pairs_when_checked_then_exact_nodes_and_subjects_match() {
     for half in ["bad", "good"] {
         crate::test::module::util::assert_di_fixture(

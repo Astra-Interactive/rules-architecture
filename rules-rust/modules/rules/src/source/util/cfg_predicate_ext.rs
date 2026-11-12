@@ -29,6 +29,29 @@ impl CfgPredicate {
         }
     }
 
+    fn is_target_key(key: &str) -> bool {
+        key.starts_with("target_") || matches!(key, "unix" | "windows")
+    }
+
+    pub(crate) fn mentions_target(&self) -> bool {
+        match self {
+            Self::Atom { key, .. } => Self::is_target_key(key),
+            Self::All(children) | Self::Any(children) => children.iter().any(Self::mentions_target),
+            Self::Not(inner) => inner.mentions_target(),
+        }
+    }
+
+    pub(crate) fn implies_target(&self) -> bool {
+        match self {
+            Self::Atom { key, .. } => Self::is_target_key(key),
+            Self::All(children) => children.iter().any(Self::implies_target),
+            Self::Any(children) => {
+                !children.is_empty() && children.iter().all(Self::implies_target)
+            }
+            Self::Not(_) => false,
+        }
+    }
+
     pub(crate) fn implies(&self, other: &Self) -> bool {
         !self
             .and(&Self::Not(Box::new(other.clone())))

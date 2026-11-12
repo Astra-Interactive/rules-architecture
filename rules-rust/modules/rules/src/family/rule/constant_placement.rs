@@ -9,6 +9,7 @@ use crate::source::model::SourceFile;
 use crate::source::util::find_node_span;
 use crate::syntax::util::find_self_name;
 use crate::syntax::util::find_type_name;
+use crate::syntax::util::to_snake_case;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
 
@@ -82,8 +83,73 @@ impl ConstantPlacement {
             })
     }
 
+    fn is_constant_file(file: &SourceFile) -> bool {
+        let items = &file.syntax.items;
+        !file.module.path.is_empty()
+            && items.iter().any(|item| matches!(item, syn::Item::Const(_)))
+            && items
+                .iter()
+                .all(|item| matches!(item, syn::Item::Const(_) | syn::Item::Use(_)))
+    }
+
+    fn has_owner_file_beside(file: &SourceFile, sources: &CrateSources) -> bool {
+        let Some(module_name) = file.module.path.last() else {
+            return false;
+        };
+        let parent = &file.module.path[..file.module.path.len() - 1];
+        sources
+            .files
+            .iter()
+            .filter(|candidate| {
+                candidate.path != file.path
+                    && candidate.module.path.len() == file.module.path.len()
+                    && candidate.module.path.starts_with(parent)
+            })
+            .filter(|candidate| {
+                candidate
+                    .syntax
+                    .items
+                    .iter()
+                    .any(|item| find_type_name(item).is_some())
+            })
+            .any(|candidate| {
+                let is_prefixed = candidate.syntax.items.iter().any(|item| {
+                    find_type_name(item).is_some_and(|name| {
+                        let owner = to_snake_case(&name.to_string());
+                        module_name
+                            .strip_prefix(owner.as_str())
+                            .is_some_and(|rest| rest.starts_with('_'))
+                    })
+                });
+                let is_mentioned = candidate
+                    .syntax
+                    .items
+                    .iter()
+                    .any(|item| Self::mentions(item, module_name));
+                is_prefixed || is_mentioned
+            })
+    }
+
     fn check_file(file: &SourceFile, sources: &CrateSources) -> Vec<RuleFinding> {
         let mut findings = Vec::new();
+        if Self::is_constant_file(file) && Self::has_owner_file_beside(file, sources) {
+            let first = file
+                .syntax
+                .items
+                .iter()
+                .find(|item| matches!(item, syn::Item::Const(_)));
+            findings.extend(first.map(|item| {
+                build_node_finding(
+                    "ConstantOutsideImpl",
+                    &file.path,
+                    find_node_span(item.span()),
+                    format_module_path(&file.module.crate_name, &file.module.path),
+                    "Keep a type's constants at the end of its inherent impl (code-ordering.rs.md)"
+                        .to_owned(),
+                )
+            }));
+            return findings;
+        }
         let primary = find_primary_type(file, sources);
         let has_primary_data = matches!(primary, Some(syn::Item::Struct(_) | syn::Item::Enum(_)));
         let type_count = file

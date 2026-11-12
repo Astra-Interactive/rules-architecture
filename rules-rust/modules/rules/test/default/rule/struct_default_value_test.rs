@@ -15,6 +15,16 @@ fn given_standard_default_aliases_when_checked_then_reports_only_the_standard_tr
 }
 
 #[test]
+fn given_struct_update_on_an_exempt_type_when_checked_then_only_the_plain_struct_reports() {
+    assert_code_findings(
+        &StructDefaultValue,
+        "StructDefaultValue",
+        "#[derive(serde::Deserialize, Default)]\npub struct Config { window: u16, symbol: String }\npub struct Cache { size: u16 }\nimpl Cache { pub fn new() -> Self { Self { size: 1 } } }\nimpl Default for Cache { fn default() -> Self { Self::new() } }\npub struct Plain { value: u64, other: u64 }\nfn build() {\n    let config = Config { window: 1, ..Default::default() };\n    let cache = Cache { size: 2, ..Default::default() };\n    let plain = Plain { value: 2, ..Default::default() };\n}",
+        &[10],
+    );
+}
+
+#[test]
 fn given_persistent_code_fixtures_when_checked_then_match_exact_anchors() {
     assert_code_fixture(&StructDefaultValue, "StructDefaultValue", "bad");
     assert_code_fixture(&StructDefaultValue, "StructDefaultValue", "good");

@@ -43,6 +43,27 @@ fn given_declaration_shapes_when_checked_then_exact_wrong_sites_report_and_corre
     let context = read_case_context("DiPlacement", "pass-declaration-shape");
     assert!(DiPlacement.check(&context).is_empty());
 }
+
+#[test]
+fn given_module_named_structs_outside_di_when_checked_then_only_those_with_di_shape_report() {
+    let context = read_shape_context(
+        "mod model { pub(crate) struct CourseModule { pub(crate) id: u64, pub(crate) title: String } }\nmod util {\n    pub(crate) struct InvoiceModule;\n    pub(crate) struct LedgerModule;\n    pub(crate) struct BillingModule { ledger_module: LedgerModule }\n    pub(crate) struct ReportModule;\n    impl ReportModule { pub(crate) fn new() -> Self { Self } }\n}",
+        &[],
+    );
+    let mut subjects: Vec<String> = DiPlacement
+        .check(&context)
+        .into_iter()
+        .map(|finding| finding.finding.subject)
+        .collect();
+    subjects.sort();
+    assert_eq!(
+        subjects,
+        [
+            "case_sample::util::BillingModule",
+            "case_sample::util::ReportModule"
+        ]
+    );
+}
 #[test]
 fn given_entrypoint_or_unknown_mechanisms_when_checked_then_contract_only_inference_is_not_vacuous()
 {
@@ -78,7 +99,7 @@ fn given_owned_resource_lifecycle_when_checked_then_a_module_is_required_and_tes
             1,
         ),
         (
-            "trait Lifecycle { fn on_disable(&self); } struct DatabasePool; impl Lifecycle for DatabasePool { fn on_disable(&self) {} } mod di { struct DatabaseModule; }",
+            "trait Lifecycle { fn on_disable(&self); } struct DatabasePool; impl Lifecycle for DatabasePool { fn on_disable(&self) {} } mod di { struct DatabaseModule { pool: super::DatabasePool } }",
             0,
         ),
         (
@@ -92,4 +113,16 @@ fn given_owned_resource_lifecycle_when_checked_then_a_module_is_required_and_tes
             "{source}"
         );
     }
+}
+
+#[test]
+fn given_second_lifecycle_resource_no_di_item_owns_when_checked_then_only_that_resource_is_reported()
+ {
+    let context = read_shape_context(
+        "trait Lifecycle { fn on_disable(&self); }\nstruct DatabasePool; impl Lifecycle for DatabasePool { fn on_disable(&self) {} }\nstruct CachePool; impl Lifecycle for CachePool { fn on_disable(&self) {} }\nmod di { struct DatabaseModule { pool: super::DatabasePool } }",
+        &[],
+    );
+    let findings = DiPlacement.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].finding.subject, "case_sample::CachePool");
 }

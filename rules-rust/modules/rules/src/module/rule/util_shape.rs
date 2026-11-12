@@ -34,7 +34,7 @@ impl Rule for UtilShape {
                         | Item::Const(_)
                         | Item::Static(_)
                 );
-                let file_constant = matches!(item.syntax, Item::Const(_))
+                let file_constant = matches!(item.syntax, Item::Const(_) | Item::Static(_))
                     && Self::holds_function(index, item.module, &item.file);
                 let util = find_kind_name(context, ordinal, item.module) == "util";
                 if data && !file_constant && util {

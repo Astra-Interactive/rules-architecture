@@ -18,7 +18,11 @@ impl ShellAutomation {
             .trim()
             .trim_start_matches(['@', '-', '+'])
             .split_whitespace()
-            .find(|token| !Self::COMMAND_WRAPPERS.contains(token) && !token.contains('='))
+            .find(|token| {
+                !Self::COMMAND_WRAPPERS.contains(token)
+                    && !Self::SHELL_KEYWORDS.contains(token)
+                    && !token.contains('=')
+            })
             == Some("cargo")
     }
 
@@ -54,10 +58,7 @@ impl ShellAutomation {
         interpreter.is_some_and(|name| Self::SHELL_INTERPRETERS.contains(&name.as_str()))
     }
 
-    fn is_shell_script_without_extension(context: &RuleContext, path: &str, name: &str) -> bool {
-        if name.contains('.') {
-            return false;
-        }
+    fn is_shell_script_without_extension(context: &RuleContext, path: &str) -> bool {
         let Ok(file) = fs::File::open(context.workspace.root.join(path)) else {
             return false;
         };
@@ -75,14 +76,22 @@ impl ShellAutomation {
     const SCRIPT_EXTENSIONS: [&str; 9] = [
         ".sh", ".bash", ".zsh", ".ksh", ".fish", ".csh", ".ps1", ".bat", ".cmd",
     ];
-    const SCRIPT_NAMES: [&str; 5] = [
+    const SCRIPT_NAMES: [&str; 10] = [
         "Makefile",
         "makefile",
         "GNUmakefile",
         "justfile",
         "Justfile",
+        ".justfile",
+        ".Justfile",
+        "Makefile.toml",
+        "Taskfile.yml",
+        "Taskfile.yaml",
     ];
     const COMMAND_WRAPPERS: [&str; 4] = ["exec", "sudo", "time", "env"];
+    const SHELL_KEYWORDS: [&str; 10] = [
+        "if", "elif", "while", "until", "then", "do", "else", "!", "{", "}",
+    ];
 }
 
 impl Rule for ShellAutomation {
@@ -99,8 +108,8 @@ impl Rule for ShellAutomation {
                         .members
                         .iter()
                         .any(|member| member.directory == directory);
-                let script = Self::is_script(name)
-                    || Self::is_shell_script_without_extension(context, path, name);
+                let script =
+                    Self::is_script(name) || Self::is_shell_script_without_extension(context, path);
                 if !script || !(direct || Self::is_cargo_script(context, path)) {
                     return None;
                 }

@@ -3,6 +3,26 @@ use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
 
 #[test]
+fn given_option_writes_in_a_critical_section_when_checked_then_counts_them_as_writes() {
+    assert_code_findings(
+        &CriticalSectionWrite,
+        "CriticalSectionWrite",
+        "struct Cache { slot: Option<u32>, total: u32 }\nfn run(gate: parking_lot::Mutex<Cache>) {\n    let mut guard = gate.lock();\n    guard.slot.take();\n    guard.total = 1;\n}\nfn run_once(gate: parking_lot::Mutex<Cache>) {\n    let mut guard = gate.lock();\n    let present = guard.slot.is_some();\n    guard.slot.replace(1);\n}\nfn run_option(gate: parking_lot::Mutex<Option<u32>>) {\n    let mut guard = gate.lock();\n    guard.get_or_insert(1);\n    guard.replace(2);\n}",
+        &[3, 13],
+    );
+}
+
+#[test]
+fn given_writes_through_a_mutable_borrow_of_the_guard_when_checked_then_counts_them_as_writes() {
+    assert_code_findings(
+        &CriticalSectionWrite,
+        "CriticalSectionWrite",
+        "struct Cache { rows: Vec<u32>, slot: Option<u32>, total: u32 }\nfn run(gate: parking_lot::Mutex<Cache>) {\n    let mut guard = gate.lock();\n    let slot = &mut guard.slot;\n    *slot = Some(1);\n    guard.total = 1;\n}\nfn run_rows(gate: parking_lot::Mutex<Cache>) {\n    let mut guard = gate.lock();\n    let rows = &mut guard.rows;\n    rows.push(1);\n    rows.push(2);\n}\nfn run_once(gate: parking_lot::Mutex<Cache>) {\n    let mut guard = gate.lock();\n    let rows = &mut guard.rows;\n    rows.push(1);\n}",
+        &[3, 9],
+    );
+}
+
+#[test]
 fn given_nested_or_additional_collection_writes_when_checked_then_requires_last_single_write() {
     assert_code_findings(
         &CriticalSectionWrite,

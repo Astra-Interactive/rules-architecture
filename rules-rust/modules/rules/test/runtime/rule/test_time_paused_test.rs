@@ -25,6 +25,17 @@ fn given_deadline_timer_variants_when_test_is_not_paused_then_requires_paused_ti
 }
 
 #[test]
+fn given_unpaused_test_awaiting_a_workspace_helper_that_sleeps_when_checked_then_reports_the_call()
+{
+    assert_code_findings(
+        &TestTimePaused,
+        "TestTimePaused",
+        "async fn settle() { tokio::time::sleep(std::time::Duration::from_secs(1)).await; }\nasync fn compute() -> u32 { 1 }\n#[tokio::test]\nasync fn verify() { settle().await; }\n#[tokio::test]\nasync fn verify_plain() { compute().await; }",
+        &[4],
+    );
+}
+
+#[test]
 fn given_runtime_counterexamples_when_checked_then_matches_exact_node_anchors() {
     assert_code_findings(
         &TestTimePaused,

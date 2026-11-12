@@ -19,6 +19,8 @@ allow_attributes_without_reason = "warn"
 too_many_lines = "warn"
 undocumented_unsafe_blocks = "warn"
 redundant_closure_for_method_calls = "warn"
+wildcard_imports = "warn"
+enum_glob_use = "warn"
 "#;
 
 const CLIPPY_TOML: &str = r#"allow-unwrap-in-tests = true
@@ -50,6 +52,7 @@ disallowed-methods = [
   { path = "time::UtcDateTime::now", reason = "time-api.rs.md: the moment comes from the Clock", allow-invalid = true },
   { path = "tokio::sync::watch::Sender::send", reason = "async.rs.md: send_modify, send_if_modified or send_replace", allow-invalid = true },
 ]
+warn-on-all-wildcard-imports = true
 "#;
 
 pub fn render_required_configuration() -> RequiredConfiguration {

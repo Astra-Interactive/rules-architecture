@@ -98,6 +98,27 @@ fn given_aliased_external_conversions_when_checked_then_requires_the_matching_te
 }
 
 #[test]
+fn given_hand_written_into_conversion_when_checked_then_reports_it_beside_the_accepted_from() {
+    let context = read_placement_context(&[
+        (
+            "src/lib.rs",
+            "mod sample { mod model { pub(crate) use value::Value; mod value; } mod file { mod row; } }",
+        ),
+        ("src/sample/model/value.rs", "pub(crate) struct Value;"),
+        (
+            "src/sample/file/row.rs",
+            "struct Row;\nimpl Into<Row> for crate::sample::model::Value { fn into(self) -> Row { Row } }\nimpl From<Row> for crate::sample::model::Value { fn from(row: Row) -> Self { Self } }",
+        ),
+    ]);
+    assert_placement_findings(
+        &ImplPlacement,
+        "ImplPlacement",
+        &context,
+        &[("src/sample/file/row.rs", 2, "Node")],
+    );
+}
+
+#[test]
 fn given_persistent_placement_cases_when_checked_then_match_exact_node_anchors() {
     assert_code_fixture(&ImplPlacement, "ImplPlacement", "bad");
     assert_code_fixture(&ImplPlacement, "ImplPlacement", "good");

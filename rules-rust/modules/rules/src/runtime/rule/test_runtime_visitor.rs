@@ -96,6 +96,12 @@ impl TestRuntimeVisitor<'_> {
         match expression {
             syn::Expr::Reference(reference) => self.model_targets(&reference.expr, bindings),
             syn::Expr::Paren(paren) => self.model_targets(&paren.expr, bindings),
+            syn::Expr::Index(indexed) => self.model_targets(&indexed.expr, bindings),
+            syn::Expr::Array(array) => array
+                .elems
+                .first()
+                .map(|element| self.model_targets(element, bindings))
+                .unwrap_or_default(),
             syn::Expr::Path(path) => bindings
                 .iter()
                 .rev()
@@ -218,20 +224,15 @@ impl TestRuntimeVisitor<'_> {
         })
     }
 
-    fn model_call(&self, call: &syn::ExprCall, bindings: &[ModelBinding]) -> bool {
-        let syn::Expr::Path(path) = &*call.func else {
-            return false;
-        };
-        if bindings
-            .iter()
-            .rev()
-            .any(|binding| path.path.is_ident(&binding.name))
-        {
-            return false;
-        }
+    fn model_function_call(
+        &self,
+        call: &syn::ExprCall,
+        function: &syn::Path,
+        bindings: &[ModelBinding],
+    ) -> bool {
         let model_rule = self
             .context
-            .resolve_workspace_path(self.ordinal, self.module, &path.path)
+            .resolve_workspace_path(self.ordinal, self.module, function)
             .iter()
             .any(|target| {
                 target.index == self.ordinal
@@ -239,11 +240,44 @@ impl TestRuntimeVisitor<'_> {
                         self.model_rule(&self.context.indexes[target.index].items[identity])
                     })
             });
-        let expression = syn::Expr::Call(call.clone());
-        let constructor = path.path.segments.last().is_some_and(|name| {
+        let mut rerouted = call.clone();
+        rerouted.func = Box::new(syn::Expr::Path(syn::ExprPath {
+            attrs: Vec::new(),
+            qself: None,
+            path: function.clone(),
+        }));
+        let expression = syn::Expr::Call(rerouted);
+        let constructor = function.segments.last().is_some_and(|name| {
             self.pure_model_method(&self.model_targets(&expression, bindings), &name.ident)
         });
         model_rule || constructor
+    }
+
+    fn model_call(&self, call: &syn::ExprCall, bindings: &[ModelBinding]) -> bool {
+        let syn::Expr::Path(path) = &*call.func else {
+            return false;
+        };
+        let bound = bindings
+            .iter()
+            .rev()
+            .find(|binding| path.path.is_ident(&binding.name));
+        match bound {
+            Some(binding) => binding
+                .function
+                .as_ref()
+                .is_none_or(|function| self.model_function_call(call, function, bindings)),
+            None => self.model_function_call(call, &path.path, bindings),
+        }
+    }
+
+    fn find_function_path(expression: &syn::Expr, bindings: &[ModelBinding]) -> Option<syn::Path> {
+        let syn::Expr::Path(path) = expression else {
+            return None;
+        };
+        let is_local = bindings
+            .iter()
+            .any(|binding| path.path.is_ident(&binding.name));
+        (!is_local).then(|| path.path.clone())
     }
 
     fn check_model_if(
@@ -279,6 +313,7 @@ impl TestRuntimeVisitor<'_> {
                 syn::Pat::Ident(name) if name.subpat.is_none() => bindings.push(ModelBinding {
                     name: name.ident.to_string(),
                     targets: Vec::new(),
+                    function: None,
                 }),
                 syn::Pat::Wild(_) | syn::Pat::Lit(_) | syn::Pat::Path(_) | syn::Pat::Range(_) => {}
                 _ => return false,
@@ -340,8 +375,73 @@ impl TestRuntimeVisitor<'_> {
                     .all(|argument| self.model_expression(argument, bindings, exercised))
             }
             syn::Expr::Macro(item) => self.model_assertion(&item.mac, bindings, exercised),
+            syn::Expr::Cast(cast) => self.model_expression(&cast.expr, bindings, exercised),
+            syn::Expr::Try(attempt) => self.model_expression(&attempt.expr, bindings, exercised),
+            syn::Expr::Array(array) => array
+                .elems
+                .iter()
+                .all(|element| self.model_expression(element, bindings, exercised)),
+            syn::Expr::Tuple(tuple) => tuple
+                .elems
+                .iter()
+                .all(|element| self.model_expression(element, bindings, exercised)),
+            syn::Expr::Index(indexed) => {
+                self.model_expression(&indexed.expr, bindings, exercised)
+                    && self.model_expression(&indexed.index, bindings, exercised)
+            }
+            syn::Expr::Closure(closure) => self.model_closure(closure, bindings, exercised),
             _ => false,
         }
+    }
+
+    fn bind_pattern(
+        &self,
+        pattern: &syn::Pat,
+        targets: Vec<crate::source::model::WorkspaceResolvedPath>,
+        bindings: &mut Vec<ModelBinding>,
+    ) -> bool {
+        match pattern {
+            syn::Pat::Type(typed) => {
+                let mut declared = &*typed.ty;
+                while let syn::Type::Reference(reference) = declared {
+                    declared = &reference.elem;
+                }
+                let targets =
+                    self.context
+                        .resolve_workspace_type(self.ordinal, self.module, declared);
+                self.bind_pattern(&typed.pat, targets, bindings)
+            }
+            syn::Pat::Ident(name) if name.subpat.is_none() => {
+                bindings.push(ModelBinding {
+                    name: name.ident.to_string(),
+                    targets,
+                    function: None,
+                });
+                true
+            }
+            syn::Pat::Wild(_) => true,
+            syn::Pat::Tuple(tuple) => tuple
+                .elems
+                .iter()
+                .all(|element| self.bind_pattern(element, Vec::new(), bindings)),
+            _ => false,
+        }
+    }
+
+    fn model_closure(
+        &self,
+        closure: &syn::ExprClosure,
+        bindings: &mut Vec<ModelBinding>,
+        exercised: &mut bool,
+    ) -> bool {
+        let length = bindings.len();
+        let pure = closure
+            .inputs
+            .iter()
+            .all(|input| self.bind_pattern(input, Vec::new(), bindings))
+            && self.model_expression(&closure.body, bindings, exercised);
+        bindings.truncate(length);
+        pure
     }
 
     fn model_assertion(
@@ -373,21 +473,15 @@ impl TestRuntimeVisitor<'_> {
                 if !self.model_expression(&init.expr, bindings, exercised) {
                     return false;
                 }
-                let (pattern, targets) = match &local.pat {
-                    syn::Pat::Type(typed) => (
-                        &*typed.pat,
-                        self.context
-                            .resolve_workspace_type(self.ordinal, self.module, &typed.ty),
-                    ),
-                    pattern => (pattern, self.model_targets(&init.expr, bindings)),
-                };
-                let syn::Pat::Ident(name) = pattern else {
+                let targets = self.model_targets(&init.expr, bindings);
+                let length = bindings.len();
+                let function = Self::find_function_path(&init.expr, bindings);
+                if !self.bind_pattern(&local.pat, targets, bindings) {
                     return false;
-                };
-                bindings.push(ModelBinding {
-                    name: name.ident.to_string(),
-                    targets,
-                });
+                }
+                if bindings.len() == length + 1 {
+                    bindings[length].function = function;
+                }
                 true
             }
             syn::Stmt::Expr(expression, _) => {
@@ -486,6 +580,90 @@ impl TestRuntimeVisitor<'_> {
         (paused, multi_thread)
     }
 
+    fn is_timer_call(&self, ordinal: usize, module: usize, call: &syn::ExprCall) -> bool {
+        let syn::Expr::Path(path) = &*call.func else {
+            return false;
+        };
+        self.context
+            .resolve_external_call_paths(ordinal, module, &path.path)
+            .iter()
+            .any(|path| Self::TIMER_FUNCTIONS.contains(&path.format_path().as_str()))
+    }
+
+    fn is_timer_helper(
+        &self,
+        ordinal: usize,
+        module: usize,
+        signature: &syn::Signature,
+        block: &syn::Block,
+    ) -> bool {
+        if signature.asyncness.is_none() {
+            return false;
+        }
+        let body = syn::Expr::Block(syn::ExprBlock {
+            attrs: Vec::new(),
+            label: None,
+            block: block.clone(),
+        });
+        crate::runtime::rule::ClosureEffects::collect(&body)
+            .calls
+            .iter()
+            .any(|call| self.is_timer_call(ordinal, module, call))
+    }
+
+    fn is_timer_method(&self, ordinal: usize, identity: usize, name: &syn::Ident) -> bool {
+        let index = &self.context.indexes[ordinal];
+        index
+            .implementations
+            .iter()
+            .filter(|implementation| {
+                implementation.syntax.trait_.is_none()
+                    && crate::module::util::owns_implementation(index, identity, implementation)
+            })
+            .any(|implementation| {
+                implementation.syntax.items.iter().any(|member| {
+                    matches!(member, syn::ImplItem::Fn(method)
+                        if method.sig.ident == *name
+                            && self.is_timer_helper(ordinal, implementation.module, &method.sig, &method.block))
+                })
+            })
+    }
+
+    fn calls_timer_helper(&self, call: &syn::ExprCall) -> bool {
+        let syn::Expr::Path(path) = &*call.func else {
+            return false;
+        };
+        let free = self
+            .context
+            .resolve_workspace_path(self.ordinal, self.module, &path.path)
+            .iter()
+            .any(|target| {
+                target.path.item.is_some_and(|identity| {
+                    let item = &self.context.indexes[target.index].items[identity];
+                    matches!(&item.syntax, syn::Item::Fn(function)
+                        if self.is_timer_helper(target.index, item.module, &function.sig, &function.block))
+                })
+            });
+        let Some(name) = path.path.segments.last().map(|segment| &segment.ident) else {
+            return free;
+        };
+        let mut owner = path.path.clone();
+        owner.segments.pop();
+        owner.segments.pop_punct();
+        let associated = !owner.segments.is_empty()
+            && self
+                .context
+                .resolve_workspace_path(self.ordinal, self.module, &owner)
+                .iter()
+                .any(|target| {
+                    target
+                        .path
+                        .item
+                        .is_some_and(|identity| self.is_timer_method(target.index, identity, name))
+                });
+        free || associated
+    }
+
     fn has_test_util(&self) -> bool {
         let index = &self.context.indexes[self.ordinal];
         self.context
@@ -504,6 +682,15 @@ impl TestRuntimeVisitor<'_> {
                 })
             })
     }
+
+    const TIMER_FUNCTIONS: [&'static str; 6] = [
+        "tokio::time::sleep",
+        "tokio::time::sleep_until",
+        "tokio::time::interval",
+        "tokio::time::interval_at",
+        "tokio::time::timeout",
+        "tokio::time::timeout_at",
+    ];
 }
 
 impl<'ast> Visit<'ast> for TestRuntimeVisitor<'_> {
@@ -554,24 +741,10 @@ impl<'ast> Visit<'ast> for TestRuntimeVisitor<'_> {
     }
 
     fn visit_expr_call(&mut self, expression: &'ast syn::ExprCall) {
-        if self.rule == "TestTimePaused"
-            && self.test_without_pause
-            && let syn::Expr::Path(path) = &*expression.func
-            && self
-                .context
-                .resolve_external_call_paths(self.ordinal, self.module, &path.path)
-                .iter()
-                .any(|path| {
-                    matches!(
-                        path.format_path().as_str(),
-                        "tokio::time::sleep"
-                            | "tokio::time::sleep_until"
-                            | "tokio::time::interval"
-                            | "tokio::time::interval_at"
-                            | "tokio::time::timeout"
-                            | "tokio::time::timeout_at"
-                    )
-                })
+        let checks = self.rule == "TestTimePaused" && self.test_without_pause;
+        if checks
+            && (self.is_timer_call(self.ordinal, self.module, expression)
+                || self.calls_timer_helper(expression))
         {
             self.report(expression.span());
         }
@@ -582,4 +755,5 @@ impl<'ast> Visit<'ast> for TestRuntimeVisitor<'_> {
 struct ModelBinding {
     name: String,
     targets: Vec<crate::source::model::WorkspaceResolvedPath>,
+    function: Option<syn::Path>,
 }

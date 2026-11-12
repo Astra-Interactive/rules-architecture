@@ -99,6 +99,31 @@ impl FakePlacement {
         })
     }
 
+    fn reaches_fake(manifest: &TomlValue, start: &str) -> bool {
+        let mut pending = vec![start.to_owned()];
+        let mut visited = std::collections::BTreeSet::new();
+        while let Some(feature) = pending.pop() {
+            if !visited.insert(feature.clone()) {
+                continue;
+            }
+            let entries = manifest
+                .find(&["features", &feature])
+                .and_then(TomlValue::as_array)
+                .unwrap_or_default();
+            let names: Vec<String> = entries
+                .iter()
+                .filter_map(TomlValue::as_str)
+                .filter(|entry| !entry.contains('/') && !entry.starts_with("dep:"))
+                .map(str::to_owned)
+                .collect();
+            if names.iter().any(|name| name == "fake") {
+                return true;
+            }
+            pending.extend(names);
+        }
+        false
+    }
+
     fn build_default_finding(context: &RuleContext, crate_name: &str) -> Option<RuleFinding> {
         let member = context
             .workspace
@@ -106,10 +131,7 @@ impl FakePlacement {
             .iter()
             .find(|member| member.name == crate_name)?;
         let default = member.manifest.root.find(&["features", "default"])?;
-        let enables_fake = default
-            .as_array()?
-            .iter()
-            .any(|entry| entry.as_str() == Some("fake"));
+        let enables_fake = Self::reaches_fake(&member.manifest.root, "default");
         enables_fake.then(|| RuleFinding {
             finding: Finding {
                 rule_id: RuleId("FakePlacement".to_owned()),

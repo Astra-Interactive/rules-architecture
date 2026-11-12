@@ -67,6 +67,33 @@ fn given_foreign_error_nested_in_an_option_field_when_checked_then_the_family_is
 }
 
 #[test]
+fn given_foreign_error_type_from_an_error_module_when_checked_then_the_family_is_rejected() {
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ErrorFamilyShape,
+        "#[derive(Debug, thiserror::Error)] enum WaitError { #[error(\"timed out\")] Timeout(tokio::time::error::Elapsed) }\n#[derive(Debug, thiserror::Error)] enum PathError { #[error(\"missing\")] Missing { path: std::path::PathBuf } }",
+        &[1],
+    );
+}
+
+#[test]
+fn given_own_family_as_a_source_field_when_checked_then_only_the_foreign_source_is_rejected() {
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ErrorFamilyShape,
+        "#[derive(Debug, thiserror::Error)] enum StorageError { #[error(\"disk\")] Disk }\n#[derive(Debug, thiserror::Error)] enum OrderError { #[error(\"load\")] Load { #[source] source: StorageError }, #[error(\"save\")] Save { #[source] source: StorageError } }\n#[derive(Debug, thiserror::Error)] enum ReadError { #[error(\"read\")] Read { #[source] source: std::io::Error } }",
+        &[3],
+    );
+}
+
+#[test]
+fn given_field_that_is_not_send_or_sync_when_checked_then_the_family_is_rejected() {
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ErrorFamilyShape,
+        "#[derive(Debug, thiserror::Error)] enum NameError { #[error(\"blank\")] Blank { name: std::rc::Rc<str> } }\n#[derive(Debug, thiserror::Error)] enum ListError { #[error(\"empty\")] Empty { names: Vec<std::cell::RefCell<String>> } }\n#[derive(Debug, thiserror::Error)] enum SharedError { #[error(\"blank\")] Blank { name: std::sync::Arc<str> } }",
+        &[1, 2],
+    );
+}
+
+#[test]
 fn given_enum_without_error_suffix_and_a_handwritten_error_impl_when_checked_then_the_family_is_checked()
  {
     crate::test::module::util::assert_di_lines(

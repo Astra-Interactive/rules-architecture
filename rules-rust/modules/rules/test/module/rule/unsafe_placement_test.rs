@@ -21,6 +21,17 @@ fn given_unsafe_extern_block_in_util_kind_when_checked_then_the_block_is_reporte
 }
 
 #[test]
+fn given_unsafe_attributes_outside_a_technology_module_when_checked_then_each_attribute_is_reported()
+ {
+    assert_code_findings(
+        &UnsafePlacement,
+        "UnsafePlacement",
+        "mod util {\n    #[unsafe(no_mangle)]\n    fn exported() {}\n    #[unsafe(export_name = \"shop_run\")]\n    fn run() {}\n    #[inline]\n    fn plain() {}\n}\nmod file { #[unsafe(no_mangle)] fn exported() {} }",
+        &[2, 4],
+    );
+}
+
+#[test]
 fn given_unsafe_in_platform_crate_concept_when_checked_then_only_the_util_kind_is_reported() {
     let mut context = read_code_context(
         "mod menu {\n    fn open() { unsafe {} }\n}\nmod util {\n    fn load() { unsafe {} }\n}",

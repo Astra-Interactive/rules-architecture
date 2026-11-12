@@ -3,6 +3,17 @@ use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
 
 #[test]
+fn given_enums_implementing_a_host_listener_trait_when_checked_then_misnamed_and_misplaced_ones_report()
+ {
+    assert_code_findings(
+        &ListenerName,
+        "ListenerName",
+        "mod event {\nenum ClickListener { Open, Close }\nimpl tokio::Listener for ClickListener {}\nenum Observer { Open }\nimpl tokio::Listener for Observer {}\n}\nmod service {\nenum ClickRouter { Open, Close }\nimpl tokio::Listener for ClickRouter {}\n}",
+        &[4, 9],
+    );
+}
+
+#[test]
 fn given_non_listener_event_types_when_implementing_standard_traits_then_keeps_their_names() {
     assert_code_findings(
         &ListenerName,

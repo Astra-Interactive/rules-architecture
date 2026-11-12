@@ -292,3 +292,26 @@ fn given_entry_point_kinds_when_checked_then_only_ui_kinds_may_use_each_other() 
     assert_eq!(Some(2), findings[0].finding.location.line);
     assert!(findings[0].finding.message.contains("billing::job"));
 }
+
+#[test]
+fn given_ui_entry_kind_importing_fixed_entry_kinds_when_checked_then_reports_each_fixed_kind() {
+    let mut context = read_import_context(
+        "mod billing { pub mod command { pub struct InvoiceCommand; } pub mod event { pub struct InvoiceListener; } }\nmod screen { pub mod menu { pub struct Menu; } pub mod slot {\nuse crate::billing::command::InvoiceCommand;\nuse crate::billing::event::InvoiceListener;\nuse crate::screen::menu::Menu;\n} }",
+        Role::Context,
+        &[],
+        &[],
+        "app",
+    );
+    context.workspace.root_manifest = crate::workspace::util::parse_toml_file(
+        "Cargo.toml",
+        "[workspace.metadata.klibs-rules]\nproduct-kind=\"app\"\nentry-point-words=[\"menu\",\"slot\"]\n",
+    )
+    .expect("fixture metadata");
+    let mut lines: Vec<Option<u32>> = KindImportDirection
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect();
+    lines.sort();
+    assert_eq!(vec![Some(3), Some(4)], lines);
+}

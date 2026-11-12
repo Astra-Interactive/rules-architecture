@@ -18,6 +18,7 @@ pub(crate) struct MainShapeVisitor<'context> {
     roots: std::collections::BTreeSet<String>,
     runtimes: std::collections::BTreeSet<String>,
     signals: std::collections::BTreeSet<String>,
+    owners: std::collections::BTreeMap<String, syn::Path>,
     builder_calls: usize,
     returned_roots: Vec<crate::source::model::NodeSpan>,
     shutdown_waited: bool,
@@ -40,6 +41,7 @@ impl MainShapeVisitor<'_> {
             roots: std::collections::BTreeSet::new(),
             runtimes: std::collections::BTreeSet::new(),
             signals: std::collections::BTreeSet::new(),
+            owners: std::collections::BTreeMap::new(),
             builder_calls: 0,
             returned_roots: Vec::new(),
             shutdown_waited: false,
@@ -76,17 +78,28 @@ impl MainShapeVisitor<'_> {
         }
     }
 
+    fn is_cancellation_token_constructor(&self, call: &syn::ExprCall) -> bool {
+        let syn::Expr::Path(path) = call.func.as_ref() else {
+            return false;
+        };
+        self.context
+            .resolve_external_call_paths(self.ordinal, self.module, &path.path)
+            .iter()
+            .any(|path| path.format_path() == "tokio_util::sync::CancellationToken::new")
+    }
+
     fn is_signal_source(&self, expression: &syn::Expr) -> bool {
         match expression {
             syn::Expr::MethodCall(call) => self.is_signal_source(&call.receiver),
             syn::Expr::Try(attempt) => self.is_signal_source(&attempt.expr),
             syn::Expr::Call(call) => {
-                matches!(call.func.as_ref(), syn::Expr::Path(path) if {
+                let is_signal = matches!(call.func.as_ref(), syn::Expr::Path(path) if {
                     let segments = self.find_tokio_segments(&path.path);
                     segments.iter().any(|segment| segment == "signal")
                         && (segments.last().is_some_and(|segment| segment == "signal")
                             || segments.iter().any(|segment| segment == "windows"))
-                })
+                });
+                is_signal || self.is_cancellation_token_constructor(call)
             }
             _ => false,
         }
@@ -100,7 +113,7 @@ impl MainShapeVisitor<'_> {
                     .ends_with(&["signal".to_owned(), "ctrl_c".to_owned()]))
             }
             syn::Expr::MethodCall(call) => {
-                call.method == "recv"
+                matches!(call.method.to_string().as_str(), "recv" | "cancelled")
                     && matches!(call.receiver.as_ref(), syn::Expr::Path(path) if path
                         .path
                         .get_ident()
@@ -155,6 +168,24 @@ impl MainShapeVisitor<'_> {
         }
     }
 
+    fn find_owner_path(local: &syn::Local) -> Option<syn::Path> {
+        if let syn::Pat::Type(annotated) = &local.pat
+            && let syn::Type::Path(typed) = annotated.ty.as_ref()
+        {
+            return Some(typed.path.clone());
+        }
+        let syn::Expr::Call(call) = local.init.as_ref()?.expr.as_ref() else {
+            return None;
+        };
+        let syn::Expr::Path(callee) = call.func.as_ref() else {
+            return None;
+        };
+        let mut owner = callee.path.clone();
+        owner.segments.pop();
+        owner.segments.pop_punct();
+        (!owner.segments.is_empty()).then_some(owner)
+    }
+
     fn waits_for_signal(&self, ordinal: usize, module: usize, block: &syn::Block) -> bool {
         let mut helper = Self::new(self.context, ordinal, module);
         helper.follows_helpers = false;
@@ -164,18 +195,9 @@ impl MainShapeVisitor<'_> {
         helper.shutdown_waited
     }
 
-    fn is_associated_signal_helper(&self, path: &syn::Path) -> bool {
-        let Some(name) = path.segments.last().map(|segment| &segment.ident) else {
-            return false;
-        };
-        let mut owner = path.clone();
-        owner.segments.pop();
-        owner.segments.pop_punct();
-        if owner.segments.is_empty() {
-            return false;
-        }
+    fn has_waiting_method(&self, owner: &syn::Path, name: &syn::Ident) -> bool {
         self.context
-            .resolve_workspace_path(self.ordinal, self.module, &owner)
+            .resolve_workspace_path(self.ordinal, self.module, owner)
             .iter()
             .any(|target| {
                 let Some(identity) = target.path.item else {
@@ -203,7 +225,35 @@ impl MainShapeVisitor<'_> {
             })
     }
 
+    fn is_associated_signal_helper(&self, path: &syn::Path) -> bool {
+        let Some(name) = path.segments.last().map(|segment| &segment.ident) else {
+            return false;
+        };
+        let mut owner = path.clone();
+        owner.segments.pop();
+        owner.segments.pop_punct();
+        if owner.segments.is_empty() {
+            return false;
+        }
+        self.has_waiting_method(&owner, name)
+    }
+
+    fn is_method_signal_helper(&self, call: &syn::ExprMethodCall) -> bool {
+        let syn::Expr::Path(receiver) = call.receiver.as_ref() else {
+            return false;
+        };
+        let Some(name) = receiver.path.get_ident() else {
+            return false;
+        };
+        self.owners
+            .get(&name.to_string())
+            .is_some_and(|owner| self.has_waiting_method(owner, &call.method))
+    }
+
     fn is_signal_helper(&self, expression: &syn::Expr) -> bool {
+        if let syn::Expr::MethodCall(call) = expression {
+            return self.follows_helpers && self.is_method_signal_helper(call);
+        }
         let syn::Expr::Call(call) = expression else {
             return false;
         };
@@ -249,8 +299,13 @@ impl MainShapeVisitor<'_> {
 
 impl<'ast> Visit<'ast> for MainShapeVisitor<'_> {
     fn visit_expr_return(&mut self, returned: &'ast syn::ExprReturn) {
-        self.early_exit |= self.enabled && !self.shutdown_waited;
+        self.early_exit |= self.enabled && (!self.shutdown_waited || !self.disabled_after);
         syn::visit::visit_expr_return(self, returned);
+    }
+
+    fn visit_expr_try(&mut self, attempt: &'ast syn::ExprTry) {
+        syn::visit::visit_expr_try(self, attempt);
+        self.early_exit |= self.enabled && (!self.shutdown_waited || !self.disabled_after);
     }
 
     fn visit_expr_await(&mut self, awaited: &'ast syn::ExprAwait) {
@@ -347,8 +402,12 @@ impl<'ast> Visit<'ast> for MainShapeVisitor<'_> {
         self.roots.remove(&binding.to_string());
         self.runtimes.remove(&binding.to_string());
         self.signals.remove(&binding.to_string());
+        self.owners.remove(&binding.to_string());
         if self.is_signal_source(&initializer.expr) {
             self.signals.insert(binding.to_string());
+        }
+        if let Some(owner) = Self::find_owner_path(local) {
+            self.owners.insert(binding.to_string(), owner);
         }
         if self.builder_calls > builders {
             self.runtimes.insert(binding.to_string());
@@ -428,6 +487,7 @@ impl<'ast> Visit<'ast> for MainShapeVisitor<'_> {
         let roots = self.roots.clone();
         let runtimes = self.runtimes.clone();
         let signals = self.signals.clone();
+        let owners = self.owners.clone();
         syn::visit::visit_block(self, block);
         if let Some(syn::Stmt::Expr(expression, None)) = block.stmts.last()
             && self.root_expression(expression)
@@ -438,6 +498,7 @@ impl<'ast> Visit<'ast> for MainShapeVisitor<'_> {
         self.roots = roots;
         self.runtimes = runtimes;
         self.signals = signals;
+        self.owners = owners;
     }
 }
 

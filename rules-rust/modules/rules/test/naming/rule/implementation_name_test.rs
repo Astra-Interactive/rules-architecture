@@ -146,6 +146,27 @@ fn given_interface_prefixed_struct_when_checked_then_reports_only_that_struct() 
 }
 
 #[test]
+fn given_impl_prefixed_struct_when_checked_then_reports_it_but_not_implicit_names() {
+    assert_code_findings(
+        &ImplementationName,
+        "ImplementationName",
+        "mod api { trait RatingRepository {} }\nmod file { struct ImplRatingRepository; impl crate::api::RatingRepository for ImplRatingRepository {} }\nmod model { struct ImplicitRating; }",
+        &[2],
+    );
+}
+
+#[test]
+fn given_vague_prefix_on_usecase_contract_implementation_when_checked_then_reports_only_that_struct()
+ {
+    assert_code_findings(
+        &ImplementationName,
+        "ImplementationName",
+        "mod usecase { trait AddRatingUseCase {} }\nmod di { struct LocalAddRatingUseCase; impl crate::usecase::AddRatingUseCase for LocalAddRatingUseCase {} }\nmod file { struct DefaultAddRatingUseCase; impl crate::usecase::AddRatingUseCase for DefaultAddRatingUseCase {} }",
+        &[2],
+    );
+}
+
+#[test]
 fn given_type_kinds_when_checked_then_reports_only_forbidden_names() {
     crate::test::syntax::util::assert_syntax_findings(
         &ImplementationName,

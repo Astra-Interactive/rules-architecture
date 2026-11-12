@@ -128,6 +128,32 @@ pub(crate) fn field_owners(
     owners
 }
 
+pub(crate) fn is_used_beside_its_field_owner(
+    context: &RuleContext,
+    ordinal: usize,
+    identity: usize,
+) -> bool {
+    let owners = field_owners(context, ordinal, identity);
+    let Some((owner_ordinal, owner_identity)) = owners.iter().next().copied() else {
+        return false;
+    };
+    let item = &context.indexes[ordinal].items[identity];
+    let owner_item = &context.indexes[owner_ordinal].items[owner_identity];
+    if owners.len() != 1 || owner_ordinal != ordinal || owner_item.file != item.file {
+        return false;
+    }
+    context
+        .name_index()
+        .users_of(ordinal, identity)
+        .filter(|usage| !usage.is_test && !usage.ambiguous && usage.cfg.is_satisfiable())
+        .filter(|usage| usage.kind != WorkspaceUseKind::Import && !alias_reference(context, usage))
+        .any(|usage| {
+            declaration_owner(context, usage).is_none_or(|user| {
+                user != (owner_ordinal, owner_identity) && user != (ordinal, identity)
+            })
+        })
+}
+
 pub(crate) fn has_type_behaviour(context: &RuleContext, ordinal: usize, identity: usize) -> bool {
     let index = &context.indexes[ordinal];
     index.implementations.iter().any(|implementation| {

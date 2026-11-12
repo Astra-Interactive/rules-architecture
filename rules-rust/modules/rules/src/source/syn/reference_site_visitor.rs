@@ -1,6 +1,7 @@
-use crate::source::model::{NodeSpan, ReferenceSite, WorkspaceUseKind};
+use crate::source::model::{NodeSpan, ReferenceSite, SelectPart, WorkspaceUseKind};
 use crate::source::util::find_node_span;
 use crate::source::util::parse_macro_arguments;
+use crate::source::util::parse_select_parts;
 use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 
@@ -47,6 +48,17 @@ impl<'ast> Visit<'ast> for ReferenceSiteVisitor {
     }
 
     fn visit_macro(&mut self, item: &'ast syn::Macro) {
+        let select_parts = parse_select_parts(item);
+        if !select_parts.is_empty() {
+            for part in &select_parts {
+                match part {
+                    SelectPart::Pattern(pattern) => self.visit_pat(pattern),
+                    SelectPart::Expression(expression) => self.visit_expr(expression),
+                    SelectPart::BranchEnd => {}
+                }
+            }
+            return;
+        }
         for argument in &parse_macro_arguments(item) {
             self.visit_expr(argument);
         }

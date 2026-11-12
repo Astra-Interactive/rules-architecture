@@ -50,7 +50,8 @@ impl ReExportShape {
                     && items.iter().any(|identity| {
                         Self::has_external_binding_user(context, ordinal, *identity, &binding.cfg)
                     });
-                if unused_public || named_restricted {
+                let off_tier = !binding.is_externally_public && !binding.is_crate_public;
+                if unused_public || named_restricted || off_tier {
                     findings.push(build_node_finding("ReExportShape",&binding.file,binding.span,binding.name.clone().unwrap_or_else(||"*".to_owned()),"re-export visibility follows whether another workspace crate names its target".to_owned()));
                 }
             }

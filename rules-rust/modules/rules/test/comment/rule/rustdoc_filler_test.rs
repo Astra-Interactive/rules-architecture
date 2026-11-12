@@ -9,6 +9,26 @@ fn given_persistent_code_fixtures_when_checked_then_match_exact_anchors() {
 }
 
 #[test]
+fn given_module_doc_that_is_responsible_for_when_checked_then_reports_it_but_not_prose() {
+    assert_code_findings(
+        &RustdocFiller,
+        "RustdocFiller",
+        "mod parser {\n    //! This module is responsible for parsing invoices.\n}\nmod reader {\n    //! The module reads invoices from disk.\n}",
+        &[2],
+    );
+}
+
+#[test]
+fn given_parameter_restatements_in_other_line_shapes_when_checked_then_reports_each_line() {
+    assert_code_findings(
+        &RustdocFiller,
+        "RustdocFiller",
+        "/// Loads the user.\n///\n/// * `user_id` — the user id\npub fn load_user(user_id: u64) {}\n/// Loads the order.\n///\n/// - order_id: the order id\npub fn load_order(order_id: u64) {}\n/// Loads the plan.\n///\n/// - `plan_id` – the plan id\npub fn load_plan(plan_id: u64) {}\n/// Computes the discount.\n///\n/// - `rate` is a fraction in the range `0.0..=1.0`\npub fn compute(rate: f64) {}",
+        &[3, 7, 11],
+    );
+}
+
+#[test]
 fn given_forbidden_code_when_checked_then_reports_exact_node_lines() {
     assert_code_findings(
         &RustdocFiller,

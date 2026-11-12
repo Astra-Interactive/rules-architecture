@@ -253,9 +253,10 @@ impl KindImportDirection {
                 ["api", "model", "util"].contains(&target_name) || source == target
             }
             _ if context.is_entry_kind(&index.crate_name, source_name) => {
+                let is_ui_pair = !Self::FIXED_ENTRY_KINDS.contains(&source_name)
+                    && !Self::FIXED_ENTRY_KINDS.contains(&target_name);
                 ["usecase", "api", "model", "util"].contains(&target_name)
-                    || ((!Self::FIXED_ENTRY_KINDS.contains(&source_name)
-                        || source_name == target_name)
+                    || ((is_ui_pair || source_name == target_name)
                         && context.is_entry_kind(&index.crate_name, target_name))
             }
             _ => true,

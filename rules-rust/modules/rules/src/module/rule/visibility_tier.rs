@@ -110,6 +110,13 @@ impl VisibilityTier {
         names
     }
 
+    pub(crate) fn collect_crate_member_names(index: &CrateIndex) -> BTreeSet<String> {
+        Self::collect_file_member_names(index)
+            .into_values()
+            .flatten()
+            .collect()
+    }
+
     fn is_used_outside(names: &FileMemberNames, file: &str, name: &str) -> bool {
         names
             .iter()
@@ -171,15 +178,19 @@ impl VisibilityTier {
         if !index.unanalysable.is_empty() {
             return Vec::new();
         }
+        let constructor = Self::format_tuple_constructor(&item.name);
         let mut findings: Vec<RuleFinding> = Self::declared_fields(item)
             .into_iter()
-            .filter(|field| Self::is_crate_visible(&field.vis))
-            .filter(|field| {
-                field.ident.as_ref().is_some_and(|ident| {
-                    !Self::is_used_outside(names, &item.file, &ident.to_string())
-                })
+            .enumerate()
+            .filter(|(_, field)| Self::is_crate_visible(&field.vis))
+            .filter(|(position, field)| match &field.ident {
+                Some(ident) => !Self::is_used_outside(names, &item.file, &ident.to_string()),
+                None => {
+                    !Self::is_used_outside(names, &item.file, &position.to_string())
+                        && !Self::is_used_outside(names, &item.file, &constructor)
+                }
             })
-            .map(|field| {
+            .map(|(_, field)| {
                 build_node_finding(
                     "VisibilityTier",
                     &item.file,
@@ -203,6 +214,69 @@ impl VisibilityTier {
         findings
     }
 
+    fn collect_alias_targets(index: &CrateIndex) -> BTreeMap<String, BTreeSet<String>> {
+        let mut aliases: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        for import in index.imports.iter().filter(|import| import.is_renamed) {
+            let Some(alias) = &import.name else {
+                continue;
+            };
+            let Some(target) = import.path.last() else {
+                continue;
+            };
+            aliases
+                .entry(alias.clone())
+                .or_default()
+                .insert(target.clone());
+        }
+        for item in &index.items {
+            let syn::Item::Type(alias) = &item.syntax else {
+                continue;
+            };
+            let syn::Type::Path(target) = &*alias.ty else {
+                continue;
+            };
+            let Some(segment) = target.path.segments.last() else {
+                continue;
+            };
+            aliases
+                .entry(alias.ident.to_string())
+                .or_default()
+                .insert(segment.ident.to_string());
+        }
+        aliases
+    }
+
+    fn extend_with_alias_constructors(
+        aliases: &BTreeMap<String, BTreeSet<String>>,
+        names: &mut BTreeSet<String>,
+    ) {
+        loop {
+            let known = names.len();
+            for (alias, targets) in aliases {
+                if !names.contains(&Self::format_tuple_constructor(alias)) {
+                    continue;
+                }
+                names.extend(
+                    targets
+                        .iter()
+                        .map(|target| Self::format_tuple_constructor(target)),
+                );
+            }
+            if names.len() == known {
+                return;
+            }
+        }
+    }
+
+    fn collect_resolved_file_names(index: &CrateIndex) -> FileMemberNames<'_> {
+        let aliases = Self::collect_alias_targets(index);
+        let mut names = Self::collect_file_member_names(index);
+        for file_names in names.values_mut() {
+            Self::extend_with_alias_constructors(&aliases, file_names);
+        }
+        names
+    }
+
     pub(crate) fn collect_foreign_member_names(
         context: &RuleContext,
         crate_name: &str,
@@ -212,9 +286,10 @@ impl VisibilityTier {
             .iter()
             .filter(|index| index.crate_name != crate_name)
             .flat_map(|index| {
-                Self::collect_file_member_names(index)
-                    .into_values()
-                    .flatten()
+                let aliases = Self::collect_alias_targets(index);
+                let mut names = Self::collect_crate_member_names(index);
+                Self::extend_with_alias_constructors(&aliases, &mut names);
+                names
             })
             .collect()
     }
@@ -367,7 +442,7 @@ impl VisibilityTier {
             {
                 continue;
             }
-            let names = Self::collect_file_member_names(index);
+            let names = Self::collect_resolved_file_names(index);
             let foreign_names = OnceCell::new();
             for (identity, item) in index.items.iter().enumerate().filter(|(_, item)| {
                 item.cfg.is_satisfiable()

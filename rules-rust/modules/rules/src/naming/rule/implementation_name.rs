@@ -27,7 +27,9 @@ impl ImplementationName {
     }
 
     fn is_api_contract(index: &CrateIndex, contract: &IndexedItem) -> bool {
-        matches!(contract.syntax, syn::Item::Trait(_)) && has_kind(index, contract.module, "api")
+        matches!(contract.syntax, syn::Item::Trait(_))
+            && (has_kind(index, contract.module, "api")
+                || has_kind(index, contract.module, "usecase"))
     }
 
     fn check_contract(

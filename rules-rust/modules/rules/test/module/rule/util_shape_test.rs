@@ -38,9 +38,9 @@ fn given_reexported_type_and_cfg_extensions_when_checked_then_only_out_of_file_n
 }
 
 #[test]
-fn given_file_constant_in_util_function_file_when_checked_then_only_static_and_type_report() {
+fn given_file_constant_in_util_function_file_when_checked_then_only_lone_data_and_type_report() {
     let context = read_shape_context(
-        "mod util { mod money_parse; mod limit_state; mod row; }",
+        "mod util { mod money_parse; mod limit_state; mod row; mod lone; }",
         &[
             (
                 "util/money_parse.rs",
@@ -51,6 +51,7 @@ fn given_file_constant_in_util_function_file_when_checked_then_only_static_and_t
                 "static LIMIT: i64 = 100;\npub(crate) fn read_limit() -> i64 { LIMIT }",
             ),
             ("util/row.rs", "struct Row;"),
+            ("util/lone.rs", "static LONE: i64 = 1;"),
         ],
     );
     let mut subjects: Vec<_> = UtilShape
@@ -61,7 +62,7 @@ fn given_file_constant_in_util_function_file_when_checked_then_only_static_and_t
     subjects.sort();
     assert_eq!(
         subjects,
-        ["case_sample::util::LIMIT", "case_sample::util::Row"]
+        ["case_sample::util::LONE", "case_sample::util::Row"]
     );
 }
 

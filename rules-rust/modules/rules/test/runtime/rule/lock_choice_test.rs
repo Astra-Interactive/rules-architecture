@@ -3,6 +3,28 @@ use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
 
 #[test]
+fn given_guard_whose_crossing_await_sits_in_a_macro_argument_when_checked_then_only_the_other_guard_reports()
+ {
+    assert_code_findings(
+        &LockChoice,
+        "LockChoice",
+        "struct Source;\nimpl Source { async fn fetch(&self) -> u32 { 1 } }\nasync fn run(gate: tokio::sync::Mutex<Vec<u32>>, source: Source) {\n    let guard = gate.lock().await;\n    tracing::info!(\"{}\", source.fetch().await);\n    let count = guard.len();\n}\nasync fn run_sync(gate: tokio::sync::Mutex<Vec<u32>>) {\n    let guard = gate.lock().await;\n    tracing::info!(\"{}\", guard.len());\n}",
+        &[9],
+    );
+}
+
+#[test]
+fn given_temporary_tokio_guard_in_a_let_initializer_or_block_tail_when_checked_then_each_is_reported()
+ {
+    assert_code_findings(
+        &LockChoice,
+        "LockChoice",
+        "struct Cache { entries: tokio::sync::Mutex<std::collections::HashMap<u32, String>> }\nasync fn load() -> String { String::new() }\nimpl Cache {\n    async fn count(&self) -> usize {\n        let count = self.entries.lock().await.len();\n        count\n    }\n    async fn get(&self, id: u32) -> Option<String> {\n        self.entries.lock().await.get(&id).cloned()\n    }\n    async fn get_loaded(&self, id: u32) -> Option<String> {\n        let loaded = self.entries.lock().await.insert(id, load().await);\n        loaded\n    }\n}",
+        &[5, 9],
+    );
+}
+
+#[test]
 fn given_dropped_guard_or_unreachable_await_when_checked_then_requires_actual_guard_crossing() {
     assert_code_findings(
         &LockChoice,

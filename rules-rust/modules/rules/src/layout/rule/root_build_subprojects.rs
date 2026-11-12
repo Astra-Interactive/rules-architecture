@@ -52,18 +52,32 @@ impl RootBuildSubprojects {
         }
     }
 
-    fn find_version_only(value: &TomlValue) -> Option<&str> {
-        if value.is_table() && value.entries().len() == 1 {
-            return value.find(&["version"]).and_then(TomlValue::as_str);
-        }
-        value.as_str()
+    fn find_version(value: &TomlValue) -> Option<&str> {
+        value
+            .as_str()
+            .or_else(|| value.find(&["version"]).and_then(TomlValue::as_str))
+    }
+
+    fn find_git_source(value: &TomlValue) -> Option<String> {
+        let repository = value.find(&["git"]).and_then(TomlValue::as_str)?;
+        let reference = ["rev", "tag", "branch"]
+            .iter()
+            .find_map(|key| value.find(&[key]).and_then(TomlValue::as_str))
+            .unwrap_or_default();
+        Some(format!("{repository}#{reference}"))
     }
 
     fn is_same_requirement(left: &TomlValue, right: &TomlValue) -> bool {
-        match (
-            Self::find_version_only(left),
-            Self::find_version_only(right),
-        ) {
+        let is_path = left.find(&["path"]).is_some() || right.find(&["path"]).is_some();
+        if is_path {
+            return false;
+        }
+        match (Self::find_git_source(left), Self::find_git_source(right)) {
+            (Some(left_source), Some(right_source)) => return left_source == right_source,
+            (None, None) => {}
+            _ => return false,
+        }
+        match (Self::find_version(left), Self::find_version(right)) {
             (Some(left_version), Some(right_version)) => left_version == right_version,
             _ => Self::is_same_literal(left, right),
         }
@@ -85,7 +99,9 @@ impl RootBuildSubprojects {
     }
 
     fn has_requirement(value: &TomlValue) -> bool {
-        value.as_str().is_some() || value.find(&["version"]).is_some()
+        value.as_str().is_some()
+            || value.find(&["version"]).is_some()
+            || value.find(&["git"]).is_some()
     }
 
     fn is_dependency_repeated(earlier: &[&Member], dependency: &TomlEntry) -> bool {
@@ -98,6 +114,25 @@ impl RootBuildSubprojects {
                         && Self::is_same_requirement(&dependency.value, &other.value)
                 })
         })
+    }
+
+    fn find_package_name(dependency: &TomlEntry) -> &str {
+        dependency
+            .value
+            .find(&["package"])
+            .and_then(TomlValue::as_str)
+            .unwrap_or(&dependency.key)
+    }
+
+    fn is_declared_in_root(root: &TomlValue, dependency: &TomlEntry) -> bool {
+        let Some(declared) = root.find(&["workspace", "dependencies"]) else {
+            return false;
+        };
+        let package_name = Self::find_package_name(dependency);
+        declared
+            .entries()
+            .iter()
+            .any(|entry| Self::find_package_name(entry) == package_name)
     }
 
     fn check_dependencies(
@@ -116,9 +151,7 @@ impl RootBuildSubprojects {
                 if Self::inherits(&dependency.value) {
                     continue;
                 }
-                let is_shared = root
-                    .find(&["workspace", "dependencies", &dependency.key])
-                    .is_some();
+                let is_shared = Self::is_declared_in_root(root, dependency);
                 let is_repeated = Self::has_requirement(&dependency.value)
                     && Self::is_dependency_repeated(earlier, dependency);
                 if is_shared || is_repeated {

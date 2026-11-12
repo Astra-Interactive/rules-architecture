@@ -5,6 +5,37 @@ use crate::test::declaration::util::assert_code_fixture;
 const FALLIBLE_FUNCTIONS: &str = "fn load() -> Result<u8, ()> { Ok(1) } fn parse(_: &str) -> Result<u8, ()> { Ok(1) } fn retain(value: u8) -> Result<u8, ()> { Ok(value) } fn combine(left: u8, right: u8) -> u8 { left + right } fn inspect(_: ()) -> Result<(), ()> { Ok(()) } fn annotate(_: ()) -> Result<(), ()> { Ok(()) }";
 
 #[test]
+fn given_expected_send_on_a_sender_bound_in_a_match_arm_when_checked_then_only_the_real_discard_reports()
+ {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "struct Gate { slot: parking_lot::Mutex<Option<tokio::sync::oneshot::Sender<bool>>> }\nimpl Gate {\n    fn complete(&self, value: bool) {\n        match self.slot.lock().take() {\n            Some(sender) => {\n                #[expect(clippy::let_underscore_must_use, reason = \"the receiver is gone only when the caller was cancelled\")] let _ = sender.send(value);\n            }\n            None => {}\n        }\n    }\n    fn load(&self) {\n        #[expect(clippy::let_underscore_must_use, reason = \"too broad\")] let _ = std::fs::read(\"file\");\n    }\n}",
+        &[12],
+    );
+}
+
+#[test]
+fn given_discarded_result_alias_of_a_workspace_function_when_checked_then_reports_each_discard() {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "fn write_report() -> std::io::Result<()> { Ok(()) }\nfn format_report() -> std::fmt::Result { Ok(()) }\nfn find_report() -> Option<()> { None }\nfn run() {\n    _ = write_report();\n    _ = format_report();\n    let _ = find_report();\n}",
+        &[5, 6],
+    );
+}
+
+#[test]
+fn given_two_fallible_steps_inside_a_macro_argument_when_checked_then_the_let_is_reported() {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "fn first() -> Result<u8, ()> { Ok(1) }\nfn second() -> Result<u8, ()> { Ok(2) }\nfn run() -> Result<String, ()> {\n    let line = format!(\"{}{}\", first()?, second()?);\n    let single = format!(\"{}\", first()?);\n    Ok(line + &single)\n}",
+        &[4],
+    );
+}
+
+#[test]
 fn given_option_steps_in_one_let_when_checked_then_reports_the_let() {
     assert_code_findings(
         &ResultConsumption,
@@ -309,6 +340,28 @@ fn given_underscore_binding_shadowed_before_any_read_when_checked_then_reports_t
 }
 
 #[test]
+fn given_underscore_binding_shadowed_by_typed_or_destructured_let_when_checked_then_reports_the_first()
+ {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "fn call() -> Result<u8, ()> { Ok(1) }\nfn other() -> u8 { 1 }\nfn pair_source() -> (u8, u8) { (1, 2) }\nfn run() {\n    let _typed = call();\n    let _typed: u8 = other();\n    drop(_typed);\n    let _paired = call();\n    let (_paired, extra) = pair_source();\n    drop(_paired);\n    drop(extra);\n    let _kept = call();\n    drop(_kept);\n}",
+        &[5, 8],
+    );
+}
+
+#[test]
+fn given_two_fallible_steps_in_a_closure_tail_when_checked_then_reports_only_the_composed_closure()
+{
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "fn parse(_: &str) -> Result<u8, ()> { Ok(1) }\nfn save(_: u8) -> Result<(), ()> { Ok(()) }\nfn run(raw: &str) -> Result<(), ()> {\n    let direct = |text: &str| Ok(save(parse(text)?)?);\n    let block = |text: &str| { Ok(save(parse(text)?)?) };\n    let separate = |text: &str| {\n        let parsed = parse(text)?;\n        Ok(save(parsed)?)\n    };\n    let single = |text: &str| Ok(parse(text)?);\n    direct(raw)?;\n    block(raw)?;\n    separate(raw)?;\n    single(raw)?;\n    Ok(())\n}",
+        &[4, 5],
+    );
+}
+
+#[test]
 fn given_workspace_result_of_a_method_associated_or_async_function_when_dropped_then_reports_each()
 {
     assert_code_findings(
@@ -357,5 +410,27 @@ fn given_tdd_result_consumption_match_guard_and_arm_when_linted_then_reports_let
         "ResultConsumption",
         "fn condition(raw: &str) -> Result<bool, ()> { raw.parse::<u8>().map(|value| value > 0).map_err(|_| ()) }\nfn step(raw: &str) -> Result<usize, ()> { raw.parse::<usize>().map_err(|_| ()) }\nfn compute(number: u8, raw: &str) -> Result<usize, ()> {\n    let value = match number { 0..=2 if condition(raw)? => 0, 1 => step(raw)?, _ => 0 };\n    Ok(value)\n}",
         &[4],
+    );
+}
+
+#[test]
+fn given_two_fallible_steps_in_a_closure_tail_inside_a_call_argument_when_checked_then_reports_it()
+{
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "fn f(value: u8) -> Result<u8, ()> { Ok(value) }\nfn g(value: &u8) -> Result<u8, ()> { Ok(*value) }\nfn collect_all(items: &[u8]) -> Result<Vec<u8>, ()> {\n    items\n        .iter()\n        .map(|x| Ok(f(g(x)?)?))\n        .collect()\n}\nfn collect_single(items: &[u8]) -> Result<Vec<u8>, ()> {\n    items\n        .iter()\n        .map(|x| Ok(f(*x)?))\n        .collect()\n}",
+        &[6],
+    );
+}
+
+#[test]
+fn given_underscore_binding_rebound_through_slice_or_and_struct_patterns_when_checked_then_reports_each_first_binding()
+ {
+    assert_code_findings(
+        &ResultConsumption,
+        "ResultConsumption",
+        "fn call() -> Result<u8, ()> { Ok(1) }\nstruct Pair { left: u8, right: u8 }\nfn array() -> [u8; 2] { [1, 2] }\nfn pair() -> Pair { Pair { left: 1, right: 2 } }\nfn either() -> Result<u8, u8> { Ok(1) }\nfn run() {\n    let _sliced = call();\n    let [_sliced, extra] = array();\n    drop(_sliced);\n    drop(extra);\n    let _either = call();\n    let (Ok(_either) | Err(_either)) = either();\n    drop(_either);\n    let _fielded = call();\n    let Pair { left: _fielded, right } = pair();\n    drop(_fielded);\n    drop(right);\n}",
+        &[7, 11, 14],
     );
 }

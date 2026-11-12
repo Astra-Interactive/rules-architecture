@@ -130,16 +130,21 @@ impl<'source> NameVisitor<'source> {
 
     fn has_service_word(name: &str) -> bool {
         name.match_indices("Service").any(|(position, word)| {
-            name[position + word.len()..]
-                .chars()
-                .next()
-                .is_none_or(|next| !next.is_lowercase())
+            let rest = &name[position + word.len()..];
+            rest == "s" || rest.chars().next().is_none_or(|next| !next.is_lowercase())
         })
+    }
+
+    fn has_impl_prefix(name: &str) -> bool {
+        name.strip_prefix("Impl")
+            .and_then(|rest| rest.chars().next())
+            .is_some_and(char::is_uppercase)
     }
 
     fn check_type(&mut self, ident: &syn::Ident, is_trait: bool) {
         let name = ident.unraw().to_string();
-        let has_bad_suffix = name.ends_with("Impl") || name.ends_with("Interface");
+        let has_bad_suffix =
+            name.ends_with("Impl") || name.ends_with("Interface") || Self::has_impl_prefix(&name);
         let has_interface_prefix = is_trait && Self::has_interface_prefix(&name);
         if self.rule == "ImplementationName" && (has_bad_suffix || has_interface_prefix) {
             self.report_name(ident, Self::IMPLEMENTATION_NAME_MESSAGE);
@@ -202,6 +207,27 @@ impl<'source> NameVisitor<'source> {
         })
     }
 
+    fn reads_own_field(expression: &syn::Expr, name: &syn::Ident) -> bool {
+        match expression {
+            syn::Expr::Reference(reference) => Self::reads_own_field(&reference.expr, name),
+            syn::Expr::MethodCall(call) if call.method == "clone" && call.args.is_empty() => {
+                Self::reads_own_field(&call.receiver, name)
+            }
+            syn::Expr::Field(field) => {
+                let is_self =
+                    matches!(&*field.base, syn::Expr::Path(path) if path.path.is_ident("self"));
+                is_self && matches!(&field.member, syn::Member::Named(member) if member == name)
+            }
+            _ => false,
+        }
+    }
+
+    fn is_field_accessor(item: &syn::ImplItemFn) -> bool {
+        item.sig.receiver().is_some()
+            && matches!(item.block.stmts.as_slice(),
+                [syn::Stmt::Expr(expression, None)] if Self::reads_own_field(expression, &item.sig.ident))
+    }
+
     fn check_function(&mut self, signature: &syn::Signature, attributes: &[syn::Attribute]) {
         let name = signature.ident.unraw().to_string();
         let is_test = attributes.iter().any(|attribute| {
@@ -248,6 +274,7 @@ impl<'source> NameVisitor<'source> {
             match part {
                 SelectPart::Pattern(pattern) => self.visit_pat(pattern),
                 SelectPart::Expression(expression) => self.visit_expr(expression),
+                SelectPart::BranchEnd => {}
             }
         }
         true
@@ -413,7 +440,9 @@ impl<'ast> Visit<'ast> for NameVisitor<'_> {
     }
 
     fn visit_impl_item_fn(&mut self, item: &'ast syn::ImplItemFn) {
-        self.check_function(&item.sig, &item.attrs);
+        if !Self::is_field_accessor(item) {
+            self.check_function(&item.sig, &item.attrs);
+        }
         syn::visit::visit_impl_item_fn(self, item);
     }
 

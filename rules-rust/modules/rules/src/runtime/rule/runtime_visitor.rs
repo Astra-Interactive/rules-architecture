@@ -271,6 +271,11 @@ impl<'ast> Visit<'ast> for RuntimeVisitor<'_> {
             if is_block_on || is_runtime_new || is_builder_new {
                 self.check_runtime_call(expression.span(), is_block_on);
             }
+            let is_test_executor =
+                resolved.ends_with("::block_on_stream") || resolved.ends_with("::LocalPool::new");
+            if is_test_executor && self.rule == "BlockOnInTest" && self.is_test() {
+                self.report(expression.span(), "Run async tests with tokio::test instead of building or blocking a runtime (testing.rs.md)");
+            }
         }
         syn::visit::visit_expr_call(self, expression);
     }

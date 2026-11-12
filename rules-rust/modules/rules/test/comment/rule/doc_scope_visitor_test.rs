@@ -118,6 +118,25 @@ fn given_aliased_standard_and_external_assertions_when_published_then_uses_macro
 }
 
 #[test]
+fn given_public_indexing_of_a_map_or_deque_parameter_when_published_then_reports_function_nodes() {
+    let mut context = read_code_context(
+        "pub fn price(prices: std::collections::HashMap<u32, u64>, id: u32) -> u64 { prices[&id] }\npub fn rank(ranks: std::collections::BTreeMap<u32, u64>, id: u32) -> u64 { ranks[&id] }\npub fn head(queue: std::collections::VecDeque<u64>, index: usize) -> u64 { queue[index] }\npub fn find(prices: std::collections::HashMap<u32, u64>, id: u32) -> Option<u64> { prices.get(&id).copied() }",
+    );
+    context.workspace.members[0].manifest = crate::workspace::util::parse_toml_file(
+        "Cargo.toml",
+        "[package]\nname=\"case-sample\"\nversion=\"0.1.0\"",
+    )
+    .expect("published manifest");
+    let mut actual: Vec<_> = DocCommentScope
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect();
+    actual.sort_unstable();
+    assert_eq!(vec![Some(1), Some(2), Some(3)], actual);
+}
+
+#[test]
 fn given_tdd_doc_panics_public_vector_indexing_when_published_then_reports_function_nodes() {
     let mut context = read_code_context(
         "pub fn element(values: Vec<u8>, index: usize) -> u8 { values[index] }\npub struct Reader { bytes: Vec<u8> }\nimpl Reader { pub fn read(&self, index: usize) -> u8 { self.bytes[index] } }",

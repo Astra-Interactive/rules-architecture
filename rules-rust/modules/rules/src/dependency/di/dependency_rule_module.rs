@@ -1,7 +1,7 @@
 use crate::check::api::Rule;
 use crate::dependency::rule::{
     ApiUnitDependency, ApiUnitPlatformDependency, DependencyFloor, EntryPointDependency,
-    TechnologyDependency, TimeCrate, UnitDependency, UnitDependencyCycle,
+    PlatformDependencyTable, TechnologyDependency, TimeCrate, UnitDependency, UnitDependencyCycle,
 };
 use std::sync::Arc;
 
@@ -21,6 +21,7 @@ impl DependencyRuleModule {
             Arc::new(ApiUnitDependency),
             Arc::new(TechnologyDependency),
             Arc::new(ApiUnitPlatformDependency),
+            Arc::new(PlatformDependencyTable),
         ];
         let active_rule_ids = vec![
             "EntryPointDependency",
@@ -31,6 +32,7 @@ impl DependencyRuleModule {
             "ApiUnitDependency",
             "TechnologyDependency",
             "ApiUnitPlatformDependency",
+            "PlatformDependencyTable",
         ];
         Self {
             rules: rules.into(),

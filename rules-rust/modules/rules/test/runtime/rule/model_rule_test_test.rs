@@ -69,6 +69,33 @@ fn given_model_query_without_await_when_tested_with_tokio_then_requires_synchron
 }
 
 #[test]
+fn given_pure_syntax_forms_in_a_tokio_test_of_a_model_rule_when_checked_then_requires_synchronous_test()
+ {
+    let model = "mod model { pub struct Money { pub value: u32 } } mod util { impl crate::model::Money { pub fn is_valid(&self) -> bool { self.value > 0 } } }";
+    assert_code_findings(
+        &ModelRuleTest,
+        "ModelRuleTest",
+        &format!(
+            "{model}\n#[cfg(test)] mod test {{ mod model {{\n #[tokio::test]\n async fn verify_cast() {{ let money = crate::model::Money {{ value: 1 }}; assert!(money.is_valid() as u8 == 1); }}\n #[tokio::test]\n async fn verify_collection() {{ let values = [crate::model::Money {{ value: 1 }}]; let (first, count) = (values[0].is_valid(), 1); let _ = count; assert!(first); }}\n #[tokio::test]\n async fn verify_closure() {{ let check = |money: &crate::model::Money| money.is_valid(); assert!(check(&crate::model::Money {{ value: 1 }})); }}\n #[tokio::test]\n async fn verify_io() {{ let money = crate::model::Money {{ value: 1 }}; assert!(money.is_valid() as u8 == 1); tokio::fs::read(\"file\").await; }}\n}} }}"
+        ),
+        &[3, 5, 7],
+    );
+}
+
+#[test]
+fn given_local_bound_to_non_model_function_when_tested_with_tokio_then_reports_only_pure_test() {
+    let model = "mod model { pub struct Money { pub cents: i64 } } mod util { impl crate::model::Money { pub fn is_valid(&self) -> bool { self.cents >= 0 } } } mod service { pub struct Store; impl Store { pub fn save(&self) { std::fs::write(\"file\", \"data\").unwrap(); } } }";
+    assert_code_findings(
+        &ModelRuleTest,
+        "ModelRuleTest",
+        &format!(
+            "{model}\n#[cfg(test)] mod test {{ mod model {{\n #[tokio::test]\n async fn verify() {{ let money = crate::model::Money {{ cents: 1 }}; assert!(money.is_valid()); }}\n #[tokio::test]\n async fn verify_save() {{ let store = crate::service::Store; let run = crate::service::Store::save; run(&store); }}\n}} }}"
+        ),
+        &[3],
+    );
+}
+
+#[test]
 fn given_persistent_runtime_cases_when_checked_then_matches_exact_finding_anchors() {
     assert_code_fixture(&ModelRuleTest, "ModelRuleTest", "bad");
     assert_code_fixture(&ModelRuleTest, "ModelRuleTest", "good");

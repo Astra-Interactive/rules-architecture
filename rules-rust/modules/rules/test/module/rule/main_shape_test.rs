@@ -30,6 +30,36 @@ fn given_no_shutdown_wait_or_early_runtime_drop_when_checked_then_main_is_reject
 }
 
 #[test]
+fn given_early_exit_between_block_on_and_on_disable_when_checked_then_main_is_rejected() {
+    for (early_return, early_try, expected) in [
+        (
+            "if std::env::var_os(\"SKIP\").is_some() { return Ok(()); }",
+            "std::fs::write(\"state\", \"down\")?;",
+            vec![Some(2)],
+        ),
+        (
+            "if std::env::var_os(\"SKIP\").is_some() { return Ok(()); }",
+            "",
+            vec![Some(2)],
+        ),
+        ("", "std::fs::write(\"state\", \"down\")?;", vec![Some(2)]),
+        ("", "", vec![]),
+    ] {
+        let source = format!(
+            "mod di {{ pub struct RootModule; impl RootModule {{ pub fn new() -> Self {{ Self }} }} }}\nfn main() -> Result<(), std::io::Error> {{\n    let runtime = tokio::runtime::Builder::new_multi_thread().build()?;\n    let root = runtime.block_on(async {{ let root = di::RootModule::new(); root.on_enable(); tokio::signal::ctrl_c().await; root }});\n    {early_return}\n    {early_try}\n    root.on_disable();\n    std::fs::write(\"state\", \"done\")?;\n    Ok(())\n}}"
+        );
+        let mut context = crate::test::declaration::util::read_code_context(&source);
+        context.project_config.crates[0].role = Some(crate::config::model::Role::EntryPoint);
+        let lines: Vec<Option<u32>> =
+            crate::check::api::Rule::check(&crate::module::rule::MainShape, &context)
+                .iter()
+                .map(|finding| finding.finding.location.line)
+                .collect();
+        assert_eq!(lines, expected, "{source}");
+    }
+}
+
+#[test]
 fn given_persistent_di_policy_pairs_when_checked_then_exact_nodes_and_subjects_match() {
     for half in ["bad", "good"] {
         crate::test::module::util::assert_di_fixture(
@@ -187,5 +217,72 @@ fn given_shutdown_wait_in_one_match_arm_when_checked_then_main_is_rejected() {
             expected,
             "{wait}"
         );
+    }
+}
+
+#[test]
+fn given_token_or_workspace_method_wait_when_checked_then_only_a_shutdown_wait_passes() {
+    for (helper, wait, expected) in [
+        (
+            "tokio::signal::ctrl_c().await;",
+            "let token = tokio_util::sync::CancellationToken::new(); token.cancelled().await;",
+            vec![],
+        ),
+        (
+            "tokio::signal::ctrl_c().await;",
+            "let signal = util::ShutdownSignal::new(); signal.wait().await;",
+            vec![],
+        ),
+        (
+            "let (sender, mut receiver) = tokio::sync::mpsc::channel::<u8>(1); receiver.recv().await;",
+            "let signal = util::ShutdownSignal::new(); signal.wait().await;",
+            vec![Some(3)],
+        ),
+        (
+            "tokio::signal::ctrl_c().await;",
+            "let token = vendor::CancellationToken::new(); token.cancelled().await;",
+            vec![Some(3)],
+        ),
+    ] {
+        let source = format!(
+            "mod di {{ pub struct RootModule; impl RootModule {{ pub fn new() -> Self {{ Self }} }} }}\nmod util {{ pub struct ShutdownSignal; impl ShutdownSignal {{ pub fn new() -> Self {{ Self }} pub async fn wait(&self) {{ {helper} }} }} }}\nfn main() {{ let runtime = tokio::runtime::Builder::new_multi_thread().build(); let root = runtime.block_on(async {{ let root = di::RootModule::new(); root.on_enable(); {wait} root }}); root.on_disable(); }}"
+        );
+        let mut context = crate::test::declaration::util::read_code_context(&source);
+        let mut dependencies = context.indexes[0].dependencies.clone();
+        dependencies.push("tokio_util".to_owned());
+        context.indexes = vec![
+            crate::source::syn::CrateIndexBuilder::new(&context.crates[0], dependencies).build(),
+        ];
+        context.project_config.crates[0].role = Some(crate::config::model::Role::EntryPoint);
+        let lines: Vec<Option<u32>> =
+            crate::check::api::Rule::check(&crate::module::rule::MainShape, &context)
+                .iter()
+                .map(|finding| finding.finding.location.line)
+                .collect();
+        assert_eq!(lines, expected, "{wait} / {helper}");
+    }
+}
+
+#[test]
+fn given_annotated_local_of_workspace_type_when_its_method_waits_then_only_a_shutdown_wait_passes()
+{
+    for (helper, expected) in [
+        ("tokio::signal::ctrl_c().await;", vec![]),
+        (
+            "let (sender, mut receiver) = tokio::sync::mpsc::channel::<u8>(1); receiver.recv().await;",
+            vec![Some(4)],
+        ),
+    ] {
+        let source = format!(
+            "use crate::util::ShutdownSignal;\nmod di {{ pub struct RootModule; impl RootModule {{ pub fn new() -> Self {{ Self }} }} }}\nmod util {{ pub struct ShutdownSignal; impl ShutdownSignal {{ pub fn new() -> Self {{ Self }} pub async fn wait(&self) {{ {helper} }} }} }}\nfn main() {{ let runtime = tokio::runtime::Builder::new_multi_thread().build(); let root = runtime.block_on(async {{ let root = di::RootModule::new(); root.on_enable(); let signal: ShutdownSignal = ShutdownSignal::new(); signal.wait().await; root }}); root.on_disable(); }}"
+        );
+        let mut context = crate::test::declaration::util::read_code_context(&source);
+        context.project_config.crates[0].role = Some(crate::config::model::Role::EntryPoint);
+        let lines: Vec<Option<u32>> =
+            crate::check::api::Rule::check(&crate::module::rule::MainShape, &context)
+                .iter()
+                .map(|finding| finding.finding.location.line)
+                .collect();
+        assert_eq!(lines, expected, "{helper}");
     }
 }

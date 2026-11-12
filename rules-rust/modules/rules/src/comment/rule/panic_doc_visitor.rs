@@ -166,8 +166,14 @@ impl PanicDocVisitor<'_> {
                     .skip(1)
                     .map(String::as_str)
                     .collect();
+                let is_keyed_collection = tail.first() == Some(&"collections")
+                    && tail
+                        .last()
+                        .is_some_and(|name| ["HashMap", "BTreeMap", "VecDeque"].contains(name));
                 ["std", "alloc"].contains(&identity.package.as_str())
-                    && (tail == ["vec", "Vec"] || tail == ["string", "String"])
+                    && (tail == ["vec", "Vec"]
+                        || tail == ["string", "String"]
+                        || is_keyed_collection)
             })
     }
 

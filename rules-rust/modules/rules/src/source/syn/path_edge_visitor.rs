@@ -2,6 +2,7 @@ use crate::source::model::CfgPredicate;
 use crate::source::model::CrateIndex;
 use crate::source::model::NodeSpan;
 use crate::source::model::Resolution;
+use crate::source::model::SelectPart;
 use crate::source::model::SourceEdge;
 use crate::source::model::SourceReference;
 use crate::source::model::SourceTree;
@@ -9,6 +10,7 @@ use crate::source::model::UnanalysableSite;
 use crate::source::model::UnanalysableSource;
 use crate::source::util::find_node_span;
 use crate::source::util::parse_macro_arguments;
+use crate::source::util::parse_select_parts;
 use std::collections::BTreeSet;
 use syn::ext::IdentExt;
 use syn::spanned::Spanned;
@@ -287,6 +289,24 @@ impl<'a> PathEdgeVisitor<'a> {
         }
     }
 
+    fn visit_select_parts(&mut self, parts: &[SelectPart]) {
+        self.scopes.push(BTreeSet::new());
+        for part in parts {
+            match part {
+                SelectPart::Pattern(pattern) => {
+                    self.bind_pattern(pattern);
+                    self.visit_pat(pattern);
+                }
+                SelectPart::Expression(expression) => self.visit_expr(expression),
+                SelectPart::BranchEnd => {
+                    self.scopes.pop();
+                    self.scopes.push(BTreeSet::new());
+                }
+            }
+        }
+        self.scopes.pop();
+    }
+
     fn visit_quotation(&mut self, expression: &syn::Macro, spanned: bool) {
         self.record_resolution(&expression.path);
         if !spanned {
@@ -491,6 +511,11 @@ impl<'ast> Visit<'ast> for PathEdgeVisitor<'_> {
             {
                 self.visit_expr_match(&expression);
             }
+            return;
+        }
+        let select_parts = parse_select_parts(expression);
+        if !select_parts.is_empty() {
+            self.visit_select_parts(&select_parts);
             return;
         }
         let logging = self.is_logging_macro(&expression.path);

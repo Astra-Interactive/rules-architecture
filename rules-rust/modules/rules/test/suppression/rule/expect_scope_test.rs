@@ -62,6 +62,17 @@ fn given_prescribed_lints_and_architecture_expectations_when_checked_then_keeps_
 }
 
 #[test]
+fn given_expectation_with_a_blank_reason_when_checked_then_reports_the_attribute() {
+    let source = "#[expect(clippy::unwrap_used, reason = \"\")] fn blank() {}\n#[expect(clippy::expect_used, reason = \"   \")] fn spaces() {}\n#[expect(clippy::unwrap_used, reason = \"fixture\")] fn named() {}\n#[cfg_attr(feature = \"case\", expect(clippy::expect_used, reason = \"\"))] fn conditional() {}";
+    let mut lines: Vec<Option<u32>> = check_source_in_role(source, Role::EntryPoint)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect();
+    lines.sort_unstable();
+    assert_eq!(vec![Some(1), Some(2), Some(4)], lines);
+}
+
+#[test]
 fn given_forbidden_syntax_when_checked_then_reports_the_rule() {
     let context = read_case_context("ExpectScope", "fail-syntax");
     assert!(!ExpectScope.check(&context).is_empty());
@@ -101,4 +112,22 @@ fn given_print_stdout_expectation_when_checked_then_only_entry_and_tooling_crate
     assert_eq!(1, findings.len(), "findings: {findings:?}");
     assert_eq!("ExpectScope", findings[0].finding.rule_id.0);
     assert_eq!(Some(1), findings[0].finding.location.line);
+}
+
+#[test]
+fn given_disallowed_methods_expectation_over_a_stdout_write_when_checked_then_only_entry_and_tooling_crates_keep_it()
+ {
+    let source = "#[expect(clippy::disallowed_methods, reason = \"prints the invoice\")]\nfn show(total: u64) {\n    use std::io::Write as _;\n    let _written = writeln!(std::io::stdout(), \"{total}\");\n}\nfn run() {}\n#[expect(clippy::disallowed_methods, reason = \"the owner joins the pump at shutdown\")]\nfn pump() -> std::thread::JoinHandle<()> {\n    std::thread::spawn(run)\n}\n";
+    for role in [Role::EntryPoint, Role::Tooling] {
+        let findings = check_source_in_role(source, role);
+        assert!(
+            findings.is_empty(),
+            "role: {role:?}\nfindings: {findings:?}"
+        );
+    }
+    let lines: Vec<Option<u32>> = check_source_in_role(source, Role::Context)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect();
+    assert_eq!(vec![Some(1)], lines);
 }

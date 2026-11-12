@@ -26,6 +26,9 @@ impl ForbiddenPackageName {
                 "`{name}` is never a package name (arch-package.md, Concepts and kinds 10)"
             ));
         }
+        if name == "prelude" {
+            return Some("`prelude` is never a module name (arch-package.rs.md)".to_owned());
+        }
         if Self::STANDARD_CRATES.contains(&name) {
             return Some(format!(
                 "`{name}` hides the standard crate from the `use` lines of its parent (E0432)"

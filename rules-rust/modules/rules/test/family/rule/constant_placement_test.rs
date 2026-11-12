@@ -57,6 +57,76 @@ fn given_constant_holder_in_its_own_file_when_checked_then_reports_the_holder_of
 }
 
 #[test]
+fn given_constant_only_file_beside_its_owner_type_when_checked_then_reports_the_file() {
+    let context = read_placement_context(&[
+        (
+            "src/lib.rs",
+            "pub(crate) mod feature_flag { pub(crate) mod di { pub(crate) use feature_flag_module::FeatureFlagModule; mod feature_flag_module; mod feature_flag_module_defaults; mod limits; mod parse_flag; } }",
+        ),
+        (
+            "src/feature_flag/di/feature_flag_module.rs",
+            "pub(crate) struct FeatureFlagModule { interval: u64 }\nimpl FeatureFlagModule { pub(crate) fn new() -> Self { Self { interval: super::feature_flag_module_defaults::RELOAD_SECONDS } } }",
+        ),
+        (
+            "src/feature_flag/di/feature_flag_module_defaults.rs",
+            "pub(crate) const RELOAD_SECONDS: u64 = 60;\n",
+        ),
+        (
+            "src/feature_flag/di/limits.rs",
+            "pub(crate) const MAX_FLAGS: usize = 64;\n",
+        ),
+        (
+            "src/feature_flag/di/parse_flag.rs",
+            "pub(crate) fn parse_flag(raw: &str) -> bool { raw == \"on\" && super::limits::MAX_FLAGS > 0 }",
+        ),
+    ]);
+    assert_placement_findings(
+        &ConstantPlacement,
+        "ConstantOutsideImpl",
+        &context,
+        &[(
+            "src/feature_flag/di/feature_flag_module_defaults.rs",
+            1,
+            "Node",
+        )],
+    );
+}
+
+#[test]
+fn given_constant_only_file_whose_name_starts_with_a_type_file_name_when_checked_then_reports_it_only_on_a_word_boundary()
+ {
+    let context = read_placement_context(&[
+        (
+            "src/lib.rs",
+            "pub(crate) mod endpoint { pub(crate) mod model { pub(crate) use port::Port; mod port; mod portal_paths; } }",
+        ),
+        ("src/endpoint/model/port.rs", "pub(crate) struct Port;\n"),
+        (
+            "src/endpoint/model/portal_paths.rs",
+            "pub(crate) const ROOT: &str = \"/portal\";\n",
+        ),
+    ]);
+    assert_placement_findings(&ConstantPlacement, "ConstantOutsideImpl", &context, &[]);
+    let context = read_placement_context(&[
+        (
+            "src/lib.rs",
+            "pub(crate) mod endpoint { pub(crate) mod model { pub(crate) use port::Port; mod port; mod port_limits; } }",
+        ),
+        ("src/endpoint/model/port.rs", "pub(crate) struct Port;\n"),
+        (
+            "src/endpoint/model/port_limits.rs",
+            "pub(crate) const MAX_PORT: u16 = 65535;\n",
+        ),
+    ]);
+    assert_placement_findings(
+        &ConstantPlacement,
+        "ConstantOutsideImpl",
+        &context,
+        &[("src/endpoint/model/port_limits.rs", 1, "Node")],
+    );
+}
+
+#[test]
 fn given_forbidden_syntax_when_checked_then_reports_the_rule() {
     let context = read_case_context("ConstantOutsideImpl", "fail-syntax");
     assert!(!ConstantPlacement.check(&context).is_empty());

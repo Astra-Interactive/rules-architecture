@@ -5,6 +5,22 @@ use crate::test::declaration::util::{assert_code_findings, read_code_context};
 use crate::workspace::model::{Dependency, DependencyKind};
 
 #[test]
+fn given_registration_guard_dropped_by_a_statement_when_checked_then_reports_each_discard() {
+    assert_code_findings(
+        &CallbackBridgeShape,
+        "CallbackBridgeShape",
+        "struct Guard; impl Drop for Guard { fn drop(&mut self) {} } impl Guard { fn register() -> Self { Self } fn id(&self) -> u32 { 1 } }\nfn run() { Guard::register(); }\nfn assign() { _ = Guard::register(); }\nfn keep() { let registration = Guard::register(); drop(registration); }\nfn nested() { Guard::register().id(); }",
+        &[2, 3],
+    );
+    assert_code_findings(
+        &CallbackBridgeShape,
+        "CallbackBridgeShape",
+        "struct Guard; impl Drop for Guard { fn drop(&mut self) {} } impl Guard { fn register() -> u32 { 1 } }\nfn run() { Guard::register(); }",
+        &[],
+    );
+}
+
+#[test]
 fn given_temporarily_stored_callable_when_consumed_synchronously_then_is_not_a_registration() {
     assert_code_findings(
         &CallbackBridgeShape,

@@ -5,8 +5,9 @@ use crate::declaration::rule::ErrorFamilyShape;
 use crate::declaration::util::derives;
 use crate::module::rule::PlacementTypeVisitor;
 use crate::module::util::{build_shape_item_finding, find_kind_name};
-use crate::source::model::IndexedItem;
+use crate::source::model::CfgPredicate;
 use crate::source::model::WorkspaceResolvedPath;
+use std::collections::HashSet;
 
 pub(crate) struct ErrorPlacement;
 
@@ -31,10 +32,84 @@ impl ErrorPlacement {
         }
     }
 
+    pub(crate) fn find_result_error(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        output: &syn::ReturnType,
+    ) -> Option<syn::Type> {
+        let syn::ReturnType::Type(_, typed) = output else {
+            return None;
+        };
+        let syn::Type::Path(path) = typed.as_ref() else {
+            return None;
+        };
+        let is_result = context
+            .canonical_external_type_path(ordinal, module, &path.path)
+            .is_some_and(|identity| {
+                ["std", "core"].contains(&identity.package.as_str())
+                    && identity
+                        .segments
+                        .last()
+                        .is_some_and(|name| name == "Result")
+            });
+        let syn::PathArguments::AngleBracketed(arguments) = &path.path.segments.last()?.arguments
+        else {
+            return None;
+        };
+        let error = arguments.args.iter().nth(1)?;
+        match error {
+            syn::GenericArgument::Type(error) if is_result => Some(error.clone()),
+            _ => None,
+        }
+    }
+
+    fn collect_signature_errors(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        output: &syn::ReturnType,
+        errors: &mut HashSet<usize>,
+    ) {
+        let Some(error) = Self::find_result_error(context, ordinal, module, output) else {
+            return;
+        };
+        let items = &context.indexes[ordinal].items;
+        errors.extend(
+            context
+                .resolve_workspace_type(ordinal, module, &error)
+                .iter()
+                .filter(|target| target.index == ordinal)
+                .filter_map(|target| target.path.item)
+                .filter(|identity| matches!(items[*identity].syntax, syn::Item::Enum(_))),
+        );
+    }
+
+    fn collect_result_errors(context: &RuleContext, ordinal: usize) -> HashSet<usize> {
+        let index = &context.indexes[ordinal];
+        let mut errors = HashSet::new();
+        for item in &index.items {
+            if let syn::Item::Fn(function) = &item.syntax {
+                let output = &function.sig.output;
+                Self::collect_signature_errors(context, ordinal, item.module, output, &mut errors);
+            }
+        }
+        for implementation in &index.implementations {
+            for member in &implementation.syntax.items {
+                if let syn::ImplItem::Fn(method) = member {
+                    let module = implementation.module;
+                    let output = &method.sig.output;
+                    Self::collect_signature_errors(context, ordinal, module, output, &mut errors);
+                }
+            }
+        }
+        errors
+    }
+
     fn check_route_target(
         context: &RuleContext,
         ordinal: usize,
-        item: &IndexedItem,
+        cfg: &CfgPredicate,
         target: &WorkspaceResolvedPath,
     ) -> Option<RuleFinding> {
         let identity = target.path.item?;
@@ -44,7 +119,7 @@ impl ErrorPlacement {
             || !Self::is_error(context, target.index, identity)
             || !target_item
                 .cfg
-                .and(&item.cfg)
+                .and(cfg)
                 .and(&target.path.cfg)
                 .is_satisfiable()
         {
@@ -93,6 +168,22 @@ impl ErrorPlacement {
             .collect()
     }
 
+    fn check_route_output(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        cfg: &CfgPredicate,
+        output: &syn::ReturnType,
+    ) -> Vec<RuleFinding> {
+        let syn::ReturnType::Type(_, result) = output else {
+            return Vec::new();
+        };
+        Self::route_type_targets(context, ordinal, module, result, 0)
+            .iter()
+            .filter_map(|target| Self::check_route_target(context, ordinal, cfg, target))
+            .collect()
+    }
+
     fn route_errors(context: &RuleContext, ordinal: usize) -> Vec<RuleFinding> {
         let index = &context.indexes[ordinal];
         if context
@@ -108,18 +199,34 @@ impl ErrorPlacement {
             .iter()
             .filter(|item| find_kind_name(context, ordinal, item.module) == "route")
         {
-            let syn::Item::Fn(function) = &item.syntax else {
-                continue;
-            };
-            let syn::ReturnType::Type(_, result) = &function.sig.output else {
-                continue;
-            };
-            let targets = Self::route_type_targets(context, ordinal, item.module, result, 0);
-            findings.extend(
-                targets
-                    .iter()
-                    .filter_map(|target| Self::check_route_target(context, ordinal, item, target)),
-            );
+            if let syn::Item::Fn(function) = &item.syntax {
+                let output = &function.sig.output;
+                findings.extend(Self::check_route_output(
+                    context,
+                    ordinal,
+                    item.module,
+                    &item.cfg,
+                    output,
+                ));
+            }
+        }
+        for implementation in index.implementations.iter().filter(|implementation| {
+            implementation.syntax.trait_.is_none()
+                && find_kind_name(context, ordinal, implementation.module) == "route"
+        }) {
+            for member in &implementation.syntax.items {
+                if let syn::ImplItem::Fn(method) = member {
+                    let module = implementation.module;
+                    let output = &method.sig.output;
+                    findings.extend(Self::check_route_output(
+                        context,
+                        ordinal,
+                        module,
+                        &implementation.cfg,
+                        output,
+                    ));
+                }
+            }
         }
         findings
     }
@@ -129,13 +236,15 @@ impl Rule for ErrorPlacement {
     fn check(&self, context: &RuleContext) -> Vec<RuleFinding> {
         let mut findings = Vec::new();
         for (ordinal, index) in context.indexes.iter().enumerate() {
+            let result_errors = Self::collect_result_errors(context, ordinal);
             findings.extend(
                 index
                     .items
                     .iter()
                     .enumerate()
                     .filter(|(identity, item)| {
-                        Self::is_error(context, ordinal, *identity)
+                        (Self::is_error(context, ordinal, *identity)
+                            || result_errors.contains(identity))
                             && find_kind_name(context, ordinal, item.module) != "model"
                     })
                     .map(|(_, item)| {

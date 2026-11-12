@@ -316,6 +316,11 @@ impl<'context> ModelMutationVisitor<'context> {
                 .iter()
                 .any(|target| self.is_model(target)),
             syn::Expr::Index(index) => self.model_place(&index.expr),
+            syn::Expr::MethodCall(call)
+                if Self::MUTABLE_ACCESSORS.contains(&call.method.to_string().as_str()) =>
+            {
+                self.model_place(&call.receiver)
+            }
             syn::Expr::Reference(reference) => self.model_place(&reference.expr),
             syn::Expr::Paren(paren) => self.model_place(&paren.expr),
             syn::Expr::Unary(unary) => match unary.expr.as_ref() {
@@ -373,17 +378,80 @@ impl<'context> ModelMutationVisitor<'context> {
         ));
     }
 
+    fn is_option_type(typed: &syn::Type) -> bool {
+        match typed {
+            syn::Type::Paren(paren) => Self::is_option_type(&paren.elem),
+            syn::Type::Group(group) => Self::is_option_type(&group.elem),
+            syn::Type::Path(path) => path
+                .path
+                .segments
+                .last()
+                .is_some_and(|segment| segment.ident == "Option"),
+            _ => false,
+        }
+    }
+
+    fn has_option_field(&self, field: &syn::ExprField) -> bool {
+        self.targets(&field.base).iter().any(|owner| {
+            let Some(identity) = owner.path.item else {
+                return false;
+            };
+            let item = &self.context.indexes[owner.index].items[identity];
+            let syn::Item::Struct(structure) = &item.syntax else {
+                return false;
+            };
+            Self::find_field(structure, &field.member)
+                .is_some_and(|declared| Self::is_option_type(&declared.ty))
+        })
+    }
+
     fn report_collection_mutation(&mut self, call: &syn::ExprMethodCall) {
         let Some(field) = Self::collection_field(&call.receiver) else {
             return;
         };
-        if Self::COLLECTION_MUTATORS.contains(&call.method.to_string().as_str())
-            && self
-                .targets(&field.base)
-                .iter()
-                .any(|target| self.is_model(target))
-            && self.has_collection_field(field)
-        {
+        let method = call.method.to_string();
+        let is_model_field = self
+            .targets(&field.base)
+            .iter()
+            .any(|target| self.is_model(target));
+        let is_collection_write = Self::COLLECTION_MUTATORS.contains(&method.as_str())
+            && self.has_collection_field(field);
+        let is_option_write =
+            Self::OPTION_MUTATORS.contains(&method.as_str()) && self.has_option_field(field);
+        if is_model_field && (is_collection_write || is_option_write) {
+            self.push_finding(call.span());
+        }
+    }
+
+    fn is_memory_exchange(&self, callee: &syn::Expr) -> bool {
+        let syn::Expr::Path(path) = callee else {
+            return false;
+        };
+        let crate::source::model::Resolution::External(resolved) =
+            self.context.indexes[self.ordinal].resolve_path(self.module, &path.path)
+        else {
+            return false;
+        };
+        [
+            "std::mem::replace",
+            "std::mem::swap",
+            "std::mem::take",
+            "core::mem::replace",
+            "core::mem::swap",
+            "core::mem::take",
+        ]
+        .contains(&resolved.as_str())
+    }
+
+    fn report_memory_exchange(&mut self, call: &syn::ExprCall) {
+        if !self.is_memory_exchange(&call.func) {
+            return;
+        }
+        let writes_model = call.args.iter().any(|argument| {
+            matches!(argument, syn::Expr::Reference(reference)
+                if reference.mutability.is_some() && self.model_place(&reference.expr))
+        });
+        if writes_model {
             self.push_finding(call.span());
         }
     }
@@ -430,6 +498,26 @@ impl<'context> ModelMutationVisitor<'context> {
         "split_off",
     ];
 
+    const OPTION_MUTATORS: &'static [&'static str] = &[
+        "take",
+        "replace",
+        "insert",
+        "get_or_insert",
+        "get_or_insert_with",
+    ];
+
+    const MUTABLE_ACCESSORS: &'static [&'static str] = &[
+        "get_mut",
+        "iter_mut",
+        "first_mut",
+        "last_mut",
+        "values_mut",
+        "as_mut",
+        "as_deref_mut",
+        "unwrap",
+        "expect",
+    ];
+
     const ELEMENT_ITERATORS: &'static [&'static str] = &[
         "iter",
         "iter_mut",
@@ -451,6 +539,11 @@ impl<'ast> Visit<'ast> for ModelMutationVisitor<'_> {
             self.arguments_of(&expression.expr).concat(),
             Vec::new(),
         );
+        if let syn::Pat::Ident(binding) = expression.pat.as_ref()
+            && self.model_place(&expression.expr)
+        {
+            self.model_places.insert(binding.ident.to_string());
+        }
         self.visit_block(&expression.body);
         self.bindings = bindings;
         self.arguments = arguments;
@@ -532,6 +625,11 @@ impl<'ast> Visit<'ast> for ModelMutationVisitor<'_> {
     fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
         self.report_collection_mutation(call);
         syn::visit::visit_expr_method_call(self, call);
+    }
+
+    fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+        self.report_memory_exchange(call);
+        syn::visit::visit_expr_call(self, call);
     }
 
     fn visit_expr_assign(&mut self, expression: &'ast syn::ExprAssign) {

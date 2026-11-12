@@ -107,6 +107,107 @@ fn given_nested_script_that_builds_the_workspace_when_checked_then_only_that_scr
 }
 
 #[test]
+fn given_nested_script_running_cargo_after_a_shell_keyword_when_checked_then_that_script_is_reported()
+ {
+    let root = tempfile::tempdir().expect("workspace directory");
+    write_file(
+        root.path(),
+        "Cargo.toml",
+        "[workspace]\nresolver = \"3\"\nmembers = [\"modules/sample\"]\n",
+    );
+    write_file(
+        root.path(),
+        "modules/sample/Cargo.toml",
+        "[package]\nname = \"case-sample\"\nedition = \"2024\"\n",
+    );
+    write_file(root.path(), "modules/sample/src/lib.rs", "");
+    write_file(
+        root.path(),
+        "scripts/build.sh",
+        "#!/bin/sh\nif [ -d target ]; then cargo build --workspace; fi\n",
+    );
+    write_file(
+        root.path(),
+        "scripts/serve.sh",
+        "#!/bin/sh\nif [ -x server ]; then ./server; fi\n",
+    );
+    let mut context = read_case_context("RootFileShape", "pass-tree");
+    context.workspace = CargoWorkspaceReader::new(resolve_cargo_path())
+        .read_workspace(root.path())
+        .expect("Cargo-valid workspace");
+    let subjects: Vec<String> = ShellAutomation
+        .check(&context)
+        .into_iter()
+        .map(|finding| finding.finding.subject)
+        .collect();
+    assert_eq!(subjects, ["scripts/build.sh"]);
+}
+
+#[test]
+fn given_dotted_shell_script_at_the_root_when_checked_then_its_shebang_reports_it() {
+    let root = tempfile::tempdir().expect("workspace directory");
+    write_file(
+        root.path(),
+        "Cargo.toml",
+        "[workspace]\nresolver = \"3\"\nmembers = [\"modules/sample\"]\n",
+    );
+    write_file(
+        root.path(),
+        "modules/sample/Cargo.toml",
+        "[package]\nname = \"case-sample\"\nedition = \"2024\"\n",
+    );
+    write_file(root.path(), "modules/sample/src/lib.rs", "");
+    write_file(root.path(), "README.md", "# Shop\n");
+    write_file(root.path(), "notes.txt", "#! not a shell\n");
+    let mut context = read_case_context("RootFileShape", "pass-tree");
+    context.workspace = CargoWorkspaceReader::new(resolve_cargo_path())
+        .read_workspace(root.path())
+        .expect("Cargo-valid workspace");
+    assert!(ShellAutomation.check(&context).is_empty());
+    write_file(root.path(), "bootstrap.local", "#!/bin/sh\ncargo build\n");
+    context.workspace = CargoWorkspaceReader::new(resolve_cargo_path())
+        .read_workspace(root.path())
+        .expect("Cargo-valid workspace");
+    let subjects: Vec<String> = ShellAutomation
+        .check(&context)
+        .into_iter()
+        .map(|finding| finding.finding.subject)
+        .collect();
+    assert_eq!(subjects, ["bootstrap.local"]);
+}
+
+#[test]
+fn given_task_runner_manifests_at_the_root_when_checked_then_each_is_reported() {
+    let mut context = read_case_context("RootFileShape", "pass-tree");
+    context.workspace.files = [
+        "Makefile.toml",
+        "Taskfile.yml",
+        "Taskfile.yaml",
+        ".justfile",
+        ".Justfile",
+        "rustfmt.toml",
+        "README.md",
+    ]
+    .map(str::to_owned)
+    .to_vec();
+    let subjects: Vec<String> = ShellAutomation
+        .check(&context)
+        .into_iter()
+        .map(|finding| finding.finding.subject)
+        .collect();
+    assert_eq!(
+        subjects,
+        [
+            "Makefile.toml",
+            "Taskfile.yml",
+            "Taskfile.yaml",
+            ".justfile",
+            ".Justfile"
+        ]
+    );
+}
+
+#[test]
 fn given_other_script_spellings_at_the_root_when_checked_then_each_is_reported() {
     let mut context = read_case_context("RootFileShape", "pass-tree");
     context.workspace.files = ["release.bash", "build.ps1", "GNUmakefile", "README.md"]

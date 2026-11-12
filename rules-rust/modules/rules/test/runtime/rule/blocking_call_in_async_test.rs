@@ -4,6 +4,16 @@ use crate::test::declaration::util::assert_code_fixture;
 use crate::test::declaration::util::{assert_code_findings, read_code_context};
 
 #[test]
+fn given_blocking_network_and_process_calls_when_async_then_reports_each_call() {
+    assert_code_findings(
+        &BlockingCallInAsync,
+        "BlockingCallInAsync",
+        "use std::io::Read;\nasync fn fetch(mut stream: std::net::TcpStream, mut command: std::process::Command) -> std::io::Result<()> {\n    let mut text = String::new();\n    stream.read_to_string(&mut text)?;\n    let _ = command.output()?;\n    let _ = std::net::TcpStream::connect(\"127.0.0.1:80\")?;\n    tokio::task::spawn_blocking(move || command.status()).await;\n    Ok(())\n}\nstruct Shell;\nimpl Shell { fn output(&self) -> u32 { 1 } }\nasync fn custom(shell: Shell) { shell.output(); }",
+        &[4, 5, 6],
+    );
+}
+
+#[test]
 fn given_typed_standard_channels_when_checked_then_respects_async_and_nested_sync_contexts() {
     assert_code_findings(
         &BlockingCallInAsync,

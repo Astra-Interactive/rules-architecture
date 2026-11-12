@@ -11,7 +11,7 @@ use crate::source::util::list_derive_paths;
 pub(crate) struct EventPlacement;
 
 impl EventPlacement {
-    fn is_foreign_path(path: &str) -> bool {
+    pub(crate) fn is_foreign_path(path: &str) -> bool {
         path.split_once("::")
             .is_some_and(|(package, _)| !["std", "core", "alloc"].contains(&package))
     }
@@ -21,9 +21,19 @@ impl EventPlacement {
         context.is_platform_identity(&identity)
     }
 
-    fn is_host_derive_path(context: &RuleContext, ordinal: usize, path: &str) -> bool {
+    pub(crate) fn is_workspace_path(context: &RuleContext, ordinal: usize, path: &str) -> bool {
+        let identity = context.resolve_external_identity(ordinal, path);
+        let package = identity.package.replace('-', "_");
+        context
+            .workspace
+            .members
+            .iter()
+            .any(|member| member.name.replace('-', "_") == package)
+    }
+
+    pub(crate) fn is_host_mark_path(context: &RuleContext, ordinal: usize, path: &str) -> bool {
         if context.project_config.platform_words.is_empty() {
-            return Self::is_foreign_path(path);
+            return Self::is_foreign_path(path) && !Self::is_workspace_path(context, ordinal, path);
         }
         Self::is_host_path(context, ordinal, path)
     }
@@ -33,7 +43,11 @@ impl EventPlacement {
             || Self::is_host_path(context, ordinal, path)
     }
 
-    fn has_host_derive(context: &RuleContext, ordinal: usize, item: &IndexedItem) -> bool {
+    pub(crate) fn has_host_derive(
+        context: &RuleContext,
+        ordinal: usize,
+        item: &IndexedItem,
+    ) -> bool {
         let index = &context.indexes[ordinal];
         let attributes = match &item.syntax {
             syn::Item::Struct(value) => &value.attrs,
@@ -43,7 +57,7 @@ impl EventPlacement {
         };
         list_derive_paths(attributes).iter().any(|path| {
             match index.resolve_path(item.module, path) {
-                Resolution::External(path) => Self::is_host_derive_path(context, ordinal, &path),
+                Resolution::External(path) => Self::is_host_mark_path(context, ordinal, &path),
                 _ => false,
             }
         })

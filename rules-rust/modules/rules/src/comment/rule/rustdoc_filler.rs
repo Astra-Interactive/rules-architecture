@@ -33,7 +33,9 @@ impl RustdocFiller {
     }
 
     const FILLER_PREDICATES: [&str; 3] = ["is responsible for", "allows you to", "is intended for"];
-    const ITEM_KINDS: [&str; 6] = ["function", "method", "struct", "enum", "trait", "type"];
+    const ITEM_KINDS: [&str; 8] = [
+        "function", "method", "struct", "enum", "trait", "type", "module", "crate",
+    ];
     const RESULT_PHRASES: [&str; 2] = [
         "returns the result of the operation",
         "returns the returned value",

@@ -116,6 +116,78 @@ fn given_crate_visible_field_read_only_in_its_owner_file_when_checked_then_the_f
 }
 
 #[test]
+fn given_crate_visible_tuple_field_read_only_in_its_owner_file_when_checked_then_the_field_is_reported()
+ {
+    let root = "mod counter { pub(crate) use value::Counter; mod value; }\nmod report { pub(crate) use total::read_total; mod total; }\nfn run() -> u64 { report::read_total() }";
+    let counter = "pub(crate) struct Counter(\n    pub(crate) u64,\n    pub(crate) u64,\n);\nimpl Counter {\n    pub(crate) fn new() -> Self { Self(0, 1) }\n    pub(crate) fn read(&self) -> u64 { self.0 }\n}";
+    let total = "use crate::counter::Counter;\npub(crate) fn read_total() -> u64 { Counter::new().read() + Counter::new().1 }";
+    let context = read_private_placement_context(&[
+        ("src/lib.rs", root),
+        ("src/counter/value.rs", counter),
+        ("src/report/total.rs", total),
+    ]);
+    assert_placement_findings(
+        &VisibilityTier,
+        "VisibilityTier",
+        &context,
+        &[("src/counter/value.rs", 2, "Node")],
+    );
+}
+
+#[test]
+fn given_public_fields_of_crate_visible_structs_when_checked_then_reports_only_those_fields() {
+    let source = "pub struct Open {\n    pub total: u64,\n}\npub(crate) struct Root {\n    pub value: u64,\n    pub(crate) step: u64,\n}\npub(crate) struct Pair(\n    pub u64,\n    pub(crate) u64,\n);";
+    let context = read_published_placement_context(&[("src/lib.rs", source)]);
+    assert_placement_findings(
+        &VisibilityTier,
+        "VisibilityTier",
+        &context,
+        &[("src/lib.rs", 5, "Node"), ("src/lib.rs", 9, "Node")],
+    );
+}
+
+#[test]
+fn given_public_fields_of_used_crate_visible_structs_in_an_unpublished_crate_when_checked_then_reports_only_those_fields()
+ {
+    let root = "mod shape {\n    pub(crate) use model::Pair;\n    pub(crate) use model::Root;\n    mod model;\n}\nmod report { pub(crate) use total::read_total; mod total; }\nfn run() -> u64 { report::read_total() }";
+    let model = "pub(crate) struct Root {\n    pub value: u32,\n    pub(crate) step: u32,\n}\npub(crate) struct Pair(\n    pub u64,\n    pub(crate) u64,\n);";
+    let total = "use crate::shape::Pair;\nuse crate::shape::Root;\npub(crate) fn read_total() -> u64 {\n    let root = Root { value: 1, step: 2 };\n    let pair = Pair(3, 4);\n    u64::from(root.step) + pair.1\n}";
+    let context = read_private_placement_context(&[
+        ("src/lib.rs", root),
+        ("src/shape/model.rs", model),
+        ("src/report/total.rs", total),
+    ]);
+    assert_placement_findings(
+        &VisibilityTier,
+        "VisibilityTier",
+        &context,
+        &[
+            ("src/shape/model.rs", 2, "Node"),
+            ("src/shape/model.rs", 6, "Node"),
+        ],
+    );
+}
+
+#[test]
+fn given_crate_visible_tuple_fields_built_through_type_alias_or_renamed_import_when_checked_then_reports_only_the_unused_field()
+ {
+    let root = "mod shop {\n    pub(crate) use tally::AliasedTally;\n    pub(crate) use tally::RenamedTally;\n    pub(crate) use tally::UnusedTally;\n    mod tally;\n}\nmod report { pub(crate) use total::read_total; mod total; }\nfn run(unused: &shop::UnusedTally) -> usize { report::read_total(unused) }";
+    let tally = "pub(crate) struct AliasedTally(pub(crate) u64);\npub(crate) struct RenamedTally(pub(crate) u64);\npub(crate) struct UnusedTally(pub(crate) u64);";
+    let total = "use crate::shop::RenamedTally as Renamed;\nuse crate::shop::{AliasedTally, UnusedTally};\ntype Tally = AliasedTally;\npub(crate) fn read_total(unused: &UnusedTally) -> usize {\n    let _renamed = Renamed(2);\n    let _aliased = Tally(1);\n    0\n}";
+    let context = read_private_placement_context(&[
+        ("src/lib.rs", root),
+        ("src/shop/tally.rs", tally),
+        ("src/report/total.rs", total),
+    ]);
+    assert_placement_findings(
+        &VisibilityTier,
+        "VisibilityTier",
+        &context,
+        &[("src/shop/tally.rs", 3, "Node")],
+    );
+}
+
+#[test]
 fn given_path_restricted_visibility_on_item_and_re_export_when_checked_then_the_item_is_reported() {
     let root = "mod invoice {\n    mod file {\n        pub(in crate::invoice) use file_invoice_repository::FileInvoiceRepository;\n        mod file_invoice_repository;\n    }\n    mod di {\n        pub(crate) use invoice_module::InvoiceModule;\n        mod invoice_module;\n    }\n}\nfn run(module: invoice::di::InvoiceModule) {}";
     let repository =
@@ -184,6 +256,77 @@ fn given_public_tuple_fields_no_other_crate_reads_when_checked_then_reports_each
             ("shop_billing_api/src/lib.rs", 3, "Node"),
             ("shop_billing_api/src/lib.rs", 5, "Node"),
         ],
+    );
+}
+
+#[test]
+fn given_public_tuple_fields_built_through_type_alias_or_renamed_import_when_checked_then_reports_only_the_unused_field()
+ {
+    let billing = "pub struct AliasedTotal(pub u64);\npub struct RenamedCount(pub u64);\npub struct UnusedLabel(pub u64);";
+    let ledger = "use shop_billing_api::RenamedCount as Renamed;\ntype Total = shop_billing_api::AliasedTotal;\nfn show(label: &shop_billing_api::UnusedLabel, count: &shop_billing_api::RenamedCount) -> Total {\n    let renamed = Renamed(2);\n    Total(1)\n}";
+    let context = crate::test::module::util::read_workspace_shape_context(&[
+        ("shop_billing_api", "", billing),
+        (
+            "shop_ledger",
+            "shop_billing_api={path=\"../shop_billing_api\"}",
+            ledger,
+        ),
+    ]);
+    assert_placement_findings(
+        &VisibilityTier,
+        "VisibilityTier",
+        &context,
+        &[("shop_billing_api/src/lib.rs", 3, "Node")],
+    );
+}
+
+#[test]
+fn given_workspace_item_named_only_in_a_select_handler_when_checked_then_the_handler_counts_as_its_user()
+ {
+    let worker = "async fn watch(mut tick: tokio::sync::mpsc::Receiver<u32>) {\n    tokio::select! {\n        value = tick.recv() => {\n            drop(value);\n            drop(crate::ticker::Ticker);\n        }\n    }\n}";
+    let context = read_private_placement_context(&[
+        ("src/lib.rs", "mod lonely;\nmod ticker;\nmod worker;"),
+        ("src/lonely.rs", "pub(crate) struct Lonely;"),
+        ("src/ticker.rs", "pub(crate) struct Ticker;"),
+        ("src/worker.rs", worker),
+    ]);
+    assert_placement_findings(
+        &VisibilityTier,
+        "VisibilityTier",
+        &context,
+        &[("src/lonely.rs", 1, "Node")],
+    );
+}
+
+#[test]
+fn given_select_branch_binding_a_module_name_when_another_branch_uses_it_then_the_item_is_used() {
+    let root = "mod lonely;\nmod ticker;\nasync fn watch(mut inbox: tokio::sync::mpsc::Receiver<u32>, mut stop: tokio::sync::mpsc::Receiver<u32>) {\n    tokio::select! {\n        ticker = inbox.recv() => {\n            drop(ticker);\n        }\n        stopped = stop.recv() => {\n            drop(stopped);\n            drop(ticker::Ticker);\n        }\n    }\n}";
+    let context = read_private_placement_context(&[
+        ("src/lib.rs", root),
+        ("src/lonely.rs", "pub(crate) struct Lonely;"),
+        ("src/ticker.rs", "pub(crate) struct Ticker;"),
+    ]);
+    assert_placement_findings(
+        &VisibilityTier,
+        "VisibilityTier",
+        &context,
+        &[("src/lonely.rs", 1, "Node")],
+    );
+}
+
+#[test]
+fn given_select_pattern_binding_a_module_name_when_its_own_future_uses_it_then_the_item_is_used() {
+    let root = "mod lonely;\nmod ticker;\nasync fn watch() {\n    tokio::select! {\n        ticker = ticker::next() => {}\n    }\n}";
+    let context = read_private_placement_context(&[
+        ("src/lib.rs", root),
+        ("src/lonely.rs", "pub(crate) struct Lonely;"),
+        ("src/ticker.rs", "pub(crate) async fn next() {}"),
+    ]);
+    assert_placement_findings(
+        &VisibilityTier,
+        "VisibilityTier",
+        &context,
+        &[("src/lonely.rs", 1, "Node")],
     );
 }
 

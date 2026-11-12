@@ -113,7 +113,7 @@ fn given_forbidden_code_when_checked_then_reports_exact_node_lines() {
         &ContractShape,
         "ContractShape",
         "mod api {\n    trait Missing {}\n    trait Generic<T>: Send + Sync {}\n    trait Other: Send + Sync + Clone {}\n    trait Async: Send + Sync { async fn load(&self); }\n}\nstruct Gateway;\nimpl api::Async for Gateway { async fn load(&self) {} }",
-        &[2, 3, 4, 5, 8],
+        &[2, 4, 5, 8],
     );
 }
 
@@ -191,6 +191,16 @@ fn given_contract_returning_a_broadcast_or_mpsc_receiver_when_checked_then_only_
 }
 
 #[test]
+fn given_contract_returning_a_std_or_futures_channel_receiver_when_checked_then_the_trait_reports()
+{
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ContractShape,
+        "mod api { use std::sync::mpsc;\ntrait Feed: Send + Sync { fn drain(&self) -> mpsc::Receiver<u64>; }\ntrait Queue: Send + Sync { fn drain(&self) -> futures::channel::mpsc::Receiver<u64>; }\ntrait Bulk: Send + Sync { fn drain(&self) -> futures::channel::mpsc::UnboundedReceiver<u64>; }\ntrait Level: Send + Sync { fn level(&self) -> tokio::sync::watch::Receiver<u64>; }\n}",
+        &[2, 3, 4],
+    );
+}
+
+#[test]
 fn given_contract_method_returning_a_non_static_boxstream_under_any_name_when_checked_then_the_trait_reports()
  {
     crate::test::module::util::assert_di_lines(
@@ -215,5 +225,45 @@ fn given_contract_method_taking_a_channel_sender_when_checked_then_reports_all_b
         &crate::declaration::rule::ContractShape,
         "mod api { use tokio::sync::mpsc;\ntrait Timer: Send + Sync { fn subscribe(&self, sink: tokio::sync::mpsc::Sender<u64>); }\ntrait Feed: Send + Sync { fn subscribe(&self, sink: tokio::sync::broadcast::Sender<u64>); }\ntrait Queue: Send + Sync { fn subscribe(&self, sink: mpsc::UnboundedSender<u64>); }\ntrait Ack: Send + Sync { fn confirm(&self, answer: tokio::sync::oneshot::Sender<u64>); }\ntrait Level: Send + Sync { fn level(&self) -> tokio::sync::watch::Receiver<u64>; }\n}",
         &[2, 3, 4],
+    );
+}
+
+#[test]
+fn given_contract_method_returning_a_boxed_pinned_or_opaque_future_when_checked_then_the_trait_reports()
+ {
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ContractShape,
+        "mod api {\n#[async_trait::async_trait] trait Reader: Send + Sync { async fn load(&self) -> u32; fn count(&self) -> u32; }\ntrait Boxed: Send + Sync { fn load(&self) -> futures::future::BoxFuture<'static, u32>; }\ntrait Pinned: Send + Sync { fn load(&self) -> std::pin::Pin<Box<dyn std::future::Future<Output = u32> + Send>>; }\ntrait Opaque: Send + Sync { fn load(&self) -> impl std::future::Future<Output = u32> + Send; }\n}",
+        &[3, 4, 5],
+    );
+}
+
+#[test]
+fn given_contract_method_returning_a_tokio_stream_wrapper_when_checked_then_boxstream_passes_under_any_name()
+ {
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ContractShape,
+        "mod api {\ntrait Bus: Send + Sync { fn events(&self) -> futures::stream::BoxStream<'static, u64>; }\ntrait Feed: Send + Sync { fn changes(&self) -> tokio_stream::wrappers::BroadcastStream<u64>; }\ntrait Queue: Send + Sync { fn items(&self) -> tokio_stream::wrappers::ReceiverStream<u64>; }\ntrait Ticker: Send + Sync { fn changes(&self) -> futures::stream::BoxStream<'static, u64>; }\n}",
+        &[3, 4],
+    );
+}
+
+#[test]
+fn given_generic_and_where_clause_api_traits_when_checked_then_only_missing_supertraits_report() {
+    assert_code_findings(
+        &ContractShape,
+        "ContractShape",
+        "mod api {\ntrait Generic<T>: Send + Sync {}\ntrait Bounded<T> where T: Send {}\ntrait Other: Send + Sync + Clone {}\n}",
+        &[3, 4],
+    );
+}
+
+#[test]
+fn given_static_lifetime_supertrait_when_checked_then_only_the_clone_bound_reports() {
+    assert_code_findings(
+        &ContractShape,
+        "ContractShape",
+        "mod api {\ntrait Reader: Send + Sync + 'static {}\ntrait Other: Send + Sync + Clone {}\n}",
+        &[3],
     );
 }

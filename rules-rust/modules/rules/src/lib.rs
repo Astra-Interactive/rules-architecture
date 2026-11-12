@@ -540,6 +540,7 @@ pub(crate) mod dependency {
         pub(crate) use api_unit_platform_dependency::ApiUnitPlatformDependency;
         pub(crate) use dependency_floor::DependencyFloor;
         pub(crate) use entry_point_dependency::EntryPointDependency;
+        pub(crate) use platform_dependency_table::PlatformDependencyTable;
         pub(crate) use technology_dependency::TechnologyDependency;
         pub(crate) use time_crate::TimeCrate;
         pub(crate) use unit_dependency::UnitDependency;
@@ -548,6 +549,7 @@ pub(crate) mod dependency {
         mod api_unit_platform_dependency;
         mod dependency_floor;
         mod entry_point_dependency;
+        mod platform_dependency_table;
         mod technology_dependency;
         mod time_crate;
         mod unit_dependency;
@@ -595,6 +597,7 @@ pub(crate) mod module {
         };
         pub(crate) use type_ownership::{
             declaration_owner, exclusive_field_owner, field_owners, has_type_behaviour,
+            is_used_beside_its_field_owner,
         };
         mod external_identity;
         mod kind_resolve;
@@ -623,6 +626,7 @@ pub(crate) mod module {
         pub(crate) use di_placement::DiPlacement;
         pub(crate) use doc_hidden_use::DocHiddenUse;
         pub(crate) use doc_hidden_visitor::DocHiddenVisitor;
+        pub(crate) use elapsed_receiver_visitor::ElapsedReceiverVisitor;
         pub(crate) use entry_point_shape::EntryPointShape;
         pub(crate) use entry_point_visibility::EntryPointVisibility;
         pub(crate) use enum_family_file::EnumFamilyFile;
@@ -632,13 +636,16 @@ pub(crate) mod module {
         pub(crate) use fake_placement::FakePlacement;
         pub(crate) use forbidden_import::ForbiddenImport;
         pub(crate) use forbidden_package_name::ForbiddenPackageName;
+        pub(crate) use foreign_error_type::ForeignErrorType;
         pub(crate) use global_state::GlobalState;
         pub(crate) use global_state_visitor::GlobalStateVisitor;
         pub(crate) use impl_placement::ImplPlacement;
+        pub(crate) use implementation_placement::ImplementationPlacement;
         pub(crate) use implementation_visibility::ImplementationVisibility;
         pub(crate) use import_through_file_module::ImportThroughFileModule;
         pub(crate) use in_memory_placement::InMemoryPlacement;
         pub(crate) use invariant_visitor::InvariantVisitor;
+        pub(crate) use kind_content::KindContent;
         pub(crate) use kind_import_direction::KindImportDirection;
         pub(crate) use kind_shape::KindShape;
         pub(crate) use lifecycle_body_visitor::LifecycleBodyVisitor;
@@ -684,6 +691,7 @@ pub(crate) mod module {
         mod di_placement;
         mod doc_hidden_use;
         mod doc_hidden_visitor;
+        mod elapsed_receiver_visitor;
         mod entry_point_shape;
         mod entry_point_visibility;
         mod enum_family_file;
@@ -693,11 +701,14 @@ pub(crate) mod module {
         mod fake_placement;
         mod forbidden_import;
         mod forbidden_package_name;
+        mod foreign_error_type;
         mod impl_placement;
+        mod implementation_placement;
         mod implementation_visibility;
         mod import_through_file_module;
         mod in_memory_placement;
         mod invariant_visitor;
+        mod kind_content;
         mod kind_import_direction;
         mod kind_shape;
         mod listener_name;
@@ -1047,6 +1058,7 @@ mod test {
             mod api_unit_platform_dependency_test;
             mod dependency_floor_test;
             mod entry_point_dependency_test;
+            mod platform_dependency_table_test;
             mod technology_dependency_test;
             mod time_crate_test;
             mod unit_dependency_cycle_test;
@@ -1091,12 +1103,14 @@ mod test {
             };
             pub(crate) use resolver_case_test::assert_resolution_cases;
             pub(crate) use shape_inspect_test::{read_shape_context, read_workspace_shape_context};
+            pub(crate) use workspace_provider_test::add_workspace_provider;
             mod di_inspect_test;
             mod import_case_test;
             mod placement_case_test;
             mod registration_base_test;
             mod resolver_case_test;
             mod shape_inspect_test;
+            mod workspace_provider_test;
         }
         mod rule {
             mod api_configuration_test;
@@ -1116,11 +1130,14 @@ mod test {
             mod fake_placement_test;
             mod forbidden_import_test;
             mod forbidden_package_name_test;
+            mod foreign_error_type_test;
             mod global_state_test;
             mod impl_placement_test;
+            mod implementation_placement_test;
             mod implementation_visibility_test;
             mod import_through_file_module_test;
             mod in_memory_placement_test;
+            mod kind_content_test;
             mod kind_import_direction_test;
             mod kind_shape_test;
             mod listener_name_test;

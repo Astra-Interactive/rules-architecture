@@ -20,6 +20,15 @@ impl AwaitVisitor {
         visitor.visit_stmt(statement);
         visitor.found
     }
+
+    fn is_suspending_macro(path: &syn::Path) -> bool {
+        path.segments.last().is_some_and(|segment| {
+            matches!(
+                segment.ident.to_string().as_str(),
+                "join" | "try_join" | "select" | "select_biased"
+            )
+        })
+    }
 }
 
 impl<'ast> Visit<'ast> for AwaitVisitor {
@@ -38,6 +47,15 @@ impl<'ast> Visit<'ast> for AwaitVisitor {
     }
     fn visit_expr_await(&mut self, _: &'ast syn::ExprAwait) {
         self.found = true;
+    }
+    fn visit_macro(&mut self, value: &'ast syn::Macro) {
+        if Self::is_suspending_macro(&value.path) {
+            self.found = true;
+            return;
+        }
+        for argument in &crate::source::util::parse_macro_arguments(value) {
+            self.visit_expr(argument);
+        }
     }
     fn visit_expr_async(&mut self, _: &'ast syn::ExprAsync) {}
     fn visit_expr_closure(&mut self, _: &'ast syn::ExprClosure) {}

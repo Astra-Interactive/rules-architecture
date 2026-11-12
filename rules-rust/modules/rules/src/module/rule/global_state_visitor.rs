@@ -13,6 +13,7 @@ pub(crate) struct GlobalStateVisitor<'context> {
     file: String,
     is_main: bool,
     findings: Vec<RuleFinding>,
+    builder_locals: Vec<String>,
 }
 
 impl GlobalStateVisitor<'_> {
@@ -138,8 +139,74 @@ impl GlobalStateVisitor<'_> {
             syn::Expr::Call(call) => {
                 matches!(call.func.as_ref(), syn::Expr::Path(path) if self.resolved_package(&path.path).as_deref() == Some("tracing_subscriber"))
             }
+            syn::Expr::Path(path) => path
+                .path
+                .get_ident()
+                .is_some_and(|name| self.builder_locals.iter().any(|local| name == local)),
             _ => false,
         }
+    }
+
+    fn find_service_type<'typed>(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        typed: &'typed syn::Type,
+    ) -> &'typed syn::Type {
+        match typed {
+            syn::Type::Reference(reference) => {
+                Self::find_service_type(context, ordinal, module, &reference.elem)
+            }
+            syn::Type::Paren(paren) => {
+                Self::find_service_type(context, ordinal, module, &paren.elem)
+            }
+            syn::Type::Path(path) => {
+                let is_pointer = context
+                    .canonical_external_type_path(ordinal, module, &path.path)
+                    .is_some_and(|identity| {
+                        ["std", "alloc"].contains(&identity.package.as_str())
+                            && identity
+                                .segments
+                                .last()
+                                .is_some_and(|name| ["Box", "Arc", "Rc"].contains(&name.as_str()))
+                    });
+                let inner =
+                    path.path
+                        .segments
+                        .last()
+                        .and_then(|segment| match &segment.arguments {
+                            syn::PathArguments::AngleBracketed(arguments) => {
+                                arguments.args.iter().find_map(|argument| match argument {
+                                    syn::GenericArgument::Type(inner) => Some(inner),
+                                    _ => None,
+                                })
+                            }
+                            _ => None,
+                        });
+                match inner {
+                    Some(inner) if is_pointer => {
+                        Self::find_service_type(context, ordinal, module, inner)
+                    }
+                    _ => typed,
+                }
+            }
+            other => other,
+        }
+    }
+
+    fn is_workspace_trait_object(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        typed: &syn::Type,
+    ) -> bool {
+        let syn::Type::TraitObject(object) = typed else {
+            return false;
+        };
+        object.bounds.iter().any(|bound| {
+            matches!(bound, syn::TypeParamBound::Trait(bound)
+                if !context.resolve_workspace_path(ordinal, module, &bound.path).is_empty())
+        })
     }
 
     fn installs_logging(path: &crate::source::model::ExternalPath) -> bool {
@@ -175,15 +242,20 @@ impl GlobalStateVisitor<'_> {
             .resolve_external_type_paths_under(ordinal, module, &shared.ty, cfg)
             .iter()
             .any(Self::is_shared_state_type);
+        let service_type = Self::find_service_type(context, ordinal, module, &shared.ty);
         let service = context
-            .resolve_workspace_type(ordinal, module, &shared.ty)
+            .resolve_workspace_type(ordinal, module, service_type)
             .iter()
             .any(|target| {
                 target.path.item.is_some_and(|identity| {
                     crate::module::util::workspace_implementation(context, target.index, identity)
                 })
             });
-        state || service || matches!(shared.mutability, syn::StaticMutability::Mut(_))
+        let trait_object = Self::is_workspace_trait_object(context, ordinal, module, service_type);
+        state
+            || service
+            || trait_object
+            || matches!(shared.mutability, syn::StaticMutability::Mut(_))
     }
 
     pub(crate) fn check(context: &RuleContext, ordinal: usize) -> Vec<RuleFinding> {
@@ -195,16 +267,18 @@ impl GlobalStateVisitor<'_> {
             file: String::new(),
             is_main: false,
             findings: Vec::new(),
+            builder_locals: Vec::new(),
         };
+        let installs_logger = matches!(
+            context
+                .find_role_config(&index.crate_name)
+                .and_then(|config| config.role),
+            Some(Role::EntryPoint | Role::Tooling)
+        );
         for item in &index.items {
             visitor.module = item.module;
             visitor.file = item.file.clone();
-            visitor.is_main = item.name == "main"
-                && item.module == 0
-                && context
-                    .find_role_config(&index.crate_name)
-                    .and_then(|config| config.role)
-                    == Some(Role::EntryPoint);
+            visitor.is_main = item.name == "main" && item.module == 0 && installs_logger;
             visitor.visit_item(&item.syntax);
         }
         for implementation in &index.implementations {
@@ -236,8 +310,24 @@ impl<'ast> Visit<'ast> for GlobalStateVisitor<'_> {
     fn visit_item_fn(&mut self, function: &'ast syn::ItemFn) {
         let main = self.is_main;
         self.is_main &= function.sig.ident == "main";
+        let locals = std::mem::take(&mut self.builder_locals);
         syn::visit::visit_item_fn(self, function);
+        self.builder_locals = locals;
         self.is_main = main;
+    }
+
+    fn visit_local(&mut self, local: &'ast syn::Local) {
+        syn::visit::visit_local(self, local);
+        let syn::Pat::Ident(binding) = &local.pat else {
+            return;
+        };
+        let is_builder = local
+            .init
+            .as_ref()
+            .is_some_and(|init| self.is_subscriber_builder(&init.expr));
+        if is_builder {
+            self.builder_locals.push(binding.ident.to_string());
+        }
     }
     fn visit_stmt(&mut self, statement: &'ast syn::Stmt) {
         if let syn::Stmt::Item(syn::Item::Static(local)) = statement {

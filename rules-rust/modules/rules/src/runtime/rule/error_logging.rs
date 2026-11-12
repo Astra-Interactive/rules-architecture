@@ -249,11 +249,62 @@ impl LogVisitor<'_> {
         }
     }
 
+    fn is_error_accessor(&self, expression: &syn::Expr, methods: &[&str]) -> bool {
+        matches!(expression, syn::Expr::MethodCall(call)
+            if methods.iter().any(|method| call.method == method)
+                && self.result_expression(&call.receiver))
+    }
+
+    fn bind_accessor_error(&mut self, pattern: &syn::Pat, scrutinee: &syn::Expr) {
+        let syn::Pat::TupleStruct(wrapped) = pattern else {
+            return;
+        };
+        let Some(syn::Pat::Ident(name)) = wrapped.elems.first() else {
+            return;
+        };
+        if wrapped.path.is_ident("Some") && self.is_error_accessor(scrutinee, &["err"]) {
+            let name = name.ident.to_string();
+            self.logged.retain(|(logged, _)| logged != &name);
+            if !self.errors.contains(&name) {
+                self.errors.push(name);
+            }
+        }
+    }
+
+    fn find_scrutinee_name(expression: &syn::Expr) -> Option<String> {
+        match expression {
+            syn::Expr::Path(path) => path.path.get_ident().map(ToString::to_string),
+            syn::Expr::Reference(reference) => Self::find_scrutinee_name(&reference.expr),
+            syn::Expr::Paren(paren) => Self::find_scrutinee_name(&paren.expr),
+            _ => None,
+        }
+    }
+
+    fn holds_name(expression: &syn::Expr, name: &str) -> bool {
+        match expression {
+            syn::Expr::Path(path) => path.path.is_ident(name),
+            syn::Expr::Paren(paren) => Self::holds_name(&paren.expr, name),
+            syn::Expr::MethodCall(call) if call.method == "into" => {
+                Self::holds_name(&call.receiver, name)
+            }
+            syn::Expr::Call(call) => call
+                .args
+                .iter()
+                .any(|argument| Self::holds_name(argument, name)),
+            syn::Expr::Struct(structure) => structure
+                .fields
+                .iter()
+                .any(|field| Self::holds_name(&field.expr, name)),
+            _ => false,
+        }
+    }
+
     fn bind_condition(&mut self, condition: &syn::Expr) -> Vec<String> {
         match condition {
             syn::Expr::Let(condition) => {
                 self.mask_result_pattern(&condition.pat);
                 self.bind_error(&condition.pat);
+                self.bind_accessor_error(&condition.pat, &condition.expr);
                 let mut bindings = Vec::new();
                 bindings.extend(self.error_name(&condition.pat));
                 if let syn::Pat::TupleStruct(pattern) = &*condition.pat
@@ -383,13 +434,10 @@ impl LogVisitor<'_> {
             return;
         }
         for argument in &call.args {
-            let syn::Expr::Path(path) = argument else {
-                continue;
-            };
             self.spans.extend(
                 self.logged
                     .iter()
-                    .filter(|(name, _)| path.path.is_ident(name))
+                    .filter(|(name, _)| Self::holds_name(argument, name))
                     .map(|(_, span)| *span),
             );
         }
@@ -425,6 +473,15 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
         {
             self.bind_error(pattern);
         }
+        let unwraps_error = local
+            .init
+            .as_ref()
+            .is_some_and(|init| self.is_error_accessor(&init.expr, &["unwrap_err", "expect_err"]));
+        if let Some(init) = &local.init
+            && init.diverge.is_some()
+        {
+            self.bind_accessor_error(pattern, &init.expr);
+        }
         if let syn::Pat::Ident(name) = pattern {
             self.results.push(ResultBinding {
                 name: name.ident.to_string(),
@@ -433,6 +490,9 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
             });
             self.errors.retain(|error| name.ident != error);
             self.logged.retain(|(error, _)| name.ident != error);
+            if unwraps_error {
+                self.errors.push(name.ident.to_string());
+            }
         }
     }
     fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
@@ -497,6 +557,13 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
         let logged = self.logged.clone();
         self.visit_expr(&expression.cond);
         let bindings = self.bind_condition(&expression.cond);
+        let checked = match expression.cond.as_ref() {
+            syn::Expr::Let(condition) => Some(condition),
+            _ => None,
+        };
+        let checked_error = checked.and_then(|condition| self.error_name(&condition.pat));
+        let checked_result =
+            checked.and_then(|condition| Self::find_scrutinee_name(&condition.expr));
         self.visit_block(&expression.then_branch);
         let then_logged = self.logged.clone();
         self.errors.truncate(length);
@@ -504,6 +571,17 @@ impl<'ast> Visit<'ast> for LogVisitor<'_> {
         self.results.truncate(results);
         if let Some((_, otherwise)) = &expression.else_branch {
             self.visit_expr(otherwise);
+        }
+        if let Some(error) = &checked_error
+            && let Some(result) = &checked_result
+        {
+            let spans = then_logged
+                .iter()
+                .filter(|(name, _)| name == error)
+                .map(|(_, span)| *span)
+                .collect::<Vec<_>>();
+            self.logged
+                .extend(spans.into_iter().map(|span| (result.clone(), span)));
         }
         self.logged.extend(
             then_logged

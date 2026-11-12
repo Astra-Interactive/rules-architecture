@@ -5,6 +5,20 @@ use crate::workspace::model::TomlValue;
 
 pub(crate) struct XtaskAlias;
 
+impl XtaskAlias {
+    fn format_alias(value: &TomlValue) -> Option<String> {
+        if let Some(text) = value.as_str() {
+            return Some(text.to_owned());
+        }
+        let words = value
+            .as_array()?
+            .iter()
+            .map(TomlValue::as_str)
+            .collect::<Option<Vec<&str>>>()?;
+        Some(words.join(" "))
+    }
+}
+
 impl Rule for XtaskAlias {
     fn check(&self, context: &RuleContext) -> Vec<RuleFinding> {
         let accepted: Vec<String> = context
@@ -26,8 +40,8 @@ impl Rule for XtaskAlias {
         let config = context.workspace.cargo_config.as_ref();
         let alias = config.and_then(|config| config.root.find(&["alias", "xtask"]));
         if alias
-            .and_then(TomlValue::as_str)
-            .is_some_and(|value| accepted.iter().any(|expected| expected == value))
+            .and_then(Self::format_alias)
+            .is_some_and(|value| accepted.contains(&value))
         {
             return Vec::new();
         }

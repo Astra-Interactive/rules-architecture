@@ -1,3 +1,4 @@
+use std::ops::{Add, Mul};
 fn run() {
     let result = (size * scale).round();
     let result = (size + scale * other).max(1);

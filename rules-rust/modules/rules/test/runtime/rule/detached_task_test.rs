@@ -4,6 +4,32 @@ use crate::test::declaration::util::assert_code_fixture;
 use crate::test::declaration::util::{assert_code_findings, read_code_context};
 
 #[test]
+fn given_dropped_handle_returned_by_a_workspace_function_when_checked_then_reports_each_discard() {
+    assert_code_findings(
+        &DetachedTask,
+        "DetachedTask",
+        "fn start_worker() -> tokio::task::JoinHandle<()> { tokio::spawn(async {}) }\nfn start_and_drop() {\n    start_worker();\n    let _ = start_worker();\n}\nasync fn start_and_join() {\n    let worker = start_worker();\n    let _ = worker.await;\n}\nfn start_and_hand_over() -> tokio::task::JoinHandle<()> { start_worker() }",
+        &[3, 4],
+    );
+    assert_code_findings(
+        &DetachedTask,
+        "DetachedTask",
+        "struct Pool;\nimpl Pool {\n    fn spawn_drain(&self) -> tokio::task::JoinHandle<()> { tokio::spawn(async {}) }\n    fn run(&self) { self.spawn_drain(); }\n}",
+        &[4],
+    );
+}
+
+#[test]
+fn given_forgotten_task_handle_when_checked_then_reports_it_like_a_drop() {
+    assert_code_findings(
+        &DetachedTask,
+        "DetachedTask",
+        "fn run() {\n    let handle = tokio::spawn(async {});\n    std::mem::forget(handle);\n    std::mem::forget(tokio::spawn(async {}));\n    let marker = String::new();\n    std::mem::forget(marker);\n}\nasync fn keep() {\n    let handle = tokio::spawn(async {});\n    let _ = handle.await;\n}",
+        &[2, 4],
+    );
+}
+
+#[test]
 fn given_awaited_handle_in_return_value_when_checked_then_does_not_report_detachment() {
     for returned in ["handle.await", "Ok(handle.await?)"] {
         assert_code_findings(
@@ -297,5 +323,35 @@ fn given_spawn_through_runtime_handle_call_when_handle_is_dropped_then_reports_s
         "DetachedTask",
         "struct Runner;\nimpl Runner { fn spawn<F>(&self, _: F) {} }\nfn start() {\n    tokio::runtime::Handle::current().spawn(async {});\n    tokio::runtime::Handle::current().spawn_blocking(|| {});\n}\nfn start_owned(runtime: tokio::runtime::Runtime) {\n    runtime.handle().spawn(async {});\n}\nfn keep() -> tokio::task::JoinHandle<()> {\n    tokio::runtime::Handle::current().spawn(async {})\n}\nfn unknown(runner: Runner) {\n    runner.spawn(async {});\n}",
         &[4, 5, 8],
+    );
+}
+
+#[test]
+fn given_task_builder_spawn_when_unwrapped_handle_is_dropped_then_reports_each_discard() {
+    assert_code_findings(
+        &DetachedTask,
+        "DetachedTask",
+        "async fn work() {}\nfn start() -> std::io::Result<()> {\n    tokio::task::Builder::new().name(\"job\").spawn(work())?;\n    let _ = tokio::task::Builder::new().spawn(work())?;\n    _ = tokio::task::Builder::new().spawn(work())?;\n    tokio::task::Builder::new().spawn_blocking(|| {}).unwrap();\n    tokio::task::Builder::new().spawn_local(work()).expect(\"spawned\");\n    Ok(())\n}\nasync fn joined() -> std::io::Result<()> {\n    let handle = tokio::task::Builder::new().spawn(work())?;\n    let _ = handle.await;\n    Ok(())\n}\nfn hand_over() -> std::io::Result<tokio::task::JoinHandle<()>> {\n    tokio::task::Builder::new().spawn(work())\n}",
+        &[3, 4, 5, 6, 7],
+    );
+}
+
+#[test]
+fn given_handles_assigned_to_places_when_checked_then_reports_only_the_bare_statement() {
+    assert_code_findings(
+        &DetachedTask,
+        "DetachedTask",
+        "struct W {\n    h: Option<tokio::task::JoinHandle<()>>,\n    g: tokio::task::JoinHandle<()>,\n}\nimpl W {\n    fn start(&self) -> tokio::task::JoinHandle<()> { tokio::spawn(async {}) }\n    fn keep_started(&mut self) {\n        self.h = Some(self.start());\n    }\n    fn keep_spawned(&mut self) {\n        let h;\n        h = tokio::spawn(async {});\n        self.h = Some(h);\n    }\n    fn replace(&mut self) {\n        self.g = self.start();\n    }\n    fn detach(&self) {\n        self.start();\n    }\n}",
+        &[19],
+    );
+}
+
+#[test]
+fn given_task_builder_spawn_handed_to_drop_when_checked_then_reports_the_spawn() {
+    assert_code_findings(
+        &DetachedTask,
+        "DetachedTask",
+        "async fn work() {}\nfn start() -> std::io::Result<()> {\n    drop(tokio::task::Builder::new().spawn(work())?);\n    Ok(())\n}\nasync fn joined() -> std::io::Result<()> {\n    let handle = tokio::task::Builder::new().spawn(work())?;\n    let _ = handle.await;\n    Ok(())\n}",
+        &[3],
     );
 }

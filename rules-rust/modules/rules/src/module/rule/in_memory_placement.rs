@@ -42,7 +42,7 @@ impl Rule for InMemoryPlacement {
         let mut findings = Vec::new();
         for (ordinal, index) in context.indexes.iter().enumerate() {
             for (identity, item) in index.items.iter().enumerate() {
-                if !matches!(item.syntax, syn::Item::Struct(_)) {
+                if !matches!(item.syntax, syn::Item::Struct(_) | syn::Item::Enum(_)) {
                     continue;
                 }
                 let in_memory = find_kind_name(context, ordinal, item.module) == "memory";

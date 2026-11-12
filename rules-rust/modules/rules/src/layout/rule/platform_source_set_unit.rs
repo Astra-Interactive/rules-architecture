@@ -10,7 +10,12 @@ use syn::visit::Visit;
 pub(crate) struct PlatformSourceSetUnit;
 
 impl PlatformSourceSetUnit {
-    const TARGET_WORDS: [&str; 21] = [
+    fn is_target_word(word: &str, own_cfg_words: &BTreeSet<String>) -> bool {
+        Self::TARGET_WORDS.contains(&word)
+            || (Self::DOMAIN_WORDS.contains(&word) && own_cfg_words.contains(word))
+    }
+
+    const TARGET_WORDS: [&str; 17] = [
         "unix",
         "windows",
         "wasm",
@@ -21,18 +26,16 @@ impl PlatformSourceSetUnit {
         "freebsd",
         "netbsd",
         "openbsd",
-        "dragonfly",
-        "solaris",
         "illumos",
-        "fuchsia",
         "redox",
-        "haiku",
         "wasi",
         "emscripten",
         "tvos",
         "watchos",
         "visionos",
     ];
+
+    const DOMAIN_WORDS: [&str; 4] = ["dragonfly", "solaris", "fuchsia", "haiku"];
 }
 
 impl Rule for PlatformSourceSetUnit {
@@ -72,7 +75,7 @@ impl Rule for PlatformSourceSetUnit {
                 continue;
             }
             let suffix = member.directory.rsplit('/').next().unwrap_or_default();
-            if !Self::TARGET_WORDS.contains(&suffix) {
+            if !Self::is_target_word(suffix, &visitor.values) {
                 continue;
             }
             findings.push(RuleFinding {

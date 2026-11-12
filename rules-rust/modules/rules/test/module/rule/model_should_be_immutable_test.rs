@@ -303,3 +303,36 @@ fn given_pinned_mutable_self_receiver_on_model_when_checked_then_reports_only_th
         &[4],
     );
 }
+
+#[test]
+fn given_option_mutators_and_mem_swap_on_model_field_when_checked_then_reports_the_writes() {
+    assert_code_findings(
+        &ModelShouldBeImmutable,
+        "ModelShouldBeImmutable",
+        "mod model { pub struct Invoice { pub slot: Option<u32>, pub note: String } }\n\
+         mod memory {\n\
+         fn clear(mut invoice: crate::model::Invoice) -> crate::model::Invoice { invoice.slot.take(); invoice }\n\
+         fn fill(mut invoice: crate::model::Invoice) -> crate::model::Invoice { invoice.slot.get_or_insert(1); invoice }\n\
+         fn swap_note(mut invoice: crate::model::Invoice, mut other: String) -> crate::model::Invoice { std::mem::swap(&mut invoice.note, &mut other); invoice }\n\
+         fn is_filled(invoice: &crate::model::Invoice) -> bool { invoice.slot.is_some() }\n\
+         fn copy(invoice: &crate::model::Invoice) -> Option<u32> { invoice.slot.clone().take() }\n\
+         }",
+        &[3, 4, 5],
+    );
+}
+
+#[test]
+fn given_method_receiver_and_index_base_on_model_field_when_checked_then_reports_the_writes() {
+    assert_code_findings(
+        &ModelShouldBeImmutable,
+        "ModelShouldBeImmutable",
+        "mod model { pub struct Invoice { pub items: Vec<u32> } }\n\
+         mod memory {\n\
+         fn set_first(mut invoice: crate::model::Invoice) -> crate::model::Invoice { invoice.items[0] = 1; invoice }\n\
+         fn bump(mut invoice: crate::model::Invoice) -> crate::model::Invoice { *invoice.items.get_mut(0).unwrap() += 1; invoice }\n\
+         fn reset(mut invoice: crate::model::Invoice) -> crate::model::Invoice { for item in invoice.items.iter_mut() { *item = 0; } invoice }\n\
+         fn first(invoice: &crate::model::Invoice) -> Option<&u32> { invoice.items.get(0) }\n\
+         }",
+        &[3, 4, 5],
+    );
+}

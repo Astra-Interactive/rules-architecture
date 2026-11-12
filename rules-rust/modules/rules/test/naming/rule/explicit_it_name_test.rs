@@ -69,6 +69,27 @@ fn given_it_names_inside_futures_select_when_checked_then_reports_pattern_and_ha
 }
 
 #[test]
+fn given_it_names_inside_crossbeam_select_when_checked_then_reports_recv_and_send_bindings() {
+    crate::test::declaration::util::assert_code_findings(
+        &ExplicitItName,
+        "ExplicitItName",
+        "pub(crate) fn drain(first: crossbeam_channel::Receiver<u32>, out: crossbeam_channel::Sender<u32>) {\n    crossbeam_channel::select! {\n        recv(first) -> it => drop(it),\n        recv(first) -> message => drop(message),\n        send(out, 1) -> it => drop(it),\n        send(out, 2) -> sent => drop(sent),\n        default => {}\n    }\n    crossbeam::select! {\n        recv(first) -> it => drop(it),\n    }\n}",
+        &[3, 5, 10],
+    );
+}
+
+#[test]
+fn given_select_macro_of_another_crate_when_checked_then_only_the_imported_select_is_parsed_with_branches()
+ {
+    crate::test::declaration::util::assert_code_findings(
+        &ExplicitItName,
+        "ExplicitItName",
+        "use tokio::select;\npub(crate) async fn run() {\n    my_macros::select! { it = first() => { let it = 1; drop(it); } }\n    select! { it = second() => drop(it) }\n}",
+        &[4],
+    );
+}
+
+#[test]
 fn given_forbidden_syntax_when_checked_then_reports_the_rule() {
     let context = read_case_context("ExplicitItName", "fail-syntax");
     assert!(!ExplicitItName.check(&context).is_empty());

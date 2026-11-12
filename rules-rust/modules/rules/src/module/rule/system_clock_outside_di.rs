@@ -1,5 +1,6 @@
 use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
+use crate::module::rule::ElapsedReceiverVisitor;
 use crate::module::util::build_shape_item_finding;
 
 pub(crate) struct SystemClockOutsideDi;
@@ -53,15 +54,34 @@ impl SystemClockOutsideDi {
         context: &RuleContext,
         ordinal: usize,
         reference: &crate::source::model::SourceReference,
+        elapsed_receivers: &[crate::source::model::NodeSpan],
     ) -> bool {
         let crate::source::model::Resolution::External(path) = &reference.resolution else {
             return false;
         };
         let path = context.resolve_external_identity(ordinal, path);
-        path.package == "std"
-            && path
-                .segments
-                .ends_with(&["SystemTime".to_owned(), "now".to_owned()])
+        let ends_with = |names: &[&str]| {
+            path.segments.len() >= names.len()
+                && path.segments[path.segments.len() - names.len()..]
+                    .iter()
+                    .zip(names)
+                    .all(|(segment, name)| segment == name)
+        };
+        let system_now = path.package == "std" && ends_with(&["SystemTime", "now"]);
+        let crate_now = match path.package.as_str() {
+            "chrono" => ends_with(&["Utc", "now"]) || ends_with(&["Local", "now"]),
+            "jiff" => ends_with(&["Timestamp", "now"]) || ends_with(&["Zoned", "now"]),
+            "time" => {
+                ends_with(&["OffsetDateTime", "now_utc"])
+                    || ends_with(&["OffsetDateTime", "now_local"])
+                    || ends_with(&["UtcDateTime", "now"])
+            }
+            _ => false,
+        };
+        let epoch_elapsed = path.package == "std"
+            && ends_with(&["UNIX_EPOCH"])
+            && elapsed_receivers.contains(&reference.span);
+        system_now || crate_now || epoch_elapsed
     }
 
     fn is_inside_system_clock(
@@ -116,10 +136,19 @@ impl SystemClockOutsideDi {
     fn build_wall_clock_findings(context: &RuleContext) -> Vec<RuleFinding> {
         let mut findings = Vec::new();
         for (ordinal, index) in context.indexes.iter().enumerate() {
+            let elapsed_receivers: Vec<_> = context
+                .crates
+                .iter()
+                .filter(|sources| sources.crate_name == index.crate_name)
+                .flat_map(|sources| &sources.files)
+                .flat_map(|file| ElapsedReceiverVisitor::collect(&file.syntax))
+                .collect();
             let mut reads: Vec<_> = index
                 .references
                 .iter()
-                .filter(|reference| Self::reads_wall_clock(context, ordinal, reference))
+                .filter(|reference| {
+                    Self::reads_wall_clock(context, ordinal, reference, &elapsed_receivers)
+                })
                 .filter(|reference| Self::is_production_reference(context, ordinal, reference))
                 .filter(|reference| !Self::is_inside_system_clock(context, ordinal, reference))
                 .collect();

@@ -63,6 +63,7 @@ fn build_workspace_entries() -> Vec<CatalogueEntry> {
         build_entry("TechnologyDependency", 3, EDGE, false),
         build_entry("PluginImplUnit", 3, CRATE, false),
         build_entry("ApiUnitPlatformDependency", 3, EDGE, true),
+        build_entry("PlatformDependencyTable", 3, EDGE, false),
         build_entry("DocHiddenUse", 4, NODE, false),
         build_entry("DiModuleVisibility", 4, NODE, false),
     ]
@@ -112,6 +113,9 @@ fn build_module_entries() -> Vec<CatalogueEntry> {
         build_entry("ModelContainsFunctions", 2, NODE, false),
         build_entry("ModelShouldBeImmutable", 2, NODE, false),
         build_entry("ForbiddenImport", 3, NODE, false),
+        build_entry("KindContent", 2, NODE, false),
+        build_entry("ImplementationPlacement", 2, NODE, false),
+        build_entry("ForeignErrorType", 2, NODE, false),
     ]
 }
 

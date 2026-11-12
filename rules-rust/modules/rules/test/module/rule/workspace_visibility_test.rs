@@ -346,6 +346,32 @@ fn given_unused_public_hidden_function_when_published_then_reports_the_item() {
 }
 
 #[test]
+fn given_hidden_method_whose_name_another_crate_uses_only_on_another_type_when_checked_then_it_is_reported()
+ {
+    let api = "pub struct Counter;\nimpl Counter {\n    #[doc(hidden)] pub fn reset(&self) {}\n}\npub struct Gauge;\nimpl Gauge { pub fn reset(&self) {} }";
+    for (user, expected) in [
+        (
+            "fn run(gauge: shop_counter_api::Gauge) { gauge.reset(); }",
+            &[3][..],
+        ),
+        (
+            "fn run(counter: shop_counter_api::Counter) { counter.reset(); }",
+            &[][..],
+        ),
+    ] {
+        let context = crate::test::module::util::read_workspace_shape_context(&[
+            ("shop_counter_api", "", api),
+            (
+                "shop_counter_user",
+                "shop_counter_api={path=\"../shop_counter_api\"}",
+                user,
+            ),
+        ]);
+        assert_doc_hidden_lines(&context, expected);
+    }
+}
+
+#[test]
 fn given_hidden_public_function_named_by_another_workspace_crate_when_published_then_reports_nothing()
  {
     let mut context = crate::test::module::util::read_workspace_shape_context(&[

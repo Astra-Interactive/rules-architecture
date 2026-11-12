@@ -110,7 +110,7 @@ impl LintConfig {
             let lowers = is_group
                 && !Self::is_carrier_group(table_name, &entry.key)
                 && Self::is_lowered(Self::find_level(&entry.value))
-                && Self::find_priority(Some(&entry.value)) > lowest_priority;
+                && Self::find_priority(Some(&entry.value)) >= lowest_priority;
             if lowers {
                 let message = format!("the group `{}` lowers required lints", entry.key);
                 findings.push(Self::build_finding(
@@ -293,6 +293,7 @@ impl LintConfig {
             "allow-unwrap-in-tests",
             "allow-expect-in-tests",
             "check-private-items",
+            "warn-on-all-wildcard-imports",
         ] {
             let is_true = file.root.find(&[key]).and_then(TomlValue::as_bool) == Some(true);
             if !is_true {
@@ -462,9 +463,44 @@ impl LintConfig {
                 .all(|character| character == '-' || character.is_ascii_digit())
     }
 
+    fn strip_host(channel: &str) -> Option<&str> {
+        let dated_length = "stable-YYYY-MM-DD".len();
+        let dated = channel
+            .get(..dated_length)
+            .is_some_and(Self::is_dated_stable);
+        let head_length = if dated {
+            dated_length
+        } else if channel.starts_with("stable") {
+            "stable".len()
+        } else {
+            channel.find('-').unwrap_or(channel.len())
+        };
+        let (head, rest) = channel.split_at(head_length);
+        if rest.is_empty() {
+            return Some(head);
+        }
+        let host = rest.strip_prefix('-')?;
+        let segments: Vec<&str> = host.split('-').collect();
+        let has_architecture = segments.first().is_some_and(|segment| {
+            Self::HOST_ARCHITECTURES
+                .iter()
+                .any(|architecture| segment.starts_with(architecture))
+        });
+        let is_host = segments.len() >= 3
+            && has_architecture
+            && segments.iter().all(|segment| !segment.is_empty());
+        is_host.then_some(head)
+    }
+
     fn is_supported_channel(channel: &str) -> bool {
-        if channel == "stable" || Self::is_dated_stable(channel) {
+        let Some(channel) = Self::strip_host(channel) else {
+            return false;
+        };
+        if channel == "stable" {
             return true;
+        }
+        if Self::is_dated_stable(channel) {
+            return channel["stable-".len()..] >= *Self::FLOOR_DATE;
         }
         let parts: Vec<u32> = channel
             .split('.')
@@ -650,6 +686,23 @@ impl LintConfig {
         "std::sync::PoisonError",
     ];
     const FLOOR_MINOR: u32 = 93;
+    const FLOOR_DATE: &str = "2026-01-22";
+    const HOST_ARCHITECTURES: [&str; 14] = [
+        "x86_64",
+        "i386",
+        "i586",
+        "i686",
+        "aarch64",
+        "arm",
+        "riscv",
+        "wasm",
+        "powerpc",
+        "s390x",
+        "sparc",
+        "loongarch",
+        "mips",
+        "thumb",
+    ];
     const LINT_GROUPS: [&str; 15] = [
         "all",
         "correctness",

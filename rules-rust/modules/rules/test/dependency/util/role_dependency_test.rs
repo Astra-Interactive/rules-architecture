@@ -354,6 +354,10 @@ fn given_composition_sibling_and_development_edges_when_checked_then_only_docume
 }
 
 fn read_feature_table_context(feature: &str) -> RuleContext {
+    read_feature_line_context(&format!("default=[\"case-provider/{feature}\"]"))
+}
+
+fn read_feature_line_context(features: &str) -> RuleContext {
     use crate::workspace::api::WorkspaceReader;
     use crate::workspace::cargo::CargoWorkspaceReader;
     use crate::workspace::util::resolve_cargo_path;
@@ -377,7 +381,7 @@ fn read_feature_table_context(feature: &str) -> RuleContext {
     fs::write(
         root.path().join("consumer/Cargo.toml"),
         format!(
-            "[package]\nname=\"case-consumer\"\nedition=\"2024\"\n[dependencies]\ncase-provider={{path=\"../provider\"}}\n[features]\ndefault=[\"case-provider/{feature}\"]\n"
+            "[package]\nname=\"case-consumer\"\nedition=\"2024\"\n[dependencies]\ncase-provider={{path=\"../provider\"}}\n[features]\n{features}\n"
         ),
     )
     .expect("consumer manifest");
@@ -422,4 +426,75 @@ fn given_dependent_features_table_when_it_enables_the_provider_fake_feature_then
     );
     let context = read_feature_table_context("safe");
     assert!(UnitDependency.check(&context).is_empty());
+}
+
+#[test]
+fn given_dependent_feature_other_than_default_forwarding_the_provider_fake_when_nobody_enables_it_then_the_edge_is_not_reported()
+ {
+    let context = read_feature_line_context("fake-support=[\"case-provider/fake\"]");
+    let findings = UnitDependency.check(&context);
+    assert!(findings.is_empty(), "{findings:?}");
+    let context = read_feature_line_context("fake-support=[\"case-provider/safe\"]");
+    assert!(UnitDependency.check(&context).is_empty());
+}
+
+fn read_feature_chain_context(outer_table: &str) -> RuleContext {
+    use crate::workspace::api::WorkspaceReader;
+    use crate::workspace::cargo::CargoWorkspaceReader;
+    use crate::workspace::util::resolve_cargo_path;
+    use std::fs;
+
+    let root = tempfile::tempdir().expect("feature workspace");
+    fs::write(
+        root.path().join("Cargo.toml"),
+        "[workspace]\nresolver=\"3\"\nmembers=[\"consumer\",\"provider\",\"outer\"]\n",
+    )
+    .expect("workspace manifest");
+    for name in ["consumer", "provider", "outer"] {
+        fs::create_dir_all(root.path().join(name).join("src")).expect("member source");
+        fs::write(root.path().join(name).join("src/lib.rs"), "").expect("valid source");
+    }
+    fs::write(
+        root.path().join("provider/Cargo.toml"),
+        "[package]\nname=\"case-provider\"\nedition=\"2024\"\n[features]\nfake=[]\n",
+    )
+    .expect("provider manifest");
+    fs::write(
+        root.path().join("consumer/Cargo.toml"),
+        "[package]\nname=\"case-consumer\"\nedition=\"2024\"\n[dependencies]\ncase-provider={path=\"../provider\"}\n[features]\nfake=[\"case-provider/fake\"]\n",
+    )
+    .expect("consumer manifest");
+    fs::write(
+        root.path().join("outer/Cargo.toml"),
+        format!(
+            "[package]\nname=\"case-outer\"\nedition=\"2024\"\n[{outer_table}]\ncase-consumer={{path=\"../consumer\",features=[\"fake\"]}}\n"
+        ),
+    )
+    .expect("outer manifest");
+    let mut context = read_role_context(Role::Api, Role::Api, DependencyKind::Normal);
+    context.workspace = CargoWorkspaceReader::new(resolve_cargo_path())
+        .read_workspace(root.path())
+        .expect("Cargo-valid feature graph");
+    context
+}
+
+#[test]
+fn given_forwarding_fake_feature_when_another_crate_enables_it_then_the_edge_is_reported_only_from_dependencies()
+ {
+    let context = read_feature_chain_context("dependencies");
+    let findings = UnitDependency.check(&context);
+    let provider_edge: Vec<_> = findings
+        .iter()
+        .filter(|finding| finding.finding.location.path == "consumer/Cargo.toml")
+        .collect();
+    assert_eq!(provider_edge.len(), 1, "{findings:?}");
+    assert_eq!(provider_edge[0].finding.rule_id.0, "UnitDependency");
+    assert_eq!(provider_edge[0].finding.location.line, Some(5));
+    assert_eq!(
+        provider_edge[0].finding.subject,
+        "case-consumer -> case-provider"
+    );
+    let context = read_feature_chain_context("dev-dependencies");
+    let findings = UnitDependency.check(&context);
+    assert!(findings.is_empty(), "{findings:?}");
 }

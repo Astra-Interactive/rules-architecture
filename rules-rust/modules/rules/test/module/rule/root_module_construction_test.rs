@@ -49,6 +49,15 @@ fn given_resolved_associated_factory_when_root_constructs_a_service_then_it_is_r
 }
 
 #[test]
+fn given_service_built_by_a_method_of_a_root_parameter_when_root_constructs_then_it_is_rejected() {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::RootModuleConstruction,
+        "struct Settings { url: String } struct Pool { url: String }\nimpl Settings { fn build_pool(&self) -> Pool { Pool { url: self.url.clone() } } fn url(&self) -> String { self.url.clone() } }\nmod di { use super::Settings; struct CoreModule; impl CoreModule { fn new(url: String) -> Self { Self } }\nstruct RootModule; impl RootModule { fn new(settings: Settings) -> Self {\nlet pool = settings.build_pool();\nlet core_module = CoreModule::new(settings.url());\nSelf } } }",
+        &[5],
+    );
+}
+
+#[test]
 fn given_dependency_crate_client_built_under_non_constructor_name_when_root_constructs_then_it_is_rejected()
  {
     crate::test::module::util::assert_di_lines(

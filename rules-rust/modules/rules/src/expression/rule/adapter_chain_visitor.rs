@@ -149,6 +149,44 @@ impl<'context> AdapterChainVisitor<'context> {
         .then_some(false)
     }
 
+    fn pattern_name(pattern: &syn::Pat) -> Option<&syn::Ident> {
+        match pattern {
+            syn::Pat::Ident(binding) => Some(&binding.ident),
+            syn::Pat::Type(typed) => Self::pattern_name(&typed.pat),
+            _ => None,
+        }
+    }
+
+    fn is_str_expression(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Lit(literal) => matches!(literal.lit, syn::Lit::Str(_)),
+            syn::Expr::Paren(paren) => self.is_str_expression(&paren.expr),
+            syn::Expr::Group(group) => self.is_str_expression(&group.expr),
+            syn::Expr::Path(path) => path
+                .path
+                .get_ident()
+                .is_some_and(|name| self.strings.contains(&name.to_string())),
+            syn::Expr::MethodCall(call) => {
+                let is_trimming = Self::borrows_result(&call.method) == Some(true);
+                is_trimming && call.args.is_empty() && self.is_str_expression(&call.receiver)
+            }
+            _ => false,
+        }
+    }
+
+    fn is_str_local(&self, local: &syn::Local) -> bool {
+        if Self::pattern_name(&local.pat).is_none() {
+            return false;
+        }
+        if let syn::Pat::Type(annotated) = &local.pat {
+            return self.string_reference(self.ordinal, self.module, &annotated.ty);
+        }
+        local
+            .init
+            .as_ref()
+            .is_some_and(|init| self.is_str_expression(&init.expr))
+    }
+
     fn accepts_adaptation(
         &self,
         borrowed: bool,
@@ -164,7 +202,7 @@ impl<'context> AdapterChainVisitor<'context> {
     }
 
     fn two_step(&self, call: &syn::ExprMethodCall) -> bool {
-        if call.method != "map" || call.args.len() != 1 || !self.string_lines(&call.receiver) {
+        if call.method != "map" || call.args.len() != 1 {
             return false;
         }
         let Some(syn::Expr::Closure(closure)) = call.args.first() else {
@@ -194,10 +232,15 @@ impl<'context> AdapterChainVisitor<'context> {
         let Some(syn::Expr::MethodCall(adaptation)) = function.args.first() else {
             return false;
         };
-        let Some(borrowed) = Self::borrows_result(&adaptation.method) else {
+        let is_trait_adapter = Self::TRAIT_ADAPTERS
+            .iter()
+            .any(|name| adaptation.method == *name);
+        let Some(borrowed) =
+            Self::borrows_result(&adaptation.method).or(is_trait_adapter.then_some(false))
+        else {
             return false;
         };
-        if !adaptation.args.is_empty() {
+        if !adaptation.args.is_empty() || !(is_trait_adapter || self.string_lines(&call.receiver)) {
             return false;
         }
         if !matches!(adaptation.receiver.as_ref(), syn::Expr::Path(path) if path.path.is_ident(&parameter.ident.to_string()))
@@ -210,7 +253,7 @@ impl<'context> AdapterChainVisitor<'context> {
         !targets.is_empty() && targets.iter().all(|target| target.path.item.is_some_and(|identity| {
             let item = &self.context.indexes[target.index].items[identity];
             let syn::Item::Fn(function) = &item.syntax else { return false; };
-            Self::safe_function_path(function) && function.sig.inputs.len() == 1 && matches!(function.sig.inputs.first(), Some(syn::FnArg::Typed(input)) if self.accepts_adaptation(borrowed, target.index, item.module, &input.ty))
+            Self::safe_function_path(function) && function.sig.inputs.len() == 1 && matches!(function.sig.inputs.first(), Some(syn::FnArg::Typed(input)) if is_trait_adapter || self.accepts_adaptation(borrowed, target.index, item.module, &input.ty))
         }))
     }
 
@@ -266,6 +309,7 @@ impl<'context> AdapterChainVisitor<'context> {
         self.bindings = bindings;
     }
 
+    const TRAIT_ADAPTERS: [&'static str; 3] = ["clone", "to_string", "to_owned"];
     const WHOLE_STRING_ITERATORS: [&'static str; 3] =
         ["lines", "split_whitespace", "split_ascii_whitespace"];
     const PATTERN_STRING_ITERATORS: [&'static str; 4] =
@@ -309,6 +353,14 @@ impl<'ast> Visit<'ast> for AdapterChainVisitor<'_> {
         syn::visit::visit_expr_closure(self, closure);
         self.strings = strings;
         self.bindings = bindings;
+    }
+
+    fn visit_local(&mut self, local: &'ast syn::Local) {
+        let is_str = self.is_str_local(local);
+        syn::visit::visit_local(self, local);
+        if is_str && let Some(name) = Self::pattern_name(&local.pat) {
+            self.strings.insert(name.to_string());
+        }
     }
 
     fn visit_pat_ident(&mut self, pattern: &'ast syn::PatIdent) {

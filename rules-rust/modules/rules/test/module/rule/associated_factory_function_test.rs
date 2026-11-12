@@ -73,3 +73,13 @@ fn given_create_function_returning_foreign_crate_model_when_checked_then_reports
         .collect();
     assert_eq!(vec![Some(3)], lines);
 }
+
+#[test]
+fn given_associated_new_returning_result_when_checked_then_only_the_fallible_one_reports() {
+    assert_code_findings(
+        &AssociatedFactoryFunction,
+        "AssociatedFactoryFunction",
+        "mod model {\npub struct Invoice; pub enum InvoiceError { Empty }\nimpl Invoice { fn new(lines: u32) -> Result<Invoice, InvoiceError> { Ok(Invoice) } }\npub struct Money(u64);\nimpl Money { fn new(cents: u64) -> Self { assert!(cents > 0); Self(cents) } }\n}",
+        &[3],
+    );
+}

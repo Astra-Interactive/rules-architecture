@@ -26,12 +26,27 @@ impl UseCaseShape {
         }
     }
 
+    fn find_wrapped_value(call: &syn::ExprCall) -> Option<&syn::Expr> {
+        let syn::Expr::Path(path) = call.func.as_ref() else {
+            return None;
+        };
+        let is_wrapper = path.path.is_ident("Ok") || path.path.is_ident("Some");
+        match call.args.iter().collect::<Vec<_>>().as_slice() {
+            [value] if is_wrapper => Some(value),
+            _ => None,
+        }
+    }
+
     fn delegated_call(expression: &syn::Expr) -> bool {
         match expression {
             syn::Expr::Return(returned) => {
                 returned.expr.as_deref().is_some_and(Self::delegated_call)
             }
             syn::Expr::Await(awaited) => Self::delegated_call(&awaited.base),
+            syn::Expr::Try(attempt) => Self::delegated_call(&attempt.expr),
+            syn::Expr::Call(call) if Self::find_wrapped_value(call).is_some() => {
+                Self::find_wrapped_value(call).is_some_and(Self::delegated_call)
+            }
             syn::Expr::Paren(paren) => Self::delegated_call(&paren.expr),
             syn::Expr::Block(block) if block.label.is_none() => {
                 Self::read_block_value(&block.block).is_some_and(Self::delegated_call)
@@ -202,6 +217,19 @@ impl UseCaseShape {
                 .path
                 .get_ident()
                 .is_some_and(|name| bindings.get(&name.to_string()) == Some(&true)),
+            syn::Expr::Try(attempt) => Self::is_forwarded_expression(
+                context,
+                ordinal,
+                module,
+                owner,
+                &attempt.expr,
+                bindings,
+            ),
+            syn::Expr::Call(call) if Self::find_wrapped_value(call).is_some() => {
+                Self::find_wrapped_value(call).is_some_and(|value| {
+                    Self::is_forwarded_expression(context, ordinal, module, owner, value, bindings)
+                })
+            }
             syn::Expr::MethodCall(call) => {
                 call.args.iter().all(Self::direct_argument)
                     && matches!(call.receiver.as_ref(), syn::Expr::Field(field) if matches!(field.base.as_ref(), syn::Expr::Path(path) if path.path.is_ident("self")))

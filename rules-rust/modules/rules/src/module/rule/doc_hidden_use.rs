@@ -7,6 +7,7 @@ use crate::module::util::{find_shape_visibility, owns_implementation};
 use crate::source::model::CrateIndex;
 use crate::source::model::IndexedItem;
 use crate::source::util::find_node_span;
+use quote::ToTokens;
 use std::collections::BTreeSet;
 use syn::spanned::Spanned;
 
@@ -162,38 +163,85 @@ impl DocHiddenUse {
             .collect()
     }
 
-    fn check_members(context: &RuleContext, ordinal: usize) -> Vec<RuleFinding> {
-        let index = &context.indexes[ordinal];
-        let candidates: Vec<HiddenMember> = index
-            .items
+    fn collect_identifiers(stream: proc_macro2::TokenStream, names: &mut BTreeSet<String>) {
+        for token in stream {
+            match token {
+                proc_macro2::TokenTree::Group(group) => {
+                    Self::collect_identifiers(group.stream(), names);
+                }
+                proc_macro2::TokenTree::Ident(ident) => {
+                    names.insert(ident.to_string());
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn list_crate_identifiers(index: &CrateIndex) -> BTreeSet<String> {
+        let mut names = BTreeSet::new();
+        for item in &index.items {
+            Self::collect_identifiers(item.syntax.to_token_stream(), &mut names);
+        }
+        for implementation in &index.implementations {
+            Self::collect_identifiers(implementation.syntax.to_token_stream(), &mut names);
+        }
+        names
+    }
+
+    fn is_named_with_owner(
+        context: &RuleContext,
+        ordinal: usize,
+        identifiers: &[BTreeSet<String>],
+        member_names: &[BTreeSet<String>],
+        owner: &str,
+        member: &str,
+    ) -> bool {
+        context
+            .indexes
             .iter()
             .enumerate()
-            .filter(|(_, item)| {
-                matches!(
-                    find_shape_visibility(&item.syntax),
-                    Some(syn::Visibility::Public(_))
-                )
+            .filter(|(_, other)| other.crate_name != context.indexes[ordinal].crate_name)
+            .any(|(position, _)| {
+                identifiers[position].contains(owner) && member_names[position].contains(member)
             })
-            .flat_map(|(identity, item)| Self::collect_members(index, identity, item))
-            .filter(|member| {
-                member.is_public && member.attributes.iter().any(DocHiddenVisitor::hides)
-            })
-            .collect();
-        if candidates.is_empty() {
-            return Vec::new();
-        }
-        let foreign_names =
-            VisibilityTier::collect_foreign_member_names(context, &index.crate_name);
+    }
+
+    fn check_members(
+        context: &RuleContext,
+        ordinal: usize,
+        identifiers: &[BTreeSet<String>],
+        member_names: &[BTreeSet<String>],
+    ) -> Vec<RuleFinding> {
+        let index = &context.indexes[ordinal];
         let implemented_names = Self::collect_implemented_names(context, &index.crate_name);
-        candidates
-            .into_iter()
-            .filter(|member| {
-                let is_named = foreign_names.contains(&member.name);
-                let is_implemented =
-                    member.is_trait_member && implemented_names.contains(&member.name);
-                !(is_named || is_implemented)
-            })
-            .map(|member| {
+        let mut findings = Vec::new();
+        for (identity, item) in index.items.iter().enumerate() {
+            let is_public = matches!(
+                find_shape_visibility(&item.syntax),
+                Some(syn::Visibility::Public(_))
+            );
+            if !is_public {
+                continue;
+            }
+            let unused = Self::collect_members(index, identity, item)
+                .into_iter()
+                .filter(|member| {
+                    member.is_public && member.attributes.iter().any(DocHiddenVisitor::hides)
+                })
+                .filter(|member| {
+                    let is_named = Self::is_named_with_owner(
+                        context,
+                        ordinal,
+                        identifiers,
+                        member_names,
+                        &item.name,
+                        &member.name,
+                    );
+                    let is_implemented =
+                        member.is_trait_member && implemented_names.contains(&member.name);
+                    !(is_named || is_implemented)
+                });
+            findings.extend(unused.map(|member: HiddenMember| {
                 build_node_finding(
                     "DocHiddenUse",
                     member.file,
@@ -201,8 +249,9 @@ impl DocHiddenUse {
                     member.name,
                     Self::MESSAGE.to_owned(),
                 )
-            })
-            .collect()
+            }));
+        }
+        findings
     }
 
     const MESSAGE: &'static str =
@@ -240,11 +289,30 @@ impl Rule for DocHiddenUse {
                 findings.extend(DocHiddenVisitor::collect(file, module.cfg.clone()));
             }
         }
-        for ordinal in 0..context.indexes.len() {
-            if Self::can_check_users(context, ordinal) {
-                findings.extend(Self::check_items(context, ordinal));
-                findings.extend(Self::check_members(context, ordinal));
-            }
+        let checked: Vec<usize> = (0..context.indexes.len())
+            .filter(|ordinal| Self::can_check_users(context, *ordinal))
+            .collect();
+        if checked.is_empty() {
+            return findings;
+        }
+        let identifiers: Vec<BTreeSet<String>> = context
+            .indexes
+            .iter()
+            .map(Self::list_crate_identifiers)
+            .collect();
+        let member_names: Vec<BTreeSet<String>> = context
+            .indexes
+            .iter()
+            .map(VisibilityTier::collect_crate_member_names)
+            .collect();
+        for ordinal in checked {
+            findings.extend(Self::check_items(context, ordinal));
+            findings.extend(Self::check_members(
+                context,
+                ordinal,
+                &identifiers,
+                &member_names,
+            ));
         }
         findings
     }

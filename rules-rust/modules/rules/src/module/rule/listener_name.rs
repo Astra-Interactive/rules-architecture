@@ -17,7 +17,10 @@ impl ListenerName {
     ) -> Vec<RuleFinding> {
         let index = &context.indexes[ordinal];
         let mut findings = Vec::new();
-        if !matches!(item.syntax, syn::Item::Struct(_)) {
+        if !matches!(
+            item.syntax,
+            syn::Item::Struct(_) | syn::Item::Enum(_) | syn::Item::Union(_)
+        ) {
             return findings;
         }
         let external = index

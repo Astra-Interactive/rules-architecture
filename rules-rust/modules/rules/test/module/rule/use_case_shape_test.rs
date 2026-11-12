@@ -202,6 +202,16 @@ fn given_typed_local_forwarding_the_contract_result_when_checked_then_the_pass_t
 }
 
 #[test]
+fn given_try_and_wrapped_forwarding_of_the_contract_result_when_checked_then_the_pass_through_use_case_is_reported()
+ {
+    crate::test::module::util::assert_di_lines(
+        &UseCaseShape,
+        "mod usecase {\nstruct LoadRatingUseCase { repository: String } impl LoadRatingUseCase { pub fn invoke(&self, id: u32) -> Result<u32, String> { let rating = self.repository.load(id)?; Ok(rating) } }\nstruct ReadRatingUseCase { ratings: String } impl ReadRatingUseCase { pub fn invoke(&self, id: u32) -> Option<u32> { Some(self.ratings.rating(id)) } }\nstruct ScoreRatingUseCase { repository: String } impl ScoreRatingUseCase { pub fn invoke(&self, id: u32) -> Result<u32, String> { let rating = self.repository.load(id)?; Ok(rating.score) } } }",
+        &[2, 3],
+    );
+}
+
+#[test]
 fn given_block_body_forwarding_the_contract_call_when_checked_then_the_pass_through_use_case_is_reported()
  {
     crate::test::module::util::assert_di_lines(

@@ -113,6 +113,30 @@ fn given_self_and_super_paths_with_duplicate_names_when_checked_then_detects_sec
 }
 
 #[test]
+fn given_trait_impl_on_a_reference_to_a_secondary_type_when_checked_then_detects_its_behaviour() {
+    let mut context = build_duplicate_options_context();
+    context.crates[0].files[1].syntax = syn::parse_file(
+        "struct Subject { options: Options } struct Options;\nimpl std::fmt::Display for &Options { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { Ok(()) } }",
+    )
+    .expect("reference implementation");
+    assert_eq!(1, OneTypeFamilyPerFile.check(&context).len());
+}
+
+#[test]
+fn given_free_function_beside_a_type_alias_when_checked_then_the_function_is_reported() {
+    let mut context = read_case_context("OneTypeFamilyPerFile", "pass-syntax");
+    context.crates[0].files[0].syntax = syn::parse_file("").expect("empty root");
+    context.crates[0].files[1].syntax =
+        syn::parse_file("type Ticket = u32;\nfn read() -> Ticket { 1 }").expect("alias file");
+    let findings = OneTypeFamilyPerFile.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert!(findings[0].finding.subject.ends_with("::read"));
+    context.crates[0].files[1].syntax =
+        syn::parse_file("fn read() -> u32 { 1 }\nfn write() {}").expect("function file");
+    assert!(OneTypeFamilyPerFile.check(&context).is_empty());
+}
+
+#[test]
 fn given_unknown_external_or_unsupported_self_types_when_checked_then_does_not_attach_behaviour() {
     for implementation in [
         "impl ::external::Options { fn read(&self) {} }",

@@ -57,6 +57,15 @@ impl OneTypeFamilyPerFile {
         resolved == declared
     }
 
+    fn peel_self_type(typed: &syn::Type) -> &syn::Type {
+        match typed {
+            syn::Type::Reference(reference) => Self::peel_self_type(&reference.elem),
+            syn::Type::Paren(paren) => Self::peel_self_type(&paren.elem),
+            syn::Type::Group(group) => Self::peel_self_type(&group.elem),
+            other => other,
+        }
+    }
+
     fn find_behaviour_owner(
         value: &syn::ItemImpl,
         items: &[syn::Item],
@@ -64,13 +73,14 @@ impl OneTypeFamilyPerFile {
         origin: &SourceFile,
         files: &[SourceFile],
     ) -> Option<TypeBehaviour> {
-        let syn::Type::Path(self_type) = value.self_ty.as_ref() else {
+        let peeled = Self::peel_self_type(&value.self_ty);
+        let syn::Type::Path(self_type) = peeled else {
             return None;
         };
         if self_type.qself.is_some() || self_type.path.leading_colon.is_some() {
             return None;
         }
-        let name = find_self_name(&value.self_ty)?;
+        let name = find_self_name(peeled)?;
         let candidates: Vec<&SourceFile> = files
             .iter()
             .filter(|file| {
@@ -185,6 +195,17 @@ impl OneTypeFamilyPerFile {
         name.to_string().ends_with("Error") || derives(attributes, "Error")
     }
 
+    fn build_free_function_findings(file: &SourceFile, subject: &str) -> Vec<RuleFinding> {
+        file.syntax
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                syn::Item::Fn(function) => Some(build_node_finding("OneTypeFamilyPerFile", &file.path, find_node_span(function.span()), format!("{subject}::{}", function.sig.ident), "Place free functions in a function file, separate from a type family (arch-package.rs.md)".to_owned())),
+                _ => None,
+            })
+            .collect()
+    }
+
     fn check_file(
         file: &SourceFile,
         sources: &CrateSources,
@@ -197,11 +218,19 @@ impl OneTypeFamilyPerFile {
             .iter()
             .filter_map(|item| find_type_name(item).map(|name| TypeDeclaration { item, name }))
             .collect();
+        let subject = format_module_path(&file.module.crate_name, &file.module.path);
         if types.is_empty() {
+            let declares_alias = file
+                .syntax
+                .items
+                .iter()
+                .any(|item| matches!(item, syn::Item::Type(_)));
+            if declares_alias {
+                return Self::build_free_function_findings(file, &subject);
+            }
             return findings;
         }
         let primary = find_primary_type(file, sources);
-        let subject = format_module_path(&file.module.crate_name, &file.module.path);
         if primary.is_none() {
             findings.extend(Self::build_missing_primary(file, sources));
         }
@@ -233,11 +262,7 @@ impl OneTypeFamilyPerFile {
                 findings.push(build_node_finding("OneTypeFamilyPerFile", &file.path, find_node_span(item.item.span()), format!("{subject}::{name}"), "Keep only the primary type and plain data types declared after their users in its file (arch-package.rs.md)".to_owned()));
             }
         }
-        for item in &file.syntax.items {
-            if let syn::Item::Fn(function) = item {
-                findings.push(build_node_finding("OneTypeFamilyPerFile", &file.path, find_node_span(function.span()), format!("{subject}::{}", function.sig.ident), "Place free functions in a function file, separate from a type family (arch-package.rs.md)".to_owned()));
-            }
-        }
+        findings.extend(Self::build_free_function_findings(file, &subject));
         findings
     }
 }

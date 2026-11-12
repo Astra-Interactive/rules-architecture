@@ -19,7 +19,7 @@ impl ImplementationVisibility {
                 let private_implementation = ["stub", "memory"].contains(&kind)
                     && context.can_prove_workspace_only(ordinal)
                     && !context.has_external_name_user(ordinal, identity)
-                    && matches!(item.syntax, Item::Struct(_))
+                    && matches!(item.syntax, Item::Struct(_) | Item::Enum(_))
                     && index
                         .implementations
                         .iter()
@@ -41,10 +41,12 @@ impl Rule for ImplementationVisibility {
             .enumerate()
             .flat_map(|(ordinal, index)| {
                 index.items.iter().filter_map(move |item| {
-                    let Item::Struct(structure) = &item.syntax else {
-                        return None;
+                    let visibility = match &item.syntax {
+                        Item::Struct(structure) => &structure.vis,
+                        Item::Enum(enumeration) => &enumeration.vis,
+                        _ => return None,
                     };
-                    if !matches!(structure.vis, Visibility::Public(_)) {
+                    if !matches!(visibility, Visibility::Public(_)) {
                         return None;
                     }
                     let kind = find_kind_name(context, ordinal, item.module);

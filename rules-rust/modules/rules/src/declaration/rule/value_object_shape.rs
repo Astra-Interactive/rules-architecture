@@ -246,12 +246,14 @@ impl ValueObjectShape {
                     .as_ref()
                     .map(ToString::to_string)
                     .or_else(|| parameters.get(position).cloned().flatten());
-                name.is_some_and(|name| {
-                    let member = field.ident.as_ref().map_or_else(|| syn::Member::Unnamed(syn::Index::from(position)), |name| syn::Member::Named(name.clone()));
-                    !methods
+                let member = field.ident.as_ref().map_or_else(|| syn::Member::Unnamed(syn::Index::from(position)), |name| syn::Member::Named(name.clone()));
+                let is_accessor = |method: &&&syn::ImplItemFn| method.sig.receiver().is_some() && matches!(method.block.stmts.as_slice(), [Stmt::Expr(expression, _)] if Self::accesses_field(expression, &member));
+                match name {
+                    Some(name) => !methods
                         .iter()
-                        .any(|method| method.sig.ident == name && method.sig.receiver().is_some() && matches!(method.block.stmts.as_slice(), [Stmt::Expr(expression, _)] if Self::accesses_field(expression, &member)))
-                })
+                        .any(|method| method.sig.ident == name && is_accessor(&method)),
+                    None => !methods.iter().any(|method| is_accessor(&method)),
+                }
             })
     }
 

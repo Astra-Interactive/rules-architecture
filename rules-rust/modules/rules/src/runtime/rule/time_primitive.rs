@@ -21,6 +21,7 @@ struct TimeVisitor<'context> {
     spans: Vec<proc_macro2::Span>,
     bindings: Vec<LocalBinding>,
     in_serde_entry_type: bool,
+    in_trait_impl: bool,
 }
 
 struct LocalBinding {
@@ -154,8 +155,11 @@ impl TimeVisitor<'_> {
         {
             return true;
         }
-        if let syn::Type::Reference(reference) = typed {
-            return self.primitive(&reference.elem);
+        match typed {
+            syn::Type::Reference(reference) => return self.primitive(&reference.elem),
+            syn::Type::Array(array) => return self.primitive(&array.elem),
+            syn::Type::Slice(slice) => return self.primitive(&slice.elem),
+            _ => {}
         }
         self.context.resolve_type_syntax(self.ordinal, self.module, typed).iter().any(|resolved|
             matches!(&resolved.typed, syn::Type::Path(path) if path.path.get_ident().is_some_and(|name|
@@ -205,14 +209,102 @@ impl TimeVisitor<'_> {
             && self.derives_serde(attributes)
     }
 
-    fn is_unit_named_primitive(&self, ident: &syn::Ident, typed: &syn::Type) -> bool {
+    fn has_unit_suffix(ident: &syn::Ident) -> bool {
         let name = ident.to_string().to_uppercase();
         [
-            "_MS", "_MILLIS", "_SECS", "_SECONDS", "_NANOS", "_MICROS", "_MINUTES", "_HOURS",
+            "_MS",
+            "_MILLIS",
+            "_SECS",
+            "_SECONDS",
+            "_NANOS",
+            "_MICROS",
+            "_MINUTES",
+            "_HOURS",
+            "_DAYS",
+            "_WEEKS",
+            "_MILLISECONDS",
+            "_MICROSECONDS",
+            "_NANOSECONDS",
+            "_SEC",
+            "_MINS",
         ]
         .iter()
         .any(|suffix| name.ends_with(suffix))
-            && self.primitive(typed)
+    }
+
+    fn wrapped_primitive(&self, typed: &syn::Type) -> bool {
+        let syn::Type::Path(path) = typed else {
+            return false;
+        };
+        let is_wrapper = self
+            .context
+            .resolve_outer_external_type_paths(self.ordinal, self.module, typed)
+            .iter()
+            .any(|outer| {
+                ["std", "core", "alloc"].contains(&outer.package.as_str())
+                    && outer.segments.last().is_some_and(|name| {
+                        ["Option", "Vec", "VecDeque", "Box"].contains(&name.as_str())
+                    })
+            });
+        let Some(syn::PathArguments::AngleBracketed(arguments)) =
+            path.path.segments.last().map(|segment| &segment.arguments)
+        else {
+            return false;
+        };
+        is_wrapper
+            && matches!(arguments.args.first(), Some(syn::GenericArgument::Type(inner))
+                if arguments.args.len() == 1 && self.primitive(inner))
+    }
+
+    fn is_unit_named_primitive(&self, ident: &syn::Ident, typed: &syn::Type) -> bool {
+        Self::has_unit_suffix(ident) && (self.primitive(typed) || self.wrapped_primitive(typed))
+    }
+
+    fn returns_duration(&self, signature: &syn::Signature) -> bool {
+        let syn::ReturnType::Type(_, returned) = &signature.output else {
+            return false;
+        };
+        self.context
+            .resolve_outer_external_type_paths(self.ordinal, self.module, returned)
+            .iter()
+            .any(|path| {
+                ["std", "core"].contains(&path.package.as_str())
+                    && path.segments.last().is_some_and(|name| name == "Duration")
+            })
+    }
+
+    fn check_parameters(&mut self, signature: &syn::Signature) {
+        if self.is_wire_boundary() || self.returns_duration(signature) {
+            return;
+        }
+        for parameter in &signature.inputs {
+            let syn::FnArg::Typed(parameter) = parameter else {
+                continue;
+            };
+            let syn::Pat::Ident(binding) = parameter.pat.as_ref() else {
+                continue;
+            };
+            if self.is_unit_named_primitive(&binding.ident, &parameter.ty) {
+                self.spans.push(parameter.span());
+            }
+        }
+    }
+
+    fn check_literal_local(&mut self, local: &syn::Local) {
+        let binding = match &local.pat {
+            syn::Pat::Ident(binding) => binding,
+            syn::Pat::Type(typed) => match typed.pat.as_ref() {
+                syn::Pat::Ident(binding) => binding,
+                _ => return,
+            },
+            _ => return,
+        };
+        let integer_literal = local.init.as_ref().is_some_and(|init| {
+            matches!(init.expr.as_ref(), syn::Expr::Lit(literal) if matches!(literal.lit, syn::Lit::Int(_)))
+        });
+        if integer_literal && Self::has_unit_suffix(&binding.ident) && !self.is_wire_boundary() {
+            self.spans.push(local.span());
+        }
     }
 
     fn local_instant(&self, expression: &syn::Expr) -> bool {
@@ -409,13 +501,24 @@ impl<'ast> Visit<'ast> for TimeVisitor<'_> {
     }
     fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
         let bindings = std::mem::take(&mut self.bindings);
+        self.check_parameters(&item.sig);
         self.bind_signature(&item.sig);
         syn::visit::visit_item_fn(self, item);
         self.bindings = bindings;
     }
 
+    fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
+        let outer = self.in_trait_impl;
+        self.in_trait_impl = item.trait_.is_some();
+        syn::visit::visit_item_impl(self, item);
+        self.in_trait_impl = outer;
+    }
+
     fn visit_impl_item_fn(&mut self, item: &'ast syn::ImplItemFn) {
         let bindings = std::mem::take(&mut self.bindings);
+        if !self.in_trait_impl {
+            self.check_parameters(&item.sig);
+        }
         self.bind_signature(&item.sig);
         syn::visit::visit_impl_item_fn(self, item);
         self.bindings = bindings;
@@ -439,6 +542,7 @@ impl<'ast> Visit<'ast> for TimeVisitor<'_> {
             .is_some_and(|init| self.local_instant(&init.expr));
         self.bind_pattern(&local.pat, None, instant);
         self.mark_channel_sender(local);
+        self.check_literal_local(local);
     }
 
     fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
@@ -593,6 +697,7 @@ impl Rule for TimePrimitive {
                     spans: Vec::new(),
                     bindings: Vec::new(),
                     in_serde_entry_type: false,
+                    in_trait_impl: false,
                 };
                 visitor.visit_file(&file.syntax);
                 for span in visitor.spans {

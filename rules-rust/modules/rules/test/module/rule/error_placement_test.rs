@@ -3,8 +3,8 @@ use crate::config::model::Role;
 use crate::module::rule::ErrorPlacement;
 use crate::test::declaration::util::assert_code_fixture;
 use crate::test::declaration::util::read_code_context;
+use crate::test::module::util::add_workspace_provider;
 use crate::test::module::util::assert_placement_findings;
-use crate::workspace::model::{Dependency, DependencyKind};
 
 #[test]
 fn given_entry_route_returning_a_foreign_model_error_alias_when_checked_then_requires_an_entry_model_family()
@@ -12,33 +12,11 @@ fn given_entry_route_returning_a_foreign_model_error_alias_when_checked_then_req
     let mut context = read_code_context(
         "mod route { type Reply = Result<(), tokio::model::LoadError>; fn load() -> Reply { loop {} } }",
     );
-    let mut provider = read_code_context("pub mod model { pub enum LoadError { Missing } }");
-    let mut member = provider.workspace.members.remove(0);
-    member.name = "case-provider".to_owned();
-    member.directory = "modules/provider".to_owned();
-    let mut index = provider.indexes.remove(0);
-    index.crate_name = member.name.clone();
-    for module in &mut index.modules {
-        module.module.crate_name = member.name.clone();
-    }
-    context.workspace.members[0].dependencies.push(Dependency {
-        name: member.name.clone(),
-        code_name: "tokio".to_owned(),
-        path: Some(
-            context
-                .workspace
-                .root
-                .join(&member.directory)
-                .to_string_lossy()
-                .into_owned(),
-        ),
-        kind: DependencyKind::Normal,
-        features: Vec::new(),
-        is_target_specific: false,
-        line: Some(1),
-    });
-    context.workspace.members.push(member);
-    context.indexes.push(index);
+    add_workspace_provider(
+        &mut context,
+        "pub mod model { pub enum LoadError { Missing } }",
+        "tokio",
+    );
     context.project_config.crates[0].role = Some(Role::EntryPoint);
     assert_placement_findings(
         &ErrorPlacement,
@@ -54,6 +32,39 @@ fn given_entry_route_returning_a_foreign_model_error_alias_when_checked_then_req
     );
     context.project_config.crates[0].role = Some(Role::Context);
     assert_placement_findings(&ErrorPlacement, "ErrorPlacement", &context, &[]);
+}
+
+#[test]
+fn given_entry_route_method_returning_a_foreign_model_error_when_checked_then_requires_an_entry_model_family()
+ {
+    let mut context = read_code_context(
+        "mod route { pub(crate) struct Routes; impl Routes { fn load(&self) -> Result<(), tokio::model::LoadError> { loop {} } } }",
+    );
+    add_workspace_provider(
+        &mut context,
+        "pub mod model { pub enum LoadError { Missing } }",
+        "tokio",
+    );
+    context.project_config.crates[0].role = Some(Role::EntryPoint);
+    assert_placement_findings(
+        &ErrorPlacement,
+        "ErrorPlacement",
+        &context,
+        &[("src/lib.rs", 1, "Node")],
+    );
+}
+
+#[test]
+fn given_enum_used_as_the_error_of_a_result_when_declared_outside_model_then_reports_it() {
+    let context = read_code_context(
+        "mod usecase {\n    pub(crate) enum ParseFailure { Blank }\n    pub(crate) enum Mode { Fast }\n    pub(crate) fn parse(raw: &str) -> Result<Mode, ParseFailure> { Err(ParseFailure::Blank) }\n}\nmod model {\n    pub(crate) enum LoadFailure { Missing }\n    pub(crate) fn load() -> Result<(), LoadFailure> { Ok(()) }\n}",
+    );
+    assert_placement_findings(
+        &ErrorPlacement,
+        "ErrorPlacement",
+        &context,
+        &[("src/lib.rs", 2, "Node")],
+    );
 }
 
 #[test]

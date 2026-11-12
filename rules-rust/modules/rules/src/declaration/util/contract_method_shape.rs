@@ -122,6 +122,29 @@ fn is_channel_sender(
         })
 }
 
+fn is_plain_channel_receiver(path: &crate::source::model::ExternalPath) -> bool {
+    let formatted = path.format_path();
+    formatted == "std::sync::mpsc::Receiver"
+        || (["futures", "futures_channel"].contains(&path.package.as_str())
+            && path.segments.iter().any(|segment| segment == "mpsc")
+            && path
+                .segments
+                .last()
+                .is_some_and(|name| ["Receiver", "UnboundedReceiver"].contains(&name.as_str())))
+}
+
+fn is_future_path(path: &crate::source::model::ExternalPath) -> bool {
+    let is_boxed_future = ["futures", "futures_util", "futures_core"]
+        .contains(&path.package.as_str())
+        && path
+            .segments
+            .last()
+            .is_some_and(|name| ["BoxFuture", "LocalBoxFuture"].contains(&name.as_str()));
+    let is_future_trait = ["std", "core"].contains(&path.package.as_str())
+        && path.segments.last().is_some_and(|name| name == "Future");
+    is_boxed_future || is_future_trait
+}
+
 fn invalid_return(
     context: &RuleContext,
     ordinal: usize,
@@ -149,7 +172,12 @@ fn invalid_return(
                         "mpsc::Receiver",
                         "mpsc::UnboundedReceiver",
                     ],
-                ))
+                )
+                || is_plain_channel_receiver(path))
+    });
+    let future = paths.iter().any(is_future_path);
+    let wrapped_stream = paths.iter().any(|path| {
+        path.package == "tokio_stream" && path.segments.iter().any(|segment| segment == "wrappers")
     });
     let stream = paths.iter().any(|path| {
         ["futures", "futures_core", "futures_util"].contains(&path.package.as_str())
@@ -176,6 +204,8 @@ fn invalid_return(
                         })
             });
     handle
+        || future
+        || wrapped_stream
         || raw_stream
         || is_non_static_box_stream(context, ordinal, module, typed, cfg)
         || external_result_error(context, ordinal, module, typed, cfg)

@@ -1,7 +1,10 @@
+use crate::check::model::RuleContext;
 use crate::config::model::Role;
 use crate::module::rule::EventPlacement;
+use crate::source::syn::CrateIndexBuilder;
 use crate::test::declaration::util::assert_code_fixture;
 use crate::test::declaration::util::read_code_context;
+use crate::test::module::util::add_workspace_provider;
 use crate::test::module::util::assert_placement_findings;
 
 #[test]
@@ -59,6 +62,48 @@ fn given_platform_words_when_event_derives_or_implements_a_non_host_trait_then_r
     );
     context.project_config.platform_words = Vec::new();
     assert_placement_findings(&EventPlacement, "EventPlacement", &context, &[]);
+}
+
+fn read_platform_context_with_workspace_provider() -> RuleContext {
+    let mut context = read_code_context(
+        "mod event {\n    use case_provider::Event;\n    #[derive(Event)]\n    struct PlayerJoinEvent(u32);\n    struct PlayerQuitEvent(u32);\n    impl case_provider::HostSignal for PlayerQuitEvent {}\n}",
+    );
+    let mut dependencies = context.indexes[0].dependencies.clone();
+    dependencies.push("case_provider".to_owned());
+    context.indexes[0] = CrateIndexBuilder::new(&context.crates[0], dependencies).build();
+    add_workspace_provider(
+        &mut context,
+        "pub trait HostSignal {}\n#[proc_macro_derive(Event)]\npub fn derive_event() {}",
+        "case_provider",
+    );
+    context.project_config.crates[0].role = Some(Role::Platform);
+    context
+}
+
+#[test]
+fn given_platform_words_when_event_uses_derive_or_trait_of_another_workspace_crate_then_reports_both()
+ {
+    let mut context = read_platform_context_with_workspace_provider();
+    context.project_config.platform_words = vec!["vendor".to_owned()];
+    assert_placement_findings(
+        &EventPlacement,
+        "EventPlacement",
+        &context,
+        &[("src/lib.rs", 3, "Node"), ("src/lib.rs", 5, "Node")],
+    );
+}
+
+#[test]
+fn given_no_platform_words_when_event_uses_derive_or_trait_of_another_workspace_crate_then_reports_both()
+ {
+    let mut context = read_platform_context_with_workspace_provider();
+    context.project_config.platform_words = Vec::new();
+    assert_placement_findings(
+        &EventPlacement,
+        "EventPlacement",
+        &context,
+        &[("src/lib.rs", 3, "Node"), ("src/lib.rs", 5, "Node")],
+    );
 }
 
 #[test]

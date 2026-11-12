@@ -5,10 +5,10 @@ fn is_collection(context: &RuleContext, ordinal: usize, module: usize, typed: &s
         .resolve_outer_external_type_paths(ordinal, module, typed)
         .iter()
         .any(|path| {
-            matches!(path.package.as_str(), "std" | "alloc")
+            matches!(path.package.as_str(), "std" | "alloc" | "core")
                 && path.segments.last().is_some_and(|name| {
                     [
-                        "Vec", "VecDeque", "HashMap", "BTreeMap", "HashSet", "BTreeSet",
+                        "Vec", "VecDeque", "HashMap", "BTreeMap", "HashSet", "BTreeSet", "Option",
                     ]
                     .contains(&name.as_str())
                 })

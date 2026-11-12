@@ -80,6 +80,71 @@ fn given_core_role_in_a_plugin_product_when_checked_then_the_unit_is_reported() 
 }
 
 #[test]
+fn given_split_sub_context_without_an_api_unit_when_checked_then_each_of_its_units_is_reported() {
+    let mut context = read_role_context(Role::Context, Role::Context, DependencyKind::Normal);
+    enable_plugin_product(&mut context);
+    let mut subjects: Vec<String> = PluginImplUnit
+        .check(&context)
+        .into_iter()
+        .map(|finding| finding.finding.subject)
+        .collect();
+    subjects.sort();
+    assert_eq!(subjects, ["case-consumer", "case-provider"]);
+    context.project_config.crates[1].role = Some(Role::StorageContract);
+    assert!(PluginImplUnit.check(&context).is_empty());
+    context.project_config.crates[1].role = Some(Role::Context);
+    context.workspace.members[0].directory = "modules/consumer".to_owned();
+    context.workspace.members[1].directory = "modules/provider".to_owned();
+    assert!(PluginImplUnit.check(&context).is_empty());
+}
+
+#[test]
+fn given_tooling_or_technology_units_under_one_directory_when_checked_then_only_context_units_are_reported_as_split()
+ {
+    for role in [Role::Tooling, Role::Technology] {
+        let mut context = read_role_context(role, role, DependencyKind::Normal);
+        enable_plugin_product(&mut context);
+        context.workspace.members[0].directory = "modules/tools/lint".to_owned();
+        context.workspace.members[1].directory = "modules/tools/format".to_owned();
+        assert!(PluginImplUnit.check(&context).is_empty(), "{role:?}");
+    }
+    let mut context = read_role_context(Role::Context, Role::Context, DependencyKind::Normal);
+    enable_plugin_product(&mut context);
+    context.workspace.members[0].directory = "modules/tools/lint".to_owned();
+    context.workspace.members[1].directory = "modules/tools/format".to_owned();
+    let mut subjects: Vec<String> = PluginImplUnit
+        .check(&context)
+        .into_iter()
+        .map(|finding| finding.finding.subject)
+        .collect();
+    subjects.sort();
+    assert_eq!(subjects, ["case-consumer", "case-provider"]);
+}
+
+#[test]
+fn given_split_context_units_with_a_tooling_sibling_when_checked_then_only_the_context_units_are_reported()
+ {
+    let mut context = read_role_context(Role::Context, Role::Context, DependencyKind::Normal);
+    enable_plugin_product(&mut context);
+    let mut tooling = context.workspace.members[0].clone();
+    tooling.name = "case-tool".to_owned();
+    tooling.directory = "modules/billing/lint".to_owned();
+    tooling.manifest.path = "modules/billing/lint/Cargo.toml".to_owned();
+    context.workspace.members.push(tooling);
+    let mut tooling_config = context.project_config.crates[0].clone();
+    tooling_config.name = "case-tool".to_owned();
+    tooling_config.role = Some(Role::Tooling);
+    context.project_config.crates.push(tooling_config);
+    let mut subjects: Vec<String> = PluginImplUnit
+        .check(&context)
+        .into_iter()
+        .map(|finding| finding.finding.subject)
+        .collect();
+    subjects.sort();
+    assert_eq!(subjects, ["case-consumer", "case-provider"]);
+}
+
+#[test]
 fn given_technology_unit_beside_api_when_an_impl_unit_exists_then_only_the_impl_is_reported() {
     let mut context = read_role_context(Role::Technology, Role::Api, DependencyKind::Normal);
     enable_plugin_product(&mut context);

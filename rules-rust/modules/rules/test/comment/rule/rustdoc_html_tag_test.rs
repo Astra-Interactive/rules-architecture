@@ -9,6 +9,16 @@ fn given_persistent_code_fixtures_when_checked_then_match_exact_anchors() {
 }
 
 #[test]
+fn given_hyphenated_custom_element_tags_when_checked_then_reports_each_tag_line() {
+    assert_code_findings(
+        &RustdocHtmlTag,
+        "RustdocHtmlTag",
+        "/// Renders a <my-widget> element.\nfn render() {}\n/// Use `<my-widget>` literally; a <- b.\nfn other() {}\n/// Closes </my-widget> here.\nfn close() {}",
+        &[1, 5],
+    );
+}
+
+#[test]
 fn given_unclosed_example_on_another_item_when_checked_then_fence_does_not_hide_html() {
     assert_code_findings(
         &RustdocHtmlTag,

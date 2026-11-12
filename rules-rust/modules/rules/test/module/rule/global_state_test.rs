@@ -1,5 +1,39 @@
 #[test]
-fn given_logging_installations_when_checked_then_entry_main_is_the_only_installation_boundary() {
+fn given_subscriber_builder_bound_to_a_local_when_installed_outside_main_then_it_is_reported() {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::GlobalState,
+        "fn start_logging() {\n    let builder = tracing_subscriber::fmt();\n    builder.init();\n}\nfn configure(builder: Builder) {\n    builder.init();\n}\nstruct Builder;\nimpl Builder { fn init(&self) {} }",
+        &[3],
+    );
+}
+
+#[test]
+fn given_logger_installed_in_a_tooling_main_when_checked_then_only_a_library_main_is_reported() {
+    let mut context = crate::test::module::util::read_di_context(
+        "fn main() { tracing_subscriber::fmt().init(); }",
+    );
+    context.project_config.crates[0].role = Some(crate::config::model::Role::Tooling);
+    assert!(crate::check::api::Rule::check(&crate::module::rule::GlobalState, &context).is_empty());
+    context.project_config.crates[0].role = Some(crate::config::model::Role::Context);
+    let lines: Vec<Option<u32>> =
+        crate::check::api::Rule::check(&crate::module::rule::GlobalState, &context)
+            .iter()
+            .map(|finding| finding.finding.location.line)
+            .collect();
+    assert_eq!(lines, [Some(1)]);
+}
+
+#[test]
+fn given_static_trait_object_or_reference_to_a_service_when_checked_then_each_is_reported() {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::GlobalState,
+        "mod api { pub trait Clock { fn now(&self) -> u64; } }\nstruct SystemClock;\nimpl crate::api::Clock for SystemClock { fn now(&self) -> u64 { 0 } }\nstatic DEFAULT_CLOCK: &dyn crate::api::Clock = &SystemClock;\nstatic BY_REFERENCE: &SystemClock = &SystemClock;\nstatic NAMES: &[&str] = &[\"a\"];\nstatic LIMIT: u64 = 1;",
+        &[4, 5],
+    );
+}
+
+#[test]
+fn given_logging_installations_when_checked_then_binary_main_is_the_only_installation_boundary() {
     crate::test::module::util::assert_di_lines(
         &crate::module::rule::GlobalState,
         "use tracing::subscriber::set_global_default as install;\nfn configure() { install(todo!()); }\nfn helper() { tracing_subscriber::fmt().init(); }",

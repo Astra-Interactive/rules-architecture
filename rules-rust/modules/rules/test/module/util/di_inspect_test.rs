@@ -6,9 +6,16 @@ pub(crate) fn read_di_context(source: &str) -> crate::check::model::RuleContext 
     let mut context = read_code_context(source);
     let mut dependencies = context.indexes[0].dependencies.clone();
     dependencies.extend(
-        ["thiserror", "tracing", "tracing_subscriber", "lazy_static"]
-            .into_iter()
-            .map(str::to_owned),
+        [
+            "thiserror",
+            "tracing",
+            "tracing_subscriber",
+            "lazy_static",
+            "tokio_stream",
+            "chrono",
+        ]
+        .into_iter()
+        .map(str::to_owned),
     );
     context.indexes =
         vec![crate::source::syn::CrateIndexBuilder::new(&context.crates[0], dependencies).build()];

@@ -4,6 +4,16 @@ use crate::test::declaration::util::assert_code_fixture;
 use crate::test::declaration::util::{assert_code_findings, read_code_context};
 
 #[test]
+fn given_free_executor_block_on_in_drop_when_checked_then_reports_only_that_call() {
+    assert_code_findings(
+        &BridgeCleanup,
+        "BridgeCleanup",
+        "struct Session { client: u32 }\nimpl Drop for Session {\n    fn drop(&mut self) {\n        futures::executor::block_on(async {});\n    }\n}\nimpl Session {\n    fn close(&self) { futures::executor::block_on(async {}); }\n}\nfn block_on<T>(value: T) -> T { value }\nstruct Local;\nimpl Drop for Local {\n    fn drop(&mut self) { block_on(1); }\n}",
+        &[4],
+    );
+}
+
+#[test]
 fn given_async_ownership_cases_when_checked_then_matches_exact_node_anchors() {
     assert_code_findings(
         &BridgeCleanup,

@@ -213,8 +213,7 @@ impl<'ast> Visit<'ast> for ClosureEffects {
     }
 
     fn visit_expr_method_call(&mut self, expression: &'ast syn::ExprMethodCall) {
-        if matches!(&*expression.receiver, syn::Expr::Path(path) if !self.bound.iter().any(|name| path.path.is_ident(name)))
-        {
+        if self.is_capture_place(&expression.receiver) {
             self.captured_methods.push(expression.clone());
         }
         self.methods.push(expression.clone());

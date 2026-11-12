@@ -15,10 +15,22 @@ impl ContainerSources {
                 return false;
             };
             let child_directory = format!("{container}/{child}");
-            !workspace.members.iter().any(|member| {
-                member.directory == child_directory
-                    || member.directory.starts_with(&format!("{child_directory}/"))
-            })
+            !Self::holds_member(workspace, &child_directory)
+        })
+    }
+
+    fn holds_member(workspace: &Workspace, directory: &str) -> bool {
+        workspace.members.iter().any(|member| {
+            member.directory == directory || member.directory.starts_with(&format!("{directory}/"))
+        })
+    }
+
+    fn has_stray_child_directory(workspace: &Workspace, container: &str) -> bool {
+        workspace.directories.iter().any(|path| {
+            let is_child = path
+                .strip_prefix(&format!("{container}/"))
+                .is_some_and(|child| !child.is_empty() && !child.contains('/'));
+            is_child && !Self::holds_member(workspace, path)
         })
     }
 }
@@ -42,7 +54,10 @@ impl Rule for ContainerSources {
                 let Some(file) = path.strip_prefix(&format!("{directory}/")) else { return false; };
                 !file.contains('/') && file != "README.md"
             });
-            has_sources || has_file || Self::has_stray_directory(workspace, directory)
+            has_sources
+                || has_file
+                || Self::has_stray_directory(workspace, directory)
+                || Self::has_stray_child_directory(workspace, directory)
         }).map(|directory| RuleFinding {
             finding: Finding {
                 rule_id: RuleId("ContainerSources".to_owned()),

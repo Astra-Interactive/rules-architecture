@@ -70,3 +70,67 @@ fn given_declaration_shapes_when_checked_then_exact_wrong_sites_report_and_corre
     let context = read_case_context("EntryPointVisibility", "pass-declaration-shape");
     assert!(EntryPointVisibility.check(&context).is_empty());
 }
+
+fn list_findings_by_line(context: &crate::check::model::RuleContext) -> Vec<String> {
+    let mut actual: Vec<String> = EntryPointVisibility
+        .check(context)
+        .iter()
+        .map(|finding| {
+            format!(
+                "{} {}",
+                finding.finding.location.line.expect("finding line"),
+                finding.finding.subject
+            )
+        })
+        .collect();
+    actual.sort();
+    actual
+}
+
+#[test]
+fn given_public_event_with_host_mark_when_checked_then_only_other_public_types_report() {
+    let mut context = crate::test::declaration::util::read_code_context(
+        "mod event {\n#[derive(vendor::Event)] pub struct PlayerJoinEvent(u32);\npub struct PlayerQuitEvent(u32);\nimpl vendor::HostEvent for PlayerQuitEvent {}\npub struct PlayerMoveEvent(u32);\n}\nmod slot { pub struct InvoiceSlot; }",
+    );
+    context.project_config.crates[0].role = Some(crate::config::model::Role::Platform);
+    context.workspace.root_manifest = crate::workspace::util::parse_toml_file(
+        "Cargo.toml",
+        "[workspace.metadata.klibs-rules]\nentry-point-words=['slot']",
+    )
+    .expect("manifest");
+    assert_eq!(
+        list_findings_by_line(&context),
+        [
+            "5 case_sample::event::PlayerMoveEvent",
+            "7 case_sample::slot::InvoiceSlot"
+        ]
+    );
+}
+
+#[test]
+fn given_platform_words_when_public_event_derives_or_implements_a_non_platform_trait_then_reports_it()
+ {
+    let mut context = crate::test::declaration::util::read_code_context(
+        "mod event {\nuse serde::Serialize;\nuse vendor::Event;\n#[derive(Serialize)] pub struct PlayerJailedEvent(u32);\n#[derive(Event, Serialize)] pub struct PlayerJoinEvent(u32);\npub struct PlayerQuitEvent(u32);\nimpl tokio::Marker for PlayerQuitEvent {}\npub struct PlayerMoveEvent(u32);\nimpl vendor::HostEvent for PlayerMoveEvent {}\n}\nmod slot { pub struct InvoiceSlot; }",
+    );
+    context.project_config.crates[0].role = Some(crate::config::model::Role::Platform);
+    context.workspace.root_manifest = crate::workspace::util::parse_toml_file(
+        "Cargo.toml",
+        "[workspace.metadata.klibs-rules]\nentry-point-words=['slot']",
+    )
+    .expect("manifest");
+    context.project_config.platform_words = vec!["vendor".to_owned()];
+    assert_eq!(
+        list_findings_by_line(&context),
+        [
+            "11 case_sample::slot::InvoiceSlot",
+            "4 case_sample::event::PlayerJailedEvent",
+            "6 case_sample::event::PlayerQuitEvent"
+        ]
+    );
+    context.project_config.platform_words = Vec::new();
+    assert_eq!(
+        list_findings_by_line(&context),
+        ["11 case_sample::slot::InvoiceSlot"]
+    );
+}

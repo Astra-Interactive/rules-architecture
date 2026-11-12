@@ -1,6 +1,6 @@
 use crate::check::model::RuleContext;
-use crate::source::model::{NodeSpan, Resolution};
-use crate::source::util::find_node_span;
+use crate::source::model::{NodeSpan, Resolution, SelectPart};
+use crate::source::util::{find_node_span, parse_select_parts};
 use std::collections::{HashMap, HashSet};
 use syn::spanned::Spanned;
 use syn::visit::Visit;
@@ -127,6 +127,12 @@ impl<'context> TupleBindingVisitor<'context> {
         }
     }
 
+    fn preserves_string(call: &syn::ExprMethodCall) -> bool {
+        Self::STRING_PRESERVING_METHODS
+            .iter()
+            .any(|name| call.method == *name)
+    }
+
     fn standard_receiver(&self, expression: &syn::Expr) -> bool {
         match expression {
             syn::Expr::Lit(syn::ExprLit {
@@ -135,6 +141,9 @@ impl<'context> TupleBindingVisitor<'context> {
             }) => true,
             syn::Expr::Paren(paren) => self.standard_receiver(&paren.expr),
             syn::Expr::Reference(reference) => self.standard_receiver(&reference.expr),
+            syn::Expr::MethodCall(call) => {
+                Self::preserves_string(call) && self.standard_receiver(&call.receiver)
+            }
             syn::Expr::Path(path) => path
                 .path
                 .get_ident()
@@ -252,6 +261,10 @@ impl<'context> TupleBindingVisitor<'context> {
             syn::Expr::Lit(literal) if matches!(literal.lit, syn::Lit::Str(_)) => {
                 ["chars", "lines", "bytes", "char_indices"].contains(&method)
             }
+            syn::Expr::MethodCall(call) if Self::preserves_string(call) => {
+                ["chars", "lines", "bytes", "char_indices"].contains(&method)
+                    && self.standard_receiver(&call.receiver)
+            }
             syn::Expr::Path(path) => path
                 .path
                 .get_ident()
@@ -351,7 +364,7 @@ impl<'context> TupleBindingVisitor<'context> {
             syn::Expr::Paren(paren) => self.optional_tuple(&paren.expr),
             syn::Expr::Group(group) => self.optional_tuple(&group.expr),
             syn::Expr::MethodCall(call) => {
-                (["split_once", "rsplit_once"]
+                (Self::OPTIONAL_TUPLE_METHODS
                     .iter()
                     .any(|name| call.method == *name)
                     && self.standard_receiver(&call.receiver))
@@ -408,7 +421,7 @@ impl<'context> TupleBindingVisitor<'context> {
                 .get_ident()
                 .is_some_and(|name| self.tuples.contains(&name.to_string())),
             syn::Expr::MethodCall(call) => {
-                (["split_at", "split_at_mut"]
+                (["split_at", "split_at_mut", "as_chunks", "as_rchunks"]
                     .iter()
                     .any(|name| call.method == *name)
                     && self.standard_receiver(&call.receiver))
@@ -458,6 +471,22 @@ impl<'context> TupleBindingVisitor<'context> {
         }
     }
 
+    fn single_variant_binding(pattern: &syn::Pat) -> bool {
+        let syn::Pat::TupleStruct(variant) = pattern else {
+            return false;
+        };
+        let wraps = variant
+            .path
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == "Some" || segment.ident == "Ok");
+        let one_name = matches!(
+            variant.elems.first(),
+            Some(element) if variant.elems.len() == 1 && Self::named_binding(element)
+        );
+        wraps && one_name
+    }
+
     fn named_item_closure<'call>(
         &self,
         call: &'call syn::ExprMethodCall,
@@ -493,6 +522,35 @@ impl<'context> TupleBindingVisitor<'context> {
             .first()
             .filter(|pattern| closure.inputs.len() == 1 && Self::named_binding(pattern))
     }
+
+    const STRING_PRESERVING_METHODS: [&'static str; 13] = [
+        "trim",
+        "trim_start",
+        "trim_end",
+        "trim_matches",
+        "trim_start_matches",
+        "trim_end_matches",
+        "as_str",
+        "to_string",
+        "to_owned",
+        "to_lowercase",
+        "to_uppercase",
+        "clone",
+        "as_ref",
+    ];
+
+    const OPTIONAL_TUPLE_METHODS: [&'static str; 10] = [
+        "split_once",
+        "rsplit_once",
+        "split_first",
+        "split_last",
+        "split_first_mut",
+        "split_last_mut",
+        "split_at_checked",
+        "split_at_mut_checked",
+        "split_first_chunk",
+        "split_last_chunk",
+    ];
 }
 
 impl<'ast> Visit<'ast> for TupleBindingVisitor<'_> {
@@ -521,6 +579,9 @@ impl<'ast> Visit<'ast> for TupleBindingVisitor<'_> {
     }
 
     fn visit_expr_let(&mut self, expression: &'ast syn::ExprLet) {
+        if Self::single_variant_binding(&expression.pat) && self.optional_tuple(&expression.expr) {
+            self.spans.push(find_node_span(expression.pat.span()));
+        }
         self.visit_expr(&expression.expr);
         self.visit_pat(&expression.pat);
     }
@@ -565,6 +626,27 @@ impl<'ast> Visit<'ast> for TupleBindingVisitor<'_> {
         }
     }
 
+    fn visit_macro(&mut self, item: &'ast syn::Macro) {
+        let select_parts = parse_select_parts(item);
+        if select_parts.is_empty() {
+            return;
+        }
+        let types = self.types.clone();
+        let tuples = self.tuples.clone();
+        let iterators = self.iterators.clone();
+        for part in &select_parts {
+            match part {
+                SelectPart::Pattern(pattern) => self.visit_pat(pattern),
+                SelectPart::Expression(expression) => self.visit_expr(expression),
+                SelectPart::BranchEnd => {
+                    self.types = types.clone();
+                    self.tuples = tuples.clone();
+                    self.iterators = iterators.clone();
+                }
+            }
+        }
+    }
+
     fn visit_expr_closure(&mut self, closure: &'ast syn::ExprClosure) {
         let types = self.types.clone();
         let tuples = self.tuples.clone();
@@ -573,6 +655,18 @@ impl<'ast> Visit<'ast> for TupleBindingVisitor<'_> {
         self.types = types;
         self.tuples = tuples;
         self.iterators = iterators;
+    }
+
+    fn visit_expr_match(&mut self, expression: &'ast syn::ExprMatch) {
+        if self.optional_tuple(&expression.expr) {
+            let spans = expression
+                .arms
+                .iter()
+                .filter(|arm| Self::single_variant_binding(&arm.pat))
+                .map(|arm| find_node_span(arm.pat.span()));
+            self.spans.extend(spans);
+        }
+        syn::visit::visit_expr_match(self, expression);
     }
 
     fn visit_arm(&mut self, arm: &'ast syn::Arm) {
@@ -625,7 +719,10 @@ impl<'ast> Visit<'ast> for TupleBindingVisitor<'_> {
             .init
             .as_ref()
             .is_some_and(|initializer| self.tuple_expression(&initializer.expr));
-        if named && tuple {
+        let unwrapped = local.init.as_ref().is_some_and(|initializer| {
+            Self::single_variant_binding(&local.pat) && self.optional_tuple(&initializer.expr)
+        });
+        if (named && tuple) || unwrapped {
             self.spans.push(find_node_span(local.span()));
         }
         let inherited = local.init.as_ref().and_then(|initializer| {

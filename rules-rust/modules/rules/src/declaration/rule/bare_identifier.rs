@@ -98,6 +98,61 @@ impl BareIdentifier {
                 || Self::is_bare(context, ordinal, module, inner, depth + 1))
     }
 
+    fn find_collection_element<'typed>(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        value: &'typed syn::Type,
+    ) -> Option<&'typed syn::Type> {
+        let syn::Type::Path(path) = value else {
+            return None;
+        };
+        let segment = path.path.segments.last()?;
+        let identity = context.canonical_external_type_path(ordinal, module, &path.path)?;
+        let segments = identity
+            .segments
+            .iter()
+            .skip(1)
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        let is_standard = ["std", "core", "alloc"].contains(&identity.package.as_str());
+        let is_collection = Self::STANDARD_COLLECTIONS
+            .iter()
+            .any(|collection| segments.last() == Some(collection));
+        if !is_standard || !is_collection {
+            return None;
+        }
+        let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments else {
+            return None;
+        };
+        arguments.args.iter().find_map(|argument| match argument {
+            syn::GenericArgument::Type(inner) => Some(inner),
+            _ => None,
+        })
+    }
+
+    fn is_bare_collection(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        value: &syn::Type,
+    ) -> bool {
+        context
+            .resolve_type_syntax(ordinal, module, value)
+            .iter()
+            .any(|resolved| {
+                Self::find_collection_element(
+                    context,
+                    resolved.index,
+                    resolved.module,
+                    &resolved.typed,
+                )
+                .is_some_and(|element| {
+                    Self::is_bare(context, resolved.index, resolved.module, element, 1)
+                })
+            })
+    }
+
     fn check_fields(
         context: &RuleContext,
         ordinal: usize,
@@ -110,12 +165,25 @@ impl BareIdentifier {
                 continue;
             };
             let name = name.unraw().to_string();
-            if (name == "id" || name.ends_with("_id"))
-                && Self::is_bare(context, ordinal, module, &field.ty, 0)
-            {
+            let is_bare_single = (name == "id" || name.ends_with("_id"))
+                && Self::is_bare(context, ordinal, module, &field.ty, 0);
+            let is_bare_plural = (name == "ids" || name.ends_with("_ids"))
+                && Self::is_bare_collection(context, ordinal, module, &field.ty);
+            if is_bare_single || is_bare_plural {
                 spans.push(field.span());
             }
         }
+    }
+
+    fn is_identity_field(field: &syn::Field) -> bool {
+        let Some(name) = &field.ident else {
+            return false;
+        };
+        let name = name.unraw().to_string();
+        let is_identity_name = name == "id" || name.ends_with("_id");
+        let is_typed_identifier = matches!(&field.ty, syn::Type::Path(path)
+            if path.path.segments.last().is_some_and(|segment| segment.ident.to_string().ends_with("Id")));
+        is_identity_name && is_typed_identifier
     }
 
     fn check_item(
@@ -131,7 +199,8 @@ impl BareIdentifier {
                 let invalid_identifier = value.ident.unraw().to_string().ends_with("Id")
                     && !matches!(&value.fields, syn::Fields::Unnamed(fields) if fields.unnamed.len() == 1);
                 let single_property = in_model
-                    && matches!(&value.fields, syn::Fields::Named(fields) if fields.named.len() == 1);
+                    && matches!(&value.fields, syn::Fields::Named(fields)
+                        if fields.named.len() == 1 && !fields.named.iter().any(Self::is_identity_field));
                 if invalid_identifier || single_property {
                     spans.push(value.ident.span());
                 }
@@ -142,10 +211,17 @@ impl BareIdentifier {
                     Self::check_fields(context, ordinal, module, &variant.fields, &mut spans);
                 }
             }
+            syn::Item::Type(value)
+                if in_model && value.ident.unraw().to_string().ends_with("Id") =>
+            {
+                spans.push(value.ident.span());
+            }
             _ => {}
         }
         spans
     }
+
+    const STANDARD_COLLECTIONS: [&'static str; 4] = ["Vec", "VecDeque", "HashSet", "BTreeSet"];
 
     const STANDARD_WRAPPERS: [[&'static str; 2]; 5] = [
         ["option", "Option"],

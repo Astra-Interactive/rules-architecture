@@ -145,3 +145,14 @@ fn given_if_let_ok_recv_with_stopping_else_in_loop_when_linted_then_reports_the_
         &[3],
     );
 }
+
+#[test]
+fn given_question_mark_on_broadcast_recv_in_loops_when_linted_then_reports_each_but_not_outside_or_mpsc()
+ {
+    assert_code_findings(
+        &BroadcastLag,
+        "BroadcastLag",
+        "async fn watch(mut receiver: tokio::sync::broadcast::Receiver<u32>) -> Result<(), tokio::sync::broadcast::error::RecvError> {\n    loop {\n        receiver.recv().await?;\n    }\n}\nasync fn forward(mut receiver: tokio::sync::broadcast::Receiver<u32>, active: bool) -> Result<(), tokio::sync::broadcast::error::RecvError> {\n    while active {\n        let event = receiver.recv().await?;\n        drop(event);\n    }\n    Ok(())\n}\nasync fn count(mut receiver: tokio::sync::broadcast::Receiver<u32>) -> Result<(), tokio::sync::broadcast::error::RecvError> {\n    for _ in 0..3 {\n        receiver.recv().await?;\n    }\n    Ok(())\n}\nasync fn read_once(mut receiver: tokio::sync::broadcast::Receiver<u32>) -> Result<u32, tokio::sync::broadcast::error::RecvError> {\n    let event = receiver.recv().await?;\n    Ok(event)\n}\nasync fn drain(mut receiver: tokio::sync::mpsc::Receiver<u32>) -> Option<u32> {\n    loop {\n        let event = receiver.recv().await?;\n        drop(event);\n    }\n}",
+        &[3, 8, 15],
+    );
+}

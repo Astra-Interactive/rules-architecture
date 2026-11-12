@@ -195,6 +195,75 @@ fn given_dated_stable_channel_and_nightly_channel_when_checked_then_only_nightly
     assert_eq!("LintConfig", channel[0].finding.rule_id.0);
 }
 
+fn list_channel_findings(channel: &str) -> Vec<RuleFinding> {
+    let mut context = read_case_context("LintConfig", "pass-dot-clippy-toml");
+    context.workspace.toolchain_file = Some(ToolchainFile::Toml(
+        parse_toml_file(
+            "rust-toolchain.toml",
+            &format!("[toolchain]\nchannel = \"{channel}\"\n"),
+        )
+        .expect("toolchain"),
+    ));
+    let findings = LintConfig::new(render_required_configuration()).check(&context);
+    list_findings_at(&findings, "rust-toolchain.toml", 2)
+}
+
+#[test]
+fn given_dated_stable_channel_before_the_floor_release_when_checked_then_the_channel_is_reported() {
+    assert_eq!(1, list_channel_findings("stable-2024-03-01").len());
+    assert!(list_channel_findings("stable-2026-01-22").is_empty());
+}
+
+#[test]
+fn given_channel_with_a_host_triple_when_checked_then_only_an_unsupported_channel_is_reported() {
+    assert!(list_channel_findings("1.93.0-x86_64-unknown-linux-gnu").is_empty());
+    assert!(list_channel_findings("stable-x86_64-unknown-linux-gnu").is_empty());
+    assert_eq!(
+        1,
+        list_channel_findings("1.76.0-x86_64-unknown-linux-gnu").len()
+    );
+    assert_eq!(
+        1,
+        list_channel_findings("nightly-x86_64-unknown-linux-gnu").len()
+    );
+    assert_eq!(1, list_channel_findings("1.93.0-foo").len());
+}
+
+#[test]
+fn given_malformed_date_or_host_suffix_without_an_architecture_when_checked_then_the_channel_is_reported()
+ {
+    assert_eq!(1, list_channel_findings("stable-2020-1-1").len());
+    assert_eq!(1, list_channel_findings("1.93.0-a-b-c").len());
+    assert!(list_channel_findings("1.93.0-x86_64-unknown-linux-gnu").is_empty());
+    assert!(list_channel_findings("stable-2026-02-12").is_empty());
+}
+
+#[test]
+fn given_group_allowed_at_the_required_lints_priority_when_checked_then_the_group_line_is_reported()
+{
+    for (group, is_reported) in [
+        ("restriction = \"allow\"", true),
+        ("restriction = { level = \"allow\", priority = -1 }", false),
+    ] {
+        let mut context = read_case_context("LintConfig", "pass-dot-clippy-toml");
+        let required = render_required_configuration();
+        let manifest = format!(
+            "[workspace]\nresolver=\"3\"\n{}\n{group}\n",
+            required.workspace_lints
+        );
+        let line = manifest
+            .lines()
+            .position(|text| text.starts_with("restriction"))
+            .and_then(|index| u32::try_from(index + 1).ok())
+            .expect("restriction line");
+        context.workspace.root_manifest =
+            parse_toml_file("Cargo.toml", &manifest).expect("lints with a restriction group");
+        let findings = LintConfig::new(required).check(&context);
+        let reported = !list_findings_at(&findings, "Cargo.toml", line).is_empty();
+        assert_eq!(is_reported, reported, "{group}\nfindings: {findings:?}");
+    }
+}
+
 #[test]
 fn given_zero_nesting_threshold_when_checked_then_reports_the_key_line() {
     let mut context = read_case_context("LintConfig", "pass-dot-clippy-toml");
@@ -310,6 +379,62 @@ fn given_workspace_lints_without_unused_result_ok_when_checked_then_reports_the_
     assert_eq!(1, findings.len(), "findings: {findings:?}");
     assert_eq!("LintConfig", findings[0].finding.rule_id.0);
     assert!(findings[0].finding.subject.contains("unused_result_ok"));
+}
+
+#[test]
+fn given_configuration_without_a_wildcard_import_setting_when_checked_then_reports_each_missing_setting()
+ {
+    for lint in ["wildcard_imports", "enum_glob_use"] {
+        let mut context = read_case_context("LintConfig", "pass-dot-clippy-toml");
+        let required = render_required_configuration();
+        let line = format!("{lint} = \"warn\"\n");
+        assert!(
+            required.workspace_lints.contains(&line),
+            "the required configuration lacks {lint}"
+        );
+        context.workspace.root_manifest = parse_toml_file(
+            "Cargo.toml",
+            &format!(
+                "[workspace]\nresolver=\"3\"\n{}",
+                required.workspace_lints.replace(&line, "")
+            ),
+        )
+        .expect("required lints without one wildcard lint");
+        context.workspace.clippy_files = vec![
+            parse_toml_file(".clippy.toml", &required.clippy_toml).expect("Clippy configuration"),
+        ];
+        let findings = LintConfig::new(required).check(&context);
+        assert_eq!(1, findings.len(), "{lint}: {findings:?}");
+        assert_eq!("LintConfig", findings[0].finding.rule_id.0);
+        assert_eq!("Cargo.toml", findings[0].finding.location.path);
+        assert!(findings[0].finding.subject.contains(lint));
+    }
+    let mut context = read_case_context("LintConfig", "pass-dot-clippy-toml");
+    let required = render_required_configuration();
+    let key = "warn-on-all-wildcard-imports = true\n";
+    assert!(
+        required.clippy_toml.contains(key),
+        "the required clippy.toml lacks warn-on-all-wildcard-imports"
+    );
+    context.workspace.root_manifest = parse_toml_file(
+        "Cargo.toml",
+        &format!("[workspace]\nresolver=\"3\"\n{}", required.workspace_lints),
+    )
+    .expect("required lints");
+    context.workspace.clippy_files = vec![
+        parse_toml_file(".clippy.toml", &required.clippy_toml.replace(key, ""))
+            .expect("Clippy configuration without the key"),
+    ];
+    let findings = LintConfig::new(required).check(&context);
+    assert_eq!(1, findings.len(), "findings: {findings:?}");
+    assert_eq!("LintConfig", findings[0].finding.rule_id.0);
+    assert_eq!(".clippy.toml", findings[0].finding.location.path);
+    assert!(
+        findings[0]
+            .finding
+            .subject
+            .contains("warn-on-all-wildcard-imports")
+    );
 }
 
 #[test]

@@ -38,7 +38,10 @@ impl ImplPlacement {
         };
         match index.resolve_path(implementation.module, path) {
             Resolution::Local => {
-                path.is_ident("From") || path.is_ident("TryFrom") || path.segments.len() == 1
+                path.segments.len() == 1
+                    && path.segments.last().is_some_and(|segment| {
+                        ["From", "TryFrom"].iter().any(|name| segment.ident == name)
+                    })
             }
             Resolution::External(path) => [
                 "std::convert::From",

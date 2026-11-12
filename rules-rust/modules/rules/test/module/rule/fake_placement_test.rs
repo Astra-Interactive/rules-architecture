@@ -72,6 +72,29 @@ fn given_default_feature_enabling_fake_when_checked_then_reports_the_default_key
 }
 
 #[test]
+fn given_default_feature_reaching_fake_through_another_feature_when_checked_then_reports_the_default_key()
+ {
+    let mut context = read_placement_context(&[(
+        "src/lib.rs",
+        "#[cfg(any(test, feature = \"fake\"))] mod fixture {}",
+    )]);
+    let path = context.workspace.members[0].manifest.path.clone();
+    let manifest = "[features]\ndefault = [\"testing\"]\ntesting = [\"fake\"]\nfake = []\n";
+    context.workspace.members[0].manifest =
+        parse_toml_file(&path, manifest).expect("default feature reaching fake");
+    assert_placement_findings(
+        &FakePlacement,
+        "FakePlacement",
+        &context,
+        &[(path.as_str(), 2, "Crate")],
+    );
+    let manifest = "[features]\ndefault = [\"testing\"]\ntesting = [\"loop\"]\nloop = [\"testing\"]\nfake = []\n";
+    context.workspace.members[0].manifest =
+        parse_toml_file(&path, manifest).expect("default feature never reaching fake");
+    assert_placement_findings(&FakePlacement, "FakePlacement", &context, &[]);
+}
+
+#[test]
 fn given_fake_outside_its_trait_concept_or_wrong_visibility_when_checked_then_reports_the_type() {
     for visibility in ["", "pub"] {
         let source = format!(

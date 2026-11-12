@@ -253,6 +253,17 @@ fn given_two_step_string_adaptation_when_checked_then_only_equivalent_function_p
 }
 
 #[test]
+fn given_trait_adapter_calls_over_any_iterator_when_checked_then_reports_each_closure() {
+    assert_lines(
+        &TrivialClosurePath,
+        &read_code_context(
+            "fn to_row(item: Item) -> Row { Row }\nfn render(code: String) -> usize { code.len() }\nfn run(items: Vec<Item>, codes: Vec<u32>, names: Vec<&str>) {\nlet rows = items.iter().map(|item| to_row(item.clone()));\nlet labels = codes.iter().map(|code| render(code.to_string()));\nlet owned = names.iter().map(|name| greet(name.to_owned()));\nlet totals = items.iter().map(|item| to_row(item.total()));\n}\n#[derive(Clone)] struct Item; impl Item { fn total(&self) -> Item { Self } } struct Row; fn greet(name: &str) -> usize { name.len() }",
+        ),
+        &[4, 5, 6],
+    );
+}
+
+#[test]
 fn given_two_step_adaptation_after_other_string_iterators_when_checked_then_reports_each_closure() {
     assert_lines(
         &TrivialClosurePath,
@@ -335,6 +346,29 @@ fn given_tdd_trivial_closure_path_string_split_when_linted_then_reports_adapter_
     };
     assert_eq!(Some(2), finding.finding.location.line);
     assert_eq!(2, span.start.line);
+}
+
+#[test]
+fn given_two_step_adaptation_over_string_locals_when_checked_then_reports_only_the_string_ones() {
+    assert_lines(
+        &TrivialClosurePath,
+        &read_code_context(
+            "fn parse_order(value: &str) -> usize { value.len() }\nstruct Custom;\nfn run(source: &str, custom: Custom, pairs: Vec<(String, String)>) {\nlet text = source.trim();\nlet by_trim = text.split(',').map(|part| parse_order(part.trim()));\nlet typed: &str = source;\nlet by_type = typed.lines().map(|line| parse_order(line.trim()));\nlet shadowed = source.trim();\nlet shadowed = custom;\nlet by_shadow = shadowed.lines().map(|line| parse_order(line.trim()));\nlet by_pair = pairs.iter().map(|(key, value)| parse_order(key.trim()));\n}",
+        ),
+        &[5, 7],
+    );
+}
+
+#[test]
+fn given_two_step_adaptation_over_mut_aliased_and_chained_str_locals_when_checked_then_reports_each()
+ {
+    assert_lines(
+        &TrivialClosurePath,
+        &read_code_context(
+            "fn parse_order(value: &str) -> usize { value.len() }\nfn run(source: &str) {\nlet mut rest = source.trim();\nlet by_mut = rest.split(',').map(|part| parse_order(part.trim()));\nlet first = source.trim();\nlet alias = first;\nlet by_alias = alias.lines().map(|line| parse_order(line.trim()));\nlet chained = source.trim().trim_start();\nlet by_chain = chained.lines().map(|line| parse_order(line.trim()));\n}",
+        ),
+        &[4, 7, 9],
+    );
 }
 
 #[test]
@@ -458,6 +492,34 @@ fn given_single_field_owner_in_another_file_when_checked_then_data_and_enum_find
         ],
     );
     assert_lines(&NestedEnum, &context, &[1]);
+}
+
+#[test]
+fn given_type_in_its_field_owner_file_also_used_by_a_util_function_when_checked_then_it_is_reported()
+ {
+    let root = "mod model { mod invoice; pub use invoice::{Invoice, InvoiceStatus}; }\nmod util { mod invoice_limit; }";
+    let owner =
+        "pub struct Invoice { pub status: InvoiceStatus }\npub enum InvoiceStatus { Draft, Paid }";
+    let user = "use crate::model::InvoiceStatus;\npub(crate) fn is_final(status: &InvoiceStatus) -> bool { matches!(status, InvoiceStatus::Paid) }";
+    let context = read_shape_context(
+        root,
+        &[("model/invoice.rs", owner), ("util/invoice_limit.rs", user)],
+    );
+    assert_lines(&NestedEnum, &context, &[2]);
+    let context = read_shape_context(
+        "mod model { mod invoice; pub use invoice::{Invoice, InvoiceStatus}; }",
+        &[("model/invoice.rs", owner)],
+    );
+    assert_lines(&NestedEnum, &context, &[]);
+    let root =
+        "mod model { mod wallet; pub use wallet::{Money, Wallet}; }\nmod util { mod money_limit; }";
+    let owner = "pub struct Wallet { pub balance: Money }\npub struct Money { pub cents: u64 }";
+    let user = "use crate::model::Money;\npub(crate) fn is_over(money: &Money) -> bool { money.cents > 100 }";
+    let context = read_shape_context(
+        root,
+        &[("model/wallet.rs", owner), ("util/money_limit.rs", user)],
+    );
+    assert_lines(&NestedDataStruct, &context, &[2]);
 }
 
 #[test]

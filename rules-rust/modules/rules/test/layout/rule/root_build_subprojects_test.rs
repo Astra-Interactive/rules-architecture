@@ -117,12 +117,69 @@ fn given_string_and_version_only_table_when_members_repeat_the_requirement_then_
         &second,
         "[package]\nname = \"second\"\n[dependencies]\nfoo = { version = \"1\" }\nbar = { version = \"1\", features = [\"a\"] }\nbaz = { version = \"2\" }\n",
     );
+    let mut findings = RootBuildSubprojects.check(&context);
+    findings.sort_by_key(|finding| finding.finding.location.line);
+    assert_eq!(findings.len(), 2, "{findings:?}");
+    assert_eq!(findings[0].finding.rule_id.0, "RootBuildSubprojects");
+    assert_eq!(
+        findings[0].finding.subject,
+        format!("{second} dependencies.foo")
+    );
+    assert_eq!(findings[0].finding.location.line, Some(4));
+    assert_eq!(
+        findings[1].finding.subject,
+        format!("{second} dependencies.bar")
+    );
+    assert_eq!(findings[1].finding.location.line, Some(5));
+}
+
+#[test]
+fn given_git_dependency_repeated_in_two_members_when_checked_then_the_second_is_reported() {
+    let mut context = read_case_context("RootBuildSubprojects", "pass-inherited-settings");
+    replace_root_manifest(&mut context, "[workspace]\n");
+    let first = context.workspace.members[0].name.clone();
+    let second = context.workspace.members[1].name.clone();
+    replace_member_manifest(
+        &mut context,
+        &first,
+        "[package]\nname = \"first\"\n[dependencies]\nfoo = { git = \"https://example.invalid/foo\", rev = \"abc\" }\nbar = { git = \"https://example.invalid/bar\", rev = \"abc\" }\n",
+    );
+    replace_member_manifest(
+        &mut context,
+        &second,
+        "[package]\nname = \"second\"\n[dependencies]\nfoo = { git = \"https://example.invalid/foo\", rev = \"abc\" }\nbar = { git = \"https://example.invalid/bar\", rev = \"def\" }\n",
+    );
+    let findings = RootBuildSubprojects.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(
+        findings[0].finding.subject,
+        format!("{second} dependencies.foo")
+    );
+    assert_eq!(findings[0].finding.location.line, Some(4));
+}
+
+#[test]
+fn given_renamed_member_dependency_when_root_declares_the_package_then_only_the_literal_one_is_reported()
+ {
+    let mut context = read_case_context("RootBuildSubprojects", "pass-inherited-settings");
+    replace_root_manifest(
+        &mut context,
+        "[workspace]\n[workspace.dependencies]\nfoo = \"1\"\n",
+    );
+    let first = context.workspace.members[0].name.clone();
+    let second = context.workspace.members[1].name.clone();
+    replace_member_manifest(
+        &mut context,
+        &first,
+        "[package]\nname = \"first\"\n[dependencies]\nalias = { package = \"foo\", version = \"1\" }\ninherited = { package = \"foo\", workspace = true }\nunshared = { package = \"baz\", version = \"1\" }\n",
+    );
+    replace_member_manifest(&mut context, &second, "[package]\nname = \"second\"\n");
     let findings = RootBuildSubprojects.check(&context);
     assert_eq!(findings.len(), 1, "{findings:?}");
     assert_eq!(findings[0].finding.rule_id.0, "RootBuildSubprojects");
     assert_eq!(
         findings[0].finding.subject,
-        format!("{second} dependencies.foo")
+        format!("{first} dependencies.alias")
     );
     assert_eq!(findings[0].finding.location.line, Some(4));
 }

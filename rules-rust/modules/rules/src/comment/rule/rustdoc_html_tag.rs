@@ -19,7 +19,10 @@ impl RustdocHtmlTag {
             let rest = text[start + 1..]
                 .strip_prefix('/')
                 .unwrap_or(&text[start + 1..]);
-            let name_length = rest.bytes().take_while(u8::is_ascii_alphanumeric).count();
+            let name_length = rest
+                .bytes()
+                .take_while(|byte| byte.is_ascii_alphanumeric() || *byte == b'-')
+                .count();
             if name_length == 0 || !rest.as_bytes()[0].is_ascii_alphabetic() {
                 return false;
             }

@@ -2,6 +2,77 @@ use crate::test::declaration::util::assert_code_findings;
 use crate::tuple::rule::AnonymousTuple;
 
 #[test]
+fn given_tuple_from_a_std_method_chain_when_bound_to_one_name_then_requires_destructuring() {
+    assert_code_findings(
+        &AnonymousTuple,
+        "AnonymousTuple",
+        "fn work(text: &str) {\n    let parts = text.trim().split_at(3);\n    for pair in text.trim().char_indices() { let _position = pair.0; }\n    let (head, tail) = text.trim().split_at(3);\n    let custom = text.widen().split_at(3);\n    for (position, _char) in text.trim().char_indices() {}\n}\ntrait Widen { fn widen(&self) -> Buffer; } struct Buffer; impl Buffer { fn split_at(&self, index: usize) -> Parts { todo!() } } struct Parts;",
+        &[2, 3],
+    );
+}
+
+#[test]
+fn given_tuple_bound_to_one_name_inside_a_pattern_when_checked_then_requires_destructuring() {
+    assert_code_findings(
+        &AnonymousTuple,
+        "AnonymousTuple",
+        "fn read_key(text: &str, pairs: &mut Vec<Pair>) -> Option<&str> {\n    if let Some(pair) = text.split_once('=') {\n        return Some(pair.0);\n    }\n    let Some(pair) = text.rsplit_once('=') else { return None; };\n    match text.split_once(':') {\n        Some(pair) => return Some(pair.0),\n        None => {}\n    }\n    if let Some((key, _value)) = text.split_once('=') { return Some(key); }\n    if let Some(pair) = pairs.pop() { return Some(pair.key); }\n    Some(pair.1)\n}\nstruct Pair { key: &'static str }",
+        &[2, 5, 7],
+    );
+}
+
+#[test]
+fn given_split_first_and_its_siblings_when_bound_to_one_name_then_requires_destructuring() {
+    assert_code_findings(
+        &AnonymousTuple,
+        "AnonymousTuple",
+        "fn head_of(values: &[u32], text: &str) -> u32 {\n    let parts = values.split_first().expect(\"non-empty\");\n    let last = values.split_last().unwrap();\n    let halves = text.split_at_checked(2).expect(\"long enough\");\n    let (head, _tail) = values.split_first().expect(\"non-empty\");\n    let first = values.first().copied().unwrap_or_default();\n    *parts.0 + *last.0 + halves.0.len() as u32 + *head + first\n}",
+        &[2, 3, 4],
+    );
+}
+
+#[test]
+fn given_tuple_bound_to_one_name_in_a_trait_default_method_when_checked_then_requires_destructuring()
+ {
+    assert_code_findings(
+        &AnonymousTuple,
+        "AnonymousTuple",
+        "pub(crate) trait LineSplit {\n    fn first_line(&self) -> &str;\n    fn head_of(&self, text: &str) -> usize {\n        let parts = text.split_at(1);\n        parts.0.len()\n    }\n    fn tail_of(&self, text: &str) -> usize {\n        let (_head, tail) = text.split_at(1);\n        tail.len()\n    }\n}",
+        &[4],
+    );
+}
+
+#[test]
+fn given_tuple_bound_to_one_name_in_a_select_handler_when_checked_then_requires_destructuring() {
+    assert_code_findings(
+        &AnonymousTuple,
+        "AnonymousTuple",
+        "pub(crate) async fn watch(mut tick: tokio::sync::mpsc::Receiver<u32>, text: &str) {\n    tokio::select! {\n        value = tick.recv() => {\n            let parts = text.split_at(1);\n            let (head, tail) = text.split_at(1);\n            drop(value);\n        }\n    }\n}",
+        &[4],
+    );
+}
+
+#[test]
+fn given_tuple_bound_in_one_select_branch_when_another_binds_the_name_then_reports_one_line() {
+    assert_code_findings(
+        &AnonymousTuple,
+        "AnonymousTuple",
+        "pub(crate) async fn watch(mut tick: tokio::sync::mpsc::Receiver<u32>, mut stop: tokio::sync::mpsc::Receiver<u32>, text: &str) {\n    tokio::select! {\n        value = tick.recv() => {\n            let parts = text.split_at(1);\n            drop(value);\n        }\n        parts = stop.recv() => {\n            let copy = parts;\n        }\n    }\n}",
+        &[4],
+    );
+}
+
+#[test]
+fn given_tuple_bound_before_a_select_when_a_branch_rebinds_the_name_then_other_branches_keep_it() {
+    assert_code_findings(
+        &AnonymousTuple,
+        "AnonymousTuple",
+        "pub(crate) async fn watch(mut tick: tokio::sync::mpsc::Receiver<u32>, mut stop: tokio::sync::mpsc::Receiver<u32>, text: &str) {\n    let parts = text.split_at(1);\n    tokio::select! {\n        parts = tick.recv() => {\n            drop(parts);\n        }\n        stopped = stop.recv() => {\n            let copy = parts;\n            drop(stopped);\n        }\n    }\n}",
+        &[2, 8],
+    );
+}
+
+#[test]
 fn given_standard_enumerate_and_partition_when_bound_then_requires_immediate_destructuring() {
     assert_code_findings(
         &AnonymousTuple,

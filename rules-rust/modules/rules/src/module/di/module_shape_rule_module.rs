@@ -1,9 +1,9 @@
 use crate::check::api::Rule;
 use crate::module::rule::{
     ContractPlacement, ContractUnitShape, CoreShape, DiPlacement, EntryPointShape,
-    EntryPointVisibility, ForbiddenPackageName, ImplementationVisibility, KindShape,
-    PluralPackageName, RootModulePlacement, UseCaseAbstraction, UseCaseShape,
-    UtilFunctionAsExtension, UtilShape,
+    EntryPointVisibility, ForbiddenPackageName, ForeignErrorType, ImplementationPlacement,
+    ImplementationVisibility, KindContent, KindShape, PluralPackageName, RootModulePlacement,
+    UseCaseAbstraction, UseCaseShape, UtilFunctionAsExtension, UtilShape,
 };
 use std::sync::Arc;
 
@@ -30,6 +30,9 @@ impl ModuleShapeRuleModule {
             Arc::new(CoreShape),
             Arc::new(ContractUnitShape),
             Arc::new(ForbiddenPackageName),
+            Arc::new(KindContent),
+            Arc::new(ImplementationPlacement),
+            Arc::new(ForeignErrorType),
         ];
         let active_rule_ids = vec![
             "KindShape",
@@ -47,6 +50,9 @@ impl ModuleShapeRuleModule {
             "CoreShape",
             "ContractUnitShape",
             "ForbiddenPackageName",
+            "KindContent",
+            "ImplementationPlacement",
+            "ForeignErrorType",
         ];
         Self {
             rules: rules.into(),

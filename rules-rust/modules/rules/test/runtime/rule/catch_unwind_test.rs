@@ -3,6 +3,16 @@ use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
 
 #[test]
+fn given_self_path_call_inside_a_caught_closure_when_checked_then_reports_it_as_own_logic() {
+    assert_code_findings(
+        &CatchUnwind,
+        "CatchUnwind",
+        "struct Parser;\nimpl Parser {\n    fn parse(raw: &str) -> u32 { raw.len() as u32 }\n    fn run(raw: &str) {\n        let parsed = std::panic::catch_unwind(|| Self::parse(raw));\n        let foreign = std::panic::catch_unwind(|| vendor::parse(raw));\n    }\n}",
+        &[5],
+    );
+}
+
+#[test]
 fn given_owned_inline_or_method_logic_when_caught_then_reports_local_logic() {
     assert_code_findings(
         &CatchUnwind,
@@ -67,5 +77,15 @@ fn given_closure_bound_to_a_local_when_caught_then_reports_only_the_one_running_
         "CatchUnwind",
         "fn compute_total(raw: &str) -> usize { raw.len() }\npub(crate) fn run(raw: &str) -> bool {\n    let work = || compute_total(raw);\n    std::panic::catch_unwind(std::panic::AssertUnwindSafe(work)).is_err()\n}\npub(crate) fn read() -> bool {\n    let load = || std::fs::read(\"file\");\n    std::panic::catch_unwind(load).is_err()\n}\npub(crate) fn shadowed() -> bool {\n    let compute_total = |text: &str| std::fs::read(text);\n    std::panic::catch_unwind(|| compute_total(\"file\")).is_err()\n}",
         &[4],
+    );
+}
+
+#[test]
+fn given_caught_closure_calling_local_closures_when_checked_then_follows_the_chain_to_own_logic() {
+    assert_code_findings(
+        &CatchUnwind,
+        "CatchUnwind",
+        "fn compute_total(raw: &str) -> usize { raw.len() }\npub(crate) fn run(raw: &str) -> bool {\n    let step = || compute_total(raw);\n    let work = || step();\n    std::panic::catch_unwind(std::panic::AssertUnwindSafe(work)).is_err()\n}\npub(crate) fn run_deep(raw: &str) -> bool {\n    let inner = || compute_total(raw);\n    let middle = || inner();\n    let outer = || middle();\n    std::panic::catch_unwind(outer).is_err()\n}\npub(crate) fn read() -> bool {\n    let load = || std::fs::read(\"file\");\n    let work = || load();\n    std::panic::catch_unwind(work).is_err()\n}\npub(crate) fn shadowed_chain() -> bool {\n    let fetch = || std::fs::read(\"file\");\n    let fetch = || fetch();\n    std::panic::catch_unwind(fetch).is_err()\n}",
+        &[5, 11],
     );
 }

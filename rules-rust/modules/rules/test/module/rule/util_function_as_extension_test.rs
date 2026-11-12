@@ -68,3 +68,31 @@ fn given_util_function_on_foreign_crate_model_when_checked_then_reports_extensio
         .collect();
     assert_eq!(vec![Some(3)], lines);
 }
+
+#[test]
+fn given_util_function_on_smart_pointer_of_model_when_checked_then_reports_extension_gap() {
+    let context = read_shape_context(
+        "mod model { pub struct Invoice; }\nmod util {\nuse crate::model::Invoice;\nuse std::sync::Arc;\nfn compute_total(invoice: Arc<Invoice>) -> u64 { 0 }\nfn compute_tax(invoice: &Box<Invoice>) -> u64 { 0 }\nfn count_invoices(invoices: Vec<Invoice>) -> usize { 0 }\nfn is_settled(invoice: Option<&Invoice>) -> bool { false }\n}",
+        &[],
+    );
+    let lines: Vec<Option<u32>> = UtilFunctionAsExtension
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect();
+    assert_eq!(vec![Some(5), Some(6)], lines);
+}
+
+#[test]
+fn given_create_function_returning_model_result_when_checked_then_only_other_functions_report() {
+    let context = read_shape_context(
+        "mod model { pub struct Invoice; pub struct InvoiceDraft; pub enum InvoiceError { Empty } }\nmod util {\nuse crate::model::{Invoice, InvoiceDraft, InvoiceError};\nfn create_invoice(draft: InvoiceDraft) -> Result<Invoice, InvoiceError> { Ok(Invoice) }\nfn create_total(invoice: &Invoice) -> u64 { 0 }\nfn build_invoice(draft: InvoiceDraft) -> Result<Invoice, InvoiceError> { Ok(Invoice) }\n}",
+        &[],
+    );
+    let lines: Vec<Option<u32>> = UtilFunctionAsExtension
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect();
+    assert_eq!(vec![Some(5), Some(6)], lines);
+}

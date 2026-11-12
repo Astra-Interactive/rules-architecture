@@ -31,6 +31,26 @@ fn given_file_modules_named_by_a_type_when_checked_then_only_blocks_and_standard
 }
 
 #[test]
+fn given_prelude_file_module_in_a_kind_block_when_checked_then_it_is_reported() {
+    let context = read_shape_context(
+        "mod api {\n    mod port;\n    mod prelude;\n    pub use port::Port;\n}",
+        &[
+            ("api/port.rs", "pub struct Port;"),
+            ("api/prelude.rs", "pub use super::Port;"),
+        ],
+    );
+    let actual: Vec<String> = ForbiddenPackageName
+        .check(&context)
+        .iter()
+        .map(|finding| {
+            let name = finding.finding.subject.rsplit("::").next().expect("name");
+            format!("{} {name}", finding.finding.location.line.expect("line"))
+        })
+        .collect();
+    assert_eq!(actual, ["3 prelude"]);
+}
+
+#[test]
 fn given_persistent_phase3_package_pairs_when_checked_then_only_the_technology_role_allows_storage_kinds()
  {
     assert_import_pair(

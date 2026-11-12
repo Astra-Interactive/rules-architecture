@@ -129,3 +129,12 @@ fn given_parsers_returning_result_aliases_when_checked_then_reports_only_the_non
         &[13],
     );
 }
+
+#[test]
+fn given_constructor_computing_its_tuple_field_when_checked_then_the_accessor_is_still_required() {
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ValueObjectShape,
+        "mod model {\nstruct Money(u64); impl Money { fn new(cents: u64) -> Self { assert!(cents > 0); Self(cents * 100) } }\nstruct Price(u64); impl Price { fn new(cents: u64) -> Self { assert!(cents > 0); Self(cents * 100) } fn cents(&self) -> u64 { self.0 } }\n}",
+        &[2],
+    );
+}

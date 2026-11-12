@@ -19,6 +19,16 @@ fn given_runtime_counterexamples_when_checked_then_matches_exact_node_anchors() 
 }
 
 #[test]
+fn given_join_set_nested_in_the_lock_value_when_checked_then_each_lock_is_reported() {
+    assert_code_findings(
+        &JoinSetBehindLock,
+        "JoinSetBehindLock",
+        "struct Shared { tasks: tokio::sync::Mutex<Option<tokio::task::JoinSet<()>>> }\nstruct Pool { tasks: parking_lot::RwLock<Vec<tokio::task::JoinSet<()>>> }\nstruct Keyed { tasks: std::sync::Mutex<std::collections::HashMap<u32, tokio::task::JoinSet<()>>> }\nstruct Handles { tasks: tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>> }",
+        &[1, 2, 3],
+    );
+}
+
+#[test]
 fn given_persistent_runtime_cases_when_checked_then_matches_exact_finding_anchors() {
     assert_code_fixture(&JoinSetBehindLock, "JoinSetBehindLock", "bad");
     assert_code_fixture(&JoinSetBehindLock, "JoinSetBehindLock", "good");

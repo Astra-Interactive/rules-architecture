@@ -10,7 +10,7 @@ use syn::spanned::Spanned;
 pub(crate) struct AssociatedFactoryFunction;
 
 impl AssociatedFactoryFunction {
-    fn returns_model(
+    pub(crate) fn returns_model(
         context: &RuleContext,
         ordinal: usize,
         module: usize,
@@ -81,7 +81,12 @@ impl AssociatedFactoryFunction {
             || matches!(&item.syntax, syn::Item::Type(alias) if Self::returns_model(context, target.index, item.module, &alias.ty, depth + 1))
     }
 
-    fn returns_result(index: &CrateIndex, module: usize, value: &syn::Type, depth: usize) -> bool {
+    pub(crate) fn returns_result(
+        index: &CrateIndex,
+        module: usize,
+        value: &syn::Type,
+        depth: usize,
+    ) -> bool {
         if depth > 8 {
             return false;
         }
@@ -94,6 +99,21 @@ impl AssociatedFactoryFunction {
             Resolution::Internal(targets) => targets.iter().filter_map(|target| target.item.map(|identity| &index.items[identity])).any(|item| matches!(&item.syntax, syn::Item::Type(alias) if Self::returns_result(index, item.module, &alias.ty, depth + 1))),
             _ => false,
         }
+    }
+
+    fn returns_own_type(function: &syn::ImplItemFn, implementation: &IndexedImpl) -> bool {
+        let syn::ReturnType::Type(_, returned) = &function.sig.output else {
+            return false;
+        };
+        let syn::Type::Path(returned) = returned.as_ref() else {
+            return false;
+        };
+        let syn::Type::Path(owner) = implementation.syntax.self_ty.as_ref() else {
+            return false;
+        };
+        let owner_name = owner.path.segments.last().map(|segment| &segment.ident);
+        returned.path.is_ident("Self")
+            || returned.path.segments.last().map(|segment| &segment.ident) == owner_name
     }
 
     fn check_impl(
@@ -125,7 +145,9 @@ impl AssociatedFactoryFunction {
                     .inputs
                     .iter()
                     .any(|argument| matches!(argument, syn::FnArg::Receiver(_)));
-                (!receiver && function.sig.ident != "new").then(|| {
+                let is_constructor =
+                    function.sig.ident == "new" && Self::returns_own_type(function, implementation);
+                (!receiver && !is_constructor).then(|| {
                     build_node_finding(
                         "AssociatedFactoryFunction",
                         &implementation.file,

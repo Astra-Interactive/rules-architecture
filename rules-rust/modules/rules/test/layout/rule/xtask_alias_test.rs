@@ -37,6 +37,30 @@ fn given_xtask_member_when_effective_alias_is_checked_then_wrong_config_location
 }
 
 #[test]
+fn given_array_form_of_the_alias_when_checked_then_only_a_wrong_array_is_reported() {
+    let mut context = read_case_context("RootFileShape", "pass-tree");
+    context.workspace.members[0].name = "xtask".to_owned();
+    context.workspace.cargo_config = Some(
+        parse_toml_file(
+            ".cargo/config.toml",
+            "[alias]\nxtask = [\"run\", \"--package\", \"xtask\", \"--\"]",
+        )
+        .expect("config"),
+    );
+    assert!(XtaskAlias.check(&context).is_empty());
+    context.workspace.cargo_config = Some(
+        parse_toml_file(
+            ".cargo/config.toml",
+            "[alias]\nxtask = [\"run\", \"--package\", \"wrong\", \"--\"]",
+        )
+        .expect("config"),
+    );
+    let findings = XtaskAlias.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].finding.location.line, Some(2));
+}
+
+#[test]
 fn given_tooling_crate_with_a_prefixed_name_when_the_alias_is_missing_then_it_is_reported() {
     let mut context = read_case_context("RootFileShape", "pass-tree");
     context.workspace.members[0].name = "shop-xtask".to_owned();

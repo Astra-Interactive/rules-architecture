@@ -62,6 +62,26 @@ fn given_handle_result_and_same_named_project_methods_when_checked_then_reports_
 }
 
 #[test]
+fn given_futures_local_pool_or_blocking_stream_in_test_when_checked_then_reports_each_call() {
+    assert_code_findings(
+        &BlockOnInTest,
+        "BlockOnInTest",
+        "#[cfg(test)]\nmod test {\n    fn run() {\n        let mut pool = futures::executor::LocalPool::new();\n        pool.run_until(work());\n        let values = futures::executor::block_on_stream(stream());\n    }\n}",
+        &[4, 5, 6],
+    );
+}
+
+#[test]
+fn given_local_set_block_on_in_test_when_checked_then_reports_the_call() {
+    assert_code_findings(
+        &BlockOnInTest,
+        "BlockOnInTest",
+        "#[cfg(test)]\nmod test {\n    fn run(runtime: tokio::runtime::Runtime) {\n        let local = tokio::task::LocalSet::new();\n        local.block_on(&runtime, work());\n    }\n}",
+        &[5],
+    );
+}
+
+#[test]
 fn given_dependency_block_on_function_in_test_when_checked_then_reports_whatever_the_crate() {
     assert_code_findings(
         &BlockOnInTest,

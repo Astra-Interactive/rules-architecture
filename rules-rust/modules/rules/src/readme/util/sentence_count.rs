@@ -1,7 +1,17 @@
 const ABBREVIATIONS: [&str; 4] = ["e.g.", "i.e.", "etc.", "vs."];
 
+const CLOSING_ABBREVIATIONS: [&str; 2] = ["etc.", "vs."];
+
 fn is_word_character(character: char) -> bool {
     character.is_alphanumeric() || character == '_'
+}
+
+fn closes_sentence(abbreviation: &str, after: &str) -> bool {
+    let can_close = CLOSING_ABBREVIATIONS.contains(&abbreviation);
+    let next_word = after.trim_start();
+    let is_separated = after.starts_with(char::is_whitespace);
+    let starts_sentence = next_word.chars().next().is_some_and(char::is_uppercase);
+    can_close && (next_word.is_empty() || (is_separated && starts_sentence))
 }
 
 fn remove_abbreviations(text: &str) -> String {
@@ -20,7 +30,13 @@ fn remove_abbreviations(text: &str) -> String {
             !follows_word && head.is_some_and(|head| head.eq_ignore_ascii_case(abbreviation))
         });
         match abbreviation {
-            Some(abbreviation) => skip_until = index + abbreviation.len(),
+            Some(abbreviation) => {
+                skip_until = index + abbreviation.len();
+                let after = &rest[abbreviation.len()..];
+                if closes_sentence(&abbreviation.to_ascii_lowercase(), after) {
+                    kept.push('.');
+                }
+            }
             None => kept.push(character),
         }
     }

@@ -3,14 +3,21 @@ use syn::visit::Visit;
 pub(crate) struct GuardWrites<'name> {
     name: &'name str,
     collections: &'name [String],
+    aliases: &'name [GuardAlias],
     pub(crate) writes: usize,
     pub(crate) trailing: bool,
 }
 
 impl GuardWrites<'_> {
+    fn find_alias(&self, path: &syn::Path) -> Option<&GuardAlias> {
+        self.aliases.iter().find(|alias| path.is_ident(&alias.name))
+    }
+
     fn rooted(&self, expression: &syn::Expr) -> bool {
         match expression {
-            syn::Expr::Path(path) => path.path.is_ident(self.name),
+            syn::Expr::Path(path) => {
+                path.path.is_ident(self.name) || self.find_alias(&path.path).is_some()
+            }
             syn::Expr::Field(field) => self.rooted(&field.base),
             syn::Expr::Index(index) => self.rooted(&index.expr),
             syn::Expr::Unary(unary) => self.rooted(&unary.expr),
@@ -22,6 +29,7 @@ impl GuardWrites<'_> {
     fn collection_path(&self, expression: &syn::Expr) -> Option<String> {
         match expression {
             syn::Expr::Path(path) if path.path.is_ident(self.name) => Some(String::new()),
+            syn::Expr::Path(path) => self.find_alias(&path.path).map(|alias| alias.path.clone()),
             syn::Expr::Field(field) => self.collection_path(&field.base).map(|parent| {
                 let name = match &field.member {
                     syn::Member::Named(name) => name.to_string(),
@@ -59,10 +67,49 @@ impl GuardWrites<'_> {
                 if reference.mutability.is_some() && self.rooted(&reference.expr))
     }
 
-    pub(crate) fn count(statement: &syn::Stmt, name: &str, collections: &[String]) -> usize {
+    pub(crate) fn collect_aliases(statements: &[syn::Stmt], name: &str) -> Vec<GuardAlias> {
+        let mut aliases: Vec<GuardAlias> = Vec::new();
+        for statement in statements {
+            let syn::Stmt::Local(local) = statement else {
+                continue;
+            };
+            let syn::Pat::Ident(binding) = &local.pat else {
+                continue;
+            };
+            let Some(syn::Expr::Reference(reference)) = local.init.as_ref().map(|init| &*init.expr)
+            else {
+                continue;
+            };
+            if reference.mutability.is_none() {
+                continue;
+            }
+            let guard = GuardWrites {
+                name,
+                collections: &[],
+                aliases: &aliases,
+                writes: 0,
+                trailing: false,
+            };
+            if let Some(path) = guard.collection_path(&reference.expr) {
+                aliases.push(GuardAlias {
+                    name: binding.ident.to_string(),
+                    path,
+                });
+            }
+        }
+        aliases
+    }
+
+    pub(crate) fn count(
+        statement: &syn::Stmt,
+        name: &str,
+        collections: &[String],
+        aliases: &[GuardAlias],
+    ) -> usize {
         let mut visitor = GuardWrites {
             name,
             collections,
+            aliases,
             writes: 0,
             trailing: false,
         };
@@ -163,6 +210,10 @@ impl<'ast> Visit<'ast> for GuardWrites<'_> {
                     | "sort_unstable_by_key"
                     | "reverse"
                     | "swap_remove"
+                    | "take"
+                    | "replace"
+                    | "get_or_insert"
+                    | "get_or_insert_with"
             )
         {
             self.writes += 1;
@@ -177,4 +228,9 @@ impl<'ast> Visit<'ast> for GuardWrites<'_> {
 
     fn visit_expr_closure(&mut self, _: &'ast syn::ExprClosure) {}
     fn visit_expr_async(&mut self, _: &'ast syn::ExprAsync) {}
+}
+
+pub(crate) struct GuardAlias {
+    name: String,
+    path: String,
 }

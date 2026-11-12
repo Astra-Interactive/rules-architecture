@@ -165,24 +165,46 @@ impl CargoWorkspaceReader {
             })
     }
 
-    fn enables_fake_through_features(package: &Package, key: &str) -> bool {
-        let mut pending = vec!["default"];
-        let mut visited = BTreeSet::new();
+    fn list_features_enabled_by_dependents(
+        package: &Package,
+        packages: &[&Package],
+    ) -> Vec<String> {
+        packages
+            .iter()
+            .flat_map(|dependent| &dependent.dependencies)
+            .filter(|dependency| {
+                dependency.name == package.name.as_str()
+                    && matches!(
+                        dependency.kind,
+                        MetadataDependencyKind::Normal | MetadataDependencyKind::Unknown
+                    )
+            })
+            .flat_map(|dependency| dependency.features.iter().cloned())
+            .collect()
+    }
+
+    fn enables_fake_through_features(package: &Package, key: &str, packages: &[&Package]) -> bool {
+        let mut pending = Self::list_features_enabled_by_dependents(package, packages);
+        pending.push("default".to_owned());
+        let mut reached = BTreeSet::new();
         while let Some(feature) = pending.pop() {
-            if !visited.insert(feature) {
+            if !reached.insert(feature.clone()) {
                 continue;
             }
-            let children = package.features.get(feature).into_iter().flatten();
+            let Some(children) = package.features.get(&feature) else {
+                continue;
+            };
             if children
-                .clone()
+                .iter()
                 .any(|child| Self::is_fake_feature(child, key))
             {
                 return true;
             }
             pending.extend(
                 children
+                    .iter()
                     .filter(|child| !child.contains('/') && !child.starts_with("dep:"))
-                    .map(String::as_str),
+                    .cloned(),
             );
         }
         false
@@ -226,7 +248,7 @@ impl CargoWorkspaceReader {
                 let mut features =
                     Self::expand_dependency_features(root, dependency, path.as_deref(), packages);
                 let enables_fake = kind != DependencyKind::Development
-                    && Self::enables_fake_through_features(package, key);
+                    && Self::enables_fake_through_features(package, key, packages);
                 if enables_fake && !features.iter().any(|feature| feature == "fake") {
                     features.push("fake".to_owned());
                 }
@@ -351,6 +373,7 @@ impl CargoWorkspaceReader {
         root: &Path,
         relative: &str,
         is_skipped: &dyn Fn(&str, &Path) -> bool,
+        is_recorded: &dyn Fn(&str, &Path) -> bool,
         files: &mut Vec<String>,
         directories: &mut Vec<String>,
     ) -> Result<(), CheckError> {
@@ -370,7 +393,9 @@ impl CargoWorkspaceReader {
                 files.push(child);
             } else if file_type.is_dir() && !is_skipped(&child, &entry.path()) {
                 directories.push(child.clone());
-                Self::walk_directory(root, &child, is_skipped, files, directories)?;
+                Self::walk_directory(root, &child, is_skipped, is_recorded, files, directories)?;
+            } else if file_type.is_dir() && is_recorded(&child, &entry.path()) {
+                directories.push(child);
             }
         }
         Ok(())
@@ -399,23 +424,29 @@ impl CargoWorkspaceReader {
             .iter()
             .map(|member| member.directory.clone())
             .collect();
+        let is_unread = |relative: &str, path: &Path| -> bool {
+            let is_excluded = excluded
+                .iter()
+                .any(|path| relative == path || relative.starts_with(&format!("{path}/")));
+            let is_worktree = path.join(".git").is_file();
+            path == target_directory
+                || is_excluded
+                || is_worktree
+                || Self::is_nested_workspace(path)
+        };
         let is_skipped = |relative: &str, path: &Path| -> bool {
             if is_member_source_directory(relative, &member_directories) {
                 return false;
             }
             let name = relative.rsplit('/').next().unwrap_or(relative);
-            let is_excluded = excluded
-                .iter()
-                .any(|path| relative == path || relative.starts_with(&format!("{path}/")));
-            let is_worktree = path.join(".git").is_file();
-            is_skipped_directory_name(name)
-                || path == target_directory
-                || is_excluded
-                || is_worktree
-                || Self::is_nested_workspace(path)
+            is_skipped_directory_name(name) || is_unread(relative, path)
+        };
+        let is_recorded = |relative: &str, path: &Path| -> bool {
+            let name = relative.rsplit('/').next().unwrap_or(relative);
+            is_skipped_directory_name(name) && !is_unread(relative, path)
         };
         let mut files = Vec::new();
-        Self::walk_directory(root, "", &is_skipped, &mut files, directories)?;
+        Self::walk_directory(root, "", &is_skipped, &is_recorded, &mut files, directories)?;
         Ok(files)
     }
 }

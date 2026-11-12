@@ -1,6 +1,8 @@
 use crate::check::api::Rule;
 use crate::module::rule::EntryPointShape;
 use crate::test::check::usecase::read_case_context;
+use crate::test::module::util::assert_placement_findings;
+use crate::test::module::util::read_placement_context;
 use crate::test::module::util::read_shape_context;
 
 #[test]
@@ -95,12 +97,28 @@ fn given_declaration_shapes_when_checked_then_exact_wrong_sites_report_and_corre
     assert_eq!(
         actual,
         [
-            "instances/runner/src/main.rs:1 case_runner::model",
+            "instances/runner/src/main.rs:1 case_runner::util",
             "instances/runner/src/main.rs:2 case_runner::main"
         ]
     );
     let context = read_case_context("EntryPointShape", "pass-declaration-shape");
     assert!(EntryPointShape.check(&context).is_empty());
+}
+
+#[test]
+fn given_model_and_error_root_blocks_in_entry_point_crate_when_checked_then_only_other_blocks_report()
+ {
+    let mut context = read_placement_context(&[(
+        "src/lib.rs",
+        "mod di {}\nmod model {}\nmod error {}\nmod util {}",
+    )]);
+    context.project_config.crates[0].role = Some(crate::config::model::Role::EntryPoint);
+    assert_placement_findings(
+        &EntryPointShape,
+        "EntryPointShape",
+        &context,
+        &[("src/lib.rs", 4, "Module")],
+    );
 }
 
 fn read_binary_main_context(source: &str) -> crate::check::model::RuleContext {

@@ -109,6 +109,48 @@ fn given_static_and_trait_constants_with_unit_suffix_when_checked_then_reports_b
 }
 
 #[test]
+fn given_unit_suffixed_integer_parameters_outside_a_boundary_when_checked_then_reports_each_parameter()
+ {
+    assert_code_findings(
+        &TimePrimitive,
+        "TimePrimitive",
+        "pub(crate) fn retry(timeout_seconds: u64) {}\npub(crate) struct Poller;\nimpl Poller { pub(crate) fn poll(&self, delay_ms: u32) {} }\nimpl vendor::Waiter for Poller { fn wait(&self, delay_ms: u32) {} }\nmod file { pub(crate) fn wait(timeout_ms: u64) {} }\npub(crate) fn retry_count(attempts: u64) {}",
+        &[1, 3],
+    );
+}
+
+#[test]
+fn given_unit_suffixed_fields_of_wrapped_integers_when_checked_then_reports_each_field() {
+    assert_code_findings(
+        &TimePrimitive,
+        "TimePrimitive",
+        "pub(crate) struct Retry {\n    timeout_seconds: Option<u64>,\n    delays_ms: Vec<u64>,\n    retries: Vec<u64>,\n}",
+        &[2, 3],
+    );
+}
+
+#[test]
+fn given_boxed_array_and_slice_integer_fields_with_unit_suffix_when_checked_then_reports_each() {
+    assert_code_findings(
+        &TimePrimitive,
+        "TimePrimitive",
+        "pub(crate) struct Waits {\n    timeout_ms: Box<u64>,\n    delays_ms: [u64; 3],\n    waits_ms: &'static [u64],\n    backoff_ms: Box<[u64]>,\n    name_ms_label: Box<str>,\n}",
+        &[2, 3, 4, 5],
+    );
+}
+
+#[test]
+fn given_unit_suffixed_locals_initialised_by_integer_literals_when_checked_then_reports_each_local()
+{
+    assert_code_findings(
+        &TimePrimitive,
+        "TimePrimitive",
+        "fn run(delay: std::time::Duration) {\n    let timeout_ms: u64 = 500;\n    let delay_secs = 5u64;\n    let delay_ms = delay.as_millis();\n    let attempts: u64 = 3;\n}",
+        &[2, 3],
+    );
+}
+
+#[test]
 fn given_instant_sent_through_local_channel_when_checked_then_reports_the_send() {
     assert_code_findings(
         &TimePrimitive,
@@ -193,5 +235,27 @@ fn given_enum_variant_field_in_route_when_serde_derived_then_exempt_and_otherwis
         "TimePrimitive",
         "mod route {\n    #[derive(serde::Deserialize)]\n    pub(crate) enum Wait {\n        Fixed { delay_millis: u64 },\n    }\n    pub(crate) enum Plain {\n        Fixed { delay_millis: u64 },\n    }\n}",
         &[7],
+    );
+}
+
+#[test]
+fn given_more_time_unit_suffixes_when_primitive_then_reports_each_but_not_min_ns_us() {
+    assert_code_findings(
+        &TimePrimitive,
+        "TimePrimitive",
+        "const RETENTION_DAYS: u64 = 30;\nconst REVIEW_WEEKS: u32 = 2;\nconst FADE_MILLISECONDS: u64 = 250;\nconst BLINK_MICROSECONDS: u64 = 40;\nconst SPIN_NANOSECONDS: u64 = 900;\nconst POLL_SEC: u64 = 5;\nconst LEASE_MINS: u64 = 10;\nconst MAX_DAYS_LABEL: &str = \"days\";\nconst BATCH_MIN: u64 = 5;\nconst DNS_NS: &str = \"kube-system\";\nconst RETRY_US: u64 = 3;",
+        &[1, 2, 3, 4, 5, 6, 7],
+    );
+    assert_code_findings(
+        &TimePrimitive,
+        "TimePrimitive",
+        "pub(crate) struct Retention {\n    grace_days: u32,\n    review_weeks: u32,\n    fade_milliseconds: u64,\n    blink_microseconds: u64,\n    spin_nanoseconds: u64,\n    poll_sec: u64,\n    lease_mins: u64,\n    batch_min: u64,\n    dns_ns: String,\n    retry_us: u64,\n}",
+        &[2, 3, 4, 5, 6, 7, 8],
+    );
+    assert_code_findings(
+        &TimePrimitive,
+        "TimePrimitive",
+        "pub(crate) fn wait(lease_mins: u64, batch_min: u64) {\n    let grace_days: u64 = 3;\n    let retry_us: u64 = 4;\n    let review_weeks = 2u64;\n}",
+        &[1, 2, 4],
     );
 }

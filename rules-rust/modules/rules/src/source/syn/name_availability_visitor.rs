@@ -1,3 +1,5 @@
+use crate::source::model::SelectPart;
+use crate::source::util::parse_select_parts;
 use syn::visit::Visit;
 
 pub(crate) struct NameAvailabilityVisitor {
@@ -12,6 +14,17 @@ impl<'ast> Visit<'ast> for NameAvailabilityVisitor {
         self.visit_macro(&item.mac);
     }
     fn visit_macro(&mut self, invocation: &'ast syn::Macro) {
+        let select_parts = parse_select_parts(invocation);
+        if !select_parts.is_empty() {
+            for part in &select_parts {
+                match part {
+                    SelectPart::Pattern(pattern) => self.visit_pat(pattern),
+                    SelectPart::Expression(expression) => self.visit_expr(expression),
+                    SelectPart::BranchEnd => {}
+                }
+            }
+            return;
+        }
         let name = invocation
             .path
             .segments

@@ -84,6 +84,67 @@ fn given_discarded_thread_handle_in_technology_module_when_checked_then_reports_
 }
 
 #[test]
+fn given_named_thread_handle_never_read_again_in_technology_module_when_checked_then_reports_the_spawn()
+ {
+    let expectation =
+        "#[expect(clippy::disallowed_methods, reason = \"pumps the device until shutdown\")]";
+    let source = [
+        "fn run() {}",
+        expectation,
+        "pub(crate) fn start_pump() {",
+        "    let _pump = std::thread::spawn(run);",
+        "}",
+        expectation,
+        "pub(crate) fn start_and_join() {",
+        "    let worker = std::thread::spawn(run);",
+        "    let _joined = worker.join();",
+        "}",
+        expectation,
+        "pub(crate) fn start_stored(slot: &mut Option<std::thread::JoinHandle<()>>) {",
+        "    let worker = std::thread::spawn(run);",
+        "    *slot = Some(worker);",
+        "}",
+    ]
+    .join("\n");
+    let mut context = read_code_context(&source);
+    context.project_config.crates[0].role = Some(Role::Technology);
+    let lines = ThreadPrimitive
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect::<Vec<_>>();
+    assert_eq!(vec![Some(4)], lines, "{source}");
+}
+
+#[test]
+fn given_forgotten_thread_handle_in_technology_module_when_checked_then_reports_the_spawn() {
+    let expectation =
+        "#[expect(clippy::disallowed_methods, reason = \"reads the device until shutdown\")]";
+    let source = [
+        "struct Device;",
+        "impl Device { fn run(&self) {} }",
+        expectation,
+        "pub(crate) fn start_forgotten(device: Device) {",
+        "    std::mem::forget(std::thread::spawn(move || device.run()));",
+        "}",
+        expectation,
+        "pub(crate) fn start_kept(device: Device) -> std::thread::JoinHandle<()> {",
+        "    let handle = std::thread::spawn(move || device.run());",
+        "    handle",
+        "}",
+    ]
+    .join("\n");
+    let mut context = read_code_context(&source);
+    context.project_config.crates[0].role = Some(Role::Technology);
+    let lines = ThreadPrimitive
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect::<Vec<_>>();
+    assert_eq!(vec![Some(5)], lines, "{source}");
+}
+
+#[test]
 fn given_thread_handle_returned_or_bound_in_technology_module_when_checked_then_reports_only_discard()
  {
     let expectation =
@@ -190,4 +251,129 @@ fn given_thread_handle_assigned_to_underscore_in_technology_module_when_checked_
         .collect::<Vec<_>>();
     lines.sort_unstable();
     assert_eq!(vec![Some(5), Some(9)], lines, "{source}");
+}
+
+#[test]
+fn given_thread_handle_assigned_to_a_field_in_technology_module_when_checked_then_reports_only_lost()
+ {
+    let expectation =
+        "#[expect(clippy::disallowed_methods, reason = \"pumps the device until shutdown\")]";
+    let source = [
+        "fn run() {}",
+        "struct Worker { handle: std::thread::JoinHandle<()> }",
+        expectation,
+        "pub(crate) fn replace(worker: &mut Worker) {",
+        "    let handle = std::thread::spawn(run);",
+        "    worker.handle = handle;",
+        "}",
+        expectation,
+        "pub(crate) fn start_lost() {",
+        "    let lost = std::thread::spawn(run);",
+        "}",
+    ]
+    .join("\n");
+    let mut context = read_code_context(&source);
+    context.project_config.crates[0].role = Some(Role::Technology);
+    let lines = ThreadPrimitive
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect::<Vec<_>>();
+    assert_eq!(vec![Some(10)], lines, "{source}");
+}
+
+#[test]
+fn given_handle_vector_joined_in_for_body_in_technology_module_when_checked_then_reports_only_lost()
+{
+    let expectation =
+        "#[expect(clippy::disallowed_methods, reason = \"pumps the device until shutdown\")]";
+    let source = [
+        "fn run() {}",
+        expectation,
+        "pub(crate) fn join_all() {",
+        "    let first = std::thread::spawn(run);",
+        "    let second = std::thread::spawn(run);",
+        "    let handles = vec![first, second];",
+        "    for worker in handles {",
+        "        let _joined = worker.join();",
+        "    }",
+        "}",
+        expectation,
+        "pub(crate) fn start_lost() {",
+        "    let lost = std::thread::spawn(run);",
+        "}",
+    ]
+    .join("\n");
+    let mut context = read_code_context(&source);
+    context.project_config.crates[0].role = Some(Role::Technology);
+    let lines = ThreadPrimitive
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect::<Vec<_>>();
+    assert_eq!(vec![Some(13)], lines, "{source}");
+}
+
+#[test]
+fn given_handle_joined_in_loop_body_in_technology_module_when_checked_then_reports_only_lost() {
+    let expectation =
+        "#[expect(clippy::disallowed_methods, reason = \"pumps the device until shutdown\")]";
+    let source = [
+        "fn run() {}",
+        "fn done() -> bool { true }",
+        expectation,
+        "pub(crate) fn join_in_loop() {",
+        "    let handle = std::thread::spawn(run);",
+        "    loop {",
+        "        if done() {",
+        "            let _joined = handle.join();",
+        "            break;",
+        "        }",
+        "    }",
+        "}",
+        expectation,
+        "pub(crate) fn start_lost() {",
+        "    let lost = std::thread::spawn(run);",
+        "}",
+    ]
+    .join("\n");
+    let mut context = read_code_context(&source);
+    context.project_config.crates[0].role = Some(Role::Technology);
+    let lines = ThreadPrimitive
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect::<Vec<_>>();
+    assert_eq!(vec![Some(15)], lines, "{source}");
+}
+
+#[test]
+fn given_handle_joined_in_while_body_in_technology_module_when_checked_then_reports_only_lost() {
+    let expectation =
+        "#[expect(clippy::disallowed_methods, reason = \"pumps the device until shutdown\")]";
+    let source = [
+        "fn run() {}",
+        "fn done() -> bool { true }",
+        expectation,
+        "pub(crate) fn join_in_while() {",
+        "    let handle = std::thread::spawn(run);",
+        "    while done() {",
+        "        let _joined = handle.join();",
+        "        break;",
+        "    }",
+        "}",
+        expectation,
+        "pub(crate) fn start_lost() {",
+        "    let lost = std::thread::spawn(run);",
+        "}",
+    ]
+    .join("\n");
+    let mut context = read_code_context(&source);
+    context.project_config.crates[0].role = Some(Role::Technology);
+    let lines = ThreadPrimitive
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.location.line)
+        .collect::<Vec<_>>();
+    assert_eq!(vec![Some(13)], lines, "{source}");
 }

@@ -3,6 +3,32 @@ use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
 
 #[test]
+fn given_fetch_update_closure_writing_a_field_of_self_when_checked_then_reports_each_write() {
+    assert_code_findings(
+        &ImpureUpdateClosure,
+        "ImpureUpdateClosure",
+        "struct Meter { count: std::sync::atomic::AtomicUsize, last_seen: std::sync::atomic::AtomicUsize, queue: Vec<usize>, slot: Option<usize> }\nimpl Meter {\n    fn bump_store(&mut self) { let _ = self.count.fetch_update(std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst, |current| { self.last_seen.store(current, std::sync::atomic::Ordering::Relaxed); Some(current + 1) }); }\n    fn bump_push(&mut self) { let _ = self.count.fetch_update(std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst, |current| { self.queue.push(current); Some(current + 1) }); }\n    fn bump_take(&mut self) { let _ = self.count.fetch_update(std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst, |current| { self.slot.take(); Some(current + 1) }); }\n    fn bump_read(&mut self) { let _ = self.count.fetch_update(std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst, |current| { let seen = self.last_seen.load(std::sync::atomic::Ordering::Relaxed); Some(current + seen) }); }\n}",
+        &[3, 4, 5],
+    );
+    assert_code_findings(
+        &ImpureUpdateClosure,
+        "ImpureUpdateClosure",
+        "struct Meter { state: tokio::sync::watch::Sender<u32>, ticks: std::sync::atomic::AtomicUsize }\nimpl Meter {\n    fn tick(&self) {\n        self.state.send_modify(|current| { self.ticks.fetch_add(1, std::sync::atomic::Ordering::Relaxed); *current += 1; });\n    }\n}",
+        &[4],
+    );
+}
+
+#[test]
+fn given_update_closure_reading_another_channel_when_checked_then_reports_each_read() {
+    assert_code_findings(
+        &ImpureUpdateClosure,
+        "ImpureUpdateClosure",
+        "fn mirror(state: tokio::sync::watch::Sender<u32>, other: tokio::sync::watch::Receiver<u32>) {\n    state.send_modify(|current| { *current = *other.borrow(); });\n}\nfn drain(state: tokio::sync::watch::Sender<u32>, mut inbox: tokio::sync::mpsc::Receiver<u32>) {\n    state.send_modify(|current| { if let Ok(next) = inbox.try_recv() { *current = next; } });\n}\nfn block(state: tokio::sync::watch::Sender<u32>, mut inbox: tokio::sync::mpsc::UnboundedReceiver<u32>) {\n    state.send_if_modified(|current| { *current = inbox.blocking_recv().unwrap_or(0); true });\n}\nfn pure(state: tokio::sync::watch::Sender<u32>, step: u32) {\n    state.send_modify(|current| { *current += step; });\n}",
+        &[2, 5, 8],
+    );
+}
+
+#[test]
 fn given_resolved_rwlock_or_captured_collection_when_updated_then_reports_effects_only_for_known_receivers()
  {
     assert_code_findings(
@@ -169,6 +195,51 @@ fn given_fetch_update_closure_writing_a_capture_in_place_when_checked_then_repor
 }
 
 #[test]
+fn given_watch_closure_building_a_net_value_without_io_when_checked_then_reports_only_the_file_read()
+ {
+    assert_code_findings(
+        &ImpureUpdateClosure,
+        "ImpureUpdateClosure",
+        "fn socket(state: tokio::sync::watch::Sender<std::net::SocketAddr>, ip: std::net::IpAddr, port: u16) {\n    state.send_modify(|current| { *current = std::net::SocketAddr::new(ip, port); });\n}\nfn address(state: tokio::sync::watch::Sender<std::net::Ipv4Addr>) {\n    state.send_modify(|current| { *current = std::net::Ipv4Addr::new(127, 0, 0, 1); });\n}\nfn read(state: tokio::sync::watch::Sender<usize>) {\n    state.send_modify(|current| { *current = std::fs::read(\"file\").map_or(0, |bytes| bytes.len()); });\n}",
+        &[8],
+    );
+}
+
+#[test]
+fn given_std_stdout_handle_in_watch_closure_when_checked_then_reports_handle_macro_write_and_flush()
+{
+    assert_code_findings(
+        &ImpureUpdateClosure,
+        "ImpureUpdateClosure",
+        "fn run(state: tokio::sync::watch::Sender<u32>) {\n    state.send_modify(|current| { let _handle = std::io::stdout(); *current += 1; });\n}",
+        &[2],
+    );
+    assert_code_findings(
+        &ImpureUpdateClosure,
+        "ImpureUpdateClosure",
+        "use std::io::Write;\nfn run(state: tokio::sync::watch::Sender<u32>) {\n    state.send_modify(|current| { let written = writeln!(std::io::stdout(), \"x\"); *current += 1; });\n}",
+        &[3],
+    );
+    assert_code_findings(
+        &ImpureUpdateClosure,
+        "ImpureUpdateClosure",
+        "use std::io::Write;\nfn run(state: tokio::sync::watch::Sender<u32>) {\n    state.send_modify(|current| { let flushed = std::io::stdout().flush(); *current += 1; });\n}",
+        &[3],
+    );
+}
+
+#[test]
+fn given_thread_sleep_and_log_events_in_watch_closure_when_checked_then_reports_only_the_closures()
+{
+    assert_code_findings(
+        &ImpureUpdateClosure,
+        "ImpureUpdateClosure",
+        "use tracing::warn;\nfn pause(state: tokio::sync::watch::Sender<u32>) {\n    state.send_modify(|current| { std::thread::sleep(std::time::Duration::from_millis(1)); *current += 1; });\n}\nfn trace(state: tokio::sync::watch::Sender<u32>) {\n    state.send_modify(|current| { tracing::debug!(\"bump\"); *current += 1; });\n}\nfn note(state: tokio::sync::watch::Sender<u32>) {\n    state.send_if_modified(|current| { log::info!(\"bump\"); *current += 1; true });\n}\nfn imported(state: tokio::sync::watch::Sender<u32>) {\n    state.send_modify(|current| { warn!(\"bump\"); *current += 1; });\n}\nfn outside(state: tokio::sync::watch::Sender<u32>) {\n    tracing::info!(\"before\");\n    std::thread::sleep(std::time::Duration::from_millis(1));\n    state.send_modify(|current| { *current += 1; });\n}",
+        &[3, 6, 9, 12],
+    );
+}
+
+#[test]
 fn given_fetch_update_closure_borrowing_a_destructured_local_when_checked_then_reports_only_capture()
  {
     for body in [
@@ -187,4 +258,15 @@ fn given_fetch_update_closure_borrowing_a_destructured_local_when_checked_then_r
             &[9],
         );
     }
+}
+
+#[test]
+fn given_error_trace_and_event_macros_in_watch_closure_when_checked_then_reports_only_the_closures()
+{
+    assert_code_findings(
+        &ImpureUpdateClosure,
+        "ImpureUpdateClosure",
+        "fn error(state: tokio::sync::watch::Sender<u32>) {\n    state.send_modify(|current| { tracing::error!(\"bump\"); *current += 1; });\n}\nfn trace(state: tokio::sync::watch::Sender<u32>) {\n    state.send_modify(|current| { tracing::trace!(\"bump\"); *current += 1; });\n}\nfn event(state: tokio::sync::watch::Sender<u32>) {\n    state.send_if_modified(|current| { tracing::event!(tracing::Level::INFO, \"bump\"); *current += 1; true });\n}\nfn note(state: tokio::sync::watch::Sender<u32>) {\n    state.send_if_modified(|current| { log::error!(\"bump\"); *current += 1; true });\n}\nfn outside(state: tokio::sync::watch::Sender<u32>) {\n    tracing::error!(\"before\");\n    tracing::trace!(\"before\");\n    tracing::event!(tracing::Level::INFO, \"before\");\n    log::error!(\"before\");\n    state.send_modify(|current| { *current += 1; });\n}",
+        &[2, 5, 8, 11],
+    );
 }

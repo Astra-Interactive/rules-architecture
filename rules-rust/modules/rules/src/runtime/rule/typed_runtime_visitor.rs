@@ -70,12 +70,14 @@ pub(crate) struct TypedRuntimeVisitor<'source> {
     bindings: Vec<(String, Rc<ResolvedTypeSyntax>)>,
     self_type: Option<syn::Type>,
     synchronous_boundary: bool,
+    in_drop: bool,
     loops: usize,
     thread_expect: bool,
     async_context: bool,
     runtime_main: bool,
     inherit_async: bool,
     closure_state: Option<Rc<ResolvedTypeSyntax>>,
+    generic_scopes: Vec<syn::Generics>,
 }
 
 impl TypedRuntimeVisitor<'_> {
@@ -111,12 +113,14 @@ impl TypedRuntimeVisitor<'_> {
                     bindings: Vec::new(),
                     self_type: None,
                     synchronous_boundary: false,
+                    in_drop: false,
                     loops: 0,
                     thread_expect: expects_lint(&file.syntax.attrs, "disallowed_methods"),
                     async_context: false,
                     runtime_main: false,
                     inherit_async: false,
                     closure_state: None,
+                    generic_scopes: Vec::new(),
                 };
                 visitor.visit_file(&file.syntax);
                 findings.extend(visitor.findings);
@@ -515,8 +519,17 @@ impl TypedRuntimeVisitor<'_> {
         self.receiver_has(
             expression,
             &["tokio::runtime::Runtime", "tokio::runtime::Handle"],
-        ) || self.rule == "BlockOnOutsideBoundary"
+        ) || matches!(self.rule, "BlockOnOutsideBoundary" | "BlockOnInTest")
             && self.receiver_has(expression, &["tokio::task::LocalSet"])
+    }
+
+    fn is_local_pool_run(&self, expression: &syn::ExprMethodCall) -> bool {
+        let local_pools = [
+            "futures::executor::LocalPool",
+            "futures_executor::LocalPool",
+            "futures_executor::local_pool::LocalPool",
+        ];
+        expression.method == "run_until" && self.receiver_has(&expression.receiver, &local_pools)
     }
 
     fn receiver_identity(
@@ -562,19 +575,26 @@ impl TypedRuntimeVisitor<'_> {
         self.receiver_has(&call.receiver, &[owner])
     }
 
-    fn is_blocking_method(&self, expression: &syn::ExprMethodCall) -> bool {
-        let blocking_channel = self.receiver_has(
-            &expression.receiver,
-            &[
-                "std::sync::mpsc::Receiver",
-                "std::sync::mpsc::Sender",
-                "std::sync::mpsc::SyncSender",
+    fn is_blocking_channel_call(&self, call: &syn::ExprMethodCall) -> bool {
+        let owners: &[&str] = match call.method.to_string().as_str() {
+            "recv" | "recv_timeout" => &["std::sync::mpsc::Receiver"],
+            "blocking_recv" => &[
+                "tokio::sync::mpsc::Receiver",
+                "tokio::sync::mpsc::UnboundedReceiver",
+                "tokio::sync::broadcast::Receiver",
             ],
-        );
-        let blocking_file_call = Self::FILE_BLOCKING_METHODS
-            .contains(&expression.method.to_string().as_str())
-            && self.receiver_has(&expression.receiver, &["std::fs::File"]);
-        blocking_channel || blocking_file_call
+            "blocking_send" => &["tokio::sync::mpsc::Sender"],
+            _ => return false,
+        };
+        self.receiver_has(&call.receiver, owners)
+    }
+
+    fn check_blocking_in_sync(&mut self, call: &syn::ExprMethodCall) {
+        let is_lock = self.synchronous_boundary && self.is_blocking_lock_call(call);
+        let is_channel = self.in_drop && self.is_blocking_channel_call(call);
+        if is_lock || is_channel {
+            self.report(call.span());
+        }
     }
 
     fn is_blocking_io_method(&self, call: &syn::ExprMethodCall) -> bool {
@@ -587,6 +607,18 @@ impl TypedRuntimeVisitor<'_> {
         let command_call = Self::COMMAND_IO_METHODS.contains(&method)
             && self.receiver_has(&call.receiver, &["std::process::Command"]);
         file_call || stream_call || command_call
+    }
+
+    fn is_blocking_method(&self, expression: &syn::ExprMethodCall) -> bool {
+        let blocking_channel = self.receiver_has(
+            &expression.receiver,
+            &[
+                "std::sync::mpsc::Receiver",
+                "std::sync::mpsc::Sender",
+                "std::sync::mpsc::SyncSender",
+            ],
+        );
+        blocking_channel || self.is_blocking_io_method(expression)
     }
 
     fn bind_signature(&mut self, signature: &syn::Signature) {
@@ -842,6 +874,52 @@ impl TypedRuntimeVisitor<'_> {
         }
     }
 
+    fn is_io_call_path(path: &str) -> bool {
+        let file_call = ["std::fs::", "tokio::fs::"]
+            .iter()
+            .find_map(|prefix| path.strip_prefix(prefix))
+            .is_some_and(|rest| {
+                !rest.contains("::")
+                    || ["File::open", "File::create", "File::create_new"].contains(&rest)
+            });
+        let network_call = ["std::net::", "tokio::net::"]
+            .iter()
+            .find_map(|prefix| path.strip_prefix(prefix))
+            .is_some_and(|rest| {
+                rest == "lookup_host"
+                    || [
+                        "TcpStream::",
+                        "TcpListener::",
+                        "UdpSocket::",
+                        "UnixStream::",
+                        "UnixListener::",
+                        "UnixDatagram::",
+                    ]
+                    .iter()
+                    .any(|socket| rest.starts_with(socket))
+            });
+        file_call || network_call
+    }
+
+    fn resolves_to_any(&self, path: &syn::Path, names: &[&str]) -> bool {
+        self.context
+            .resolve_external_call_paths(self.ordinal, self.module, path)
+            .iter()
+            .any(|resolved| names.contains(&resolved.format_path().as_str()))
+    }
+
+    fn has_sleep_or_log_event(&self, effects: &ClosureEffects) -> bool {
+        let sleeps = effects.calls.iter().any(|call| {
+            matches!(&*call.func, syn::Expr::Path(path)
+                if self.resolves_to_any(&path.path, &["std::thread::sleep"]))
+        });
+        let logs = effects
+            .macros
+            .iter()
+            .any(|item| self.resolves_to_any(&item.path, Self::LOG_EVENT_MACROS));
+        sleeps || logs
+    }
+
     fn check_update(&mut self, expression: &syn::ExprMethodCall) {
         let atomic = expression.method == "fetch_update"
             && self.receiver_has(&expression.receiver, ATOMIC_TYPES);
@@ -875,16 +953,107 @@ impl TypedRuntimeVisitor<'_> {
                         && captured
                         && matches!(method.as_str(), "take" | "replace" | "insert" | "get_or_insert" | "get_or_insert_with")
                         && self.receiver_has(&call.receiver, OPTION_TYPES);
-                    let channel = matches!(method.as_str(), "send" | "try_send" | "send_replace" | "send_modify" | "send_if_modified")
-                        && self.receiver_has(&call.receiver, &["tokio::sync::watch::Sender", "tokio::sync::mpsc::Sender", "tokio::sync::mpsc::UnboundedSender", "tokio::sync::broadcast::Sender", "tokio::sync::oneshot::Sender", "std::sync::mpsc::Sender", "std::sync::mpsc::SyncSender"]);
+                    let channel = self.receiver_has(&call.receiver, Self::CHANNEL_ENDPOINT_TYPES);
                     lock || channel || mutation || option_write || atomic_write || self.is_blocking_io_method(call)
                 }) || effects.calls.iter().any(|call| matches!(&*call.func, syn::Expr::Path(path)
                     if self.context.resolve_external_call_paths(self.ordinal, self.module, &path.path).iter().any(|path|
-                        ["std::fs::", "tokio::fs::", "std::net::", "tokio::net::"].iter().any(|prefix| path.format_path().starts_with(prefix))
+                        Self::is_io_call_path(&path.format_path())
                             || Self::STD_IO_FUNCTIONS.contains(&path.format_path().as_str())))));
-            if impure {
+            let is_noisy = watch && self.has_sleep_or_log_event(&effects);
+            if impure || is_noisy {
                 self.report(argument.span());
             }
+        }
+    }
+
+    fn is_cancel_unsafe_io_method(method: &str) -> bool {
+        let fixed = [
+            "read_exact",
+            "read_to_end",
+            "read_to_string",
+            "write_all",
+            "read_line",
+            "read_until",
+            "write_all_buf",
+            "write_vectored",
+            "next_line",
+            "next_segment",
+        ]
+        .contains(&method);
+        let numeric = ["read_", "write_"]
+            .iter()
+            .find_map(|prefix| method.strip_prefix(prefix))
+            .map(|rest| rest.strip_suffix("_le").unwrap_or(rest))
+            .is_some_and(|number| {
+                [
+                    "u8", "u16", "u32", "u64", "u128", "i8", "i16", "i32", "i64", "i128", "f32",
+                    "f64",
+                ]
+                .contains(&number)
+            });
+        fixed || numeric
+    }
+
+    fn list_parameter_bounds(&self, name: &syn::Ident) -> Vec<&syn::TypeParamBound> {
+        let mut bounds = Vec::new();
+        for generics in &self.generic_scopes {
+            for parameter in generics
+                .type_params()
+                .filter(|parameter| parameter.ident == *name)
+            {
+                bounds.extend(parameter.bounds.iter());
+            }
+            let predicates = generics
+                .where_clause
+                .iter()
+                .flat_map(|clause| &clause.predicates);
+            for predicate in predicates {
+                let syn::WherePredicate::Type(predicate) = predicate else {
+                    continue;
+                };
+                if matches!(&predicate.bounded_ty, syn::Type::Path(path) if path.path.is_ident(name))
+                {
+                    bounds.extend(predicate.bounds.iter());
+                }
+            }
+        }
+        bounds
+    }
+
+    fn is_tokio_io_bound(&self, bound: &syn::TypeParamBound) -> bool {
+        let syn::TypeParamBound::Trait(bound) = bound else {
+            return false;
+        };
+        let resolved =
+            match self.context.indexes[self.ordinal].resolve_path(self.module, &bound.path) {
+                crate::source::model::Resolution::External(path) => path,
+                _ => return false,
+            };
+        [
+            "tokio::io::AsyncRead",
+            "tokio::io::AsyncWrite",
+            "tokio::io::AsyncBufRead",
+            "tokio::io::AsyncReadExt",
+            "tokio::io::AsyncWriteExt",
+            "tokio::io::AsyncBufReadExt",
+        ]
+        .contains(&resolved.as_str())
+    }
+
+    fn is_tokio_io_bounded(&self, typed: &syn::Type) -> bool {
+        match typed {
+            syn::Type::Reference(reference) => self.is_tokio_io_bounded(&reference.elem),
+            syn::Type::Paren(paren) => self.is_tokio_io_bounded(&paren.elem),
+            syn::Type::ImplTrait(implemented) => implemented
+                .bounds
+                .iter()
+                .any(|bound| self.is_tokio_io_bound(bound)),
+            syn::Type::Path(path) => path.path.get_ident().is_some_and(|name| {
+                self.list_parameter_bounds(name)
+                    .into_iter()
+                    .any(|bound| self.is_tokio_io_bound(bound))
+            }),
+            _ => false,
         }
     }
 
@@ -899,13 +1068,11 @@ impl TypedRuntimeVisitor<'_> {
         if let Some(names) = queued {
             return self.receiver_has(&call.receiver, names);
         }
-        if !matches!(
-            call.method.to_string().as_str(),
-            "read_exact" | "read_to_end" | "read_to_string" | "write_all"
-        ) {
+        if !Self::is_cancel_unsafe_io_method(&call.method.to_string()) {
             return false;
         }
-        self.receiver_types(&call.receiver)
+        let receivers = self.receiver_types(&call.receiver);
+        let is_tokio_io = receivers
             .iter()
             .flat_map(|receiver| {
                 self.context.resolve_external_type_paths(
@@ -920,7 +1087,52 @@ impl TypedRuntimeVisitor<'_> {
                         .segments
                         .iter()
                         .any(|segment| matches!(segment.as_str(), "io" | "fs" | "net"))
-            })
+            });
+        is_tokio_io
+            || receivers
+                .iter()
+                .any(|receiver| self.is_tokio_io_bounded(&receiver.typed))
+    }
+
+    fn awaits_unsafe_call(
+        &self,
+        ordinal: usize,
+        module: usize,
+        signature: &syn::Signature,
+        block: &syn::Block,
+    ) -> bool {
+        if signature.asyncness.is_none() {
+            return false;
+        }
+        let mut callee = TypedRuntimeVisitor {
+            context: self.context,
+            ordinal,
+            module,
+            file: self.file,
+            rule: self.rule,
+            findings: Vec::new(),
+            bindings: Vec::new(),
+            self_type: self.self_type.clone(),
+            synchronous_boundary: false,
+            in_drop: false,
+            loops: 0,
+            thread_expect: false,
+            async_context: true,
+            runtime_main: false,
+            inherit_async: false,
+            closure_state: None,
+            generic_scopes: vec![signature.generics.clone()],
+        };
+        callee.bind_signature(signature);
+        let body = syn::Expr::Block(syn::ExprBlock {
+            attrs: Vec::new(),
+            label: None,
+            block: block.clone(),
+        });
+        ClosureEffects::collect(&body)
+            .methods
+            .iter()
+            .any(|call| callee.unsafe_select_call(call))
     }
 
     fn has_async_lock_type(&self, receiver: &syn::Expr) -> bool {
@@ -948,9 +1160,10 @@ impl TypedRuntimeVisitor<'_> {
                     )
                 })
                 .collect::<Vec<_>>();
+            let aliases = GuardWrites::collect_aliases(following, name);
             let writes = following
                 .iter()
-                .map(|statement| GuardWrites::count(statement, name, &collections))
+                .map(|statement| GuardWrites::count(statement, name, &collections, &aliases))
                 .collect::<Vec<_>>();
             let count = writes.iter().sum::<usize>();
             let tail_value = usize::from(
@@ -1043,7 +1256,7 @@ impl TypedRuntimeVisitor<'_> {
         let returns_result = signature.asyncness.is_some() == is_awaited
             && returned_paths
                 .iter()
-                .any(|path| RESULT_TYPES.contains(&path.format_path().as_str()));
+                .any(|path| path.segments.last().is_some_and(|name| name == "Result"));
         let returns_join_handle = is_awaited
             && signature.asyncness.is_none()
             && returned_paths
@@ -1201,15 +1414,48 @@ impl TypedRuntimeVisitor<'_> {
         })
     }
 
+    fn is_name_bound(pattern: &syn::Pat, name: &str) -> bool {
+        match pattern {
+            syn::Pat::Ident(binding) => {
+                binding.ident == name
+                    || binding
+                        .subpat
+                        .as_ref()
+                        .is_some_and(|(_, inner)| Self::is_name_bound(inner, name))
+            }
+            syn::Pat::Type(typed) => Self::is_name_bound(&typed.pat, name),
+            syn::Pat::Paren(paren) => Self::is_name_bound(&paren.pat, name),
+            syn::Pat::Reference(reference) => Self::is_name_bound(&reference.pat, name),
+            syn::Pat::Tuple(tuple) => tuple
+                .elems
+                .iter()
+                .any(|element| Self::is_name_bound(element, name)),
+            syn::Pat::TupleStruct(tuple) => tuple
+                .elems
+                .iter()
+                .any(|element| Self::is_name_bound(element, name)),
+            syn::Pat::Slice(slice) => slice
+                .elems
+                .iter()
+                .any(|element| Self::is_name_bound(element, name)),
+            syn::Pat::Or(alternatives) => alternatives
+                .cases
+                .iter()
+                .any(|case| Self::is_name_bound(case, name)),
+            syn::Pat::Struct(structure) => structure
+                .fields
+                .iter()
+                .any(|field| Self::is_name_bound(&field.pat, name)),
+            _ => false,
+        }
+    }
+
     fn find_shadowing_local<'syntax>(
         statement: &'syntax syn::Stmt,
         name: &str,
     ) -> Option<&'syntax syn::Local> {
         match statement {
-            syn::Stmt::Local(local) => {
-                matches!(&local.pat, syn::Pat::Ident(binding) if binding.ident == name)
-                    .then_some(local)
-            }
+            syn::Stmt::Local(local) => Self::is_name_bound(&local.pat, name).then_some(local),
             _ => None,
         }
     }
@@ -1391,6 +1637,131 @@ impl TypedRuntimeVisitor<'_> {
         }
     }
 
+    fn any_owned_method(
+        &self,
+        ordinal: usize,
+        identity: usize,
+        name: &syn::Ident,
+        predicate: &dyn Fn(usize, usize, &syn::Signature, &syn::Block) -> bool,
+    ) -> bool {
+        let index = &self.context.indexes[ordinal];
+        index
+            .implementations
+            .iter()
+            .filter(|implementation| {
+                implementation.syntax.trait_.is_none()
+                    && crate::module::util::owns_implementation(index, identity, implementation)
+            })
+            .any(|implementation| {
+                implementation.syntax.items.iter().any(|member| {
+                    matches!(member, syn::ImplItem::Fn(method)
+                        if method.sig.ident == *name
+                            && predicate(ordinal, implementation.module, &method.sig, &method.block))
+                })
+            })
+    }
+
+    fn resolve_self_targets(&self) -> Vec<crate::source::model::WorkspaceResolvedPath> {
+        self.self_type
+            .as_ref()
+            .map(|typed| {
+                self.context
+                    .resolve_workspace_type(self.ordinal, self.module, typed)
+            })
+            .unwrap_or_default()
+    }
+
+    fn any_target_method(
+        &self,
+        targets: &[crate::source::model::WorkspaceResolvedPath],
+        name: &syn::Ident,
+        predicate: &dyn Fn(usize, usize, &syn::Signature, &syn::Block) -> bool,
+    ) -> bool {
+        targets.iter().any(|target| {
+            target.path.item.is_some_and(|identity| {
+                self.any_owned_method(target.index, identity, name, predicate)
+            })
+        })
+    }
+
+    fn any_called_function(
+        &self,
+        call: &syn::ExprCall,
+        predicate: &dyn Fn(usize, usize, &syn::Signature, &syn::Block) -> bool,
+    ) -> bool {
+        let syn::Expr::Path(path) = &*call.func else {
+            return false;
+        };
+        let targets = self
+            .context
+            .resolve_workspace_path(self.ordinal, self.module, &path.path);
+        let is_free = targets.iter().any(|target| {
+            target.path.item.is_some_and(|identity| {
+                let item = &self.context.indexes[target.index].items[identity];
+                matches!(&item.syntax, syn::Item::Fn(function)
+                    if predicate(target.index, item.module, &function.sig, &function.block))
+            })
+        });
+        let Some(name) = path.path.segments.last().map(|segment| &segment.ident) else {
+            return is_free;
+        };
+        let syn::Type::Path(owner) = Self::build_owner_type(&path.path) else {
+            return is_free;
+        };
+        let owner_targets = if owner.path.is_ident("Self") {
+            self.resolve_self_targets()
+        } else if path.path.segments.len() > 1 {
+            self.context
+                .resolve_workspace_path(self.ordinal, self.module, &owner.path)
+        } else {
+            Vec::new()
+        };
+        is_free || self.any_target_method(&owner_targets, name, predicate)
+    }
+
+    fn any_called_method(
+        &self,
+        call: &syn::ExprMethodCall,
+        predicate: &dyn Fn(usize, usize, &syn::Signature, &syn::Block) -> bool,
+    ) -> bool {
+        if matches!(&*call.receiver, syn::Expr::Path(path) if path.path.is_ident("self")) {
+            let targets = self.resolve_self_targets();
+            return self.any_target_method(&targets, &call.method, predicate);
+        }
+        self.receiver_types(&call.receiver).iter().any(|receiver| {
+            let mut typed = &receiver.typed;
+            while let syn::Type::Reference(reference) = typed {
+                typed = &reference.elem;
+            }
+            let targets =
+                self.context
+                    .resolve_workspace_type(receiver.index, receiver.module, typed);
+            self.any_target_method(&targets, &call.method, predicate)
+        })
+    }
+
+    fn any_workspace_callee(
+        &self,
+        future: &syn::Expr,
+        predicate: &dyn Fn(usize, usize, &syn::Signature, &syn::Block) -> bool,
+    ) -> bool {
+        match future {
+            syn::Expr::Paren(paren) => self.any_workspace_callee(&paren.expr, predicate),
+            syn::Expr::Call(call) => self.any_called_function(call, predicate),
+            syn::Expr::MethodCall(call) => self.any_called_method(call, predicate),
+            _ => false,
+        }
+    }
+
+    fn is_ready_future_path(path: &str) -> bool {
+        let is_standard = matches!(path, "std::future::ready" | "core::future::ready");
+        let is_futures = ["futures::future::", "futures_util::future::"]
+            .iter()
+            .find_map(|prefix| path.strip_prefix(prefix))
+            .is_some_and(|name| matches!(name, "ready" | "ok" | "err"));
+        is_standard || is_futures
+    }
+
     fn is_immediate_future(&self, future: &syn::Expr) -> bool {
         if let syn::Expr::Async(block) = future {
             return match block.block.stmts.as_slice() {
@@ -1406,13 +1777,15 @@ impl TypedRuntimeVisitor<'_> {
                 .context
                 .resolve_external_call_paths(self.ordinal, self.module, &path.path)
                 .iter()
-                .any(|path| {
-                    matches!(
-                        path.format_path().as_str(),
-                        "std::future::ready" | "core::future::ready"
-                    )
-                })
+                .any(|path| Self::is_ready_future_path(&path.format_path()))
         {
+            return true;
+        }
+        let awaits_nothing =
+            |_: usize, _: usize, signature: &syn::Signature, block: &syn::Block| {
+                signature.asyncness.is_some() && !block.stmts.iter().any(AwaitVisitor::in_statement)
+            };
+        if self.any_workspace_callee(future, &awaits_nothing) {
             return true;
         }
         let syn::Expr::MethodCall(call) = future else {
@@ -1503,6 +1876,15 @@ impl TypedRuntimeVisitor<'_> {
         })
     }
 
+    fn is_awaited_broadcast_recv(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Paren(paren) => self.is_awaited_broadcast_recv(&paren.expr),
+            syn::Expr::Group(group) => self.is_awaited_broadcast_recv(&group.expr),
+            syn::Expr::Await(awaited) => !self.awaited_types(awaited).is_empty(),
+            _ => false,
+        }
+    }
+
     fn broadcast_recv(&self, expression: &syn::Expr) -> bool {
         match expression {
             syn::Expr::Paren(paren) => self.broadcast_recv(&paren.expr),
@@ -1570,6 +1952,22 @@ impl TypedRuntimeVisitor<'_> {
         self.receiver_types(call.args.first()?).into_iter().next()
     }
 
+    fn save_boundary(&self) -> VisitorBoundary {
+        VisitorBoundary {
+            synchronous_boundary: self.synchronous_boundary,
+            in_drop: self.in_drop,
+            loops: self.loops,
+            async_context: self.async_context,
+        }
+    }
+
+    fn restore_boundary(&mut self, saved: VisitorBoundary) {
+        self.synchronous_boundary = saved.synchronous_boundary;
+        self.in_drop = saved.in_drop;
+        self.loops = saved.loops;
+        self.async_context = saved.async_context;
+    }
+
     fn visit_closure_argument(&mut self, argument: &syn::Expr, inherit: bool) {
         self.inherit_async = inherit && matches!(argument, syn::Expr::Closure(_));
         self.visit_expr(argument);
@@ -1577,7 +1975,7 @@ impl TypedRuntimeVisitor<'_> {
     }
 
     fn is_runtime_thread_hook(name: &syn::Ident) -> bool {
-        name == "on_enable" || name == "on_disable"
+        name == "on_enable" || name == "on_reload"
     }
 
     fn terminates_loop(expression: &syn::Expr) -> bool {
@@ -1592,6 +1990,72 @@ impl TypedRuntimeVisitor<'_> {
             _ => false,
         }
     }
+
+    fn check_temporary_guard(&mut self, statement: &syn::Stmt, is_tail: bool) {
+        let temporary = match statement {
+            syn::Stmt::Expr(expression, Some(_)) => Some(expression),
+            syn::Stmt::Expr(expression, None) if is_tail => Some(expression),
+            syn::Stmt::Local(local) => local
+                .init
+                .as_ref()
+                .map(|init| &*init.expr)
+                .filter(|expression| !matches!(expression, syn::Expr::Await(_))),
+            _ => None,
+        };
+        if self.rule == "LockChoice"
+            && temporary.is_some_and(|expression| self.temporary_guard_without_await(expression))
+        {
+            self.report(statement.span());
+        }
+    }
+
+    fn find_guard_call<'call>(
+        &self,
+        call: &'call syn::ExprMethodCall,
+    ) -> &'call syn::ExprMethodCall {
+        if matches!(
+            call.method.to_string().as_str(),
+            "unwrap" | "unwrap_or_else" | "expect"
+        ) && let syn::Expr::MethodCall(lock) = &*call.receiver
+            && matches!(lock.method.to_string().as_str(), "lock" | "write")
+            && self.receiver_has(&lock.receiver, &["std::sync::Mutex", "std::sync::RwLock"])
+        {
+            return lock;
+        }
+        call
+    }
+
+    fn check_guard_local(&mut self, statement: &syn::Stmt, following: &[syn::Stmt]) {
+        let syn::Stmt::Local(local) = statement else {
+            return;
+        };
+        let Some(name) = Self::guard_binding(&local.pat) else {
+            return;
+        };
+        let Some(init) = &local.init else {
+            return;
+        };
+        let base = match &*init.expr {
+            syn::Expr::Await(awaited) => &*awaited.base,
+            expression => expression,
+        };
+        let syn::Expr::MethodCall(call) = base else {
+            return;
+        };
+        let call = self.find_guard_call(call);
+        if self.is_guard_method(call) && self.receiver_has(&call.receiver, Self::GUARDED_LOCKS) {
+            self.check_guard_tail(local, call, &name.to_string(), following);
+        }
+    }
+
+    const GUARDED_LOCKS: &'static [&'static str] = &[
+        "tokio::sync::Mutex",
+        "tokio::sync::RwLock",
+        "parking_lot::Mutex",
+        "parking_lot::RwLock",
+        "std::sync::Mutex",
+        "std::sync::RwLock",
+    ];
 
     const FILE_BLOCKING_METHODS: &'static [&'static str] = &[
         "read",
@@ -1688,6 +2152,36 @@ impl TypedRuntimeVisitor<'_> {
         "tokio::task::spawn_blocking",
         "tokio::task::spawn_local",
     ];
+
+    const CHANNEL_ENDPOINT_TYPES: &'static [&'static str] = &[
+        "tokio::sync::watch::Sender",
+        "tokio::sync::watch::Receiver",
+        "tokio::sync::mpsc::Sender",
+        "tokio::sync::mpsc::Receiver",
+        "tokio::sync::mpsc::UnboundedSender",
+        "tokio::sync::mpsc::UnboundedReceiver",
+        "tokio::sync::broadcast::Sender",
+        "tokio::sync::broadcast::Receiver",
+        "tokio::sync::oneshot::Sender",
+        "tokio::sync::oneshot::Receiver",
+        "std::sync::mpsc::Sender",
+        "std::sync::mpsc::SyncSender",
+        "std::sync::mpsc::Receiver",
+    ];
+
+    const LOG_EVENT_MACROS: &'static [&'static str] = &[
+        "tracing::trace",
+        "tracing::debug",
+        "tracing::info",
+        "tracing::warn",
+        "tracing::error",
+        "tracing::event",
+        "log::trace",
+        "log::debug",
+        "log::info",
+        "log::warn",
+        "log::error",
+    ];
 }
 
 impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
@@ -1700,35 +2194,21 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
             }
         }
         self.visit_expr(&expression.expr);
-        let success = self.result_types(&expression.expr);
         for arm in &expression.arms {
             let length = self.bindings.len();
             self.bind_pattern(&arm.pat);
-            if let syn::Pat::TupleStruct(pattern) = &arm.pat
-                && crate::runtime::util::is_result_variant(
-                    self.context,
-                    self.ordinal,
-                    self.module,
-                    &pattern.path,
-                    "Ok",
-                )
-                && let Some(syn::Pat::Ident(binding)) = pattern.elems.first()
-                && let Some(typed) = success.first()
-            {
-                self.bindings
-                    .push((binding.ident.to_string(), Rc::clone(typed)));
-            }
+            self.bind_payload(&arm.pat, &expression.expr);
             syn::visit::visit_arm(self, arm);
             self.bindings.truncate(length);
         }
     }
     fn visit_expr_closure(&mut self, expression: &'ast syn::ExprClosure) {
-        let asynchronous = self.async_context;
+        let outer = self.save_boundary();
         let inherited = std::mem::take(&mut self.inherit_async);
         self.async_context = expression.asyncness.is_some() || inherited;
         let length = self.bindings.len();
-        let parent = (self.synchronous_boundary, self.loops);
         self.synchronous_boundary = false;
+        self.in_drop = false;
         self.loops = 0;
         for pattern in &expression.inputs {
             self.bind_pattern(pattern);
@@ -1736,19 +2216,17 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
         self.bind_closure_state(expression);
         syn::visit::visit_expr_closure(self, expression);
         self.bindings.truncate(length);
-        (self.synchronous_boundary, self.loops) = parent;
-        self.async_context = asynchronous;
+        self.restore_boundary(outer);
     }
 
     fn visit_expr_async(&mut self, expression: &'ast syn::ExprAsync) {
-        let asynchronous = self.async_context;
+        let outer = self.save_boundary();
         self.async_context = true;
-        let parent = (self.synchronous_boundary, self.loops);
         self.synchronous_boundary = false;
+        self.in_drop = false;
         self.loops = 0;
         syn::visit::visit_expr_async(self, expression);
-        (self.synchronous_boundary, self.loops) = parent;
-        self.async_context = asynchronous;
+        self.restore_boundary(outer);
     }
     fn visit_expr_loop(&mut self, expression: &'ast syn::ExprLoop) {
         self.loops += 1;
@@ -1782,7 +2260,12 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
             let qualified = effects.calls.iter().any(|call| matches!(&*call.func, syn::Expr::Path(path)
                 if self.context.resolve_external_call_paths(self.ordinal, self.module, &path.path).iter().any(|path|
                     matches!(path.format_path().as_str(), "tokio::sync::Mutex::lock" | "tokio::io::AsyncReadExt::read_exact" | "tokio::io::AsyncReadExt::read_to_end" | "tokio::io::AsyncWriteExt::write_all"))));
+            let awaits_unsafe_callee =
+                self.any_workspace_callee(&future, &|ordinal, module, signature, block| {
+                    self.awaits_unsafe_call(ordinal, module, signature, block)
+                });
             if qualified
+                || awaits_unsafe_callee
                 || effects
                     .methods
                     .iter()
@@ -1820,7 +2303,9 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
         let expectation = self.thread_expect;
         self.thread_expect |= expects_lint(&item.attrs, "disallowed_methods");
         let parent = self.self_type.replace((*item.self_ty).clone());
+        self.generic_scopes.push(item.generics.clone());
         syn::visit::visit_item_impl(self, item);
+        self.generic_scopes.pop();
         self.self_type = parent;
         self.thread_expect = expectation;
     }
@@ -1836,50 +2321,54 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
                 config.name == self.context.indexes[self.ordinal].crate_name
                     && config.role == Some(crate::config::model::Role::EntryPoint)
             });
-        let asynchronous = self.async_context;
+        let outer = self.save_boundary();
         self.async_context = item.sig.asyncness.is_some();
         let expectation = self.thread_expect;
         self.thread_expect |= expects_lint(&item.attrs, "disallowed_methods");
         let parent = std::mem::take(&mut self.bindings);
-        let boundary = self.synchronous_boundary;
-        self.synchronous_boundary =
-            item.sig.asyncness.is_none() && Self::is_runtime_thread_hook(&item.sig.ident);
+        self.synchronous_boundary = false;
+        self.in_drop = false;
         self.bind_signature(&item.sig);
+        self.generic_scopes.push(item.sig.generics.clone());
         syn::visit::visit_item_fn(self, item);
+        self.generic_scopes.pop();
         self.bindings = parent;
-        self.synchronous_boundary = boundary;
+        self.restore_boundary(outer);
         self.thread_expect = expectation;
-        self.async_context = asynchronous;
         self.runtime_main = runtime_main;
     }
 
     fn visit_impl_item_fn(&mut self, item: &'ast syn::ImplItemFn) {
-        let asynchronous = self.async_context;
+        let outer = self.save_boundary();
         self.async_context = item.sig.asyncness.is_some();
         let expectation = self.thread_expect;
         self.thread_expect |= expects_lint(&item.attrs, "disallowed_methods");
         let parent = std::mem::take(&mut self.bindings);
-        let boundary = self.synchronous_boundary;
-        self.synchronous_boundary = item.sig.asyncness.is_none()
-            && (item.sig.ident == "drop" || Self::is_runtime_thread_hook(&item.sig.ident));
+        let is_synchronous = item.sig.asyncness.is_none();
+        let is_drop = is_synchronous && item.sig.ident == "drop";
+        let is_hook = is_synchronous && Self::is_runtime_thread_hook(&item.sig.ident);
+        self.in_drop = is_drop;
+        self.synchronous_boundary = is_drop || is_hook;
         self.bind_signature(&item.sig);
+        self.generic_scopes.push(item.sig.generics.clone());
         syn::visit::visit_impl_item_fn(self, item);
+        self.generic_scopes.pop();
         self.bindings = parent;
-        self.synchronous_boundary = boundary;
+        self.restore_boundary(outer);
         self.thread_expect = expectation;
-        self.async_context = asynchronous;
     }
 
     fn visit_trait_item_fn(&mut self, item: &'ast syn::TraitItemFn) {
         let bindings = std::mem::take(&mut self.bindings);
-        let parent = (self.synchronous_boundary, self.async_context);
+        let outer = self.save_boundary();
         self.synchronous_boundary =
             item.sig.asyncness.is_none() && Self::is_runtime_thread_hook(&item.sig.ident);
+        self.in_drop = false;
         self.async_context = item.sig.asyncness.is_some();
         self.bind_signature(&item.sig);
         syn::visit::visit_trait_item_fn(self, item);
         self.bindings = bindings;
-        (self.synchronous_boundary, self.async_context) = parent;
+        self.restore_boundary(outer);
     }
 
     fn visit_block(&mut self, block: &'ast syn::Block) {
@@ -1890,56 +2379,9 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
             if !matches!(self.rule, "CriticalSectionWrite" | "LockChoice") {
                 continue;
             }
-            if self.rule == "LockChoice"
-                && let syn::Stmt::Expr(expression, Some(_)) = statement
-                && self.temporary_guard_without_await(expression)
-            {
-                self.report(statement.span());
-            }
-            let syn::Stmt::Local(local) = statement else {
-                continue;
-            };
-            let Some(name) = Self::guard_binding(&local.pat) else {
-                continue;
-            };
-            let Some(init) = &local.init else {
-                continue;
-            };
-            let base = match &*init.expr {
-                syn::Expr::Await(awaited) => &*awaited.base,
-                expression => expression,
-            };
-            let syn::Expr::MethodCall(call) = base else {
-                continue;
-            };
-            let call = if matches!(
-                call.method.to_string().as_str(),
-                "unwrap" | "unwrap_or_else" | "expect"
-            ) && let syn::Expr::MethodCall(lock) = &*call.receiver
-                && matches!(lock.method.to_string().as_str(), "lock" | "write")
-                && self.receiver_has(&lock.receiver, &["std::sync::Mutex", "std::sync::RwLock"])
-            {
-                lock
-            } else {
-                call
-            };
-            if !self.is_guard_method(call)
-                || !self.receiver_has(
-                    &call.receiver,
-                    &[
-                        "tokio::sync::Mutex",
-                        "tokio::sync::RwLock",
-                        "parking_lot::Mutex",
-                        "parking_lot::RwLock",
-                        "std::sync::Mutex",
-                        "std::sync::RwLock",
-                    ],
-                )
-            {
-                continue;
-            }
-            let following = &block.stmts[position + 1..];
-            self.check_guard_tail(local, call, &name.to_string(), following);
+            let is_tail = position + 1 == block.stmts.len();
+            self.check_temporary_guard(statement, is_tail);
+            self.check_guard_local(statement, &block.stmts[position + 1..]);
         }
         self.bindings.truncate(length);
     }
@@ -1991,9 +2433,12 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
     fn visit_expr_method_call(&mut self, expression: &'ast syn::ExprMethodCall) {
         let expectation = self.thread_expect;
         self.thread_expect |= expects_lint(&expression.attrs, "disallowed_methods");
+        let index = &self.context.indexes[self.ordinal];
+        let in_test = index.modules[self.module].tree != crate::source::model::SourceTree::Src;
+        if self.rule == "BlockOnInTest" && in_test && self.is_local_pool_run(expression) {
+            self.report(expression.span());
+        }
         if expression.method == "block_on" && self.is_block_on_receiver(&expression.receiver) {
-            let index = &self.context.indexes[self.ordinal];
-            let in_test = index.modules[self.module].tree != crate::source::model::SourceTree::Src;
             let outside_boundary = !self.runtime_main
                 && !crate::declaration::util::is_technology(self.context, index, self.module);
             if self.rule == "BlockOnInTest" && in_test
@@ -2021,11 +2466,8 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
         if self.rule == "ImpureUpdateClosure" {
             self.check_update(expression);
         }
-        if self.rule == "BlockingLockInSync"
-            && self.synchronous_boundary
-            && self.is_blocking_lock_call(expression)
-        {
-            self.report(expression.span());
+        if self.rule == "BlockingLockInSync" {
+            self.check_blocking_in_sync(expression);
         }
         self.visit_expr(&expression.receiver);
         if let Some(turbofish) = &expression.turbofish {
@@ -2067,6 +2509,14 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
         if let Some((_, otherwise)) = &expression.else_branch {
             self.visit_expr(otherwise);
         }
+    }
+
+    fn visit_expr_try(&mut self, expression: &'ast syn::ExprTry) {
+        let is_in_lag_loop = self.rule == "BroadcastLag" && self.loops > 0;
+        if is_in_lag_loop && self.is_awaited_broadcast_recv(&expression.expr) {
+            self.report(expression.span());
+        }
+        syn::visit::visit_expr_try(self, expression);
     }
 
     fn visit_expr_let(&mut self, expression: &'ast syn::ExprLet) {
@@ -2113,4 +2563,11 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
         }
         self.closure_state = None;
     }
+}
+
+struct VisitorBoundary {
+    synchronous_boundary: bool,
+    in_drop: bool,
+    loops: usize,
+    async_context: bool,
 }

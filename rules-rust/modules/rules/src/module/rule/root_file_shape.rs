@@ -38,7 +38,7 @@ impl RootFileShape {
                     saw_module = true;
                     Self::check_block(file, child, findings);
                 }
-                Item::Macro(_) => {}
+                Item::Macro(call) if call.ident.is_none() => {}
                 _ => Self::report(
                     file,
                     item,

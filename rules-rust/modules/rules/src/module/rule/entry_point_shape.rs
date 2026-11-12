@@ -79,7 +79,7 @@ impl Rule for EntryPointShape {
                 .filter(|module| module.parent == Some(0))
             {
                 let name = module.module.path.last().map(String::as_str).unwrap_or("");
-                if !["di", "fixture", "test"].contains(&name) {
+                if !["di", "model", "error", "fixture", "test"].contains(&name) {
                     findings.extend(build_shape_module_finding(
                         context,
                         ordinal,

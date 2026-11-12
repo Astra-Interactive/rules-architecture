@@ -1,3 +1,4 @@
+RootBuildSubprojects	modules/consumer/Cargo.toml:9	case-consumer dependencies.renamed-owner	declare dependencies.renamed-owner in the workspace root and inherit shared settings with workspace = true
 UnitDependency	modules/consumer/Cargo.toml:9	case-consumer -> case-owner	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
 UnitDependency	modules/consumer/Cargo.toml:10	case-consumer -> xtask	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
 UnitDependency	modules/consumer/Cargo.toml:13	case-consumer -> case-owner	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary

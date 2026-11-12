@@ -31,6 +31,7 @@ pub(crate) struct TaskVisitor<'source> {
     loop_prefix: Option<LoopPrefix>,
     inherit_async: bool,
     test_function: bool,
+    in_loop: bool,
 }
 
 impl TaskVisitor<'_> {
@@ -137,6 +138,7 @@ impl TaskVisitor<'_> {
                     loop_prefix: None,
                     inherit_async: false,
                     test_function: false,
+                    in_loop: false,
                 };
                 visitor.visit_file(&file.syntax);
                 findings.extend(visitor.findings);
@@ -381,6 +383,47 @@ impl TaskVisitor<'_> {
             .is_some_and(|typed| self.has_external_type(&typed, &["std::thread::Builder"]))
     }
 
+    fn is_task_builder(&self, receiver: &syn::Expr) -> bool {
+        let mut builder = receiver;
+        while let syn::Expr::MethodCall(inner) = builder
+            && inner.method == "name"
+        {
+            builder = &inner.receiver;
+        }
+        Self::constructed_type(builder)
+            .or_else(|| self.receiver_type(builder))
+            .is_some_and(|typed| self.has_external_type(&typed, &["tokio::task::Builder"]))
+    }
+
+    fn is_task_builder_spawn(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Paren(paren) => self.is_task_builder_spawn(&paren.expr),
+            syn::Expr::Group(group) => self.is_task_builder_spawn(&group.expr),
+            syn::Expr::MethodCall(call) => {
+                let is_spawn_method = matches!(
+                    call.method.to_string().as_str(),
+                    "spawn" | "spawn_blocking" | "spawn_local"
+                );
+                is_spawn_method && self.is_task_builder(&call.receiver)
+            }
+            _ => false,
+        }
+    }
+
+    fn is_unwrapped_task_builder_spawn(&self, expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Paren(paren) => self.is_unwrapped_task_builder_spawn(&paren.expr),
+            syn::Expr::Group(group) => self.is_unwrapped_task_builder_spawn(&group.expr),
+            syn::Expr::Try(attempt) => self.is_task_builder_spawn(&attempt.expr),
+            syn::Expr::MethodCall(call)
+                if matches!(call.method.to_string().as_str(), "unwrap" | "expect") =>
+            {
+                self.is_task_builder_spawn(&call.receiver)
+            }
+            _ => false,
+        }
+    }
+
     fn is_thread_spawn(&self, expression: &syn::Expr) -> bool {
         match expression {
             syn::Expr::Paren(paren) => self.is_thread_spawn(&paren.expr),
@@ -437,6 +480,12 @@ impl TaskVisitor<'_> {
     }
 
     fn is_spawn(&self, expression: &syn::Expr) -> bool {
+        let owned_thread = self.rule == "ThreadPrimitive"
+            && self.is_technology_module()
+            && self.is_thread_spawn(expression);
+        if owned_thread {
+            return true;
+        }
         match expression {
             syn::Expr::Paren(paren) => self.is_spawn(&paren.expr),
             syn::Expr::Group(group) => self.is_spawn(&group.expr),
@@ -445,6 +494,10 @@ impl TaskVisitor<'_> {
             syn::Expr::MethodCall(call) => self.is_runtime_spawn(call),
             _ => false,
         }
+    }
+
+    fn is_dropped_spawn(&self, argument: &syn::Expr) -> bool {
+        self.is_spawn(argument) || self.is_unwrapped_task_builder_spawn(argument)
     }
 
     fn is_workspace_receiver(&self, receiver: &syn::Expr) -> bool {
@@ -460,26 +513,48 @@ impl TaskVisitor<'_> {
         self.closures.iter().any(|(name, _, _)| path.is_ident(name))
     }
 
-    fn find_local_closure(&self, expression: &syn::Expr) -> Option<&syn::ExprClosure> {
+    fn find_named_closure(&self, scope: usize, path: &syn::Path) -> Option<usize> {
+        let position = self
+            .closures
+            .iter()
+            .take(scope)
+            .rposition(|(name, _, _)| path.is_ident(name))?;
+        self.closures[position].1.is_some().then_some(position)
+    }
+
+    fn find_closure_position(&self, expression: &syn::Expr) -> Option<usize> {
         match expression {
-            syn::Expr::Paren(paren) => self.find_local_closure(&paren.expr),
-            syn::Expr::Group(group) => self.find_local_closure(&group.expr),
-            syn::Expr::Path(path) => self
-                .closures
-                .iter()
-                .rev()
-                .find(|(name, _, _)| path.path.is_ident(name))
-                .and_then(|(_, closure, _)| closure.as_ref()),
+            syn::Expr::Paren(paren) => self.find_closure_position(&paren.expr),
+            syn::Expr::Group(group) => self.find_closure_position(&group.expr),
+            syn::Expr::Path(path) => self.find_named_closure(self.closures.len(), &path.path),
             syn::Expr::Call(call) => call
                 .args
                 .iter()
-                .find_map(|argument| self.find_local_closure(argument)),
+                .find_map(|argument| self.find_closure_position(argument)),
             _ => None,
         }
     }
 
+    fn is_own_associated_path(&self, path: &syn::Path) -> bool {
+        let starts_with_self = path.segments.len() >= 2
+            && path
+                .segments
+                .first()
+                .is_some_and(|segment| segment.ident == "Self");
+        starts_with_self
+            && self.self_type.as_ref().is_some_and(|typed| {
+                !self
+                    .context
+                    .resolve_workspace_type(self.ordinal, self.module, typed)
+                    .is_empty()
+            })
+    }
+
     fn runs_local_logic(&self, effects: &ClosureEffects) -> bool {
         effects.inline_logic
+            || effects.calls.iter().any(|call| {
+                matches!(&*call.func, syn::Expr::Path(path) if self.is_own_associated_path(&path.path))
+            })
             || self.local_self && effects.methods.iter().any(|call| matches!(&*call.receiver, syn::Expr::Path(path) if path.path.is_ident("self")))
             || effects
                 .methods
@@ -490,12 +565,30 @@ impl TaskVisitor<'_> {
                     && matches!(self.context.indexes[self.ordinal].resolve_path(self.module, &path.path), Resolution::Internal(_))))
     }
 
-    fn runs_local_closure_logic(&self, argument: &syn::Expr) -> bool {
-        self.find_local_closure(argument).is_some_and(|closure| {
-            self.runs_local_logic(&ClosureEffects::collect(&syn::Expr::Closure(
-                closure.clone(),
-            )))
+    fn runs_closure_logic(&self, position: usize, followed: &mut Vec<usize>) -> bool {
+        let (_, Some(closure), scope) = &self.closures[position] else {
+            return false;
+        };
+        if followed.contains(&position) {
+            return false;
+        }
+        followed.push(position);
+        let effects = ClosureEffects::collect(&syn::Expr::Closure(closure.clone()));
+        if self.runs_local_logic(&effects) {
+            return true;
+        }
+        effects.calls.iter().any(|call| {
+            let syn::Expr::Path(path) = &*call.func else {
+                return false;
+            };
+            self.find_named_closure(*scope, &path.path)
+                .is_some_and(|called| self.runs_closure_logic(called, followed))
         })
+    }
+
+    fn runs_local_closure_logic(&self, argument: &syn::Expr) -> bool {
+        self.find_closure_position(argument)
+            .is_some_and(|position| self.runs_closure_logic(position, &mut Vec::new()))
     }
 
     fn is_workspace_function_reference(&self, expression: &syn::Expr) -> bool {
@@ -721,7 +814,7 @@ impl TaskVisitor<'_> {
             || mac.path.is_ident("vec")
                 && matches!(
                     self.context.indexes[self.ordinal].resolve_path(self.module, &mac.path),
-                    Resolution::Local
+                    Resolution::Local | Resolution::Unresolved
                 )
     }
 
@@ -975,6 +1068,46 @@ impl TaskVisitor<'_> {
         }
     }
 
+    fn bind_loop_handles(&mut self, pattern: &syn::Pat, handles: Vec<usize>) {
+        let binding = Self::pattern_name(pattern).and_then(|name| {
+            self.bindings
+                .iter_mut()
+                .rev()
+                .find(|binding| *name == binding.name)
+        });
+        if let Some(binding) = binding {
+            binding.handles = handles;
+        }
+    }
+
+    fn ends_with_break(block: &syn::Block) -> bool {
+        matches!(
+            block.stmts.last(),
+            Some(syn::Stmt::Expr(syn::Expr::Break(_), _))
+        )
+    }
+
+    fn walk_for_loop(&mut self, expression: &syn::ExprForLoop) {
+        self.visit_expr(&expression.expr);
+        let handle_pattern = Self::pattern_name(&expression.pat).is_some();
+        let inspect_order = self.rule == "DetachedTask" && handle_pattern;
+        let identities = inspect_order
+            .then(|| self.resolve_ordered_handles(&expression.expr))
+            .flatten();
+        if let Some(identities) = identities {
+            self.visit_ordered_array(expression, identities);
+            return;
+        }
+        let bindings = self.bindings.len();
+        let closures = self.closures.len();
+        let iterated = self.resolve_handles(&expression.expr);
+        self.shadow_pattern(&expression.pat);
+        self.bind_loop_handles(&expression.pat, iterated);
+        self.visit_block(&expression.body);
+        self.bindings.truncate(bindings);
+        self.closures.truncate(closures);
+    }
+
     fn bind_channel_sender(&mut self, local: &syn::Local) {
         let syn::Pat::Tuple(pattern) = &local.pat else {
             return;
@@ -1021,7 +1154,8 @@ impl TaskVisitor<'_> {
             .init
             .as_ref()
             .map(|init| {
-                if self.rule == "DetachedTask" && Self::pattern_name(&local.pat).is_some() {
+                let tracks_handles = matches!(self.rule, "DetachedTask" | "ThreadPrimitive");
+                if tracks_handles && Self::pattern_name(&local.pat).is_some() {
                     self.collect_owned_handles(&init.expr, local.span())
                 } else {
                     self.resolve_handles(&init.expr)
@@ -1333,7 +1467,7 @@ impl TaskVisitor<'_> {
     }
 
     fn consume_argument(&mut self, argument: &syn::Expr, is_drop: bool) {
-        if self.rule != "DetachedTask" {
+        if !matches!(self.rule, "DetachedTask" | "ThreadPrimitive") {
             return;
         }
         if is_drop {
@@ -1352,6 +1486,82 @@ impl TaskVisitor<'_> {
         self.consume_handle(argument);
     }
 
+    fn returns_join_handle(
+        &self,
+        ordinal: usize,
+        module: usize,
+        signature: &syn::Signature,
+    ) -> bool {
+        let syn::ReturnType::Type(_, returned) = &signature.output else {
+            return false;
+        };
+        signature.asyncness.is_none()
+            && self
+                .context
+                .resolve_outer_external_type_paths(ordinal, module, returned)
+                .iter()
+                .any(|path| path.format_path() == "tokio::task::JoinHandle")
+    }
+
+    fn has_join_handle_method(&self, ordinal: usize, identity: usize, name: &syn::Ident) -> bool {
+        let index = &self.context.indexes[ordinal];
+        index
+            .implementations
+            .iter()
+            .filter(|implementation| {
+                implementation.syntax.trait_.is_none()
+                    && crate::module::util::owns_implementation(index, identity, implementation)
+            })
+            .any(|implementation| {
+                implementation.syntax.items.iter().any(|member| {
+                    matches!(member, syn::ImplItem::Fn(method)
+                        if method.sig.ident == *name
+                            && self.returns_join_handle(ordinal, implementation.module, &method.sig))
+                })
+            })
+    }
+
+    fn returns_join_handle_call(&self, call: &syn::ExprCall) -> bool {
+        let syn::Expr::Path(path) = &*call.func else {
+            return false;
+        };
+        self.context
+            .resolve_workspace_path(self.ordinal, self.module, &path.path)
+            .iter()
+            .any(|target| {
+                target.path.item.is_some_and(|identity| {
+                    let item = &self.context.indexes[target.index].items[identity];
+                    matches!(&item.syntax, syn::Item::Fn(function)
+                        if self.returns_join_handle(target.index, item.module, &function.sig))
+                })
+            })
+    }
+
+    fn returns_join_handle_method(&self, call: &syn::ExprMethodCall) -> bool {
+        let is_self =
+            matches!(&*call.receiver, syn::Expr::Path(path) if path.path.is_ident("self"));
+        let receiver = if is_self {
+            self.self_type.clone()
+        } else {
+            self.receiver_type(&call.receiver)
+        };
+        let Some(receiver) = receiver else {
+            return false;
+        };
+        let mut typed = &receiver;
+        while let syn::Type::Reference(reference) = typed {
+            typed = &reference.elem;
+        }
+        self.context
+            .resolve_workspace_type(self.ordinal, self.module, typed)
+            .iter()
+            .any(|target| {
+                target.path.item.is_some_and(|identity| {
+                    self.has_join_handle_method(target.index, identity, &call.method)
+                })
+            })
+    }
+
     fn call_violation(&self, canonical: Option<&str>) -> bool {
         let spawn = canonical.is_some_and(Self::is_spawn_path);
         let detached = spawn
@@ -1365,7 +1575,15 @@ impl TaskVisitor<'_> {
             }
             "DetachedTask" => detached && self.discard,
             "BridgeCleanup" => {
-                (spawn || canonical == Some("std::thread::sleep")) && self.drop_context
+                let blocks = canonical.is_some_and(|path| {
+                    matches!(
+                        path,
+                        "std::thread::sleep"
+                            | "futures::executor::block_on"
+                            | "futures_executor::block_on"
+                    )
+                });
+                (spawn || blocks) && self.drop_context
             }
             "CallbackBridgeShape" => detached && self.callback_depth > 0,
             "BlockingCallInAsync" => {
@@ -1374,9 +1592,68 @@ impl TaskVisitor<'_> {
                         path == "std::thread::sleep"
                             || path.starts_with("std::fs::")
                             || path.starts_with("std::sync::mpsc::")
+                            || [
+                                "std::net::TcpStream::",
+                                "std::net::TcpListener::",
+                                "std::net::UdpSocket::",
+                            ]
+                            .iter()
+                            .any(|socket| path.starts_with(socket))
                     })
             }
             _ => false,
+        }
+    }
+
+    fn sends_blocking_in_callback(&self, expression: &syn::ExprMethodCall) -> bool {
+        self.rule == "CallbackBridgeShape"
+            && self.callback_depth > 0
+            && expression.method == "blocking_send"
+            && self
+                .receiver_type(&expression.receiver)
+                .is_some_and(|typed| {
+                    self.context
+                        .resolve_outer_external_type_paths(self.ordinal, self.module, &typed)
+                        .iter()
+                        .any(|path| path.format_path() == "tokio::sync::mpsc::Sender")
+                })
+    }
+
+    fn is_discarded_task_builder_unwrap(&self, expression: &syn::ExprMethodCall) -> bool {
+        let is_unwrap = matches!(expression.method.to_string().as_str(), "unwrap" | "expect");
+        self.rule == "DetachedTask"
+            && self.discard
+            && is_unwrap
+            && self.is_task_builder_spawn(&expression.receiver)
+    }
+
+    fn check_method_call(&mut self, expression: &syn::ExprMethodCall) {
+        if self.sends_blocking_in_callback(expression)
+            || self.is_discarded_task_builder_unwrap(expression)
+        {
+            self.report(expression.span());
+        }
+        let returns_handle = self.returns_join_handle_method(expression);
+        if self.rule == "DetachedTask"
+            && self.discard
+            && (self.is_runtime_spawn(expression) || returns_handle)
+        {
+            self.report(expression.span());
+        }
+        if self.rule == "CallbackBridgeShape"
+            && self.callback_depth > 0
+            && self.is_runtime_spawn(expression)
+        {
+            self.report(expression.span());
+        }
+        if self.is_block_on_in_drop(expression) || self.is_discarded_builder_spawn(expression) {
+            self.report(expression.span());
+        }
+        if expression.method == "abort" && !self.test_function {
+            self.consume_handle(&expression.receiver);
+        }
+        if self.rule == "ThreadPrimitive" && expression.method == "join" {
+            self.consume_handle(&expression.receiver);
         }
     }
 }
@@ -1425,8 +1702,13 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
         if let Some((_, otherwise)) = &expression.else_branch {
             self.visit_expr(otherwise);
         }
+        let exits_loop = self.in_loop && Self::ends_with_break(&expression.then_branch);
         for (handle, then_handle) in self.handles.iter_mut().zip(then_handles) {
-            handle.2 &= then_handle.2;
+            if exits_loop {
+                handle.2 |= then_handle.2;
+            } else {
+                handle.2 &= then_handle.2;
+            }
         }
     }
     fn visit_block(&mut self, block: &'ast syn::Block) {
@@ -1459,7 +1741,7 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
             .drain(length..)
             .filter_map(|(_, span, consumed)| (!consumed).then_some(span))
             .collect::<Vec<_>>();
-        if self.rule == "DetachedTask" {
+        if matches!(self.rule, "DetachedTask" | "ThreadPrimitive") {
             for span in abandoned {
                 self.report(span);
             }
@@ -1469,35 +1751,26 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
     }
 
     fn visit_expr_for_loop(&mut self, expression: &'ast syn::ExprForLoop) {
-        self.visit_expr(&expression.expr);
-        let handle_pattern = Self::pattern_name(&expression.pat).is_some();
-        let inspect_order = self.rule == "DetachedTask" && handle_pattern;
-        let identities = inspect_order
-            .then(|| self.resolve_ordered_handles(&expression.expr))
-            .flatten();
-        if let Some(identities) = identities {
-            self.visit_ordered_array(expression, identities);
-            return;
-        }
-        let bindings = self.bindings.len();
-        let closures = self.closures.len();
-        let handles = self.handles.clone();
-        self.shadow_pattern(&expression.pat);
-        self.visit_block(&expression.body);
-        self.bindings.truncate(bindings);
-        self.closures.truncate(closures);
-        self.handles = handles;
+        let in_loop = std::mem::take(&mut self.in_loop);
+        self.walk_for_loop(expression);
+        self.in_loop = in_loop;
     }
 
     fn visit_expr_while(&mut self, expression: &'ast syn::ExprWhile) {
+        let in_loop = std::mem::take(&mut self.in_loop);
         let bindings = self.bindings.len();
         let closures = self.closures.len();
-        let handles = self.handles.clone();
         self.visit_condition(&expression.cond);
         self.visit_block(&expression.body);
         self.bindings.truncate(bindings);
         self.closures.truncate(closures);
-        self.handles = handles;
+        self.in_loop = in_loop;
+    }
+
+    fn visit_expr_loop(&mut self, expression: &'ast syn::ExprLoop) {
+        let in_loop = std::mem::replace(&mut self.in_loop, true);
+        syn::visit::visit_expr_loop(self, expression);
+        self.in_loop = in_loop;
     }
 
     fn visit_expr_match(&mut self, expression: &'ast syn::ExprMatch) {
@@ -1703,6 +1976,21 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
     }
 
     fn visit_stmt(&mut self, statement: &'ast syn::Stmt) {
+        if self.rule == "CallbackBridgeShape"
+            && let syn::Stmt::Expr(expression, Some(_)) = statement
+        {
+            let dropped = match expression {
+                syn::Expr::Assign(assignment)
+                    if matches!(&*assignment.left, syn::Expr::Infer(_)) =>
+                {
+                    &assignment.right
+                }
+                other => other,
+            };
+            if self.discarded_guard(dropped) {
+                self.report(statement.span());
+            }
+        }
         let parent = self.discard;
         self.discard = matches!(statement, syn::Stmt::Expr(_, Some(_)));
         syn::visit::visit_stmt(self, statement);
@@ -1733,9 +2021,12 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
 
     fn visit_expr_assign(&mut self, expression: &'ast syn::ExprAssign) {
         let discard = self.discard;
-        self.discard = self.discard
-            && (self.rule != "ThreadPrimitive" || Self::is_underscore_assignment(expression));
+        let is_discard = Self::is_underscore_assignment(expression);
+        self.discard = self.discard && is_discard;
         syn::visit::visit_expr_assign(self, expression);
+        if !is_discard {
+            self.consume_handle(&expression.right);
+        }
         self.discard = discard;
     }
 
@@ -1750,9 +2041,16 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
             self.report(expression.span());
         }
         self.check_unwind(expression, canonical.as_deref());
-        let is_drop = canonical
-            .as_deref()
-            .is_some_and(|path| matches!(path, "std::mem::drop" | "core::mem::drop"));
+        let is_drop = canonical.as_deref().is_some_and(|path| {
+            matches!(
+                path,
+                "std::mem::drop" | "core::mem::drop" | "std::mem::forget" | "core::mem::forget"
+            )
+        });
+        if self.rule == "DetachedTask" && self.discard && self.returns_join_handle_call(expression)
+        {
+            self.report(expression.span());
+        }
         let inherit_async =
             self.async_context && !canonical.as_deref().is_some_and(Self::runs_off_async);
         for (position, argument) in expression.args.iter().enumerate() {
@@ -1768,7 +2066,7 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
             if self.is_dropped_thread_spawn(is_drop, argument) {
                 self.report(argument.span());
             }
-            if self.rule == "DetachedTask" && is_drop && self.is_spawn(argument) {
+            if self.rule == "DetachedTask" && is_drop && self.is_dropped_spawn(argument) {
                 self.report(argument.span());
                 let parent = self.discard;
                 self.discard = false;
@@ -1793,38 +2091,7 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
     }
 
     fn visit_expr_method_call(&mut self, expression: &'ast syn::ExprMethodCall) {
-        if self.rule == "CallbackBridgeShape"
-            && self.callback_depth > 0
-            && expression.method == "blocking_send"
-            && self
-                .receiver_type(&expression.receiver)
-                .is_some_and(|typed| {
-                    self.context
-                        .resolve_outer_external_type_paths(self.ordinal, self.module, &typed)
-                        .iter()
-                        .any(|path| path.format_path() == "tokio::sync::mpsc::Sender")
-                })
-        {
-            self.report(expression.span());
-        }
-        if self.rule == "DetachedTask" && self.discard && self.is_runtime_spawn(expression) {
-            self.report(expression.span());
-        }
-        if self.rule == "CallbackBridgeShape"
-            && self.callback_depth > 0
-            && self.is_runtime_spawn(expression)
-        {
-            self.report(expression.span());
-        }
-        if self.is_block_on_in_drop(expression) {
-            self.report(expression.span());
-        }
-        if self.is_discarded_builder_spawn(expression) {
-            self.report(expression.span());
-        }
-        if expression.method == "abort" && !self.test_function {
-            self.consume_handle(&expression.receiver);
-        }
+        self.check_method_call(expression);
         let discard = self.discard;
         self.discard = self.rule == "ThreadPrimitive"
             && discard
@@ -1859,6 +2126,14 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
         for argument in &parse_macro_expressions(item) {
             self.visit_expr(argument);
         }
+    }
+
+    fn visit_expr_try(&mut self, expression: &'ast syn::ExprTry) {
+        let is_dropped = self.rule == "DetachedTask" && self.discard;
+        if is_dropped && self.is_task_builder_spawn(&expression.expr) {
+            self.report(expression.span());
+        }
+        syn::visit::visit_expr_try(self, expression);
     }
 }
 

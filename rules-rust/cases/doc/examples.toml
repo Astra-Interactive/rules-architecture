@@ -1256,7 +1256,7 @@ lines = "2-6"
 split = "markers"
 wrap = "trait-body"
 sha256 = "49df52bc3f23b5ad7dd3ad282fb9e03f690a9a6b5dcd579bacb9e4766c6fee56"
-expected = [{ line = 2, carrier = "DiPlacement" }, { line = 2, carrier = "ReExportShape" }]
+expected = [{ line = 2, carrier = "ReExportShape" }]
 review = [{ why = "Distinguishing a purpose explanation from an external reason needs semantic review (rustdoc.rs.md:12)." }]
 [[example.fragment]]
 path = "modules/bad/rustdoc-app-rs/src/auth_module.rs"
