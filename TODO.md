@@ -1554,6 +1554,78 @@ item has a test. The earlier Kotlin audit (see "Not in this list") is not merged
     Votes`) is judged against the contracts alone, so a parameter of that type passes.
   - Rule: `UtilShape`, `check/placement/konsist/UtilShape.kt:81–92`
 
+## Kotlin linter (rollout of 0.28.0, 2026-11-13)
+
+What the first run of `rules-kotlin` `0.28.0` on fifteen consumer repositories showed (ten had findings, 72 in all,
+every one from `UtilShape`, the `util` row of `KindImportDirection` and `UtilFunctionAsExtension`; all were fixed in
+the repositories, none in the linter). `candidate (rollout)`: found by a run or by a reviewer of a fix; no decision
+covers it and no test exists. `document`: the rule does what the document says and the document's cost is the
+question. The repository and the code are named in each item; the fixing branch is `chore/rules-architecture-0.28.0`
+there. **Rule** paths are under `rules-kotlin/konsist/src/main/kotlin/ru/astrainteractive/klibs/rules/konsist/`.
+
+- [ ] **KT-17** — false positive · candidate (rollout): a Kotlin/JS `external interface` in an `api` package
+  - Doc (`arch-package.md`, Concepts and kinds 3): `util` has no "receiver or parameter whose type is a contract of
+    the project"
+  - Gap: `UtilShape` reads every interface of an `api` package as a project contract. A binding of a browser type
+    (EmpireSmp, `tuner/external/audio/api/AnalyserNode`, `external/permission/api/Permissions`:
+    `internal external interface AnalyserNode`) is a platform type, and `no-callbacks.kt.md` allows its bridge as an
+    extension in `util`. The fix moved five bridges into their implementations as private member extensions.
+  - Rule: `UtilShape`, `check/placement/konsist/UtilShape.kt`
+- [ ] **KT-18** — to confirm · candidate (rollout): a collection of a model type as a rule's input
+  - Doc (`arch-domain.md`, Rules live in `util`): "an extension when its inputs are of one model type …, and a
+    top-level function in a file named after the decision when they are of two or more"
+  - Gap: `UtilFunctionAsExtension` does not count `List<PreviewFunction>` as a model type. kaleidos had
+    `fun buildPreviewUrl(baseUrl: String, kind: DevServerKind, previews: List<PreviewFunction>, focusedFqn: String?)`
+    and was told to write it as an extension of `DevServerKind`; by the sentence above it has two model inputs and
+    was already in the right form. The document does not say whether a collection of a model type counts.
+  - Rule: `UtilFunctionAsExtension`, `check/placement/konsist/UtilFunctionAsExtension.kt`
+- [ ] **KT-19** — conflict inside the linter · candidate (rollout): the file of an extension of a collection
+  - Gap: the KDoc of `UtilShape` names the element type as the subject of a collection extension
+    (`Collection<Coloring>` goes to `ColoringExt.kt`); `UtilFileName` demands the receiver's name
+    (`List<MarketSlot>.toPlayersAndSlots()` must be in `ListExt.kt`). AstraAuctions followed the first and was
+    reported by the second.
+  - Rule: `UtilFileName`, `check/placement/konsist/UtilFileName.kt`; `UtilShape` KDoc
+- [ ] **KT-20** — message · candidate (rollout): `UtilShape` on an extension of a framework configuration type
+  - Doc (`arch-package.md`, Concepts and kinds 8): "Does the platform run it at a moment …? The kind of that
+    mechanism in the unit it serves."
+  - Gap: for `fun AuthenticationConfig.firebaseAuthProvider(repository: FirebaseCacheRepository, logger: Logger)`
+    (AstraLearner-WebApi; the same shape in EmpireApi) the message says "a flow over a contract is a use case, a
+    single call is made by the caller". The body defines a Ktor authentication provider that Ktor runs per request,
+    so its home is an entry-point kind (`route`). One fixing agent followed the message and moved the provider into
+    the application's entry object, where no check looks; the parent sent it back.
+  - Rule: `UtilShape`, `check/placement/konsist/UtilShape.kt`
+- [ ] **KT-21** — no rule · candidate (rollout): a domain rule inside a use case
+  - Doc (`arch-domain.md`, Use case): "A use case holds no domain rule: it orchestrates the rules and the
+    contracts. The rule a new use case needs is written in `util`."
+  - Gap: nothing looks at a use case's body. AspeKt's first fix moved the ten functions of `ClaimsRepositoryExt`
+    into four use cases whole (the grid computation, the owner-or-member decision, two `copy` transitions); the
+    linter passed and a reviewer found it.
+  - Rule: none (`UseCaseShape`, `check/declaration/konsist/UseCaseShape.kt`, checks the declaration)
+- [ ] **KT-22** — to confirm · candidate (rollout): a `util` function over a library's replaceable dependency
+  - Doc (`arch-package.md`, Concepts and kinds 3): "a contract of the project"
+  - Gap: AstraLearner's fix builds dialog configurations in `util` as extensions of mikro's `StringProvider`
+    (`fun StringProvider.buildNotificationConfiguration(desc: StringDesc, title: StringDesc)`), which the project
+    fakes in tests (`FakeStringProvider`). A library interface is not "of the project", so it passes; the function
+    still reads through a dependency inside `util`.
+  - Rule: `UtilShape`, `check/placement/konsist/UtilShape.kt`
+- [ ] **KT-23** — document · candidate (rollout): a flow over one contract that two use cases share
+  - Doc (`arch-domain.md`, Use case): "A use case never calls another use case"; (`arch-package.md`, Concepts and
+    kinds 3): `util` takes no contract
+  - Cost: AstraRating's `RatingRepository.upsertUser` (find, compare the name, insert or update) was called by
+    `AddRatingUseCase` and `LowerKillerRatingUseCase`, after their own checks. The fix is the same private function
+    in both. The other shapes: a member of the contract, implemented by every storage implementation; a use case
+    the entry points call first, which writes the user row before the checks.
+- [ ] **KT-24** — document · candidate (rollout): an extension that only combines one contract's own members
+  - Cost: DiscordBot's `suspend fun BotSession.sendMessage(message: String)` read `sessionFlow` and `clock` of the
+    contract and sent one packet; `val BotSession.eventFlow` mapped `sessionFlow`. The contract has two
+    implementations and a fake, so a member would be written three times. The fix changed the receiver to
+    `Flow<ClientSession>`, and 17 call sites now read `botSession.sessionFlow.sendMessage(text, botSession.clock)`.
+- [ ] **KT-25** — document · candidate (rollout): builders of a Compose-like library
+  - Cost: EmpireSmp's `lib-kobweb/ui` mirrors Compose's animation API. By the form-by-signature rule
+    `tween(durationMs, delayMs, easing)` became `Easing.EaseInOut.tween(durationMs, delayMs)`, `fadeIn(spec)` became
+    `spec.fadeIn()` (eight builders), and the infix `enter with exit` became the constructor call
+    `ContentTransform(enter, exit)`.
+
 ## Not in this list
 
 - The cases that are in the code (implemented, or fixed by a document change): see the second paragraph.
