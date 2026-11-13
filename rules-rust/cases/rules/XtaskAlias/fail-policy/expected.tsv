@@ -1,0 +1,1 @@
+XtaskAlias	.cargo/config.toml:2	.cargo/config.toml	set `[alias] xtask = "run --package xtask --"` in the root Cargo configuration

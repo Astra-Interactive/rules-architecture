@@ -1,0 +1,8 @@
+[package]
+name = "runner"
+edition = "2024"
+
+
+[lints]
+workspace = true
+

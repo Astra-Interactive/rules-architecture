@@ -1,0 +1,9 @@
+[package]
+name = "case-billing-provider"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[package.metadata.klibs-rules]
+role = "proc-macro"

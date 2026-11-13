@@ -1,0 +1,63 @@
+use syn::visit::Visit;
+
+pub(crate) struct AwaitVisitor {
+    found: bool,
+}
+
+impl AwaitVisitor {
+    pub(crate) fn in_expression(expression: &syn::Expr) -> bool {
+        let mut visitor = Self { found: false };
+        if let syn::Expr::Async(future) = expression {
+            visitor.visit_block(&future.block);
+        } else {
+            visitor.visit_expr(expression);
+        }
+        visitor.found
+    }
+
+    pub(crate) fn in_statement(statement: &syn::Stmt) -> bool {
+        let mut visitor = Self { found: false };
+        visitor.visit_stmt(statement);
+        visitor.found
+    }
+
+    fn is_suspending_macro(path: &syn::Path) -> bool {
+        path.segments.last().is_some_and(|segment| {
+            matches!(
+                segment.ident.to_string().as_str(),
+                "join" | "try_join" | "select" | "select_biased"
+            )
+        })
+    }
+}
+
+impl<'ast> Visit<'ast> for AwaitVisitor {
+    fn visit_expr_if(&mut self, expression: &'ast syn::ExprIf) {
+        if let syn::Expr::Lit(literal) = &*expression.cond
+            && let syn::Lit::Bool(value) = &literal.lit
+        {
+            if value.value {
+                self.visit_block(&expression.then_branch);
+            } else if let Some((_, otherwise)) = &expression.else_branch {
+                self.visit_expr(otherwise);
+            }
+            return;
+        }
+        syn::visit::visit_expr_if(self, expression);
+    }
+    fn visit_expr_await(&mut self, _: &'ast syn::ExprAwait) {
+        self.found = true;
+    }
+    fn visit_macro(&mut self, value: &'ast syn::Macro) {
+        if Self::is_suspending_macro(&value.path) {
+            self.found = true;
+            return;
+        }
+        for argument in &crate::source::util::parse_macro_arguments(value) {
+            self.visit_expr(argument);
+        }
+    }
+    fn visit_expr_async(&mut self, _: &'ast syn::ExprAsync) {}
+    fn visit_expr_closure(&mut self, _: &'ast syn::ExprClosure) {}
+    fn visit_item_fn(&mut self, _: &'ast syn::ItemFn) {}
+}

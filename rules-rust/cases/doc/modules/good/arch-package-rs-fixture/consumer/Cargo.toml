@@ -1,0 +1,13 @@
+[package]
+name = "shop-billing-command"
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+shop-billing-api = { path = "../api" }
+
+[dev-dependencies]
+shop-billing-api = { path = "../api", features = ["fake"] }
+
+[lints]
+workspace = true

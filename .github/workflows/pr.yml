@@ -4,6 +4,9 @@ on:
     branches:
       - 'master'
       - 'prerelease/*'
+    paths-ignore:
+      - 'rules-rust/**'
+      - '.github/workflows/rust-*.yml'
 
 
 # Concurrency strategy:

@@ -1,0 +1,7 @@
+[package]
+name = "case-abbreviation"
+edition = "2024"
+
+
+[lints]
+workspace = true

@@ -1,0 +1,1 @@
+ReExportShape	modules/sample/src/sample/util/total_build.rs:1	build_total	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block

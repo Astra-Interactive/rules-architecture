@@ -1,0 +1,3 @@
+ReExportShape	modules/sample/src/usecase/calculate_use_case.rs:1	CalculateUseCase	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+UseCaseShape	modules/sample/src/usecase/calculate_use_case.rs:1	case_sample::usecase::CalculateUseCase	a VerbObjectUseCase lives in usecase, exposes only new/invoke, invokes no other use case and awaits in async invoke
+VisibilityTier	modules/sample/src/usecase/calculate_use_case.rs:1	CalculateUseCase	visibility follows the actual workspace users of the item

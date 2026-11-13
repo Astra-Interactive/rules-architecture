@@ -1,0 +1,2 @@
+ReExportShape	modules/sample/src/util/compute_values.rs:1	compute_values	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/util/compute_values.rs:1	compute_values	visibility follows the actual workspace users of the item

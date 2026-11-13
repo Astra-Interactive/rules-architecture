@@ -1,0 +1,297 @@
+use crate::comment::rule::PanicDocVisitor;
+use crate::comment::util::{
+    collect_invalid_example_sections, doc_attribute_lines, doc_heading, joined_doc, strip_doc_code,
+};
+use crate::source::model::NodeSpan;
+use syn::visit::Visit;
+
+pub(crate) struct DocScopeVisitor<'context> {
+    context: &'context crate::check::model::RuleContext,
+    ordinal: usize,
+    file: String,
+    cfg: crate::source::model::CfgPredicate,
+    published: bool,
+    examples: bool,
+    trait_impl: bool,
+    spans: Vec<NodeSpan>,
+}
+
+impl DocScopeVisitor<'_> {
+    pub(crate) fn collect(
+        context: &crate::check::model::RuleContext,
+        ordinal: usize,
+        file: &crate::source::model::SourceFile,
+        published: bool,
+    ) -> Vec<NodeSpan> {
+        let mut visitor = DocScopeVisitor {
+            context,
+            ordinal,
+            file: file.path.clone(),
+            cfg: crate::source::model::CfgPredicate::All(Vec::new()),
+            published,
+            examples: context
+                .workspace
+                .members
+                .iter()
+                .find(|member| member.name == context.indexes[ordinal].crate_name)
+                .is_some_and(|member| {
+                    member.is_published(&context.workspace) && member.has_rust_library()
+                }),
+            trait_impl: false,
+            spans: Vec::new(),
+        };
+        visitor.visit_file(&file.syntax);
+        visitor.spans
+    }
+
+    fn inspect(&mut self, attributes: &[syn::Attribute], forbidden: bool, panic: bool) {
+        if !self
+            .cfg
+            .and(&crate::source::model::CfgPredicate::from_attributes(
+                attributes,
+            ))
+            .is_satisfiable()
+        {
+            return;
+        }
+        let Some((span, text)) = joined_doc(attributes) else {
+            return;
+        };
+        if self.examples {
+            let lines = doc_attribute_lines(attributes);
+            self.spans.extend(
+                collect_invalid_example_sections(&text)
+                    .into_iter()
+                    .filter_map(|line| lines.get(line).copied()),
+            );
+        }
+        let cleaned = strip_doc_code(&text);
+        let labels = cleaned.lines().any(|line| {
+            ["Errors:", "Panics:", "Safety:", "Examples:"]
+                .iter()
+                .any(|label| line.trim_start().starts_with(label))
+        });
+        let panic = panic && !doc_heading(&cleaned, "Panics");
+        if forbidden || labels || panic {
+            self.spans.push(span);
+        }
+    }
+
+    fn module_for(&self, span: NodeSpan) -> usize {
+        let index = &self.context.indexes[self.ordinal];
+        index
+            .items
+            .iter()
+            .find(|item| item.file == self.file && item.span.contains(&span))
+            .map(|item| item.module)
+            .or_else(|| {
+                index
+                    .implementations
+                    .iter()
+                    .find(|item| item.file == self.file && item.span.contains(&span))
+                    .map(|item| item.module)
+            })
+            .unwrap_or(0)
+    }
+
+    fn repeats_trait_doc(
+        &self,
+        attributes: &[syn::Attribute],
+        span: NodeSpan,
+        signature: &syn::Signature,
+    ) -> bool {
+        let Some((_, text)) = joined_doc(attributes) else {
+            return false;
+        };
+        let Some(implementation) = self.context.indexes[self.ordinal]
+            .implementations
+            .iter()
+            .find(|implementation| {
+                implementation.file == self.file && implementation.span.contains(&span)
+            })
+        else {
+            return false;
+        };
+        let Some((path, _)) = &implementation.syntax.trait_ else {
+            return false;
+        };
+        let normalize = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+        self.context
+            .resolve_workspace_path(self.ordinal, implementation.module, path)
+            .iter()
+            .any(|target| {
+                if !self.cfg.and(&target.path.cfg).is_satisfiable() {
+                    return false;
+                }
+                let Some(identity) = target.path.item else {
+                    return false;
+                };
+                let syn::Item::Trait(contract) =
+                    &self.context.indexes[target.index].items[identity].syntax
+                else {
+                    return false;
+                };
+                contract.items.iter().any(|item| {
+                    let syn::TraitItem::Fn(function) = item else {
+                        return false;
+                    };
+                    function.sig.ident == signature.ident
+                        && self
+                            .cfg
+                            .and(&crate::source::model::CfgPredicate::from_attributes(
+                                &function.attrs,
+                            ))
+                            .is_satisfiable()
+                        && joined_doc(&function.attrs)
+                            .is_some_and(|(_, original)| normalize(&original) == normalize(&text))
+                })
+            })
+    }
+
+    fn public_function(
+        &mut self,
+        attributes: &[syn::Attribute],
+        visibility: &syn::Visibility,
+        block: &syn::Block,
+        fallback: NodeSpan,
+        signature: &syn::Signature,
+    ) {
+        let module = self.module_for(fallback);
+        let cfg = self
+            .cfg
+            .and(&crate::source::model::CfgPredicate::from_attributes(
+                attributes,
+            ));
+        if !cfg.is_satisfiable() {
+            return;
+        }
+        let panic = self.published
+            && (self.trait_impl || matches!(visibility, syn::Visibility::Public(_)))
+            && PanicDocVisitor::contains_panic(
+                self.context,
+                self.ordinal,
+                module,
+                signature,
+                &cfg,
+                block,
+            );
+        if joined_doc(attributes).is_some() {
+            let repeats_name = joined_doc(attributes).is_some_and(|(_, text)| {
+                let words = |text: &str| {
+                    text.split(|character: char| !character.is_alphanumeric())
+                        .filter(|word| !word.is_empty())
+                        .map(str::to_lowercase)
+                        .collect::<Vec<_>>()
+                };
+                words(&text) == words(&signature.ident.to_string())
+            });
+            let invalid_error_contract = self.trait_impl
+                && joined_doc(attributes).is_some_and(|(_, text)| doc_heading(&text, "Errors"))
+                && matches!(signature.output, syn::ReturnType::Default);
+            let repeats_trait =
+                self.trait_impl && self.repeats_trait_doc(attributes, fallback, signature);
+            self.inspect(
+                attributes,
+                repeats_name || invalid_error_contract || repeats_trait,
+                panic,
+            );
+        } else if panic {
+            self.spans.push(fallback);
+        }
+    }
+}
+
+impl<'ast> Visit<'ast> for DocScopeVisitor<'_> {
+    fn visit_file(&mut self, syntax: &'ast syn::File) {
+        self.inspect(&syntax.attrs, false, false);
+        syn::visit::visit_file(self, syntax);
+    }
+    fn visit_item(&mut self, item: &'ast syn::Item) {
+        let cfg = self.cfg.clone();
+        self.cfg = cfg.and(&crate::source::model::CfgPredicate::from_attributes(
+            crate::comment::util::item_doc_attributes(item),
+        ));
+        if !self.cfg.is_satisfiable() {
+            self.cfg = cfg;
+            return;
+        }
+        if !matches!(item, syn::Item::Fn(_)) {
+            self.inspect(
+                crate::comment::util::item_doc_attributes(item),
+                false,
+                false,
+            );
+        }
+        syn::visit::visit_item(self, item);
+        self.cfg = cfg;
+    }
+    fn visit_item_impl(&mut self, implementation: &'ast syn::ItemImpl) {
+        let previous = self.trait_impl;
+        self.trait_impl = implementation.trait_.is_some();
+        syn::visit::visit_item_impl(self, implementation);
+        self.trait_impl = previous;
+    }
+
+    fn visit_item_fn(&mut self, function: &'ast syn::ItemFn) {
+        let previous = self.trait_impl;
+        self.trait_impl = false;
+        self.public_function(
+            &function.attrs,
+            &function.vis,
+            &function.block,
+            crate::source::util::find_node_span(syn::spanned::Spanned::span(function)),
+            &function.sig,
+        );
+        syn::visit::visit_item_fn(self, function);
+        self.trait_impl = previous;
+    }
+
+    fn visit_impl_item_fn(&mut self, function: &'ast syn::ImplItemFn) {
+        self.public_function(
+            &function.attrs,
+            &function.vis,
+            &function.block,
+            crate::source::util::find_node_span(syn::spanned::Spanned::span(function)),
+            &function.sig,
+        );
+        syn::visit::visit_impl_item_fn(self, function);
+    }
+    fn visit_trait_item_fn(&mut self, function: &'ast syn::TraitItemFn) {
+        if let Some(block) = &function.default {
+            self.public_function(
+                &function.attrs,
+                &syn::Visibility::Public(Default::default()),
+                block,
+                crate::source::util::find_node_span(syn::spanned::Spanned::span(function)),
+                &function.sig,
+            );
+        } else {
+            self.inspect(&function.attrs, false, false);
+        }
+        syn::visit::visit_trait_item_fn(self, function);
+    }
+    fn visit_field(&mut self, item: &'ast syn::Field) {
+        self.inspect(&item.attrs, false, false);
+        syn::visit::visit_field(self, item);
+    }
+    fn visit_variant(&mut self, item: &'ast syn::Variant) {
+        self.inspect(&item.attrs, false, false);
+        syn::visit::visit_variant(self, item);
+    }
+    fn visit_trait_item_type(&mut self, item: &'ast syn::TraitItemType) {
+        self.inspect(&item.attrs, false, false);
+        syn::visit::visit_trait_item_type(self, item);
+    }
+    fn visit_trait_item_const(&mut self, item: &'ast syn::TraitItemConst) {
+        self.inspect(&item.attrs, false, false);
+        syn::visit::visit_trait_item_const(self, item);
+    }
+    fn visit_impl_item_type(&mut self, item: &'ast syn::ImplItemType) {
+        self.inspect(&item.attrs, false, false);
+        syn::visit::visit_impl_item_type(self, item);
+    }
+    fn visit_impl_item_const(&mut self, item: &'ast syn::ImplItemConst) {
+        self.inspect(&item.attrs, false, false);
+        syn::visit::visit_impl_item_const(self, item);
+    }
+}

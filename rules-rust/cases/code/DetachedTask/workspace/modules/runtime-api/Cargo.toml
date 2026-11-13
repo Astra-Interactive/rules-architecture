@@ -1,0 +1,9 @@
+[package]
+name = "runtime-api"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+async_runtime = { package = "tokio", version = "=1.54.1", features = ["rt", "sync"] }
+

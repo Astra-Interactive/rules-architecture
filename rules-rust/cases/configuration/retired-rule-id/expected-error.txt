@@ -1,0 +1,1 @@
+modules/sample/Cargo.toml:5: `DataClassDefaultValue` is retired: use `StructDefaultValue`

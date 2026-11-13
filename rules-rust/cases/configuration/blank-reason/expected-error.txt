@@ -1,0 +1,1 @@
+modules/sample/Cargo.toml:6: the reason for "case-sample" is blank

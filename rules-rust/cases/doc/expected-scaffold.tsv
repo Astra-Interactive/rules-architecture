@@ -1,0 +1,336 @@
+RootPackagePath	Cargo.toml:0	.	set `[workspace.metadata.klibs-rules] prefix`: member names give no unique prefix
+TimeCrate	Cargo.toml:0	.	choose one time crate for the workspace, including development dependencies; found chrono, jiff, time
+RootFileShape	modules/acme-sdk/src/lib.rs:1	acme_sdk	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/acme-sdk/src/lib.rs:2	acme_sdk	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/acme-sdk/src/lib.rs:3	acme_sdk	the root file holds only the module tree and the items the platform calls
+ErrorPlacement	modules/acme-sdk/src/lib.rs:5	acme_sdk::AcmeError	Error families and result enums live in model, including replacements for old error modules (error-handling.rs.md)
+RootFileShape	modules/acme-sdk/src/lib.rs:5	acme_sdk	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/acme-sdk/src/lib.rs:9	acme_sdk	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/acme-sdk/src/lib.rs:13	acme_sdk	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/acme-sdk/src/lib.rs:17	acme_sdk	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/acme-sdk/src/lib.rs:19	acme_sdk	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/acme-sdk/src/lib.rs:21	acme_sdk	the root file holds only the module tree and the items the platform calls
+StructDefaultValue	modules/acme-sdk/src/lib.rs:21	acme_sdk	Pass struct and enum values explicitly instead of providing Default (struct-default-values.rs.md)
+RootFileShape	modules/acme-sdk/src/lib.rs:27	acme_sdk	the root file holds only the module tree and the items the platform calls
+RootFileShape	modules/acme-sdk/src/lib.rs:47	acme_sdk	the root file holds only the module tree and the items the platform calls
+StructDefaultValue	modules/acme-sdk/src/lib.rs:47	acme_sdk	Pass struct and enum values explicitly instead of providing Default (struct-default-values.rs.md)
+RootFileShape	modules/acme-sdk/src/lib.rs:53	acme_sdk	the root file holds only the module tree and the items the platform calls
+ReExportShape	modules/bad/async-rs/src/example_10.rs:3	CheckoutStage	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/async-rs/src/example_10.rs:8	CheckoutState	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+BareIdentifier	modules/bad/async-rs/src/example_10.rs:10	bad_async_rs::example_10::CheckoutState	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
+OneTypeFamilyPerFile	modules/bad/async-rs/src/example_10.rs:15	bad_async_rs::example_10::publish	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+ReExportShape	modules/bad/async-rs/src/example_10.rs:15	publish	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+NamespaceType	modules/bad/async-rs/src/example_12.rs:5	bad_async_rs::example_12::PurchaseOrderUseCase	Use module functions instead of a fieldless namespace type (arch-package.rs.md)
+ReExportShape	modules/bad/async-rs/src/example_12.rs:5	PurchaseOrderUseCase	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+UseCaseShape	modules/bad/async-rs/src/example_12.rs:5	bad_async_rs::PurchaseOrderUseCase	a VerbObjectUseCase lives in usecase, exposes only new/invoke, invokes no other use case and awaits in async invoke
+NamespaceType	modules/bad/async-rs/src/example_12.rs:13	bad_async_rs::example_12::TaskScope	Use module functions instead of a fieldless namespace type (arch-package.rs.md)
+ReExportShape	modules/bad/async-rs/src/example_12.rs:13	TaskScope	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/async-rs/src/example_12.rs:19	CheckoutState	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+BareIdentifier	modules/bad/async-rs/src/example_12.rs:20	bad_async_rs::example_12::CheckoutState	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
+DiModuleLifecycle	modules/bad/async-rs/src/example_12.rs:23	bad_async_rs::CheckoutComponent	DI lifecycle is synchronous, manages only owned children, receives modules by shared reference, and aborts owned task scopes on disable
+ReExportShape	modules/bad/async-rs/src/example_12.rs:23	CheckoutComponent	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+NamespaceType	modules/bad/async-rs/src/example_13.rs:3	bad_async_rs::example_13::InvoiceReminder	Use module functions instead of a fieldless namespace type (arch-package.rs.md)
+ReExportShape	modules/bad/async-rs/src/example_13.rs:3	InvoiceReminder	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+OneTypeFamilyPerFile	modules/bad/async-rs/src/example_13.rs:11	bad_async_rs::example_13::start_reminder	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+ReExportShape	modules/bad/async-rs/src/example_13.rs:11	start_reminder	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/async-rs/src/example_15.rs:6	Invoice	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+BareIdentifier	modules/bad/async-rs/src/example_15.rs:7	bad_async_rs::example_15::Invoice	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
+ReExportShape	modules/bad/async-rs/src/example_15.rs:10	InvoiceCacheState	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/async-rs/src/example_15.rs:15	InvoiceCache	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/async-rs/src/example_9.rs:5	read_state	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+KindShape	modules/bad/async-rs/src/lib.rs:1	bad_async_rs::example_10	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/async-rs/src/lib.rs:1	bad_async_rs::example_10	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/async-rs/src/lib.rs:1	bad_async_rs	the root file holds only the module tree and the items the platform calls
+KindShape	modules/bad/async-rs/src/lib.rs:2	bad_async_rs::example_12	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/async-rs/src/lib.rs:2	bad_async_rs::example_12	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/async-rs/src/lib.rs:2	bad_async_rs	the root file holds only the module tree and the items the platform calls
+KindShape	modules/bad/async-rs/src/lib.rs:3	bad_async_rs::example_13	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/async-rs/src/lib.rs:3	bad_async_rs::example_13	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/async-rs/src/lib.rs:3	bad_async_rs	the root file holds only the module tree and the items the platform calls
+KindShape	modules/bad/async-rs/src/lib.rs:4	bad_async_rs::example_15	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/async-rs/src/lib.rs:4	bad_async_rs::example_15	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/async-rs/src/lib.rs:4	bad_async_rs	the root file holds only the module tree and the items the platform calls
+KindShape	modules/bad/async-rs/src/lib.rs:5	bad_async_rs::example_9	a concept holds kind blocks; files live in a named kind
+RootFileShape	modules/bad/async-rs/src/lib.rs:5	bad_async_rs	the root file holds only the module tree and the items the platform calls
+NamespaceType	modules/bad/clean-code-rs/src/example_16.rs:7	bad_clean_code_rs::example_16::Banner	Use module functions instead of a fieldless namespace type (arch-package.rs.md)
+ReExportShape	modules/bad/clean-code-rs/src/example_16.rs:7	Banner	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+NamespaceType	modules/bad/clean-code-rs/src/example_16.rs:13	bad_clean_code_rs::example_16::TaskScope	Use module functions instead of a fieldless namespace type (arch-package.rs.md)
+ReExportShape	modules/bad/clean-code-rs/src/example_16.rs:13	TaskScope	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+DiModuleLifecycle	modules/bad/clean-code-rs/src/example_16.rs:19	bad_clean_code_rs::BannerComponent	DI lifecycle is synchronous, manages only owned children, receives modules by shared reference, and aborts owned task scopes on disable
+ReExportShape	modules/bad/clean-code-rs/src/example_16.rs:19	BannerComponent	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/clean-code-rs/src/example_17.rs:1	compute_line_height	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/clean-code-rs/src/example_18.rs:3	CheckoutStage	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/clean-code-rs/src/example_18.rs:8	Cart	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/clean-code-rs/src/example_18.rs:13	CheckoutContent	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/clean-code-rs/src/example_18.rs:20	CheckoutState	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+OneTypeFamilyPerFile	modules/bad/clean-code-rs/src/example_18.rs:25	bad_clean_code_rs::example_18::start_checkout	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+ReExportShape	modules/bad/clean-code-rs/src/example_18.rs:25	start_checkout	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ErrorPlacement	modules/bad/clean-code-rs/src/example_70.rs:11	bad_clean_code_rs::InvoiceError	Error families and result enums live in model, including replacements for old error modules (error-handling.rs.md)
+OneTypeFamilyPerFile	modules/bad/clean-code-rs/src/example_70.rs:21	bad_clean_code_rs::example_70::to_json	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+OneTypeFamilyPerFile	modules/bad/clean-code-rs/src/example_70.rs:25	bad_clean_code_rs::example_70::serialize_reminder	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+KindShape	modules/bad/clean-code-rs/src/lib.rs:1	bad_clean_code_rs::example_16	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/clean-code-rs/src/lib.rs:1	bad_clean_code_rs::example_16	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/clean-code-rs/src/lib.rs:1	bad_clean_code_rs	the root file holds only the module tree and the items the platform calls
+KindShape	modules/bad/clean-code-rs/src/lib.rs:2	bad_clean_code_rs::example_17	a concept holds kind blocks; files live in a named kind
+RootFileShape	modules/bad/clean-code-rs/src/lib.rs:2	bad_clean_code_rs	the root file holds only the module tree and the items the platform calls
+KindShape	modules/bad/clean-code-rs/src/lib.rs:3	bad_clean_code_rs::example_18	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/clean-code-rs/src/lib.rs:3	bad_clean_code_rs::example_18	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/clean-code-rs/src/lib.rs:3	bad_clean_code_rs	the root file holds only the module tree and the items the platform calls
+KindShape	modules/bad/clean-code-rs/src/lib.rs:4	bad_clean_code_rs::example_70	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/clean-code-rs/src/lib.rs:4	bad_clean_code_rs::example_70	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/clean-code-rs/src/lib.rs:4	bad_clean_code_rs	the root file holds only the module tree and the items the platform calls
+KindShape	modules/bad/clean-code-rs/src/lib.rs:5	bad_clean_code_rs::example_71	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/clean-code-rs/src/lib.rs:5	bad_clean_code_rs::example_71	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/clean-code-rs/src/lib.rs:5	bad_clean_code_rs	the root file holds only the module tree and the items the platform calls
+ReExportShape	modules/bad/closure-naming-rs/src/example_19.rs:3	Invoice	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+OneTypeFamilyPerFile	modules/bad/closure-naming-rs/src/example_19.rs:8	bad_closure_naming_rs::example_19::build_overdue_report	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+ReExportShape	modules/bad/closure-naming-rs/src/example_19.rs:8	build_overdue_report	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+KindShape	modules/bad/closure-naming-rs/src/lib.rs:1	bad_closure_naming_rs::example_19	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/closure-naming-rs/src/lib.rs:1	bad_closure_naming_rs::example_19	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/closure-naming-rs/src/lib.rs:1	bad_closure_naming_rs	the root file holds only the module tree and the items the platform calls
+ReExportShape	modules/bad/code-ordering-rs/src/example_22.rs:4	TaskScope	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/code-ordering-rs/src/example_22.rs:6	CoreModule	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/code-ordering-rs/src/example_22.rs:10	IntervalFeatureFlagReloader	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+KindShape	modules/bad/code-ordering-rs/src/lib.rs:1	bad_code_ordering_rs::example_22	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/code-ordering-rs/src/lib.rs:1	bad_code_ordering_rs::example_22	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/code-ordering-rs/src/lib.rs:1	bad_code_ordering_rs	the root file holds only the module tree and the items the platform calls
+ContractPlacement	modules/bad/di-manual-constructors-rs/src/example_27.rs:3	bad_di_manual_constructors_rs::InvoiceRepository	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ReExportShape	modules/bad/di-manual-constructors-rs/src/example_27.rs:3	InvoiceRepository	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ContractPlacement	modules/bad/di-manual-constructors-rs/src/example_27.rs:5	bad_di_manual_constructors_rs::MailSender	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ReExportShape	modules/bad/di-manual-constructors-rs/src/example_27.rs:5	MailSender	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ContractPlacement	modules/bad/di-manual-constructors-rs/src/example_27.rs:7	bad_di_manual_constructors_rs::Clock	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ReExportShape	modules/bad/di-manual-constructors-rs/src/example_27.rs:7	Clock	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/bad/di-manual-constructors-rs/src/example_27.rs:7	bad_di_manual_constructors_rs::Clock	SystemClock lives in system and Clock declares exactly fn now(&self) -> SystemTime
+NamespaceType	modules/bad/di-manual-constructors-rs/src/example_27.rs:9	bad_di_manual_constructors_rs::example_27::ReminderSchedule	Use module functions instead of a fieldless namespace type (arch-package.rs.md)
+ReExportShape	modules/bad/di-manual-constructors-rs/src/example_27.rs:9	ReminderSchedule	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/di-manual-constructors-rs/src/example_27.rs:17	SmtpMailSender	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/di-manual-constructors-rs/src/example_27.rs:27	SystemClock	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/bad/di-manual-constructors-rs/src/example_27.rs:27	bad_di_manual_constructors_rs::SystemClock	SystemClock lives in system and Clock declares exactly fn now(&self) -> SystemTime
+ReExportShape	modules/bad/di-manual-constructors-rs/src/example_27.rs:31	InvoiceReminder	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+KindShape	modules/bad/di-manual-constructors-rs/src/lib.rs:1	bad_di_manual_constructors_rs::example_27	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/di-manual-constructors-rs/src/lib.rs:1	bad_di_manual_constructors_rs::example_27	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/di-manual-constructors-rs/src/lib.rs:1	bad_di_manual_constructors_rs	the root file holds only the module tree and the items the platform calls
+ReExportShape	modules/bad/function-reference-rs/src/example_36.rs:1	UserId	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/function-reference-rs/src/example_36.rs:3	ItemContent	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/function-reference-rs/src/example_36.rs:7	CartItem	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ErrorPlacement	modules/bad/function-reference-rs/src/example_36.rs:19	bad_function_reference_rs::OrderError	Error families and result enums live in model, including replacements for old error modules (error-handling.rs.md)
+ReExportShape	modules/bad/function-reference-rs/src/example_36.rs:19	OrderError	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/function-reference-rs/src/example_36.rs:22	Order	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ErrorFamilyShape	modules/bad/function-reference-rs/src/example_36.rs:24	bad_function_reference_rs::PlaceOrderError	an error enum derives Debug + thiserror::Error, labels each variant, and boxes source errors as dyn Error + Send + Sync
+ErrorPlacement	modules/bad/function-reference-rs/src/example_36.rs:24	bad_function_reference_rs::PlaceOrderError	Error families and result enums live in model, including replacements for old error modules (error-handling.rs.md)
+ReExportShape	modules/bad/function-reference-rs/src/example_36.rs:24	PlaceOrderError	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+OneTypeFamilyPerFile	modules/bad/function-reference-rs/src/example_36.rs:29	bad_function_reference_rs::example_36::parse_order	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+ReExportShape	modules/bad/function-reference-rs/src/example_36.rs:29	parse_order	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+DeclarationOrder	modules/bad/function-reference-rs/src/example_36.rs:36	bad_function_reference_rs::example_36	Declare constants, complete type families and functions in dependency order (code-ordering.rs.md)
+ReExportShape	modules/bad/function-reference-rs/src/example_36.rs:36	Summary	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+OneTypeFamilyPerFile	modules/bad/function-reference-rs/src/example_36.rs:44	bad_function_reference_rs::example_36::build_summary	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+ReExportShape	modules/bad/function-reference-rs/src/example_36.rs:44	build_summary	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+KindShape	modules/bad/function-reference-rs/src/lib.rs:1	bad_function_reference_rs::example_36	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/function-reference-rs/src/lib.rs:1	bad_function_reference_rs::example_36	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/function-reference-rs/src/lib.rs:1	bad_function_reference_rs	the root file holds only the module tree and the items the platform calls
+ReExportShape	modules/bad/no-callbacks-rs/src/example_38.rs:3	Offer	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ErrorPlacement	modules/bad/no-callbacks-rs/src/example_38.rs:5	bad_no_callbacks_rs::OfferError	Error families and result enums live in model, including replacements for old error modules (error-handling.rs.md)
+ReExportShape	modules/bad/no-callbacks-rs/src/example_38.rs:5	OfferError	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ContractPlacement	modules/bad/no-callbacks-rs/src/example_38.rs:7	bad_no_callbacks_rs::OfferGateway	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ReExportShape	modules/bad/no-callbacks-rs/src/example_38.rs:7	OfferGateway	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/no-callbacks-rs/src/example_40.rs:3	TimerConfig	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/no-callbacks-rs/src/example_40.rs:5	TimerEndCause	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ContractPlacement	modules/bad/no-callbacks-rs/src/example_40.rs:14	bad_no_callbacks_rs::TimerRegistry	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ReExportShape	modules/bad/no-callbacks-rs/src/example_40.rs:14	TimerRegistry	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/no-callbacks-rs/src/example_41.rs:1	Money	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+KindShape	modules/bad/no-callbacks-rs/src/lib.rs:1	bad_no_callbacks_rs::example_38	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/no-callbacks-rs/src/lib.rs:1	bad_no_callbacks_rs::example_38	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/no-callbacks-rs/src/lib.rs:1	bad_no_callbacks_rs	the root file holds only the module tree and the items the platform calls
+KindShape	modules/bad/no-callbacks-rs/src/lib.rs:2	bad_no_callbacks_rs::example_40	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/no-callbacks-rs/src/lib.rs:2	bad_no_callbacks_rs::example_40	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/no-callbacks-rs/src/lib.rs:2	bad_no_callbacks_rs	the root file holds only the module tree and the items the platform calls
+KindShape	modules/bad/no-callbacks-rs/src/lib.rs:3	bad_no_callbacks_rs::example_41	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/no-callbacks-rs/src/lib.rs:3	bad_no_callbacks_rs::example_41	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/no-callbacks-rs/src/lib.rs:3	bad_no_callbacks_rs	the root file holds only the module tree and the items the platform calls
+ErrorPlacement	modules/bad/no-print-rs/src/example_44.rs:3	bad_no_print_rs::OrderError	Error families and result enums live in model, including replacements for old error modules (error-handling.rs.md)
+ReExportShape	modules/bad/no-print-rs/src/example_44.rs:3	OrderError	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/no-print-rs/src/example_44.rs:12	Order	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+OneTypeFamilyPerFile	modules/bad/no-print-rs/src/example_44.rs:14	bad_no_print_rs::example_44::load_order	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+ReExportShape	modules/bad/no-print-rs/src/example_44.rs:14	load_order	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+OneTypeFamilyPerFile	modules/bad/no-print-rs/src/example_44.rs:21	bad_no_print_rs::example_44::run_order_report	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+ReExportShape	modules/bad/no-print-rs/src/example_44.rs:21	run_order_report	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+KindShape	modules/bad/no-print-rs/src/lib.rs:1	bad_no_print_rs::example_44	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/no-print-rs/src/lib.rs:1	bad_no_print_rs::example_44	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/no-print-rs/src/lib.rs:1	bad_no_print_rs	the root file holds only the module tree and the items the platform calls
+ReExportShape	modules/bad/no-tuples-rs/src/example_46.rs:1	ProductId	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ContractPlacement	modules/bad/no-tuples-rs/src/example_46.rs:3	bad_no_tuples_rs::Shape	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ReExportShape	modules/bad/no-tuples-rs/src/example_46.rs:3	Shape	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+OneTypeFamilyPerFile	modules/bad/no-tuples-rs/src/example_46.rs:8	bad_no_tuples_rs::example_46::measure_label	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+ReExportShape	modules/bad/no-tuples-rs/src/example_46.rs:8	measure_label	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+KindShape	modules/bad/no-tuples-rs/src/lib.rs:1	bad_no_tuples_rs::example_46	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/no-tuples-rs/src/lib.rs:1	bad_no_tuples_rs::example_46	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/no-tuples-rs/src/lib.rs:1	bad_no_tuples_rs	the root file holds only the module tree and the items the platform calls
+KindShape	modules/bad/region/src/lib.rs:1	bad_region::example_69	a concept holds kind blocks; files live in a named kind
+RootFileShape	modules/bad/region/src/lib.rs:1	bad_region	the root file holds only the module tree and the items the platform calls
+KindShape	modules/bad/rustdoc-app-rs/src/lib.rs:1	bad_rustdoc_app_rs::auth_module	a concept holds kind blocks; files live in a named kind
+RootFileShape	modules/bad/rustdoc-app-rs/src/lib.rs:1	bad_rustdoc_app_rs	the root file holds only the module tree and the items the platform calls
+ReExportShape	modules/bad/rustdoc-rs/src/example_48.rs:1	UserId	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/bad/rustdoc-rs/src/example_48.rs:3	User	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ErrorFamilyShape	modules/bad/rustdoc-rs/src/example_48.rs:5	bad_rustdoc_rs::UserError	an error enum derives Debug + thiserror::Error, labels each variant, and boxes source errors as dyn Error + Send + Sync
+ErrorPlacement	modules/bad/rustdoc-rs/src/example_48.rs:5	bad_rustdoc_rs::UserError	Error families and result enums live in model, including replacements for old error modules (error-handling.rs.md)
+ReExportShape	modules/bad/rustdoc-rs/src/example_48.rs:5	UserError	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+NamespaceType	modules/bad/rustdoc-rs/src/example_48.rs:9	bad_rustdoc_rs::example_48::UserDirectory	Use module functions instead of a fieldless namespace type (arch-package.rs.md)
+ReExportShape	modules/bad/rustdoc-rs/src/example_48.rs:9	UserDirectory	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ImportThroughFileModule	modules/bad/rustdoc-rs/src/example_50.rs:1	crate::money::Money	Import and name an item through its kind block, without walking through its private file module
+ImplPlacement	modules/bad/rustdoc-rs/src/example_50.rs:3	Money	An impl stays in its type's file, its documented util extension or a conversion/framework boundary (arch-package.rs.md)
+UtilShape	modules/bad/rustdoc-rs/src/example_50.rs:3	example_50	an out-of-file inherent impl belongs in util or a configured extension kind
+KindShape	modules/bad/rustdoc-rs/src/lib.rs:1	bad_rustdoc_rs::example_48	a concept holds kind blocks; files live in a named kind
+ModuleVisibility	modules/bad/rustdoc-rs/src/lib.rs:1	bad_rustdoc_rs::example_48	module visibility must be Private (arch-package.rs.md, Modules and directories)
+OneTypeFamilyPerFile	modules/bad/rustdoc-rs/src/lib.rs:1	bad_rustdoc_rs::example_48	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/rustdoc-rs/src/lib.rs:1	bad_rustdoc_rs	the root file holds only the module tree and the items the platform calls
+KindShape	modules/bad/rustdoc-rs/src/lib.rs:2	bad_rustdoc_rs::example_50	a concept holds kind blocks; files live in a named kind
+ModuleVisibility	modules/bad/rustdoc-rs/src/lib.rs:2	bad_rustdoc_rs::example_50	module visibility must be Private (arch-package.rs.md, Modules and directories)
+RootFileShape	modules/bad/rustdoc-rs/src/lib.rs:2	bad_rustdoc_rs	the root file holds only the module tree and the items the platform calls
+KindShape	modules/bad/rustdoc-rs/src/lib.rs:3	bad_rustdoc_rs::money	a concept holds kind blocks; files live in a named kind
+ModuleVisibility	modules/bad/rustdoc-rs/src/lib.rs:3	bad_rustdoc_rs::money	module visibility must be Private (arch-package.rs.md, Modules and directories)
+RootFileShape	modules/bad/rustdoc-rs/src/lib.rs:3	bad_rustdoc_rs	the root file holds only the module tree and the items the platform calls
+ReExportShape	modules/bad/rustdoc-rs/src/money.rs:1	Money	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+KindShape	modules/bad/struct-default-values-rs/src/lib.rs:1	bad_struct_default_values_rs::prediction_input	a concept holds kind blocks; files live in a named kind
+RootFileShape	modules/bad/struct-default-values-rs/src/lib.rs:1	bad_struct_default_values_rs	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/struct-default-values-rs/src/prediction_input.rs:8	bad_struct_default_values_rs::prediction_input::build_window	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+ReExportShape	modules/bad/struct-default-values-rs/src/prediction_input.rs:8	build_window	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+KindShape	modules/bad/testing-no-useless-rs/src/lib.rs:1	bad_testing_no_useless_rs::my_struct	a concept holds kind blocks; files live in a named kind
+RootFileShape	modules/bad/testing-no-useless-rs/src/lib.rs:1	bad_testing_no_useless_rs	the root file holds only the module tree and the items the platform calls
+OneTypeFamilyPerFile	modules/bad/testing-no-useless-rs/src/my_struct.rs:6	bad_testing_no_useless_rs::my_struct::given_struct_when_built_then_value_is_stored	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+TestMirror	modules/bad/testing-no-useless-rs/src/my_struct.rs:6	bad_testing_no_useless_rs::my_struct	tests live in the root test block; path attributes belong only to the root test and fixture blocks
+ReExportShape	modules/bad/testing-rs/src/example_59.rs:1	compute_order_total	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+KindShape	modules/bad/testing-rs/src/lib.rs:1	bad_testing_rs::example_59	a concept holds kind blocks; files live in a named kind
+RootFileShape	modules/bad/testing-rs/src/lib.rs:1	bad_testing_rs	the root file holds only the module tree and the items the platform calls
+KindShape	modules/bad/testing-rs/src/lib.rs:6	bad_testing_rs::test::example_59_test	a concept holds kind blocks; files live in a named kind
+ReExportShape	modules/bad/time-api-rs/src/example_64.rs:1	Session	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+KindShape	modules/bad/time-api-rs/src/lib.rs:1	bad_time_api_rs::example_64	a concept holds kind blocks; files live in a named kind
+OneTypeFamilyPerFile	modules/bad/time-api-rs/src/lib.rs:1	bad_time_api_rs::example_64	Name the file after its primary type family (arch-package.rs.md)
+RootFileShape	modules/bad/time-api-rs/src/lib.rs:1	bad_time_api_rs	the root file holds only the module tree and the items the platform calls
+BareIdentifier	modules/good/arch-package-rs-tree/src/invoice/model/invoice.rs:2	good_arch_package_rs_tree::invoice::model::invoice::Invoice	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
+ModelDerives	modules/good/arch-package-rs-tree/src/invoice/model/invoice.rs:2	good_arch_package_rs_tree::invoice::model::invoice::Invoice	Derive Hash on this model struct (arch-domain.rs.md)
+KindImportDirection	modules/good/async-rs/src/checkout/component/checkout_component.rs:3	checkout::component::checkout_component	This kind may not use `reminder::service::task_scope` (arch-context.md, Direction and enforcement)
+KindImportDirection	modules/good/async-rs/src/checkout/component/checkout_component.rs:9	checkout::component::checkout_component	This kind may not use `reminder::service::task_scope` (arch-context.md, Direction and enforcement)
+KindImportDirection	modules/good/async-rs/src/checkout/component/checkout_component.rs:16	checkout::component::checkout_component	This kind may not use `reminder::service::task_scope` (arch-context.md, Direction and enforcement)
+ReExportShape	modules/good/async-rs/src/invoice/memory/in_memory_invoice_cache.rs:29	CachedInvoice	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ModelDerives	modules/good/async-rs/src/invoice/model/invoice.rs:4	good_async_rs::invoice::model::invoice::Invoice	Derive Hash on this model struct (arch-domain.rs.md)
+KindImportDirection	modules/good/clean-code-rs/src/banner/component/banner_component.rs:3	banner::component::banner_component	This kind may not use `task::service::task_scope` (arch-context.md, Direction and enforcement)
+KindImportDirection	modules/good/clean-code-rs/src/banner/component/banner_component.rs:8	banner::component::banner_component	This kind may not use `task::service::task_scope` (arch-context.md, Direction and enforcement)
+KindImportDirection	modules/good/clean-code-rs/src/banner/component/banner_component.rs:12	banner::component::banner_component	This kind may not use `task::service::task_scope` (arch-context.md, Direction and enforcement)
+BareIdentifier	modules/good/clean-code-rs/src/checkout/model/cart.rs:4	good_clean_code_rs::checkout::model::cart::Cart	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
+ModelDerives	modules/good/clean-code-rs/src/checkout/model/cart.rs:4	good_clean_code_rs::checkout::model::cart::Cart	Derive Hash on this model struct (arch-domain.rs.md)
+UtilFunctionAsExtension	modules/good/clean-code-rs/src/checkout/util/checkout_start.rs:4	good_clean_code_rs::checkout::util::start_checkout	a transition is an inherent method of the type it returns, in util
+UtilFunctionAsExtension	modules/good/clean-code-rs/src/invoice/util/invoice_serialization.rs:4	good_clean_code_rs::invoice::util::serialize_reminder	a one-model rule is an inherent extension method in util
+ForeignErrorType	modules/good/clean-code-rs/src/invoice/util/json_format.rs:3	good_clean_code_rs::invoice::util::to_json	inner layers return the concept's own error family, not a foreign error type (error-handling.rs.md)
+ModelDerives	modules/good/closure-naming-rs/src/invoice/model/invoice.rs:4	good_closure_naming_rs::invoice::model::invoice::Invoice	Derive Hash on this model struct (arch-domain.rs.md)
+BareIdentifier	modules/good/di-manual-constructors-rs/src/reminder/model/reminder_schedule.rs:4	good_di_manual_constructors_rs::reminder::model::reminder_schedule::ReminderSchedule	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
+ModelDerives	modules/good/di-manual-constructors-rs/src/reminder/model/reminder_schedule.rs:4	good_di_manual_constructors_rs::reminder::model::reminder_schedule::ReminderSchedule	Derive Hash on this model struct (arch-domain.rs.md)
+UnitDependency	modules/good/di-manual-rs/billing/Cargo.toml:7	di-billing-api -> shop-core	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+ContractShape	modules/good/di-manual-rs/core/src/lifecycle/api/lifecycle.rs:1	shop_core::lifecycle::api::lifecycle::Lifecycle	Declare contracts as non-generic Send + Sync traits, with async_trait for async methods (arch-domain.rs.md)
+ModelDerives	modules/good/error-handling-rs/src/order/model/money.rs:2	good_error_handling_rs::order::model::money::Money	Derive Hash on this model struct (arch-domain.rs.md)
+UtilFunctionAsExtension	modules/good/error-handling-rs/src/order/util/order_save.rs:3	good_error_handling_rs::order::util::save_order	a one-model rule is an inherent extension method in util
+UtilFunctionAsExtension	modules/good/error-handling-rs/src/order/util/outcome_delivery.rs:4	good_error_handling_rs::order::util::deliver_outcome	a one-model rule is an inherent extension method in util
+UtilFunctionAsExtension	modules/good/error-handling-rs/src/order/util/reply_build.rs:5	good_error_handling_rs::order::util::build_reply	a one-model rule is an inherent extension method in util
+BareIdentifier	modules/good/function-reference-rs/src/cart/model/cart_item.rs:2	good_function_reference_rs::cart::model::cart_item::CartItem	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
+ModelDerives	modules/good/function-reference-rs/src/cart/model/cart_item.rs:2	good_function_reference_rs::cart::model::cart_item::CartItem	Derive Hash on this model struct (arch-domain.rs.md)
+BareIdentifier	modules/good/function-reference-rs/src/cart/model/item_content.rs:2	good_function_reference_rs::cart::model::item_content::ItemContent	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
+ModelDerives	modules/good/function-reference-rs/src/cart/model/item_content.rs:2	good_function_reference_rs::cart::model::item_content::ItemContent	Derive Hash on this model struct (arch-domain.rs.md)
+BareIdentifier	modules/good/function-reference-rs/src/order/model/order.rs:2	good_function_reference_rs::order::model::order::Order	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
+ModelDerives	modules/good/function-reference-rs/src/order/model/order.rs:2	good_function_reference_rs::order::model::order::Order	Derive Hash on this model struct (arch-domain.rs.md)
+BareIdentifier	modules/good/imports-rs/src/invoice/model/invoice.rs:2	good_imports_rs::invoice::model::invoice::Invoice	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
+ModelDerives	modules/good/imports-rs/src/invoice/model/invoice.rs:2	good_imports_rs::invoice::model::invoice::Invoice	Derive Hash on this model struct (arch-domain.rs.md)
+UnitDependency	modules/good/no-callbacks-rs-1/Cargo.toml:7	good-no-callbacks-rs-1 -> acme-sdk	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+ErrorFamilyShape	modules/good/no-callbacks-rs-1/src/consent/model/consent_error.rs:1	good_no_callbacks_rs_1::consent::model::ConsentError	an error enum derives Debug + thiserror::Error, labels each variant, and boxes source errors as dyn Error + Send + Sync
+BareIdentifier	modules/good/no-callbacks-rs-1/src/offer/model/offer.rs:2	good_no_callbacks_rs_1::offer::model::offer::Offer	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
+ModelDerives	modules/good/no-callbacks-rs-1/src/offer/model/offer.rs:2	good_no_callbacks_rs_1::offer::model::offer::Offer	Derive Hash on this model struct (arch-domain.rs.md)
+ErrorFamilyShape	modules/good/no-callbacks-rs-1/src/offer/model/offer_error.rs:1	good_no_callbacks_rs_1::offer::model::OfferError	an error enum derives Debug + thiserror::Error, labels each variant, and boxes source errors as dyn Error + Send + Sync
+KindImportDirection	modules/good/no-callbacks-rs-1/src/offer/service/offer_refresher.rs:1	offer::service::offer_refresher	This kind may not use `offer::memory::in_memory_offer_cache` (arch-context.md, Direction and enforcement)
+KindImportDirection	modules/good/no-callbacks-rs-1/src/offer/service/offer_refresher.rs:7	offer::service::offer_refresher	This kind may not use `offer::memory::in_memory_offer_cache` (arch-context.md, Direction and enforcement)
+KindImportDirection	modules/good/no-callbacks-rs-1/src/offer/service/offer_refresher.rs:14	offer::service::offer_refresher	This kind may not use `offer::memory::in_memory_offer_cache` (arch-context.md, Direction and enforcement)
+EnumFamilyFile	modules/good/no-callbacks-rs-1/src/timer/model/timer_config.rs:1	good_no_callbacks_rs_1::timer::model::TimerConfig	A struct used only by one enum's payloads lives in that enum's file (arch-package.rs.md)
+BareIdentifier	modules/good/no-callbacks-rs-1/src/timer/model/timer_config.rs:2	good_no_callbacks_rs_1::timer::model::timer_config::TimerConfig	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
+ModelDerives	modules/good/no-callbacks-rs-1/src/timer/model/timer_config.rs:2	good_no_callbacks_rs_1::timer::model::timer_config::TimerConfig	Derive Hash on this model struct (arch-domain.rs.md)
+ModelDerives	modules/good/no-print-rs/src/order/model/order.rs:4	good_no_print_rs::order::model::order::Order	Derive Hash on this model struct (arch-domain.rs.md)
+ContractShape	modules/good/no-tuples-rs/src/shape/api/shape.rs:3	good_no_tuples_rs::shape::api::shape::Shape	Declare contracts as non-generic Send + Sync traits, with async_trait for async methods (arch-domain.rs.md)
+ContractShape	modules/good/rustdoc-rs/src/dictionary/api/dictionary_repository.rs:4	good_rustdoc_rs::dictionary::api::dictionary_repository::DictionaryRepository	Declare contracts as non-generic Send + Sync traits, with async_trait for async methods (arch-domain.rs.md)
+ErrorFamilyShape	modules/good/rustdoc-rs/src/dictionary/model/dictionary_error.rs:1	good_rustdoc_rs::dictionary::model::DictionaryError	an error enum derives Debug + thiserror::Error, labels each variant, and boxes source errors as dyn Error + Send + Sync
+BareIdentifier	modules/good/rustdoc-rs/src/order/model/order.rs:2	good_rustdoc_rs::order::model::order::Order	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
+ModelDerives	modules/good/rustdoc-rs/src/order/model/order.rs:2	good_rustdoc_rs::order::model::order::Order	Derive Hash on this model struct (arch-domain.rs.md)
+ModelDerives	modules/good/rustdoc-rs/src/pricing/model/money.rs:2	good_rustdoc_rs::pricing::model::money::Money	Derive Hash on this model struct (arch-domain.rs.md)
+ModelContainsFunctions	modules/good/rustdoc-rs/src/pricing/model/money.rs:5	Money	A model's own file holds constants and invariant construction/accessors; rules live in util (arch-domain.rs.md)
+ModelContainsFunctions	modules/good/rustdoc-rs/src/pricing/model/money.rs:9	Money	A model's own file holds constants and invariant construction/accessors; rules live in util (arch-domain.rs.md)
+ModelDerives	modules/good/rustdoc-rs/src/user/model/user.rs:4	good_rustdoc_rs::user::model::user::User	Derive Hash on this model struct (arch-domain.rs.md)
+ErrorFamilyShape	modules/good/rustdoc-rs/src/user/model/user_error.rs:1	good_rustdoc_rs::user::model::UserError	an error enum derives Debug + thiserror::Error, labels each variant, and boxes source errors as dyn Error + Send + Sync
+ModelDerives	modules/good/testing-rs-1/src/order/model/create_order_command.rs:4	good_testing_rs_1::order::model::create_order_command::CreateOrderCommand	Derive Hash on this model struct (arch-domain.rs.md)
+ModelDerives	modules/good/testing-rs-1/src/user/model/user.rs:4	good_testing_rs_1::user::model::user::User	Derive Hash on this model struct (arch-domain.rs.md)
+ModelDerives	modules/good/time-api-rs/src/session/model/session.rs:3	good_time_api_rs::session::model::session::Session	Derive Debug, Clone, PartialEq, Eq, Hash on this model struct (arch-domain.rs.md)
+KindShape	modules/probe/std/src/lib.rs:1	probe::probe_mod_rs	a concept holds kind blocks; files live in a named kind
+RootFileShape	modules/probe/std/src/lib.rs:1	probe	the root file holds only the module tree and the items the platform calls
+KindShape	modules/probe/std/src/lib.rs:2	probe::probe_named	a concept holds kind blocks; files live in a named kind
+RootFileShape	modules/probe/std/src/lib.rs:2	probe	the root file holds only the module tree and the items the platform calls
+KindShape	modules/probe/std/src/lib.rs:3	probe::probes	a concept holds kind blocks; files live in a named kind
+RootFileShape	modules/probe/std/src/lib.rs:3	probe	the root file holds only the module tree and the items the platform calls
+ReExportShape	modules/probe/std/src/probe_mod_rs/mod.rs:1	probe_mod_rs	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+RootFileShape	modules/probe/std/src/probe_named.rs:1	probe::probe_named	only the crate root declares modules
+ReExportShape	modules/probe/std/src/probe_named/child.rs:1	probe_child	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:6	probe_unwrap_used	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:10	probe_expect_used	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:14	probe_print_stdout	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:18	probe_print_stderr	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:22	probe_dbg_macro	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:26	probe_allow_attributes	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ExpectScope	modules/probe/std/src/probes.rs:29	probe::probes	Expect only a prescribed lint on the smallest item, never an inner attribute or module (notes.rs.md)
+ReExportShape	modules/probe/std/src/probes.rs:32	probe_let_underscore_must_use	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:36	probe_unused_result_ok	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:40	probe_undocumented_unsafe_blocks	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+UnsafePlacement	modules/probe/std/src/probes.rs:41	modules/probe/std/src/probes.rs	Keep unsafe code behind a safe technology implementation (arch-package.rs.md)
+UnsafePlacement	modules/probe/std/src/probes.rs:44	modules/probe/std/src/probes.rs	Keep unsafe code behind a safe technology implementation (arch-package.rs.md)
+UnsafePlacement	modules/probe/std/src/probes.rs:46	modules/probe/std/src/probes.rs	Keep unsafe code behind a safe technology implementation (arch-package.rs.md)
+ReExportShape	modules/probe/std/src/probes.rs:49	probe_redundant_closure_for_method_calls	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+LockChoice	modules/probe/std/src/probes.rs:53	probe::probes	Follow the LockChoice typed runtime requirement (async.rs.md; time-api.rs.md)
+ReExportShape	modules/probe/std/src/probes.rs:53	probe_std_mutex	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+LockChoice	modules/probe/std/src/probes.rs:57	probe::probes	Follow the LockChoice typed runtime requirement (async.rs.md; time-api.rs.md)
+ReExportShape	modules/probe/std/src/probes.rs:57	probe_std_rw_lock	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:61	probe_poison_error	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:65	probe_thread_spawn	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:70	probe_thread_builder_spawn	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:75	probe_io_stdout	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:79	probe_io_stderr	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:83	probe_system_time_now	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/probe/std/src/probes.rs:84	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
+ReExportShape	modules/probe/std/src/probes.rs:87	probe_system_time_elapsed	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/probe/std/src/probes.rs:88	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
+ReExportShape	modules/probe/std/src/probes.rs:91	probe_await_holding_watch_ref	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:97	probe_watch_sender_send	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:101	probe_unreachable_pub	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:103	probe_unexpected_cfgs	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:106	probe_silent_klibs_rules_cfg	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+UnfulfilledExpectation	modules/probe/std/src/probes.rs:106	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
+UnfulfilledExpectation	modules/probe/std/src/probes.rs:121	Unanalysable	no `Unanalysable` finding is anchored in the scope of this exception
+ReExportShape	modules/probe/std/src/probes.rs:130	probe_excessive_nesting	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/std/src/probes.rs:146	probe_too_many_lines	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ModuleVisibility	modules/probe/std/src/probes.rs:211	probe::probes::tests	module visibility must be Crate (arch-package.rs.md, Modules and directories)
+PluralPackageName	modules/probe/std/src/probes.rs:211	probe::probes::tests	name a concept in the singular, or declare its project word in plural-concepts
+RootFileShape	modules/probe/std/src/probes.rs:211	probe::probes	only the crate root declares modules
+TestMirror	modules/probe/std/src/probes.rs:211	probe::probes	tests live in the root test block; path attributes belong only to the root test and fixture blocks
+TestMirror	modules/probe/std/src/probes.rs:213	probe::probes	tests live in the root test block; path attributes belong only to the root test and fixture blocks
+TestFunctionName	modules/probe/std/src/probes.rs:214	probe::probes::tests::probe_silent_allow_unwrap_in_tests	Use given_<state>_when_<action>_then_<outcome> for a test (testing.rs.md)
+TestMirror	modules/probe/std/src/probes.rs:219	probe::probes	tests live in the root test block; path attributes belong only to the root test and fixture blocks
+TestFunctionName	modules/probe/std/src/probes.rs:220	probe::probes::tests::probe_silent_allow_expect_in_tests	Use given_<state>_when_<action>_then_<outcome> for a test (testing.rs.md)
+KindShape	modules/probe/time/src/lib.rs:1	probe_time::probes	a concept holds kind blocks; files live in a named kind
+RootFileShape	modules/probe/time/src/lib.rs:1	probe_time	the root file holds only the module tree and the items the platform calls
+ReExportShape	modules/probe/time/src/probes.rs:1	probe_chrono_utc_now	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/probe/time/src/probes.rs:2	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
+ReExportShape	modules/probe/time/src/probes.rs:5	probe_chrono_local_now	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/probe/time/src/probes.rs:6	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
+ReExportShape	modules/probe/time/src/probes.rs:9	probe_jiff_timestamp_now	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/probe/time/src/probes.rs:10	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
+ReExportShape	modules/probe/time/src/probes.rs:13	probe_jiff_zoned_now	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/probe/time/src/probes.rs:14	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
+ReExportShape	modules/probe/time/src/probes.rs:17	probe_time_offset_date_time_now_utc	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/probe/time/src/probes.rs:18	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
+ReExportShape	modules/probe/time/src/probes.rs:21	probe_time_offset_date_time_now_local	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/probe/time/src/probes.rs:22	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
+ReExportShape	modules/probe/time/src/probes.rs:25	probe_time_utc_date_time_now	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+SystemClockOutsideDi	modules/probe/time/src/probes.rs:26	SystemTime::now	only SystemClock reads the wall clock; other code receives a Clock
+ReExportShape	modules/probe/time/src/probes.rs:29	probe_deprecated_chrono_utc_today	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/probe/time/src/probes.rs:33	probe_deprecated_chrono_local_today	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block

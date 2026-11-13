@@ -1,0 +1,1 @@
+modules/sample/Cargo.toml:6: `role` must be a string

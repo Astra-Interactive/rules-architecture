@@ -1,0 +1,10 @@
+[package]
+name = "good-arch-package-rs-tree"
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+
+[lints]
+workspace = true

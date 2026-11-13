@@ -1,0 +1,14 @@
+[package]
+name = "consumer"
+edition = "2024"
+
+[dependencies]
+provider = { path = "../provider" }
+[build-dependencies]
+provider = { path = "../provider" }
+[dev-dependencies]
+provider = { path = "../provider" }
+
+[lints]
+workspace = true
+

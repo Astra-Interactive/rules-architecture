@@ -1,0 +1,261 @@
+use crate::check::model::RuleContext;
+use crate::module::util::resolved_di_type;
+use crate::source::util::find_node_span;
+use crate::source::util::parse_macro_arguments;
+use std::collections::HashMap;
+use syn::spanned::Spanned;
+use syn::visit::Visit;
+
+pub(crate) struct RootConstructionVisitor<'context> {
+    context: &'context RuleContext,
+    ordinal: usize,
+    module: usize,
+    invalid: Vec<crate::source::model::NodeSpan>,
+    typed_names: HashMap<String, syn::Type>,
+}
+
+impl<'context> RootConstructionVisitor<'context> {
+    fn peel_reference(typed: &syn::Type) -> &syn::Type {
+        match typed {
+            syn::Type::Reference(reference) => Self::peel_reference(&reference.elem),
+            other => other,
+        }
+    }
+
+    fn returns_service(&self, ordinal: usize, module: usize, method: &syn::ImplItemFn) -> bool {
+        let syn::ReturnType::Type(_, returned) = &method.sig.output else {
+            return false;
+        };
+        let is_self =
+            matches!(returned.as_ref(), syn::Type::Path(path) if path.path.is_ident("Self"));
+        is_self
+            || self
+                .context
+                .resolve_workspace_type(ordinal, module, returned)
+                .iter()
+                .any(|value| !resolved_di_type(self.context, value))
+    }
+
+    fn builds_service(&self, call: &syn::ExprMethodCall) -> bool {
+        let syn::Expr::Path(receiver) = call.receiver.as_ref() else {
+            return false;
+        };
+        let Some(typed) = receiver
+            .path
+            .get_ident()
+            .and_then(|name| self.typed_names.get(&name.to_string()))
+        else {
+            return false;
+        };
+        let typed = Self::peel_reference(typed);
+        self.context
+            .resolve_workspace_type(self.ordinal, self.module, typed)
+            .iter()
+            .filter(|target| !resolved_di_type(self.context, target))
+            .any(|target| {
+                let Some(identity) = target.path.item else {
+                    return false;
+                };
+                let index = &self.context.indexes[target.index];
+                index
+                    .implementations
+                    .iter()
+                    .filter(|implementation| {
+                        implementation.syntax.trait_.is_none()
+                            && crate::module::util::owns_implementation(index, identity, implementation)
+                    })
+                    .any(|implementation| {
+                        implementation.syntax.items.iter().any(|member| {
+                            matches!(member, syn::ImplItem::Fn(method)
+                                if method.sig.ident == call.method
+                                    && method.sig.receiver().is_some()
+                                    && self.returns_service(target.index, implementation.module, method))
+                        })
+                    })
+            })
+    }
+
+    fn associated_factory(&self, path: &syn::Path) -> bool {
+        let Some(name) = path
+            .segments
+            .last()
+            .map(|segment| segment.ident.to_string())
+        else {
+            return false;
+        };
+        let mut owner = path.clone();
+        owner.segments.pop();
+        owner.segments.pop_punct();
+        self.context.resolve_workspace_path(self.ordinal, self.module, &owner).iter().any(|target| {
+            let Some(identity) = target.path.item else { return false; };
+            if resolved_di_type(self.context, target) { return false; }
+            let index = &self.context.indexes[target.index];
+            index.implementations.iter().filter(|implementation| crate::module::util::owns_implementation(index, identity, implementation)).any(|implementation| implementation.syntax.items.iter().any(|member| {
+                let syn::ImplItem::Fn(method) = member else { return false; };
+                if method.sig.ident != name || method.sig.receiver().is_some() { return false; }
+                let syn::ReturnType::Type(_, typed) = &method.sig.output else { return false; };
+                matches!(typed.as_ref(), syn::Type::Path(path) if path.path.is_ident("Self")) || self.context.resolve_workspace_type(target.index, implementation.module, typed).iter().any(|value| value.index == target.index && value.path.item == Some(identity))
+            }))
+        })
+    }
+
+    fn list_external_packages(&self, path: &syn::Path) -> Vec<String> {
+        self.context
+            .resolve_external_call_paths(self.ordinal, self.module, path)
+            .into_iter()
+            .map(|target| target.package)
+            .collect()
+    }
+
+    fn is_dependency_call(&self, path: &syn::Path) -> bool {
+        let mut owner = path.clone();
+        owner.segments.pop();
+        owner.segments.pop_punct();
+        let in_workspace = !self
+            .context
+            .resolve_workspace_path(self.ordinal, self.module, path)
+            .is_empty()
+            || (!owner.segments.is_empty()
+                && !self
+                    .context
+                    .resolve_workspace_path(self.ordinal, self.module, &owner)
+                    .is_empty());
+        !in_workspace
+            && self
+                .list_external_packages(path)
+                .iter()
+                .any(|package| !["std", "core", "alloc"].contains(&package.as_str()))
+    }
+
+    fn invalid_call(&self, call: &syn::ExprCall) -> bool {
+        let syn::Expr::Path(callee) = call.func.as_ref() else {
+            return false;
+        };
+        if self.is_dependency_call(&callee.path) {
+            return true;
+        }
+        let mut path = callee.path.clone();
+        let constructor = path.segments.last().is_some_and(|segment| {
+            let name = segment.ident.to_string();
+            name == "new"
+                || name == "default"
+                || name.starts_with("with_")
+                || name.starts_with("from_")
+        });
+        let qualified = path.segments.len() >= 2;
+        if !qualified || !constructor {
+            return (qualified && self.associated_factory(&path))
+                || self
+                    .context
+                    .resolve_workspace_path(self.ordinal, self.module, &path)
+                    .iter()
+                    .any(|target| {
+                        let Some(identity) = target.path.item else {
+                            return false;
+                        };
+                        let item = &self.context.indexes[target.index].items[identity];
+                        let syn::Item::Fn(function) = &item.syntax else {
+                            return false;
+                        };
+                        let syn::ReturnType::Type(_, typed) = &function.sig.output else {
+                            return false;
+                        };
+                        self.context
+                            .resolve_workspace_type(target.index, item.module, typed)
+                            .iter()
+                            .any(|value| !resolved_di_type(self.context, value))
+                    });
+        }
+        path.segments.pop();
+        path.segments.pop_punct();
+        let targets = self
+            .context
+            .resolve_workspace_path(self.ordinal, self.module, &path);
+        targets.is_empty()
+            || targets
+                .iter()
+                .any(|target| !resolved_di_type(self.context, target))
+    }
+    pub(crate) fn collect(
+        context: &'context RuleContext,
+        ordinal: usize,
+        module: usize,
+        method: &syn::ImplItemFn,
+    ) -> Vec<crate::source::model::NodeSpan> {
+        let typed_names = method
+            .sig
+            .inputs
+            .iter()
+            .filter_map(|input| match input {
+                syn::FnArg::Typed(parameter) => match parameter.pat.as_ref() {
+                    syn::Pat::Ident(name) => {
+                        Some((name.ident.to_string(), (*parameter.ty).clone()))
+                    }
+                    _ => None,
+                },
+                syn::FnArg::Receiver(_) => None,
+            })
+            .collect();
+        let mut visitor = Self {
+            context,
+            ordinal,
+            module,
+            invalid: Vec::new(),
+            typed_names,
+        };
+        visitor.visit_block(&method.block);
+        visitor.invalid
+    }
+}
+
+impl<'ast> Visit<'ast> for RootConstructionVisitor<'_> {
+    fn visit_macro(&mut self, item: &'ast syn::Macro) {
+        for argument in &parse_macro_arguments(item) {
+            self.visit_expr(argument);
+        }
+    }
+
+    fn visit_expr_struct(&mut self, expression: &'ast syn::ExprStruct) {
+        if self
+            .context
+            .resolve_workspace_path(self.ordinal, self.module, &expression.path)
+            .iter()
+            .any(|target| !resolved_di_type(self.context, target))
+        {
+            self.invalid.push(find_node_span(expression.span()));
+        }
+        syn::visit::visit_expr_struct(self, expression);
+    }
+
+    fn visit_expr_path(&mut self, expression: &'ast syn::ExprPath) {
+        if self.context.resolve_workspace_path(self.ordinal, self.module, &expression.path).iter().any(|target| target.path.item.is_some_and(|identity| matches!(&self.context.indexes[target.index].items[identity].syntax, syn::Item::Struct(structure) if matches!(structure.fields, syn::Fields::Unit))) && !resolved_di_type(self.context, target)) {
+            self.invalid.push(find_node_span(expression.span()));
+        }
+    }
+
+    fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+        if self.invalid_call(call) {
+            self.invalid.push(find_node_span(call.span()));
+        }
+        for argument in &call.args {
+            self.visit_expr(argument);
+        }
+    }
+
+    fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+        if self.builds_service(call) {
+            self.invalid.push(find_node_span(call.span()));
+        }
+        syn::visit::visit_expr_method_call(self, call);
+    }
+
+    fn visit_local(&mut self, local: &'ast syn::Local) {
+        syn::visit::visit_local(self, local);
+        if let syn::Pat::Type(typed) = &local.pat
+            && let syn::Pat::Ident(name) = typed.pat.as_ref()
+        {
+            self.typed_names
+                .insert(name.ident.to_string(), (*typed.ty).clone());
+        }
+    }
+}

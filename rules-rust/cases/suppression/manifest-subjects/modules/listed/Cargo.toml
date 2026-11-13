@@ -1,0 +1,9 @@
+[package]
+name = "case-listed"
+edition = "2024"
+
+[package.metadata.klibs-rules.checks.disabled.UnitReadme]
+"case-listed" = "reported to klibs-rules as #13: a fixture of the manifest form"
+
+[lints]
+workspace = true

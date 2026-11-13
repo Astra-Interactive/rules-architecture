@@ -1,0 +1,12 @@
+[package]
+name = "consumer"
+edition = "2024"
+
+[dependencies]
+engine = { package = "framework-host", path = "../host" }
+database = { package = "sqlx", path = "../database" }
+calendar = { package = "chrono", path = "../clock" }
+bridge = { package = "adapter-api", path = "../facade" }
+
+[features]
+native = []

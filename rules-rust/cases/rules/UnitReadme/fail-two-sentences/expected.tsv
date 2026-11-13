@@ -1,0 +1,1 @@
+UnitReadme	modules/sample/README.md	case-sample	README.md of modules/sample has 2 sentences, expected one: a responsibility that does not fit one sentence is the signal to split the unit.

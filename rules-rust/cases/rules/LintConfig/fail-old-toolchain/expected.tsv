@@ -1,0 +1,2 @@
+LintConfig	.cargo/config.toml:2	.cargo/config.toml rustflags -A	rustflags may not set `--cfg klibs_rules` or lower lints
+LintConfig	rust-toolchain.toml:2	rust-toolchain.toml channel	"1.90.0" is not a stable toolchain at or above the floor 1.93.0

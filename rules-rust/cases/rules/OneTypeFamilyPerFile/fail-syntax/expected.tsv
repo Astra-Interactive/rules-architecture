@@ -1,0 +1,3 @@
+ModelDerives	modules/sample/src/sample/model/subject.rs:1	case_sample::sample::model::subject::Subject	Derive Debug, Clone, PartialEq, Eq, Hash on this model struct (arch-domain.rs.md)
+ModelDerives	modules/sample/src/sample/model/subject.rs:2	case_sample::sample::model::subject::Other	Derive Debug, Clone, PartialEq, Eq, Hash on this model struct (arch-domain.rs.md)
+OneTypeFamilyPerFile	modules/sample/src/sample/model/subject.rs:2	case_sample::sample::model::subject::Other	Keep only the primary type and plain data types declared after their users in its file (arch-package.rs.md)

@@ -1,0 +1,10 @@
+[package]
+name = "gamma"
+edition = "2024"
+
+[dev-dependencies]
+alpha = { path = "../alpha" }
+
+[lints]
+workspace = true
+

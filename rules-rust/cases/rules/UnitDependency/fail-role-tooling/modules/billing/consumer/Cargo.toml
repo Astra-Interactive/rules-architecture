@@ -1,0 +1,12 @@
+[package]
+name = "case-billing-consumer"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[package.metadata.klibs-rules]
+role = "tooling"
+
+[dependencies]
+case-billing-provider = { path = "../provider" }

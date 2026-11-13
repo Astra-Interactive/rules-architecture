@@ -1,0 +1,11 @@
+[package]
+name = "custom-bin"
+edition = "2024"
+
+[[bin]]
+name = "custom-bin"
+path = "run.rs"
+
+[lints]
+workspace = true
+

@@ -1,0 +1,20 @@
+[package]
+name = "sample"
+edition = { workspace = true }
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+leaf.workspace = true
+[dev-dependencies]
+leaf.workspace = true
+[build-dependencies]
+leaf.workspace = true
+[target.'cfg(windows)'.dependencies]
+leaf.workspace = true
+
+[lints]
+workspace = true
+

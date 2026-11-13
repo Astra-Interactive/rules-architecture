@@ -1,0 +1,10 @@
+[package]
+name = "shop-billing-api"
+edition.workspace = true
+publish.workspace = true
+
+[features]
+fake = []
+
+[lints]
+workspace = true

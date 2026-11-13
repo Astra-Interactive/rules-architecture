@@ -1,0 +1,33 @@
+ContractShape	modules/sample/src/lib.rs:2	case_sample::api::Repository	Declare contracts as non-generic Send + Sync traits, with async_trait for async methods (arch-domain.rs.md)
+RootFileShape	modules/sample/src/lib.rs:2	case_sample	a module block in the root file holds only use and mod items
+ModelDerives	modules/sample/src/model/invoice.rs:1	case_sample::model::invoice::Invoice	Derive Debug, Clone, PartialEq, Eq, Hash on this model struct (arch-domain.rs.md)
+NamespaceType	modules/sample/src/model/invoice.rs:1	case_sample::model::invoice::Invoice	Use module functions instead of a fieldless namespace type (arch-package.rs.md)
+KindImportDirection	modules/sample/src/util/invoice_ext.rs:1	util::invoice_ext	This kind may not use `api` (arch-context.md, Direction and enforcement)
+KindImportDirection	modules/sample/src/util/invoice_ext.rs:5	util::invoice_ext	This kind may not use `api` (arch-context.md, Direction and enforcement)
+UtilShape	modules/sample/src/util/invoice_ext.rs:5	case_sample::util::settle	a util function takes no contract of the project; a use case or an implementation calls it
+VisibilityTier	modules/sample/src/util/invoice_ext.rs:5	Invoice	A crate-visible method used only in the file of its type is private
+KindImportDirection	modules/sample/src/util/repository_scan.rs:1	util::repository_scan	This kind may not use `api` (arch-context.md, Direction and enforcement)
+KindImportDirection	modules/sample/src/util/repository_scan.rs:4	util::repository_scan	This kind may not use `api` (arch-context.md, Direction and enforcement)
+ReExportShape	modules/sample/src/util/repository_scan.rs:4	load_all	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+UtilShape	modules/sample/src/util/repository_scan.rs:4	case_sample::util::load_all	a util function takes no contract of the project; a use case or an implementation calls it
+VisibilityTier	modules/sample/src/util/repository_scan.rs:4	load_all	visibility follows the actual workspace users of the item
+KindImportDirection	modules/sample/src/util/repository_scan.rs:6	util::repository_scan	This kind may not use `api` (arch-context.md, Direction and enforcement)
+ReExportShape	modules/sample/src/util/repository_scan.rs:6	store_all	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+UtilShape	modules/sample/src/util/repository_scan.rs:6	case_sample::util::store_all	a util function takes no contract of the project; a use case or an implementation calls it
+VisibilityTier	modules/sample/src/util/repository_scan.rs:6	store_all	visibility follows the actual workspace users of the item
+KindImportDirection	modules/sample/src/util/repository_scan.rs:8	util::repository_scan	This kind may not use `api` (arch-context.md, Direction and enforcement)
+ReExportShape	modules/sample/src/util/repository_scan.rs:8	drop_all	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+UtilShape	modules/sample/src/util/repository_scan.rs:8	case_sample::util::drop_all	a util function takes no contract of the project; a use case or an implementation calls it
+VisibilityTier	modules/sample/src/util/repository_scan.rs:8	drop_all	visibility follows the actual workspace users of the item
+KindImportDirection	modules/sample/src/util/repository_scan.rs:10	util::repository_scan	This kind may not use `api` (arch-context.md, Direction and enforcement)
+ReExportShape	modules/sample/src/util/repository_scan.rs:10	scan_all	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+UtilShape	modules/sample/src/util/repository_scan.rs:10	case_sample::util::scan_all	a util function takes no contract of the project; a use case or an implementation calls it
+VisibilityTier	modules/sample/src/util/repository_scan.rs:10	scan_all	visibility follows the actual workspace users of the item
+KindImportDirection	modules/sample/src/util/repository_scan.rs:12	util::repository_scan	This kind may not use `api` (arch-context.md, Direction and enforcement)
+ReExportShape	modules/sample/src/util/repository_scan.rs:12	walk_all	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+UtilShape	modules/sample/src/util/repository_scan.rs:12	case_sample::util::walk_all	a util function takes no contract of the project; a use case or an implementation calls it
+VisibilityTier	modules/sample/src/util/repository_scan.rs:12	walk_all	visibility follows the actual workspace users of the item
+ReExportShape	modules/sample/src/util/repository_scan.rs:14	sweep_all	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+UtilShape	modules/sample/src/util/repository_scan.rs:14	case_sample::util::sweep_all	a util function takes no contract of the project; a use case or an implementation calls it
+VisibilityTier	modules/sample/src/util/repository_scan.rs:14	sweep_all	visibility follows the actual workspace users of the item
+KindImportDirection	modules/sample/src/util/repository_scan.rs:16	util::repository_scan	This kind may not use `api` (arch-context.md, Direction and enforcement)

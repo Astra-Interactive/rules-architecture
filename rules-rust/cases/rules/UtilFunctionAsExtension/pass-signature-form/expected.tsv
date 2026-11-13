@@ -1,0 +1,6 @@
+NamespaceType	modules/sample/src/model/claim.rs:1	case_sample::model::claim::Claim	Use module functions instead of a fieldless namespace type (arch-package.rs.md)
+VisibilityTier	modules/sample/src/util/claim_ext.rs:3	Claim	A crate-visible method used only in the file of its type is private
+VisibilityTier	modules/sample/src/util/claim_ext.rs:4	Claim	A crate-visible method used only in the file of its type is private
+VisibilityTier	modules/sample/src/util/claim_ext.rs:5	Claim	A crate-visible method used only in the file of its type is private
+ReExportShape	modules/sample/src/util/claim_rules.rs:2	is_covered	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/util/claim_rules.rs:2	is_covered	visibility follows the actual workspace users of the item

@@ -1,0 +1,1 @@
+ModelDerives	modules/sample/src/sample/model/subject.rs:1	case_sample::sample::model::subject::Subject	Derive Debug, Clone, PartialEq, Eq, Hash on this model struct (arch-domain.rs.md)

@@ -1,0 +1,6 @@
+RootPackagePath	Cargo.toml	.	set `[workspace.metadata.klibs-rules] prefix`: member names give no unique prefix
+CrateTargets	instances/custom/run.rs	custom-bin custom-bin	a binary target starts at src/main.rs
+MainShape	instances/custom/run.rs:1	custom_bin::main	entry main builds a runtime, constructs/enables the root in one block_on, then disables it synchronously
+CrateTargets	modules/mixed/source/library.rs	mixed mixed	a library target starts at src/lib.rs
+CrateTargets	modules/mixed/src/bin/extra.rs	mixed mixed-extra	a binary target starts at src/main.rs; a crate is a library or a binary, never both; several binaries are separate entry-point crates; src/bin/ is not used
+CrateTargets	modules/mixed/src/main.rs	mixed mixed-main	a crate is a library or a binary, never both; several binaries are separate entry-point crates

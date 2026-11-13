@@ -1,0 +1,1 @@
+modules/sample/Cargo.toml:6: unknown role "fake"; roles: tooling, proc-macro, entry-point, core-ui, core-platform, core-api, core, contract, storage-contract, api, impl, impl-ui, platform, technology, context

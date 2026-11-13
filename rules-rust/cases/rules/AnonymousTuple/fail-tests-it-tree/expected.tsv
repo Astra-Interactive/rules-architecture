@@ -1,0 +1,13 @@
+LintConfig	Cargo.toml	[workspace] resolver	`resolver = "3"` keeps dependency versions within the project's Rust version
+MainShape	instances/cli/src/main.rs:1	case_cli::main	entry main builds a runtime, constructs/enables the root in one block_on, then disables it synchronously
+KindShape	modules/macros/src/lib.rs:2	case_macros::expand::expansion	a concept holds kind blocks; files live in a named kind
+AnonymousTuple	modules/macros/tests/it/derive/derive_test.rs:3	case_macros::derive::derive_test	a tuple of 2 elements as a type: use a struct with named fields (no-tuples.rs.md)
+AnonymousTuple	modules/macros/tests/it/derive/derive_test.rs:3	case_macros::derive::derive_test	destructure a tuple where it appears instead of binding anonymous domain data to one name
+KindShape	modules/macros/tests/it/main.rs:2	case_macros::derive::derive_test	a concept holds kind blocks; files live in a named kind
+TestMirror	modules/macros/tests/it/main.rs:2	case_macros::derive::derive_test	the test file has no source file at its mirrored src path
+FakePlacement	modules/sample/Cargo.toml	case-sample features.fake	The fixture block and an empty fake = [] feature must be declared together (arch-package.rs.md)
+RootFileShape	modules/sample/src/build/kept.rs	modules/sample/src/build/kept.rs	no module tree declares this Rust source file
+ModuleVisibility	modules/sample/src/lib.rs:3	case_sample::fixture	module visibility must be Crate (arch-package.rs.md, Modules and directories)
+ModuleVisibility	modules/sample/src/lib.rs:6	case_sample::fixture::sample	module visibility must be Crate (arch-package.rs.md, Modules and directories)
+ModuleVisibility	modules/sample/src/lib.rs:7	case_sample::fixture::sample::fake	module visibility must be Crate (arch-package.rs.md, Modules and directories)
+TestMirror	modules/sample/src/lib.rs:18	case_sample::test::sample::usecase::sample_test	the test file has no source file at its mirrored src path

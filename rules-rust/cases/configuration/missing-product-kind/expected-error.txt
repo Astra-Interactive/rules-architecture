@@ -1,0 +1,1 @@
+Cargo.toml:5: `product-kind` is required: "app" or "platform-plugin"

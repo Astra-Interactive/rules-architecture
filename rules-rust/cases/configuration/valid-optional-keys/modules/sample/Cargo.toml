@@ -1,0 +1,13 @@
+[package]
+name = "case-sample"
+edition = "2024"
+
+[package.metadata.klibs-rules]
+role = "impl-ui"
+composition = "host"
+implementation-access = "none"
+technology-words = ["mongo"]
+role-kinds = ["codec"]
+
+[lints]
+workspace = true

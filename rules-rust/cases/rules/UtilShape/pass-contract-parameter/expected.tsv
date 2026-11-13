@@ -1,0 +1,18 @@
+ContractShape	modules/sample/src/lib.rs:2	case_sample::api::Repository	Declare contracts as non-generic Send + Sync traits, with async_trait for async methods (arch-domain.rs.md)
+RootFileShape	modules/sample/src/lib.rs:2	case_sample	a module block in the root file holds only use and mod items
+VisibilityTier	modules/sample/src/lib.rs:2	Repository	visibility follows the actual workspace users of the item
+ModelDerives	modules/sample/src/model/invoice.rs:1	case_sample::model::invoice::Invoice	Derive Debug, Clone, PartialEq, Eq, Hash on this model struct (arch-domain.rs.md)
+NamespaceType	modules/sample/src/model/invoice.rs:1	case_sample::model::invoice::Invoice	Use module functions instead of a fieldless namespace type (arch-package.rs.md)
+VisibilityTier	modules/sample/src/util/invoice_ext.rs:5	Invoice	A crate-visible method used only in the file of its type is private
+ReExportShape	modules/sample/src/util/invoice_total.rs:6	compute_total	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+UtilFunctionAsExtension	modules/sample/src/util/invoice_total.rs:6	case_sample::util::compute_total	a one-model rule is an inherent extension method in util
+VisibilityTier	modules/sample/src/util/invoice_total.rs:6	compute_total	visibility follows the actual workspace users of the item
+ReExportShape	modules/sample/src/util/invoice_total.rs:10	read_moment	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/util/invoice_total.rs:10	read_moment	visibility follows the actual workspace users of the item
+ReExportShape	modules/sample/src/util/invoice_total.rs:12	run_step	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/util/invoice_total.rs:12	run_step	visibility follows the actual workspace users of the item
+LockChoice	modules/sample/src/util/invoice_total.rs:14	case_sample::util::invoice_total	Follow the LockChoice typed runtime requirement (async.rs.md; time-api.rs.md)
+ReExportShape	modules/sample/src/util/invoice_total.rs:14	count_all	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/util/invoice_total.rs:14	count_all	visibility follows the actual workspace users of the item
+ReExportShape	modules/sample/src/util/invoice_total.rs:16	apply_step	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/util/invoice_total.rs:16	apply_step	visibility follows the actual workspace users of the item

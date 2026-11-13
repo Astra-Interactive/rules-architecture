@@ -1,0 +1,2 @@
+PluginImplUnit	modules/sample/Cargo.toml	case-sample	a plugin sub-context is unsplit or api plus platform units; no impl/impl-ui sibling
+RootPackagePath	modules/sample/Cargo.toml:2	case-sample	name this crate `shop-sample` to match its unit path

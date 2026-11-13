@@ -1,0 +1,10 @@
+[package]
+name = "good-struct-default-values-rs"
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+
+[lints]
+workspace = true

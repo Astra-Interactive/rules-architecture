@@ -1,0 +1,4 @@
+CrateTargets	modules/sample/src/main.rs	case-sample case-sample	a crate is a library or a binary, never both
+RootFileShape	modules/sample/src/main.rs:1	case_sample	src/main.rs of a crate with src/lib.rs holds only use items and fn main; the module tree is declared in src/lib.rs
+ReExportShape	modules/sample/src/sample/util/pair_read.rs:1	read_pair	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/sample/util/pair_read.rs:1	read_pair	visibility follows the actual workspace users of the item

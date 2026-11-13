@@ -1,0 +1,5 @@
+[build]
+rustflags = ["--cap-lints", "warn"]
+
+[unstable]
+build-std = ["core"]

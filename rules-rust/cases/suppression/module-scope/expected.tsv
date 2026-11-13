@@ -1,0 +1,7 @@
+AnonymousTuple	modules/sample/src/lib.rs:3	case_sample::domain::Point	a tuple struct of 2 fields: name its fields (no-tuples.rs.md)
+RootFileShape	modules/sample/src/lib.rs:3	case_sample	a module block in the root file holds only use and mod items
+UnfulfilledExpectation	modules/sample/src/lib.rs:5	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
+MalformedExpectation	modules/sample/src/lib.rs:9	AnonymousTuple	an expectation at this position cannot hold any finding of `AnonymousTuple`
+AnonymousTuple	modules/sample/src/lib.rs:10	case_sample::shared::Pair	a tuple struct of 2 fields: name its fields (no-tuples.rs.md)
+RootFileShape	modules/sample/src/lib.rs:10	case_sample	a module block in the root file holds only use and mod items
+RootFileShape	modules/sample/src/lib.rs:12	case_sample	the root file holds only the module tree and the items the platform calls

@@ -1,0 +1,9 @@
+[package]
+name = "case-sample"
+edition = "2024"
+
+[package.metadata.klibs-rules]
+role = "fake"
+
+[lints]
+workspace = true

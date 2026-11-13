@@ -1,0 +1,12 @@
+Unanalysable	modules/sample/src/lib.rs:1	case_sample::declare_sample!	reported to klibs-rules as #1: a fixture of the suppression semantics
+WildcardImport	modules/sample/src/lib.rs:4	case_sample::sample use std::collections::*	reported to klibs-rules as #1: a fixture of the suppression semantics
+AnonymousTuple	modules/sample/src/lib.rs:7	case_sample::sample	reported to klibs-rules as #1: a fixture of the suppression semantics
+AnonymousTuple	modules/sample/src/lib.rs:11	case_sample::sample::Segment	reported to klibs-rules as #1: a fixture of the suppression semantics
+AnonymousTuple	modules/sample/src/lib.rs:14	case_sample::sample	reported to klibs-rules as #1: a fixture of the suppression semantics
+AnonymousTuple	modules/sample/src/lib.rs:17	case_sample::sample	reported to klibs-rules as #1: a fixture of the suppression semantics
+AnonymousTuple	modules/sample/src/lib.rs:20	case_sample::sample	reported to klibs-rules as #1: a fixture of the suppression semantics
+AnonymousTuple	modules/sample/src/lib.rs:21	case_sample::sample	reported to klibs-rules as #1: a fixture of the suppression semantics
+AnonymousTuple	modules/sample/src/lib.rs:23	case_sample::sample	reported to klibs-rules as #1: a fixture of the suppression semantics
+AnonymousTuple	modules/sample/src/lib.rs:28	case_sample::sample	reported to klibs-rules as #1: a fixture of the suppression semantics
+AnonymousTuple	modules/sample/src/lib.rs:39	case_sample::sample	reported to klibs-rules as #22: the innermost expectation takes the finding
+AnonymousTuple	modules/sample/src/lib.rs:45	case_sample::sample	reported to klibs-rules as #1: a fixture of the suppression semantics

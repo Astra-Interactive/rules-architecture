@@ -1,0 +1,8 @@
+RootFileShape	modules/broken/src/lib.rs	modules/broken/src/lib.rs	no module tree declares this Rust source file
+Unanalysable	modules/broken/src/lib.rs	case-broken modules/broken/src/lib.rs	modules/broken/src/lib.rs does not parse: cannot parse string into token stream
+Unanalysable	modules/sample/src/lib.rs:2	case_sample::sample::broken_file	modules/sample/src/sample/broken_file.rs does not parse: cannot parse string into token stream
+Unanalysable	modules/sample/src/lib.rs:3	case_sample::sample::missing_file	no file for `mod missing_file;` under modules/sample/src/sample
+Unanalysable	modules/sample/src/lib.rs:4	case_sample::sample::platform	`cfg_attr(…, path = …)` hides which file the module loads
+Unanalysable	modules/sample/src/lib.rs:6	case_sample::sample::include!	`include!` at item position hides the items it loads
+Unanalysable	modules/sample/src/lib.rs:8	case_sample::generate_items!	the item macro `generate_items!` in the root file may generate items the linter cannot see
+RootFileShape	modules/sample/src/sample/broken_file.rs	modules/sample/src/sample/broken_file.rs	no module tree declares this Rust source file

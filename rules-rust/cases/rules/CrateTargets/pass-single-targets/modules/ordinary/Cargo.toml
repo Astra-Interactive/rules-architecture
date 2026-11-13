@@ -1,0 +1,8 @@
+[package]
+name = "ordinary"
+edition = "2024"
+
+
+[lints]
+workspace = true
+

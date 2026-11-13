@@ -1,0 +1,1 @@
+ClosureParameterName	modules/sample/src/sample/util/run.rs:1	case_sample::sample::util::run::x	Give a binding a descriptive name, never it or a one-letter closure parameter (closure-naming.rs.md)

@@ -1,0 +1,9 @@
+[package]
+name = "shop-core"
+edition = "2024"
+
+[dependencies]
+tracing.workspace = true
+
+[lints]
+workspace = true

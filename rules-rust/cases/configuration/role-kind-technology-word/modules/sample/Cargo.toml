@@ -1,0 +1,10 @@
+[package]
+name = "case-sample"
+edition = "2024"
+
+
+[lints]
+workspace = true
+
+[package.metadata.klibs-rules]
+technology-words = ["mongo"]

@@ -1,0 +1,12 @@
+[package]
+name = "good-error-handling-rs"
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

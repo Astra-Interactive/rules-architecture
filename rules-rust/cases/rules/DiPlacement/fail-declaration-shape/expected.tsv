@@ -1,0 +1,7 @@
+UtilFileName	modules/sample/src/lib.rs:2	case_sample::util::invoice_module	one type's extension blocks live in <type>_ext.rs; a free-function file names its operation
+DiPlacement	modules/sample/src/util/invoice_module.rs:1	case_sample::util::InvoiceModule	dependency wiring structs live in di
+NamespaceType	modules/sample/src/util/invoice_module.rs:1	case_sample::util::invoice_module::InvoiceModule	Use module functions instead of a fieldless namespace type (arch-package.rs.md)
+ReExportShape	modules/sample/src/util/invoice_module.rs:1	InvoiceModule	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+UtilShape	modules/sample/src/util/invoice_module.rs:1	case_sample::util::InvoiceModule	util holds functions and extension implementations, never data declarations
+VisibilityTier	modules/sample/src/util/invoice_module.rs:1	InvoiceModule	visibility follows the actual workspace users of the item
+VisibilityTier	modules/sample/src/util/invoice_module.rs:3	InvoiceModule	A crate-visible method used only in the file of its type is private

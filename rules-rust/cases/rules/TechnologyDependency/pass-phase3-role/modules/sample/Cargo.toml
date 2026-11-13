@@ -1,0 +1,12 @@
+[package]
+name = "case-sample"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[package.metadata.klibs-rules]
+role = "entry-point"
+
+[build-dependencies]
+store = { package = "sqlx", version = "0.8" }

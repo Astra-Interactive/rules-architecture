@@ -1,0 +1,6 @@
+ContractShape	modules/sample/src/api/invoice_repository.rs:1	case_sample::api::invoice_repository::InvoiceRepository	Declare contracts as non-generic Send + Sync traits, with async_trait for async methods (arch-domain.rs.md)
+CoreShape	modules/sample/src/api/invoice_repository.rs:1	case_sample::api::InvoiceRepository	core contains no repository contract
+ReExportShape	modules/sample/src/api/invoice_repository.rs:1	InvoiceRepository	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/api/invoice_repository.rs:1	InvoiceRepository	visibility follows the actual workspace users of the item
+CoreShape	modules/sample/src/lib.rs:1	case_sample::usecase	core contains no use-case kind
+KindShape	modules/sample/src/lib.rs:1	case_sample::usecase	a kind block is created with its first file, never empty

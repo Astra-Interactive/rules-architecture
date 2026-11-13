@@ -1,0 +1,1 @@
+Cargo.toml:7: `role-kinds` word "test" is a block name of the crate root; a role kind is a word of its own

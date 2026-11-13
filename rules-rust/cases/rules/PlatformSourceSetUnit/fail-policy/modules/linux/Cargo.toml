@@ -1,0 +1,6 @@
+[package]
+name = "case-linux"
+edition = "2024"
+
+[lints]
+workspace = true

@@ -1,0 +1,8 @@
+[package]
+name = "gamma"
+edition = "2024"
+
+
+[lints]
+workspace = true
+

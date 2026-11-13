@@ -1,0 +1,8 @@
+[workspace]
+resolver = "3"
+members = ["modules/owner", "modules/host", "modules/database", "modules/clock", "modules/facade"]
+
+[workspace.metadata.klibs-rules]
+product-kind = "app"
+platform-words = ["host"]
+technology-words = ["sqlx"]

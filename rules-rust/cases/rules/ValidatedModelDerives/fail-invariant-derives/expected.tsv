@@ -1,0 +1,4 @@
+StructDefaultValue	modules/sample/src/model/level.rs:1	case_sample::model::level	Pass struct and enum values explicitly instead of providing Default (struct-default-values.rs.md)
+ValidatedModelDerives	modules/sample/src/model/level.rs:2	case_sample::model::Level	A type checked by TryFrom does not derive Default: Default builds the value without its check (arch-domain.rs.md)
+ValidatedModelDerives	modules/sample/src/model/money.rs:2	case_sample::model::Money	A type checked by TryFrom that derives Deserialize carries #[serde(try_from = "Raw")]: a derived deserializer builds the value without its check (arch-domain.rs.md)
+BareIdentifier	modules/sample/src/model/money_parts.rs:2	case_sample::model::money_parts::MoneyParts	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)

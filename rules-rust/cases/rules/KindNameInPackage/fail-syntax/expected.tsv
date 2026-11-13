@@ -1,0 +1,2 @@
+KindNameInPackage	modules/sample/src/sample/model/subject_helper.rs:1	case_sample::sample::model::subject_helper::SubjectHelper	Name a type by its role without a utility suffix or a repeated domain model kind (clean-code.rs.md; arch-package.md)
+ModelDerives	modules/sample/src/sample/model/subject_helper.rs:1	case_sample::sample::model::subject_helper::SubjectHelper	Derive Debug, Clone, PartialEq, Eq, Hash on this model struct (arch-domain.rs.md)

@@ -1,0 +1,3 @@
+AnonymousTuple	modules/sample/src/sample/checks.rs:15	case_sample::sample::checks	reported to klibs-rules as #4: the first of two
+AnonymousTuple	modules/sample/src/sample/checks.rs:18	case_sample::sample::checks	reported to klibs-rules as #5: one id twice
+RootFileShape	modules/sample/src/stray.rs:1	modules/sample/src/stray.rs	reported to klibs-rules as #12: an undeclared file

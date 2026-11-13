@@ -1,0 +1,8 @@
+[package]
+name = "xtask"
+edition = "2024"
+
+
+[lints]
+workspace = true
+

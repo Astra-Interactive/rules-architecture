@@ -1,0 +1,1 @@
+TestFunctionName	modules/sample/test/sample/util/run_test.rs:2	case_sample::test::sample::util::run_test::run	Use given_<state>_when_<action>_then_<outcome> for a test (testing.rs.md)

@@ -1,0 +1,3 @@
+modules/sample/src/lib.rs:1 case_sample::invoice
+modules/sample/src/lib.rs:2 case_sample::invoice::loose
+modules/sample/src/lib.rs:3 case_sample::invoice::model

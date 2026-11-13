@@ -1,0 +1,1 @@
+modules/sample/Cargo.toml:6: `host-items` is taken only by a crate whose role is entry-point

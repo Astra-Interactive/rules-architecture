@@ -1,0 +1,9 @@
+[package]
+name = "case-macros"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[lib]
+proc-macro = true

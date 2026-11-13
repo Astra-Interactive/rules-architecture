@@ -1,0 +1,9 @@
+[package]
+name = "xtask"
+edition = "2024"
+
+[dependencies]
+klibs-rules = { path = "../../../../modules/rules" }
+
+[lints]
+workspace = true

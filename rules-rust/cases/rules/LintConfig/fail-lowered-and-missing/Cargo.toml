@@ -1,0 +1,29 @@
+[workspace]
+resolver = "2"
+members = ["modules/sample", "modules/nested"]
+
+[workspace.metadata.klibs-rules]
+product-kind = "app"
+
+[workspace.lints.rust]
+dead_code = "allow"
+unreachable_pub = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(docsrs)"] }
+
+[workspace.lints.clippy]
+mod_module_files = "warn"
+self_named_module_files = "warn"
+let_underscore_must_use = "warn"
+unused_result_ok = "warn"
+unwrap_used = "allow"
+expect_used = "warn"
+print_stdout = "warn"
+print_stderr = "warn"
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+too_many_lines = "warn"
+undocumented_unsafe_blocks = "warn"
+redundant_closure_for_method_calls = "warn"
+all = { level = "allow", priority = 1 }
+wildcard_imports = "warn"
+enum_glob_use = "warn"

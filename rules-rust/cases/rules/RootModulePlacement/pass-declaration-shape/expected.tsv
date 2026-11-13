@@ -1,0 +1,1 @@
+ReExportShape	instances/runner/src/di/root_module.rs:1	RootModule	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block

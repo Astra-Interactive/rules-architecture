@@ -1,0 +1,1 @@
+Provides a role boundary.

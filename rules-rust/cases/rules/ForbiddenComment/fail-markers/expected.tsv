@@ -1,0 +1,8 @@
+ForbiddenComment	modules/sample/src/lib.rs:1	modules/sample/src/lib.rs	`region Helpers` is a region marker: region.md allows none in code written by hand
+ForbiddenComment	modules/sample/src/lib.rs:2	modules/sample/src/lib.rs	`=========` is a separator line: region.md allows none in code written by hand
+ForbiddenComment	modules/sample/src/lib.rs:3	modules/sample/src/lib.rs	`=== Helpers ===` is a section header: region.md allows none in code written by hand
+ForbiddenComment	modules/sample/src/lib.rs:5	modules/sample/src/lib.rs	`endregion` is a region marker: region.md allows none in code written by hand
+ForbiddenComment	modules/sample/src/lib.rs:6	modules/sample/src/lib.rs	`-----` is a separator line: region.md allows none in code written by hand
+RootFileShape	modules/sample/src/lib.rs:7	case_sample	a module block in the root file holds only use and mod items
+VisibilityTier	modules/sample/src/lib.rs:7	build_total	visibility follows the actual workspace users of the item
+ForbiddenComment	modules/sample/src/lib.rs:8	modules/sample/src/lib.rs	`#region` is a region marker: region.md allows none in code written by hand

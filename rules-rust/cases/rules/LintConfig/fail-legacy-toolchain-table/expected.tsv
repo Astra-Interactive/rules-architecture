@@ -1,0 +1,1 @@
+LintConfig	rust-toolchain:2	rust-toolchain channel	"beta" is not a stable toolchain at or above the floor 1.93.0

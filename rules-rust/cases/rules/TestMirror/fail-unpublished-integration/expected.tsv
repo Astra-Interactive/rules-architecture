@@ -1,0 +1,3 @@
+VisibilityTier	modules/invoice/src/invoice/util/invoice_load.rs:1	load_invoice	visibility follows the actual workspace users of the item
+ReExportShape	modules/invoice/src/lib.rs:3	load_invoice	re-export visibility follows whether another workspace crate names its target
+TestMirror	modules/invoice/tests	case-invoice tests	tests live in test/; only the public API tests of a published crate and the expansion tests of a proc-macro crate use tests/it/

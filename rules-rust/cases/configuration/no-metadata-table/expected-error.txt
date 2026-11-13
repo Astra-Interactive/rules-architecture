@@ -1,0 +1,1 @@
+Cargo.toml: [workspace.metadata.klibs-rules] with `product-kind` is required

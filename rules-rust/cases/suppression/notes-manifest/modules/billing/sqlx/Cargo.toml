@@ -1,0 +1,13 @@
+[package]
+name = "shop-billing-sqlx"
+edition = "2024"
+
+# modules/billing/sqlx/Cargo.toml
+[package.metadata.klibs-rules.checks.disabled.UnitReadme]
+"shop-billing-sqlx" = "suspected false positive, reported to klibs-rules as #12"
+
+[package.metadata.klibs-rules.checks.allowed-dependencies]
+"shop-ledger-sqlx" = "suspected false positive, reported to klibs-rules as #14"
+
+[lints]
+workspace = true

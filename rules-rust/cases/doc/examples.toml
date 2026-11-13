@@ -1,0 +1,1793 @@
+# The documents' examples the gate compiles: one [[example]] per half (synthesis-v4 §2.4).
+# `cargo xtask gate-sync --docs <conf.ide>/.claude/docs` rewrites sha256 and conf-ide-commit; the rest is reviewed by hand.
+
+[sync]
+conf-ide-commit = "7c53072"
+
+[[example]]
+claim = "arch-package.rs:Modules:5"
+document = "arch-package.rs.md"
+anchor = "### Modules and directories"
+first-line = "// modules/billing/api/src/lib.rs"
+occurrence = 1
+half = "good"
+lines = "1-42"
+split = "none"
+wrap = "root-file"
+sha256 = "a2fbdc4779bcd1103a1e45dc984ffbd0256ce731c750bd47e2d709b867451368"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/arch-package-rs-tree/src/lib.rs"
+block-lines = "1-42"
+fixture-lines = "1-42"
+
+[[example]]
+claim = "arch-package.rs:Modules:27"
+document = "arch-package.rs.md"
+anchor = "### Modules and directories"
+first-line = "pub(crate) mod api {"
+occurrence = 1
+half = "good"
+lines = "1-10"
+split = "none"
+wrap = "items"
+sha256 = "9e0cf624fa73d45798a19312daa01dcec975b6d7bbbea33d94d751e916106ceb"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/arch-package-rs-clipboard/src/lib.rs"
+block-lines = "1-10"
+fixture-lines = "2-11"
+
+[[example]]
+claim = "arch-package.rs:Visibility:20"
+document = "arch-package.rs.md"
+anchor = "### Visibility"
+first-line = "// modules/billing/api: invoice/file/file_invoice_repository.rs, used by InvoiceModule in the same crate"
+occurrence = 1
+half = "good"
+lines = "1-4"
+split = "none"
+wrap = "file"
+sha256 = "f031c96db46e27795dffc222a50678544ec008d59c0e65818a2133cf2624782d"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/arch-package-rs-tree/src/invoice/file/file_invoice_repository.rs"
+block-lines = "1-1"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/arch-package-rs-tree/src/invoice/file/file_invoice_repository.rs"
+block-lines = "2-4"
+fixture-lines = "6-8"
+
+[[example]]
+claim = "arch-package.rs:Tests:19"
+document = "arch-package.rs.md"
+anchor = "### Tests"
+first-line = "#[cfg(any(test, feature = \"fake\"))]"
+occurrence = 1
+half = "good"
+lines = "1-10"
+split = "none"
+wrap = "root-file"
+sha256 = "8d6046430234d63a9f36d503fde438e7ad64fc921a2d27e9046825352defc0f4"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/arch-package-rs-fixture/api/src/lib.rs"
+block-lines = "1-10"
+fixture-lines = "19-28"
+
+[[example]]
+claim = "arch-package.rs:block:4"
+document = "arch-package.rs.md"
+anchor = "### Tests"
+first-line = "[dependencies]"
+occurrence = 1
+half = "good"
+lines = "1-5"
+split = "none"
+wrap = "manifest"
+sha256 = "73d9209552d24b482bef3810eb766b5a2e78621a70021d06f1adccfdfe5eb81a"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/arch-package-rs-fixture/consumer/Cargo.toml"
+block-lines = "1-5"
+fixture-lines = "6-10"
+
+[[example]]
+claim = "arch-domain.rs:Model:10"
+document = "arch-domain.rs.md"
+anchor = "## Rust: domain building blocks"
+first-line = "// invoice/model/invoice.rs"
+occurrence = 1
+half = "good"
+lines = "1-26"
+split = "files"
+wrap = "file"
+sha256 = "b99a6039b80d5123b92bfdd6484fe971d172081bd59838093bdd3fc91a833274"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/arch-domain-rs/src/invoice/model/invoice.rs"
+block-lines = "1-1"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/arch-domain-rs/src/invoice/model/invoice.rs"
+block-lines = "2-8"
+fixture-lines = "5-11"
+[[example.fragment]]
+path = "modules/good/arch-domain-rs/src/invoice/util/invoice_ext.rs"
+block-lines = "10-10"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/arch-domain-rs/src/invoice/util/invoice_ext.rs"
+block-lines = "11-26"
+fixture-lines = "5-20"
+
+[[example]]
+claim = "arch-domain.rs:Invariant:5"
+document = "arch-domain.rs.md"
+anchor = "## Rust: domain building blocks"
+first-line = "// invoice/model/money.rs"
+occurrence = 1
+half = "good"
+lines = "1-64"
+split = "files"
+wrap = "file"
+sha256 = "c2ea534b64a2377bbd0c58d8da3d40499fafdb1937f02ec300ea69cb408a5e0a"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/arch-domain-rs/src/invoice/model/money.rs"
+block-lines = "1-1"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/arch-domain-rs/src/invoice/model/money.rs"
+block-lines = "2-25"
+fixture-lines = "5-28"
+[[example.fragment]]
+path = "modules/good/arch-domain-rs/src/invoice/util/money_parse.rs"
+block-lines = "27-27"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/arch-domain-rs/src/invoice/util/money_parse.rs"
+block-lines = "28-35"
+fixture-lines = "4-11"
+[[example.fragment]]
+path = "modules/good/arch-domain-rs/src/invoice/model/payment_plan.rs"
+block-lines = "37-37"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/arch-domain-rs/src/invoice/model/payment_plan.rs"
+block-lines = "38-58"
+fixture-lines = "5-25"
+[[example.fragment]]
+path = "modules/good/arch-domain-rs/src/invoice/model/payment_plan_parts.rs"
+block-lines = "60-64"
+fixture-lines = "4-8"
+
+
+[[example]]
+claim = "arch-domain.rs:UseCase:8"
+document = "arch-domain.rs.md"
+anchor = "## Rust: domain building blocks"
+first-line = "// invoice/usecase/pay_invoice_use_case.rs"
+occurrence = 1
+half = "good"
+lines = "1-33"
+split = "none"
+wrap = "file"
+sha256 = "134b6bddb9f5059e40562ad9c94f2eb6bada08bac9d58487e4c388b416bb4d66"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/arch-domain-rs/src/invoice/usecase/pay_invoice_use_case.rs"
+block-lines = "1-1"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/arch-domain-rs/src/invoice/usecase/pay_invoice_use_case.rs"
+block-lines = "2-33"
+fixture-lines = "7-38"
+
+[[example]]
+claim = "arch-domain.rs:Repo:11"
+document = "arch-domain.rs.md"
+anchor = "## Rust: domain building blocks"
+first-line = "// invoice/api/invoice_repository.rs"
+occurrence = 1
+half = "good"
+lines = "1-6"
+split = "none"
+wrap = "file"
+sha256 = "56fb8e12e2ecedb3f1ebbfd19c1dd64f8da41c25080fa69572fda484f596523d"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/arch-domain-rs/src/invoice/api/invoice_repository.rs"
+block-lines = "1-1"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/arch-domain-rs/src/invoice/api/invoice_repository.rs"
+block-lines = "2-6"
+fixture-lines = "5-9"
+
+[[example]]
+claim = "async.rs:Watch:7"
+document = "async.rs.md"
+anchor = "## Rust: async and tasks"
+first-line = "// Bad"
+occurrence = 1
+half = "bad"
+lines = "2-2"
+split = "markers"
+wrap = "fn-body"
+sha256 = "6092c137c1fccbd9381bc4eb4686d66136c12a45499c8338c397ba4d1608fcf0"
+expected = [{ line = 2, carrier = "WatchTimeout" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/async-rs/src/example_9.rs"
+block-lines = "2-2"
+fixture-lines = "6-6"
+
+[[example]]
+claim = "async.rs:Watch:7"
+document = "async.rs.md"
+anchor = "## Rust: async and tasks"
+first-line = "// Bad"
+occurrence = 1
+half = "good"
+lines = "5-5"
+split = "markers"
+wrap = "fn-body"
+sha256 = "c47e858bace2f2d5204b89f09fd97f17dd5454fa435575bb9bd41215cc11b217"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/async-rs/src/checkout/component/checkout_component.rs"
+block-lines = "5-5"
+fixture-lines = "28-28"
+
+[[example]]
+claim = "async.rs:Watch:11"
+document = "async.rs.md"
+anchor = "## Rust: async and tasks"
+first-line = "state.send_modify(|current| {"
+occurrence = 1
+half = "bad"
+lines = "12-12"
+split = "lines"
+wrap = "fn-body"
+sha256 = "8ca0d6b2badd23071c41c6b1bc97284100baa619fe186a30652b8c769fb80be2"
+expected = [{ line = 12, carrier = "clippy::disallowed_methods" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/async-rs/src/example_10.rs"
+block-lines = "12-12"
+fixture-lines = "19-19"
+
+[[example]]
+claim = "async.rs:Watch:11"
+document = "async.rs.md"
+anchor = "## Rust: async and tasks"
+first-line = "state.send_modify(|current| {"
+occurrence = 1
+half = "good"
+lines = "1-11"
+split = "lines"
+wrap = "fn-body"
+sha256 = "548e38060e76a7dba761a4c5e94895ae20a6aa8cfb25ac7108f01d5aff06e510"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/async-rs/src/checkout/component/checkout_component.rs"
+block-lines = "1-11"
+fixture-lines = "35-45"
+
+[[example]]
+claim = "async.rs:Watch:16"
+document = "async.rs.md"
+anchor = "## Rust: async and tasks"
+first-line = "// checkout/util/checkout_state_ext.rs: the pure transition"
+occurrence = 1
+half = "good"
+lines = "1-27"
+split = "files"
+wrap = "impl-body"
+sha256 = "dc645572fe4c515829d83ddc3714827db4b7d0d4efadf971f00483e78196db44"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/async-rs/src/checkout/util/checkout_state_ext.rs"
+block-lines = "1-1"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/async-rs/src/checkout/util/checkout_state_ext.rs"
+block-lines = "2-13"
+fixture-lines = "4-15"
+[[example.fragment]]
+path = "modules/good/async-rs/src/checkout/component/checkout_component.rs"
+block-lines = "15-27"
+fixture-lines = "48-60"
+
+[[example]]
+claim = "async.rs:Watch:21"
+document = "async.rs.md"
+anchor = "## Rust: async and tasks"
+first-line = "// Bad: a second request starts a second purchase"
+occurrence = 1
+half = "bad"
+lines = "2-8"
+split = "markers"
+wrap = "impl-body"
+sha256 = "cc76e8ce5ebf2b35087b0f6075720f39d3941d4120e254c9ca67ff5548b824d8"
+expected = []
+review = [{ why = "review (async.rs Watch:17)" }]
+[[example.fragment]]
+path = "modules/bad/async-rs/src/example_12.rs"
+block-lines = "2-8"
+fixture-lines = "30-36"
+
+[[example]]
+claim = "async.rs:Watch:21"
+document = "async.rs.md"
+anchor = "## Rust: async and tasks"
+first-line = "// Bad: a second request starts a second purchase"
+occurrence = 1
+half = "good"
+lines = "11-19"
+split = "markers"
+wrap = "impl-body"
+sha256 = "9c86968d9be76b33f96666fcaf18be8d8a253e01c46dd71ad71679b0b5e04f97"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/async-rs/src/checkout/component/checkout_component.rs"
+block-lines = "11-19"
+fixture-lines = "62-70"
+
+[[example]]
+claim = "async.rs:block:13"
+document = "async.rs.md"
+anchor = "### Tasks"
+first-line = "// Bad"
+occurrence = 1
+half = "bad"
+lines = "2-2"
+split = "markers"
+wrap = "fn-body"
+sha256 = "75ee211c9902917cc6c24c5c8f6b55caa3db0db96225d98290167dc5a12c0e99"
+expected = [{ line = 2, carrier = "DetachedTask" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/async-rs/src/example_13.rs"
+block-lines = "2-2"
+fixture-lines = "12-12"
+
+[[example]]
+claim = "async.rs:block:13"
+document = "async.rs.md"
+anchor = "### Tasks"
+first-line = "// Bad"
+occurrence = 1
+half = "good"
+lines = "5-5"
+split = "markers"
+wrap = "fn-body"
+sha256 = "230f3f5ac4b5ffd9e42b95d0376d647d1548fde4c6b4a1f13c3626fb3777896e"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/async-rs/src/reminder/di/reminder_module.rs"
+block-lines = "5-5"
+fixture-lines = "19-19"
+
+[[example]]
+claim = "async.rs:Tasks:12"
+document = "async.rs.md"
+anchor = "### Tasks"
+first-line = "// reminder/service/task_scope.rs, beside its only user, reminder/service/invoice_reminder.rs"
+occurrence = 1
+half = "good"
+lines = "1-49"
+split = "none"
+wrap = "file"
+sha256 = "a4dfd7602c430debd46fe464d6b2705ff777856389fc9312d33d265df57e0b0d"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/async-rs/src/reminder/service/task_scope.rs"
+block-lines = "1-1"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/async-rs/src/reminder/service/task_scope.rs"
+block-lines = "2-49"
+fixture-lines = "8-55"
+
+[[example]]
+claim = "async.rs:Locks:19"
+document = "async.rs.md"
+anchor = "### Shared state and locks"
+first-line = "// Bad: std lock, poison ignored, two writes"
+occurrence = 1
+half = "bad"
+lines = "2-4"
+split = "markers"
+wrap = "fn-body"
+sha256 = "dc08c1a8ab097587342761d6b9197ec69607a137d2f4d26ba8e3e20b1ad9ef91"
+expected = [{ line = 2, carrier = "clippy::disallowed_types" }, { line = 2, carrier = "CriticalSectionWrite" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/async-rs/src/example_15.rs"
+block-lines = "2-4"
+fixture-lines = "22-24"
+
+[[example]]
+claim = "async.rs:Locks:19"
+document = "async.rs.md"
+anchor = "### Shared state and locks"
+first-line = "// Bad: std lock, poison ignored, two writes"
+occurrence = 1
+half = "good"
+lines = "7-14"
+split = "markers"
+wrap = "fn-body"
+sha256 = "7d2d39877e981178cde32bc191b850d741d3d1fcef1b3b89d0da88940911e8a4"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/async-rs/src/invoice/memory/in_memory_invoice_cache.rs"
+block-lines = "7-14"
+fixture-lines = "18-25"
+
+[[example]]
+claim = "clean-code.rs:7:5"
+document = "clean-code.rs.md"
+anchor = "### 7. Prefer clarity over cleverness"
+first-line = "// Bad"
+occurrence = 1
+half = "bad"
+lines = "2-7"
+split = "markers"
+wrap = "fn-body"
+sha256 = "319c1cfabd64d5dd5205c95d9a6e38165ad1d1e39c71b128ac3fd650c927f83c"
+expected = [{ line = 3, carrier = "ClosureSingleIfGuard" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/clean-code-rs/src/example_16.rs"
+block-lines = "2-7"
+fixture-lines = "27-32"
+
+[[example]]
+claim = "clean-code.rs:7:5"
+document = "clean-code.rs.md"
+anchor = "### 7. Prefer clarity over cleverness"
+first-line = "// Bad"
+occurrence = 1
+half = "good"
+lines = "10-16"
+split = "markers"
+wrap = "fn-body"
+sha256 = "4db5ae7307ae986c2260361786c434557f81f47acc1123108c10817603000e47"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/clean-code-rs/src/banner/component/banner_component.rs"
+block-lines = "10-16"
+fixture-lines = "18-24"
+
+[[example]]
+claim = "clean-code.rs:7:11"
+document = "clean-code.rs.md"
+anchor = "### 7. Prefer clarity over cleverness"
+first-line = "// Bad"
+occurrence = 2
+half = "bad"
+lines = "2-2"
+split = "markers"
+wrap = "fn-body"
+sha256 = "bd21158b28bd72d2cda2287a209c244f9a4a0c9dcd3389366947711b24babf31"
+expected = [{ line = 2, carrier = "OperatorBeforeTrailingCall" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/clean-code-rs/src/example_17.rs"
+block-lines = "2-2"
+fixture-lines = "2-2"
+
+[[example]]
+claim = "clean-code.rs:7:11"
+document = "clean-code.rs.md"
+anchor = "### 7. Prefer clarity over cleverness"
+first-line = "// Bad"
+occurrence = 2
+half = "good"
+lines = "5-5"
+split = "markers"
+wrap = "fn-body"
+sha256 = "24ae1d95a180570ec76dcfdc6ca68cffc5ad8c84b5027bb753c24f97354c7fb5"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/clean-code-rs/src/typography/util/line_height.rs"
+block-lines = "5-5"
+fixture-lines = "4-4"
+
+[[example]]
+claim = "clean-code.rs:7:14"
+document = "clean-code.rs.md"
+anchor = "### 7. Prefer clarity over cleverness"
+first-line = "// Bad"
+occurrence = 3
+half = "bad"
+lines = "2-12"
+split = "markers"
+wrap = "fn-body"
+sha256 = "c366d1eca33c63c49935d4103144fd60e95a1c6b939b0298cfb3bdcba55dac8d"
+expected = [{ line = 2, carrier = "BooleanOperatorWrapping" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/clean-code-rs/src/example_18.rs"
+block-lines = "2-12"
+fixture-lines = "26-36"
+
+[[example]]
+claim = "clean-code.rs:7:14"
+document = "clean-code.rs.md"
+anchor = "### 7. Prefer clarity over cleverness"
+first-line = "// Bad"
+occurrence = 3
+half = "good"
+lines = "15-27"
+split = "markers"
+wrap = "fn-body"
+sha256 = "ec5802ce7bf9f40d03289dae9ec536059e945908bf67cfdec8a4da8f9c05332f"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/clean-code-rs/src/checkout/util/checkout_start.rs"
+block-lines = "15-27"
+fixture-lines = "5-17"
+
+[[example]]
+claim = "clean-code.rs:7:19"
+document = "clean-code.rs.md"
+anchor = "### 7. Prefer clarity over cleverness"
+first-line = "// Bad"
+occurrence = 4
+half = "bad"
+lines = "2-6"
+split = "markers"
+wrap = "fn-body"
+sha256 = "9907127bc4a79ee89faf2d2acdf97d716266c849a94411e8c1feb51bd95cc20e"
+expected = [{ line = 2, carrier = "InitializerOnDeclarationLine" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/clean-code-rs/src/example_70.rs"
+block-lines = "2-6"
+fixture-lines = "26-30"
+translate = [{ from = "serde_json::to_string", to = "to_json", why = "the gate has no serde_json crate; to_json is the scaffold's stand-in" }]
+
+[[example]]
+claim = "clean-code.rs:7:19"
+document = "clean-code.rs.md"
+anchor = "### 7. Prefer clarity over cleverness"
+first-line = "// Bad"
+occurrence = 4
+half = "good"
+lines = "9-13"
+split = "markers"
+wrap = "fn-body"
+sha256 = "343aef759e1ce3319bbf6e9e61c5c174af693a4260b6579536998ccf7f1647e4"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/clean-code-rs/src/invoice/util/invoice_serialization.rs"
+block-lines = "9-13"
+fixture-lines = "8-12"
+translate = [{ from = "serde_json::to_string", to = "to_json", why = "the gate has no serde_json crate; to_json is the scaffold's stand-in" }]
+
+[[example]]
+claim = "clean-code.rs:7:20"
+document = "clean-code.rs.md"
+anchor = "### 7. Prefer clarity over cleverness"
+first-line = "// Bad"
+occurrence = 5
+half = "bad"
+lines = "2-3"
+split = "markers"
+wrap = "items"
+sha256 = "fd15ee5e86077a3edf27dea5fa17f2a35661ed6864c51598d4283fa9b3e858a8"
+expected = [{ line = 2, carrier = "TypeAliasOnOneLine" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/clean-code-rs/src/example_71.rs"
+block-lines = "2-3"
+fixture-lines = "14-15"
+
+[[example]]
+claim = "clean-code.rs:7:20"
+document = "clean-code.rs.md"
+anchor = "### 7. Prefer clarity over cleverness"
+first-line = "// Bad"
+occurrence = 5
+half = "good"
+lines = "6-7"
+split = "markers"
+wrap = "items"
+sha256 = "eb2a2afeefc6e84f479041b2417da7dde65ccb6aae6c2e1aaf59bd524f4644ee"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/clean-code-rs/src/reminder/model/reminder_gate.rs"
+block-lines = "6-7"
+fixture-lines = "5-6"
+
+[[example]]
+claim = "closure-naming.rs:Rule:7"
+document = "closure-naming.rs.md"
+anchor = "### Bad"
+first-line = "let overdue = invoices.iter().filter(|i| i.due_at < now && !i.is_paid);"
+occurrence = 1
+half = "bad"
+lines = "1-5"
+split = "none"
+wrap = "fn-body"
+sha256 = "00eb0783e2da92ccbb55ae8a5cf44ef127d28e54077398330519b66bb94bef43"
+expected = [{ line = 1, carrier = "ClosureParameterName" }, { line = 5, carrier = "ClosureParameterName" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/closure-naming-rs/src/example_19.rs"
+block-lines = "1-5"
+fixture-lines = "9-13"
+
+[[example]]
+claim = "closure-naming.rs:Rule:7"
+document = "closure-naming.rs.md"
+anchor = "### Good"
+first-line = "let overdue = invoices"
+occurrence = 1
+half = "good"
+lines = "1-7"
+split = "none"
+wrap = "fn-body"
+sha256 = "aaba31958fa1e0aa4c55a3b4cf17bc15d99644114b6827b03b554eb98643b8b7"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/closure-naming-rs/src/invoice/util/overdue_report.rs"
+block-lines = "1-7"
+fixture-lines = "9-15"
+
+[[example]]
+claim = "code-ordering.rs:Layout:14"
+document = "code-ordering.rs.md"
+anchor = "### Layout of a file or scope"
+first-line = "pub(crate) struct OrderPricing {"
+occurrence = 1
+half = "good"
+lines = "1-22"
+split = "none"
+wrap = "file"
+sha256 = "db5e541e8546b286bfd45a48b9e0c78645f301440b09ba44d2eeb933151b3c55"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/code-ordering-rs/src/order/component/order_pricing.rs"
+block-lines = "1-22"
+fixture-lines = "3-24"
+
+[[example]]
+claim = "code-ordering.rs:Const:5"
+document = "code-ordering.rs.md"
+anchor = "### Exception: associated constants close the `impl`"
+first-line = "// Bad"
+occurrence = 1
+half = "bad"
+lines = "2-22"
+split = "markers"
+wrap = "items"
+sha256 = "0df0c64637878df2b16a3225611999341b0efdb0465492ff5ee06e784b51b195"
+expected = [{ line = 2, carrier = "ConstantOutsideImpl" }, { line = 8, carrier = "DiPlacement" }, { line = 8, carrier = "ReExportShape" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/code-ordering-rs/src/example_22.rs"
+block-lines = "2-22"
+fixture-lines = "24-44"
+
+[[example]]
+claim = "code-ordering.rs:Const:5"
+document = "code-ordering.rs.md"
+anchor = "### Exception: associated constants close the `impl`"
+first-line = "// Bad"
+occurrence = 1
+half = "good"
+lines = "25-41"
+split = "markers"
+wrap = "items"
+sha256 = "f297fb99261d96d6a8ff379304a4faef710b6f62bf5af2f524020c2d49c85e87"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/code-ordering-rs/src/feature_flag/di/feature_flag_module.rs"
+block-lines = "25-41"
+fixture-lines = "6-22"
+
+[[example]]
+claim = "dependency-sources.rs:block:23"
+document = "dependency-sources.rs.md"
+anchor = "## Dependency sources → `cargo` and codebase-memory"
+first-line = "# List the resolved dependencies of the workspace, of one crate, or the crates that pull in a dependency"
+occurrence = 1
+half = "whole"
+lines = "1-8"
+split = "none"
+wrap = "none"
+sha256 = "a01495a74b8b195b4c9c484c9f4efeec63aa55738291dc48863be91dd2bc6c54"
+expected = []
+review = [{ why = "commands, no claim (dependency-sources.rs.md)" }]
+
+[[example]]
+claim = "di-manual.rs:Module:11"
+document = "di-manual.rs.md"
+anchor = "## Dependency Injection"
+first-line = "// modules/billing/api: invoice/di/invoice_module.rs, public because the entry-point crate constructs it"
+occurrence = 1
+half = "good"
+lines = "1-20"
+split = "none"
+wrap = "file"
+sha256 = "f055f8324b69b1c6a0380e9339c70e3cd10b1e8cccc532d6c4d4f303b41e0222"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/di-manual-rs/billing/src/invoice/di/invoice_module.rs"
+block-lines = "1-1"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/di-manual-rs/billing/src/invoice/di/invoice_module.rs"
+block-lines = "2-20"
+fixture-lines = "9-27"
+
+[[example]]
+claim = "di-manual.rs:Lifecycle:10"
+document = "di-manual.rs.md"
+anchor = "## Dependency Injection"
+first-line = "// instances/server: di/root_module.rs, public because `main.rs` constructs it"
+occurrence = 1
+half = "good"
+lines = "1-28"
+split = "none"
+wrap = "file"
+sha256 = "ee6994302e368f14bca5e2af816ac6c15dc1407a0a4659a7df04d1ca0920351a"
+expected = []
+review = []
+[[example.fragment]]
+path = "instances/di-manual-rs/src/di/root_module.rs"
+block-lines = "1-1"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "instances/di-manual-rs/src/di/root_module.rs"
+block-lines = "2-28"
+fixture-lines = "7-33"
+
+[[example]]
+claim = "di-manual.rs:Main:7"
+document = "di-manual.rs.md"
+anchor = "## Dependency Injection"
+first-line = "// instances/server: src/main.rs, after the `use` lines"
+occurrence = 1
+half = "good"
+lines = "1-26"
+split = "none"
+wrap = "file"
+sha256 = "4369e714bc7397480f83686a4eac6df0e28f51c5e47efb2eaa9f730d70c56d59"
+expected = []
+review = []
+[[example.fragment]]
+path = "instances/di-manual-rs/src/main.rs"
+block-lines = "1-26"
+fixture-lines = "8-33"
+
+[[example]]
+claim = "di-manual-constructors.rs:Rule:4"
+document = "di-manual-constructors.rs.md"
+anchor = "## Constructors Dependency Injection Rule"
+first-line = "impl InvoiceReminder {"
+occurrence = 1
+half = "bad"
+lines = "1-10"
+split = "none"
+wrap = "items"
+sha256 = "1abbeae319a110f7e620cd041f83f590106b444bf45554bef0936214206be6a1"
+expected = [{ line = 3, carrier = "ConstructorDependency" }, { line = 3, carrier = "DiPlacement" }, { line = 3, carrier = "SystemClockOutsideDi" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/di-manual-constructors-rs/src/example_27.rs"
+block-lines = "1-10"
+fixture-lines = "38-47"
+
+[[example]]
+claim = "di-manual-constructors.rs:Rule:4"
+document = "di-manual-constructors.rs.md"
+anchor = "## Constructors Dependency Injection Rule"
+first-line = "impl InvoiceReminder {"
+occurrence = 2
+half = "good"
+lines = "1-15"
+split = "none"
+wrap = "items"
+sha256 = "f7e58a55259fd70936ab977950ac1c56d59780c8bfd9dffd36b43a2c68597f96"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/di-manual-constructors-rs/src/reminder/service/invoice_reminder.rs"
+block-lines = "1-15"
+fixture-lines = "14-28"
+
+[[example]]
+claim = "error-handling.rs:Contract:7"
+document = "error-handling.rs.md"
+anchor = "### Contract when `Result` is chosen"
+first-line = "// model/order_error.rs: the enum and every variant, one file"
+occurrence = 1
+half = "good"
+lines = "1-14"
+split = "none"
+wrap = "file"
+sha256 = "a5e1d16eb54da153e872baaa13c999d4c71499407f1cd349f568a2d69fd28ff1"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/error-handling-rs/src/order/model/order_error.rs"
+block-lines = "1-1"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/error-handling-rs/src/order/model/order_error.rs"
+block-lines = "2-14"
+fixture-lines = "5-17"
+
+[[example]]
+claim = "error-handling.rs:Contract:8"
+document = "error-handling.rs.md"
+anchor = "### Contract when `Result` is chosen"
+first-line = "pub(crate) fn parse_order(raw: &str) -> Result<Order, OrderError> {"
+occurrence = 1
+half = "good"
+lines = "1-16"
+split = "files"
+wrap = "file"
+sha256 = "05d1f57cfe06e16549c6e5593aee650ed90cd32c4ba172ced5a65b184aa1d1de"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/error-handling-rs/src/order/util/order_parse.rs"
+block-lines = "1-6"
+fixture-lines = "3-8"
+translate = [{ from = "Order { /* ... */ }", to = "Order { id: OrderId(1), total: Money::ZERO, closed: false }", why = "elision" }]
+[[example.fragment]]
+path = "modules/good/error-handling-rs/src/order/util/order_ext.rs"
+block-lines = "8-8"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/error-handling-rs/src/order/util/order_ext.rs"
+block-lines = "9-16"
+fixture-lines = "4-11"
+
+[[example]]
+claim = "error-handling.rs:Boundary:2"
+document = "error-handling.rs.md"
+anchor = "### Boundaries: converting foreign errors"
+first-line = "fn load_order(&self, id: OrderId) -> Result<Order, OrderError> {"
+occurrence = 1
+half = "good"
+lines = "1-7"
+split = "none"
+wrap = "impl-body"
+sha256 = "3a4d32641968958fd29a271a707dafb3e6a7d3fbcb9a6345f5ab2d2ab232c762"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/error-handling-rs/src/order/file/file_order_repository.rs"
+block-lines = "1-7"
+fixture-lines = "19-25"
+
+[[example]]
+claim = "error-handling.rs:Compose:3"
+document = "error-handling.rs.md"
+anchor = "### Composing fallible steps"
+first-line = "fn compute_order_total(raw: &str) -> Result<Money, OrderError> {"
+occurrence = 1
+half = "good"
+lines = "1-5"
+split = "none"
+wrap = "items"
+sha256 = "c0018bfa28979af18667f128055f2f6e4134a41f77b561f9419f4c8defb81685"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/error-handling-rs/src/order/util/order_total.rs"
+block-lines = "1-5"
+fixture-lines = "4-8"
+
+[[example]]
+claim = "error-handling.rs:Compose:3"
+document = "error-handling.rs.md"
+anchor = "### Composing fallible steps"
+first-line = "let total: Result<Money, OrderError> = parse_order(raw).map(|order| order.total);"
+occurrence = 1
+half = "good"
+lines = "1-3"
+split = "none"
+wrap = "fn-body"
+sha256 = "d677e5f52502511a1741816469c78553a5800039c840f53f3005094d5976228f"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/error-handling-rs/src/order/util/total_check.rs"
+block-lines = "1-3"
+fixture-lines = "5-7"
+
+[[example]]
+claim = "error-handling.rs:Consume:3"
+document = "error-handling.rs.md"
+anchor = "### Consuming a `Result`"
+first-line = "let reply = match result {"
+occurrence = 1
+half = "good"
+lines = "1-8"
+split = "none"
+wrap = "fn-body"
+sha256 = "96e92bc61bd674de74145291025fd44f91c3969727510bc162f7132ae80b3157"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/error-handling-rs/src/order/util/reply_build.rs"
+block-lines = "1-8"
+fixture-lines = "6-13"
+
+[[example]]
+claim = "error-handling.rs:Consume:13"
+document = "error-handling.rs.md"
+anchor = "### Consuming a `Result`"
+first-line = "#[expect("
+occurrence = 1
+half = "good"
+lines = "1-5"
+split = "none"
+wrap = "fn-body"
+sha256 = "efe0f25f52e77bf71d2cb66b8b1e735d2172fa2811ffe7f5d469aede2a0d76ac"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/error-handling-rs/src/order/util/outcome_delivery.rs"
+block-lines = "1-5"
+fixture-lines = "5-9"
+
+[[example]]
+claim = "function-reference.rs:Rule:2"
+document = "function-reference.rs.md"
+anchor = "## Rust: function paths over trivial closures"
+first-line = "// Bad"
+occurrence = 1
+half = "bad"
+lines = "2-6"
+split = "markers"
+wrap = "fn-body"
+sha256 = "c942d22e908c4bea7ed3c2a692c38e1e25546838344e717cc5ba6dd6b5a203e9"
+expected = [{ line = 2, carrier = "clippy::redundant_closure" }, { line = 3, carrier = "clippy::redundant_closure_for_method_calls" }, { line = 4, carrier = "clippy::redundant_closure_for_method_calls" }, { line = 5, carrier = "clippy::redundant_closure_for_method_calls" }, { line = 6, carrier = "clippy::redundant_closure" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/function-reference-rs/src/example_36.rs"
+block-lines = "2-6"
+fixture-lines = "51-55"
+
+[[example]]
+claim = "function-reference.rs:Rule:2"
+document = "function-reference.rs.md"
+anchor = "## Rust: function paths over trivial closures"
+first-line = "// Bad"
+occurrence = 1
+half = "good"
+lines = "9-13"
+split = "markers"
+wrap = "fn-body"
+sha256 = "cdc55c7cf6a5b35786ef57299616c9bb9308c12571a77896e44e9d30b919cc64"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/function-reference-rs/src/cart/util/summary_build.rs"
+block-lines = "9-13"
+fixture-lines = "12-16"
+
+[[example]]
+claim = "imports.rs:Rule:12"
+document = "imports.rs.md"
+anchor = "# Rust imports guidelines"
+first-line = "use crate::invoice::model::Invoice;"
+occurrence = 1
+half = "good"
+lines = "1-5"
+split = "none"
+wrap = "file"
+sha256 = "c04cf091b42d729a24a0f2f4e5b334e3fb171f77cfdbadf97f87500e6402039a"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/imports-rs/src/invoice/util/invoice_report.rs"
+block-lines = "1-5"
+fixture-lines = "1-5"
+
+[[example]]
+claim = "no-callbacks.rs:Async:1"
+document = "no-callbacks.rs.md"
+anchor = "### One result later: `async fn`"
+first-line = "// Bad"
+occurrence = 1
+half = "bad"
+lines = "2-4"
+split = "markers"
+wrap = "trait-body"
+sha256 = "2f51d7d14a7e97560d81653eaa0c999d37622d3c937063d5a2d67570e23f2937"
+expected = [{ line = 2, carrier = "CallbackDeclaration" }, { line = 3, carrier = "CallbackDeclaration" }, { line = 4, carrier = "CallbackDeclaration" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/no-callbacks-rs/src/example_38.rs"
+block-lines = "2-3"
+fixture-lines = "8-9"
+[[example.fragment]]
+path = "modules/bad/no-callbacks-rs/src/example_38.rs"
+block-lines = "4-4"
+fixture-lines = "12-12"
+
+[[example]]
+claim = "no-callbacks.rs:Async:1"
+document = "no-callbacks.rs.md"
+anchor = "### One result later: `async fn`"
+first-line = "// Bad"
+occurrence = 1
+half = "good"
+lines = "7-15"
+split = "markers"
+wrap = "trait-body"
+sha256 = "85d35f39bc668e2a8ffea6af7540149e3c933852d15694068b8454cb43699694"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/no-callbacks-rs-1/src/offer/api/offer_gateway.rs"
+block-lines = "7-8"
+fixture-lines = "6-7"
+[[example.fragment]]
+path = "modules/good/no-callbacks-rs-1/src/offer/service/offer_refresher.rs"
+block-lines = "9-15"
+fixture-lines = "28-34"
+
+[[example]]
+claim = "no-callbacks.rs:Stream:6"
+document = "no-callbacks.rs.md"
+anchor = "### Things that happen: `watch` and streams"
+first-line = "// timer/memory/in_memory_timer.rs: the stream behind the contract"
+occurrence = 1
+half = "good"
+lines = "1-13"
+split = "none"
+wrap = "impl-body"
+sha256 = "c449e3cede27957a382d84eff6fcd7cf21098a4240d932289a7fc93db106aa7d"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/no-callbacks-rs-2/src/timer/memory/in_memory_timer.rs"
+block-lines = "1-1"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/no-callbacks-rs-2/src/timer/memory/in_memory_timer.rs"
+block-lines = "2-13"
+fixture-lines = "20-31"
+
+[[example]]
+claim = "no-callbacks.rs:Stream:9"
+document = "no-callbacks.rs.md"
+anchor = "### Things that happen: `watch` and streams"
+first-line = "// Bad"
+occurrence = 1
+half = "bad"
+lines = "2-6"
+split = "markers"
+wrap = "trait-body"
+sha256 = "2643d94bd013888c9247849553df24f4a46008528c1de5a9bf8d9e8bf1a1e1b3"
+expected = [{ line = 2, carrier = "CallbackDeclaration" }, { line = 2, carrier = "ContractPlacement" }, { line = 2, carrier = "ReExportShape" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/no-callbacks-rs/src/example_40.rs"
+block-lines = "2-5"
+fixture-lines = "9-12"
+[[example.fragment]]
+path = "modules/bad/no-callbacks-rs/src/example_40.rs"
+block-lines = "6-6"
+fixture-lines = "15-15"
+
+[[example]]
+claim = "no-callbacks.rs:Stream:9"
+document = "no-callbacks.rs.md"
+anchor = "### Things that happen: `watch` and streams"
+first-line = "// Bad"
+occurrence = 1
+half = "good"
+lines = "9-13"
+split = "markers"
+wrap = "trait-body"
+sha256 = "334c9ac55d6e75ac4910ad8e8ba2e8b1aa1d554d08d5dcfb1a446395e34a1f7b"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/no-callbacks-rs-1/src/timer/model/timer_event.rs"
+block-lines = "9-12"
+fixture-lines = "3-6"
+[[example.fragment]]
+path = "modules/good/no-callbacks-rs-1/src/timer/api/timer_publisher.rs"
+block-lines = "13-13"
+fixture-lines = "5-5"
+
+[[example]]
+claim = "no-callbacks.rs:Stream:15"
+document = "no-callbacks.rs.md"
+anchor = "### Things that happen: `watch` and streams"
+first-line = "// Bad"
+occurrence = 2
+half = "bad"
+lines = "2-5"
+split = "markers"
+wrap = "impl-body"
+sha256 = "71eb572b01bfe83db478799b0612b2b664ce7a75139e40b430cee480d4d822c9"
+expected = [{ line = 2, carrier = "ReExportShape" }]
+review = [{ why = "review (no-callbacks.rs Stream:12)" }]
+[[example.fragment]]
+path = "modules/bad/no-callbacks-rs/src/example_41.rs"
+block-lines = "2-5"
+fixture-lines = "3-6"
+
+[[example]]
+claim = "no-callbacks.rs:Stream:15"
+document = "no-callbacks.rs.md"
+anchor = "### Things that happen: `watch` and streams"
+first-line = "// Bad"
+occurrence = 2
+half = "good"
+lines = "8-14"
+split = "markers"
+wrap = "impl-body"
+sha256 = "a3d2535f89f31ec9b79f9becd5bb440516938e342ae96b78f211f9e19afc8b04"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/no-callbacks-rs-1/src/checkout/component/checkout_holder.rs"
+block-lines = "8-14"
+fixture-lines = "13-19"
+
+[[example]]
+claim = "no-callbacks.rs:Bridge:8"
+document = "no-callbacks.rs.md"
+anchor = "### The bridge"
+first-line = "// consent/acme/acme_consent_gateway.rs, the technology module of the made-up Acme SDK"
+occurrence = 1
+half = "good"
+lines = "1-27"
+split = "files"
+wrap = "file"
+sha256 = "5bfb8fd085a5490f773c30bd00954cb4757f97bac0baea52208d4ca7e947bc2e"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/no-callbacks-rs-1/src/consent/acme/acme_consent_gateway.rs"
+block-lines = "1-1"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/no-callbacks-rs-1/src/consent/acme/acme_consent_gateway.rs"
+block-lines = "2-20"
+fixture-lines = "22-40"
+[[example.fragment]]
+path = "modules/good/no-callbacks-rs-1/src/consent/acme/acme_callback_registration.rs"
+block-lines = "22-22"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/no-callbacks-rs-1/src/consent/acme/acme_callback_registration.rs"
+block-lines = "23-27"
+fixture-lines = "16-20"
+
+[[example]]
+claim = "no-callbacks.rs:Bridge:14"
+document = "no-callbacks.rs.md"
+anchor = "### The bridge"
+first-line = "// player/acme/acme_playback_bridge.rs, the technology module of the made-up Acme SDK"
+occurrence = 1
+half = "good"
+lines = "1-53"
+split = "none"
+wrap = "file"
+sha256 = "2d96bd04c1ae01e13fa03f902cdd9fb19e2d770be817838bd171839cf14dd8d7"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/no-callbacks-rs-1/src/player/acme/acme_playback_bridge.rs"
+block-lines = "1-1"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/no-callbacks-rs-1/src/player/acme/acme_playback_bridge.rs"
+block-lines = "2-53"
+fixture-lines = "11-62"
+
+[[example]]
+claim = "no-print.rs:Rule:8"
+document = "no-print.rs.md"
+anchor = "### Bad"
+first-line = "if let Err(error) = load_order(order_id) {"
+occurrence = 1
+half = "bad"
+lines = "1-4"
+split = "none"
+wrap = "fn-body"
+sha256 = "72f32566125d453a5ef8dcf51248ac0e601502a21c9fc6af22daa95e2a38b606"
+expected = [{ line = 2, carrier = "clippy::print_stderr" }, { line = 3, carrier = "clippy::dbg_macro" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/no-print-rs/src/example_44.rs"
+block-lines = "1-4"
+fixture-lines = "22-25"
+
+[[example]]
+claim = "no-print.rs:Rule:8"
+document = "no-print.rs.md"
+anchor = "### Good"
+first-line = "if let Err(error) = load_order(order_id) {"
+occurrence = 1
+half = "good"
+lines = "1-6"
+split = "none"
+wrap = "fn-body"
+sha256 = "2fd20e52098dcca746b0d67783abf3bc363a49606d68fa29400565668973c0cf"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/no-print-rs/src/order/command/order_report_command.rs"
+block-lines = "1-6"
+fixture-lines = "5-10"
+
+[[example]]
+claim = "no-tuples.rs:Rule:13"
+document = "no-tuples.rs.md"
+anchor = "## No Anonymous Tuples"
+first-line = "// Bad"
+occurrence = 1
+half = "bad"
+lines = "2-4"
+split = "markers"
+wrap = "trait-body"
+sha256 = "a663c9017073d30f643f943ac919b3ab953fc6e3b107cf7be1de5fe4b9d6f5a6"
+expected = [{ line = 2, carrier = "AnonymousTuple" }, { line = 3, carrier = "AnonymousTuple" }, { line = 4, carrier = "AnonymousTuple" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/no-tuples-rs/src/example_46.rs"
+block-lines = "2-2"
+fixture-lines = "4-4"
+suffix = ";"
+[[example.fragment]]
+path = "modules/bad/no-tuples-rs/src/example_46.rs"
+block-lines = "3-3"
+fixture-lines = "5-5"
+suffix = ";"
+[[example.fragment]]
+path = "modules/bad/no-tuples-rs/src/example_46.rs"
+block-lines = "4-4"
+fixture-lines = "9-9"
+
+[[example]]
+claim = "no-tuples.rs:Rule:13"
+document = "no-tuples.rs.md"
+anchor = "## No Anonymous Tuples"
+first-line = "// Bad"
+occurrence = 1
+half = "good"
+lines = "7-19"
+split = "markers"
+wrap = "trait-body"
+sha256 = "b8f2be37ee20a7fec9aa8ed9cf22cb2ba1d9171f66e72b5c73100e8f5018c671"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/no-tuples-rs/src/shape/model/point.rs"
+block-lines = "7-10"
+fixture-lines = "2-5"
+[[example.fragment]]
+path = "modules/good/no-tuples-rs/src/shape/model/line_item.rs"
+block-lines = "12-15"
+fixture-lines = "4-7"
+[[example.fragment]]
+path = "modules/good/no-tuples-rs/src/shape/api/shape.rs"
+block-lines = "17-17"
+fixture-lines = "4-4"
+suffix = ";"
+[[example.fragment]]
+path = "modules/good/no-tuples-rs/src/shape/api/shape.rs"
+block-lines = "18-18"
+fixture-lines = "5-5"
+suffix = ";"
+[[example.fragment]]
+path = "modules/good/no-tuples-rs/src/shape/util/label_split.rs"
+block-lines = "19-19"
+fixture-lines = "2-2"
+
+[[example]]
+claim = "notes.rs:block:47"
+document = "notes.rs.md"
+anchor = "## Notes"
+first-line = "# modules/billing/sqlx/Cargo.toml"
+occurrence = 1
+half = "good"
+lines = "1-6"
+split = "none"
+wrap = "manifest"
+sha256 = "f1cb8ab3d995ebdd3b1baa866e09e71d291371b804c77456995c028a38296c8b"
+expected = []
+review = [{ why = "A suppression fixture: UnitReadme is accepted; allowed-dependencies produces an UnfulfilledExpectation because this declared dependency is already permitted (cases/suppression/notes-manifest)." }]
+[[example.fragment]]
+path = "../suppression/notes-manifest/modules/billing/sqlx/Cargo.toml"
+block-lines = "1-6"
+fixture-lines = "5-10"
+
+[[example]]
+claim = "rustdoc.rs:App:8"
+document = "rustdoc.rs.md"
+anchor = "### Application code: no doc comments"
+first-line = "// Deleted: the name says it, and the body shows the rule"
+occurrence = 1
+half = "bad"
+lines = "2-6"
+split = "markers"
+wrap = "trait-body"
+sha256 = "49df52bc3f23b5ad7dd3ad282fb9e03f690a9a6b5dcd579bacb9e4766c6fee56"
+expected = [{ line = 2, carrier = "ReExportShape" }]
+review = [{ why = "Distinguishing a purpose explanation from an external reason needs semantic review (rustdoc.rs.md:12)." }]
+[[example.fragment]]
+path = "modules/bad/rustdoc-app-rs/src/auth_module.rs"
+block-lines = "2-6"
+fixture-lines = "1-5"
+
+[[example]]
+claim = "rustdoc.rs:App:8"
+document = "rustdoc.rs.md"
+anchor = "### Application code: no doc comments"
+first-line = "// Deleted: the name says it, and the body shows the rule"
+occurrence = 1
+half = "good"
+lines = "9-12"
+split = "markers"
+wrap = "trait-body"
+sha256 = "f673322704eac9e732c9346a907a8018de8e19d77d5cc05f37f0c7e4b777a811"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/rustdoc-rs/src/dictionary/api/dictionary_repository.rs"
+block-lines = "9-12"
+fixture-lines = "5-8"
+
+[[example]]
+claim = "rustdoc.rs:Forbid:8"
+document = "rustdoc.rs.md"
+anchor = "### Examples"
+first-line = "/// This function is intended for loading a user by their identifier."
+occurrence = 1
+half = "bad"
+lines = "1-7"
+split = "none"
+wrap = "impl-body"
+sha256 = "38a8f30fecc8e8a70160bef65bb60592ae691e7db3121f932bba931ac6029453"
+expected = [{ line = 1, carrier = "RustdocFiller" }]
+review = [{ why = "Line 4 paraphrases user_id as identifier of the user; semantic restatement beyond lexical matching remains review (phase4-declaration-docs.md)." }]
+[[example.fragment]]
+path = "modules/bad/rustdoc-rs/src/example_48.rs"
+block-lines = "1-7"
+fixture-lines = "12-18"
+suffix = " {"
+
+[[example]]
+claim = "rustdoc.rs:block:50"
+document = "rustdoc.rs.md"
+anchor = "### Examples"
+first-line = "/// # Errors"
+occurrence = 1
+half = "good"
+lines = "1-4"
+split = "none"
+wrap = "impl-body"
+sha256 = "44df9e548b17d78911a20f8eaeff1aff8bd4f6a78838909d73960ba5c578e843"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/rustdoc-rs/src/user/memory/in_memory_user_directory.rs"
+block-lines = "1-4"
+fixture-lines = "13-16"
+suffix = " {"
+
+[[example]]
+claim = "rustdoc.rs:Forbid:9"
+document = "rustdoc.rs.md"
+anchor = "### Examples"
+first-line = "/// Method for computing a discount. Takes a rate and returns the discount."
+occurrence = 1
+half = "bad"
+lines = "1-2"
+split = "none"
+wrap = "impl-body"
+sha256 = "928bcc7b102ed880fd47f302b458194bf711a5d6e3e794a89008c24fc524d987"
+expected = []
+review = [{ why = "Semantic restatement of the function's calculation has no fixed filler phrase or lexical parameter description; prose meaning remains review." }]
+[[example.fragment]]
+path = "modules/bad/rustdoc-rs/src/example_50.rs"
+block-lines = "1-2"
+fixture-lines = "4-5"
+suffix = " {"
+
+[[example]]
+claim = "rustdoc.rs:Forbid:9"
+document = "rustdoc.rs.md"
+anchor = "### Examples"
+first-line = "/// Computes the discount amount, excluding promotional items."
+occurrence = 1
+half = "good"
+lines = "1-9"
+split = "none"
+wrap = "impl-body"
+sha256 = "5193fe0b397796900c68b623761704efdc63396074de53453114204e5110a592"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/rustdoc-rs/src/pricing/util/money_ext.rs"
+block-lines = "1-9"
+fixture-lines = "5-13"
+suffix = " {"
+
+[[example]]
+claim = "rustdoc.rs:Forbid:10"
+document = "rustdoc.rs.md"
+anchor = "### Examples"
+first-line = "/// # Safety"
+occurrence = 1
+half = "good"
+lines = "1-4"
+split = "none"
+wrap = "impl-body"
+sha256 = "0ab6575e444c7edb3d0a0adc945d0971e7428cbfb9420d2e8730308a33feeee6"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/rustdoc-rs/src/order/memory/order_book.rs"
+block-lines = "1-4"
+fixture-lines = "20-23"
+suffix = " {"
+
+[[example]]
+claim = "rustdoc.rs:Forbid:11"
+document = "rustdoc.rs.md"
+anchor = "### Examples"
+first-line = "pub fn is_empty(&self) -> bool {"
+occurrence = 1
+half = "good"
+lines = "1-3"
+split = "none"
+wrap = "impl-body"
+sha256 = "009c503a5c031951ad609d8de46d557c2adbce0d05cee6775344ce38c9994b4f"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/rustdoc-rs/src/order/memory/order_book.rs"
+block-lines = "1-3"
+fixture-lines = "16-18"
+
+[[example]]
+claim = "struct-default-values.rs:Rule:5"
+document = "struct-default-values.rs.md"
+anchor = "## Struct Default Values Rule"
+first-line = "#[derive(Default)]"
+occurrence = 1
+half = "bad"
+lines = "1-11"
+split = "none"
+wrap = "items"
+sha256 = "adb333585baf0ab9efa69b455a26cb5c155ce9f430b07f3ffd11072cacb13ce0"
+expected = [{ line = 1, carrier = "ReExportShape" }, { line = 1, carrier = "StructDefaultValue" }, { line = 8, carrier = "StructDefaultValue" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/struct-default-values-rs/src/prediction_input.rs"
+block-lines = "1-6"
+fixture-lines = "1-6"
+[[example.fragment]]
+path = "modules/bad/struct-default-values-rs/src/prediction_input.rs"
+block-lines = "8-11"
+fixture-lines = "9-12"
+
+[[example]]
+claim = "struct-default-values.rs:Rule:5"
+document = "struct-default-values.rs.md"
+anchor = "## Struct Default Values Rule"
+first-line = "pub(crate) struct PredictionInput {"
+occurrence = 1
+half = "good"
+lines = "1-11"
+split = "files"
+wrap = "items"
+sha256 = "ffba0a145b2491ddcf56d9d265f43152482f90e2270d44dbc246700061eb4bcc"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/struct-default-values-rs/src/prediction/model/prediction_input.rs"
+block-lines = "1-5"
+fixture-lines = "2-6"
+[[example.fragment]]
+path = "modules/good/struct-default-values-rs/src/prediction/util/input_build.rs"
+block-lines = "7-11"
+fixture-lines = "6-10"
+
+[[example]]
+claim = "struct-default-values.rs:Rule:7"
+document = "struct-default-values.rs.md"
+anchor = "## Struct Default Values Rule"
+first-line = "// a config read from a file; the defaults keep old files readable"
+occurrence = 1
+half = "good"
+lines = "1-18"
+split = "none"
+wrap = "file"
+sha256 = "02c7f1b0f6ce484cda6aa41ab3db7fc82c6265952800c16ed556ec12fbf576a6"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/struct-default-values-rs/src/prediction/model/prediction_config.rs"
+block-lines = "1-1"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/struct-default-values-rs/src/prediction/model/prediction_config.rs"
+block-lines = "2-18"
+fixture-lines = "5-21"
+
+[[example]]
+claim = "testing.rs:Rule:18"
+document = "testing.rs.md"
+anchor = "## Testing"
+first-line = "// test/order/usecase/create_order_use_case_test.rs"
+occurrence = 1
+half = "good"
+lines = "1-23"
+split = "none"
+wrap = "file"
+sha256 = "0aa69b55d7ccd3c09bbd1a0fad704fe80930145269a07dca543752e3e737815f"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/testing-rs-1/test/order/usecase/create_order_use_case_test.rs"
+block-lines = "1-23"
+fixture-lines = "1-23"
+
+[[example]]
+claim = "testing.rs:Rule:19"
+document = "testing.rs.md"
+anchor = "## Testing"
+first-line = "#[tokio::test]"
+occurrence = 1
+half = "good"
+lines = "1-2"
+split = "none"
+wrap = "fn-body"
+sha256 = "d5423ba320deb30a51eb79a5a215fa667da8fe971eb6cf5c4d40921d35f95726"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/testing-rs-1/test/order/usecase/create_order_use_case_test.rs"
+block-lines = "1-2"
+fixture-lines = "25-26"
+suffix = " {"
+
+[[example]]
+claim = "testing.rs:Rule:19"
+document = "testing.rs.md"
+anchor = "## Testing"
+first-line = "#[tokio::test]"
+occurrence = 2
+half = "bad"
+lines = "1-2"
+split = "none"
+wrap = "fn-body"
+sha256 = "248ef5ca04dce29fb330875d41c32948d2b60e86c33adbc695582ae9327e26fb"
+expected = []
+review = [{ why = "review (testing.rs Rule:5)" }]
+[[example.fragment]]
+path = "modules/bad/testing-rs/test/example_59_test.rs"
+block-lines = "1-2"
+fixture-lines = "1-2"
+suffix = " {"
+
+[[example]]
+claim = "testing.rs:Rule:20"
+document = "testing.rs.md"
+anchor = "## Testing"
+first-line = "// test/user/fake/fake_user_repository.rs"
+occurrence = 1
+half = "good"
+lines = "1-31"
+split = "none"
+wrap = "file"
+sha256 = "644d51383f2c3512bcdcf246be14e168bc2772f704ae87b8d1b351455045f08c"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/testing-rs-1/test/user/fake/fake_user_repository.rs"
+block-lines = "1-1"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/testing-rs-1/test/user/fake/fake_user_repository.rs"
+block-lines = "2-31"
+fixture-lines = "8-37"
+
+[[example]]
+claim = "testing.rs:Where:6"
+document = "testing.rs.md"
+anchor = "### Where tests live"
+first-line = "#[cfg(test)]"
+occurrence = 1
+half = "good"
+lines = "1-13"
+split = "none"
+wrap = "root-file"
+sha256 = "f404ef4233f5a39436e6856af7154c4eadccbb407ecf547686177e703064e1c1"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/testing-rs-2/src/lib.rs"
+block-lines = "1-13"
+fixture-lines = "12-24"
+
+[[example]]
+claim = "testing-no-useless.rs:Rule:2"
+document = "testing-no-useless.rs.md"
+anchor = "# Testing Guidelines"
+first-line = "#[derive(Debug, Clone, PartialEq)]"
+occurrence = 1
+half = "bad"
+lines = "1-7"
+split = "none"
+wrap = "items"
+sha256 = "3b253ceda35ea951851548fb2e24bcab7220b0362623168c6a428b609b7d98fb"
+expected = []
+review = [{ why = "review" }]
+[[example.fragment]]
+path = "modules/bad/testing-no-useless-rs/src/my_struct.rs"
+block-lines = "1-4"
+fixture-lines = "1-4"
+[[example.fragment]]
+path = "modules/bad/testing-no-useless-rs/src/my_struct.rs"
+block-lines = "6-7"
+fixture-lines = "8-9"
+
+[[example]]
+claim = "time-api.rs:block:64"
+document = "time-api.rs.md"
+anchor = "## Rust Timestamp and Duration Rule"
+first-line = "u32"
+occurrence = 1
+half = "whole"
+lines = "1-5"
+split = "none"
+wrap = "none"
+sha256 = "b400a62983f0c3c9af5f2a5f32f7cda851739cef0827f7e172f05f769c94b529"
+expected = []
+review = [{ why = "names of types, no item; TimePrimitive reads names" }]
+
+[[example]]
+claim = "time-api.rs:Rule:3"
+document = "time-api.rs.md"
+anchor = "### Bad"
+first-line = "created_at: i64,"
+occurrence = 1
+half = "bad"
+lines = "1-3"
+split = "none"
+wrap = "fields"
+sha256 = "c4feca723e209c96491f823dd805f2e552bbd2b907a53f43042905f19432d1d2"
+expected = [{ line = 3, carrier = "TimePrimitive" }]
+review = [{ why = "`created_at` and `expires_at` carry no unit in their name: primitive temporal intent and valid external-boundary conversions require review; the unit-named field, Instant and constant checks are active (phase4-async-syntax.md)." }]
+[[example.fragment]]
+path = "modules/bad/time-api-rs/src/example_64.rs"
+block-lines = "1-3"
+fixture-lines = "2-4"
+
+[[example]]
+claim = "time-api.rs:Rule:3"
+document = "time-api.rs.md"
+anchor = "### Good"
+first-line = "use std::time::{Duration, SystemTime};"
+occurrence = 1
+half = "good"
+lines = "1-5"
+split = "none"
+wrap = "fields"
+sha256 = "013fe61c63661136054a92f82ca64f5916ea7837aa616da68cec1a590fe23c82"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/time-api-rs/src/session/model/session.rs"
+block-lines = "1-1"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/time-api-rs/src/session/model/session.rs"
+block-lines = "3-5"
+fixture-lines = "4-6"
+
+[[example]]
+claim = "time-api.rs:Clock:9"
+document = "time-api.rs.md"
+anchor = "### Time crates and the system clock"
+first-line = "// clock/system/system_clock.rs"
+occurrence = 1
+half = "good"
+lines = "1-12"
+split = "none"
+wrap = "file"
+sha256 = "0b5792c93562f919e9f9c33b05ca69817070ad2da44d577dd1dbc2f81e858ca7"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/time-api-rs/src/clock/system/system_clock.rs"
+block-lines = "1-1"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/time-api-rs/src/clock/system/system_clock.rs"
+block-lines = "2-12"
+fixture-lines = "5-15"
+
+[[example]]
+claim = "arch-package:Kinds:8"
+document = "arch-package.md"
+anchor = "### Concepts and kinds"
+first-line = "…gui.api.rating.change.model.RatingPlayer         data it returns"
+occurrence = 1
+half = "whole"
+lines = "1-3"
+split = "none"
+wrap = "none"
+sha256 = "f0f1cd81d0a26a4b2ff0c52a61b6e08a42bac00785d452e29e337ddc982ac798"
+expected = []
+review = [{ why = "Kotlin package notation (Concepts and kinds 1); carried by KindShape fixtures" }]
+
+[[example]]
+claim = "arch-package:Kinds:16"
+document = "arch-package.md"
+anchor = "### Concepts and kinds"
+first-line = "…data.exposed.rating.ExposedRatingRepository"
+occurrence = 1
+half = "whole"
+lines = "1-6"
+split = "none"
+wrap = "none"
+sha256 = "a066101c9101bd81ae2df630834f273e2941c16d4d855bdc3281fbf16d3c6b94"
+expected = []
+review = [{ why = "Kotlin notation and a technology without a Rust crate (Concepts and kinds 2); carried by KindShape and ImplPlacement fixtures" }]
+
+[[example]]
+claim = "region:Rule:3"
+document = "region.md"
+anchor = "## Code region rules"
+first-line = "// region"
+occurrence = 1
+half = "bad"
+lines = "1-7"
+split = "none"
+wrap = "comments"
+sha256 = "62ae6a7734bf863095f1cea403b5053c8d4346f338036ff9de4efaaf1c5aa34f"
+expected = [{ line = 1, carrier = "ForbiddenComment" }, { line = 2, carrier = "ForbiddenComment" }, { line = 3, carrier = "ForbiddenComment" }, { line = 4, carrier = "ForbiddenComment" }, { line = 5, carrier = "ForbiddenComment" }, { line = 6, carrier = "ForbiddenComment" }, { line = 7, carrier = "ForbiddenComment" }]
+review = []
+[[example.fragment]]
+path = "modules/bad/region/src/example_69.rs"
+block-lines = "1-7"
+fixture-lines = "1-7"
+

@@ -1,0 +1,6 @@
+RootFileShape	modules/sample/src/lib.rs:1	case_sample	the root file holds only the module tree and the items the platform calls
+WildcardImport	modules/sample/src/lib.rs:1	case_sample use std::collections::*	`std::collections::*` is a glob: import each item by name (imports.rs.md)
+WildcardImport	modules/sample/src/lib.rs:3	case_sample::sample use std::fmt::{Write,*}	`std::fmt::{Write,*}` is a glob: import each item by name (imports.rs.md)
+RootFileShape	modules/sample/src/lib.rs:4	case_sample	a module block in the root file holds only use and mod items
+VisibilityTier	modules/sample/src/lib.rs:4	build_total	visibility follows the actual workspace users of the item
+WildcardImport	modules/sample/src/lib.rs:5	case_sample::sample use std::ops::*	`std::ops::*` is a glob: import each item by name (imports.rs.md)

@@ -1,0 +1,3 @@
+UtilFileName	modules/sample/src/lib.rs:2	case_sample::util::invoice_ext	one type's extension blocks live in <type>_ext.rs; a free-function file names its operation
+ReExportShape	modules/sample/src/util/invoice_ext.rs:1	compute_values	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/util/invoice_ext.rs:1	compute_values	visibility follows the actual workspace users of the item

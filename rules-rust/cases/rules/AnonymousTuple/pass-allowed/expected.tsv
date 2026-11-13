@@ -1,0 +1,7 @@
+BareIdentifier	modules/sample/src/sample/model/counter.rs:1	case_sample::sample::model::counter::Counter	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
+ModelDerives	modules/sample/src/sample/model/counter.rs:1	case_sample::sample::model::counter::Counter	Derive Debug, Clone, PartialEq, Eq, Hash on this model struct (arch-domain.rs.md)
+ReExportShape	modules/sample/src/sample/model/counter.rs:1	Counter	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ModelShouldBeImmutable	modules/sample/src/sample/model/counter.rs:4	next	A model transition returns a new value instead of taking &mut self (arch-domain.rs.md)
+ModelDerives	modules/sample/src/sample/model/id.rs:1	case_sample::sample::model::id::Id	Derive Debug, Clone, PartialEq, Copy, Eq, Hash on this model struct (arch-domain.rs.md)
+ReExportShape	modules/sample/src/sample/model/id.rs:1	Id	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+ReExportShape	modules/sample/src/sample/util/text_split.rs:1	split	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block

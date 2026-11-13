@@ -1,0 +1,2 @@
+UnitReadme	modules/other/Cargo.toml:4	case-other	`readme` is false: Cargo takes README.md as the package readme, so leave the key out or set it to "README.md"
+UnitReadme	modules/sample/Cargo.toml:4	case-sample	`readme` is "docs/README.md": Cargo takes README.md as the package readme, so leave the key out or set it to "README.md"
