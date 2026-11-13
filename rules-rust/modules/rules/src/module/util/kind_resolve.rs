@@ -1,4 +1,6 @@
 use crate::check::model::RuleContext;
+use crate::config::util::{FIXED_ENTRY_WORDS, FIXED_KIND_WORDS};
+use crate::module::util::list_shape_words;
 
 impl RuleContext {
     pub(crate) fn has_technology_implementation_role(&self, name: &str) -> bool {
@@ -40,41 +42,16 @@ impl RuleContext {
     }
 
     pub(crate) fn is_entry_kind(&self, crate_name: &str, name: &str) -> bool {
-        if [
-            "command",
-            "event",
-            "route",
-            "job",
-            "service",
-            "warmup",
-            "migration",
-            "error",
-        ]
-        .contains(&name)
-        {
-            return true;
-        }
-        let workspace = &self.workspace.root_manifest.root;
-        let member = self
-            .workspace
-            .members
+        FIXED_ENTRY_WORDS.contains(&name)
+            || list_shape_words(self, crate_name, "entry-point-words")
+                .iter()
+                .any(|word| word == name)
+    }
+
+    pub(crate) fn is_role_kind(&self, crate_name: &str, name: &str) -> bool {
+        list_shape_words(self, crate_name, "role-kinds")
             .iter()
-            .find(|member| member.name == crate_name);
-        [
-            workspace.find(&["workspace", "metadata", "klibs-rules", "entry-point-words"]),
-            member.and_then(|member| {
-                member.manifest.root.find(&[
-                    "package",
-                    "metadata",
-                    "klibs-rules",
-                    "entry-point-words",
-                ])
-            }),
-        ]
-        .into_iter()
-        .flatten()
-        .flat_map(|value| value.as_array().into_iter().flatten())
-        .any(|value| value.as_str() == Some(name))
+            .any(|word| word == name)
     }
 
     pub(crate) fn is_technology_kind(&self, crate_name: &str, name: &str) -> bool {
@@ -90,15 +67,11 @@ impl RuleContext {
         loop {
             let current = index.find_module(module)?;
             let name = current.module.path.last().map(String::as_str).unwrap_or("");
-            let fixed = [
-                "api", "model", "usecase", "util", "di", "stub", "fake", "table", "entity",
-                "database",
-            ]
-            .contains(&name);
             if !current.is_file_module
-                && (fixed
+                && (FIXED_KIND_WORDS.contains(&name)
                     || self.is_entry_kind(&index.crate_name, name)
-                    || self.is_technology_kind(&index.crate_name, name))
+                    || self.is_technology_kind(&index.crate_name, name)
+                    || self.is_role_kind(&index.crate_name, name))
             {
                 return Some(module);
             }

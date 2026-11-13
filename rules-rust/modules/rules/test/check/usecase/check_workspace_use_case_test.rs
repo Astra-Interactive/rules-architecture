@@ -138,6 +138,15 @@ fn given_rule_cases_when_checked_then_each_report_equals_its_expected_lines() {
 }
 
 #[test]
+fn given_documented_binary_entry_point_when_every_rule_runs_then_nothing_reports() {
+    let case = find_rules_rust_root().join("cases/rules/CrateTargets/pass-binary-entry-point");
+    let report =
+        check_workspace(&case).expect("the documented binary entry point is a valid workspace");
+
+    assert_eq!("", report.to_violation_lines());
+}
+
+#[test]
 fn given_suppression_cases_when_checked_then_findings_and_accepted_exceptions_equal_the_expected_lines()
  {
     let mismatches = compare_cases(&find_rules_rust_root().join("cases/suppression"));

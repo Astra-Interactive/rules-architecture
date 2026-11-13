@@ -13,26 +13,30 @@ impl RuleContext {
     }
 }
 
+pub(crate) fn format_shape_subject(index: &CrateIndex, module: usize, name: &str) -> String {
+    let mut path = index.modules[module].module.path.clone();
+    if index.modules[module].is_file_module {
+        path.pop();
+    }
+    path.push(name.to_owned());
+    format!(
+        "{}::{}",
+        index.crate_name.replace('-', "_"),
+        path.join("::")
+    )
+}
+
 pub(crate) fn build_shape_item_finding(
     index: &CrateIndex,
     item: &IndexedItem,
     rule: &str,
     message: &str,
 ) -> RuleFinding {
-    let mut path = index.modules[item.module].module.path.clone();
-    if index.modules[item.module].is_file_module {
-        path.pop();
-    }
-    path.push(item.name.clone());
     build_node_finding(
         rule,
         &item.file,
         item.span,
-        format!(
-            "{}::{}",
-            index.crate_name.replace('-', "_"),
-            path.join("::")
-        ),
+        format_shape_subject(index, item.module, &item.name),
         message.to_owned(),
     )
 }
@@ -96,6 +100,15 @@ pub(crate) fn find_type_path(ty: &Type) -> Option<&syn::Path> {
 
 pub(crate) fn resolve_shape_type(index: &CrateIndex, module: usize, ty: &Type) -> Vec<usize> {
     index.resolve_type_items(module, ty)
+}
+
+pub(crate) fn declares_type_elsewhere(index: &CrateIndex, implementation: &IndexedImpl) -> bool {
+    resolve_shape_type(index, implementation.module, &implementation.syntax.self_ty)
+        .iter()
+        .any(|target| {
+            let item = &index.items[*target];
+            item.file != implementation.file && item.cfg.and(&implementation.cfg).is_satisfiable()
+        })
 }
 
 pub(crate) fn implements_crate_trait(

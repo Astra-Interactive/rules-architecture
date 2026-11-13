@@ -1,10 +1,17 @@
 use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
+use crate::check::util::build_node_finding;
 use crate::config::model::Role;
 use crate::module::rule::ContractPlacement;
+use crate::module::util::build_shape_item_finding;
 use crate::module::util::build_shape_module_finding;
+use crate::module::util::format_shape_subject;
 use crate::module::util::resolve_shape_type;
-use crate::source::model::{IndexedModule, SourceTree};
+use crate::source::model::{IndexedItem, IndexedModule, SourceFile, SourceTree};
+use crate::source::util::find_node_span;
+use syn::Item;
+use syn::ext::IdentExt;
+use syn::spanned::Spanned;
 
 pub(crate) struct KindShape;
 
@@ -133,6 +140,129 @@ impl KindShape {
         (forbidden_api || forbidden_helper).then(|| build_shape_module_finding(context, ordinal, module.id, "KindShape", "the crate role does not permit this kind; technology helpers use table/entity/model/util/database/di and app api contains only its public-contract kinds")).flatten()
     }
 
+    fn find_role_kind_word(context: &RuleContext, ordinal: usize, module: usize) -> Option<String> {
+        let index = &context.indexes[ordinal];
+        let kind = context.find_kind_module(ordinal, module)?;
+        let name = index.modules[kind].module.path.last()?;
+        context
+            .is_role_kind(&index.crate_name, name)
+            .then(|| name.clone())
+    }
+
+    fn describe_role_kind_item(item: &IndexedItem, word: &str) -> Option<String> {
+        match &item.syntax {
+            Item::Struct(_) | Item::Enum(_) | Item::Union(_) => {
+                let suffix = ContractPlacement::pascal_kind(word);
+                (!item.name.ends_with(&suffix)).then(|| {
+                    format!("a type in the `{word}` kind ends with `{suffix}`, the kind's word")
+                })
+            }
+            Item::Type(_) => None,
+            _ => Some(Self::ROLE_KIND_ITEM_MESSAGE.to_owned()),
+        }
+    }
+
+    fn describe_unindexed_item(item: &Item) -> Option<String> {
+        match item {
+            Item::ExternCrate(item) => Some(item.ident.unraw().to_string()),
+            Item::ForeignMod(_) => Some("extern block".to_owned()),
+            Item::Macro(item) if item.ident.is_none() => item
+                .mac
+                .path
+                .segments
+                .last()
+                .map(|segment| format!("{}!", segment.ident)),
+            Item::Verbatim(_) => Some("item".to_owned()),
+            _ => None,
+        }
+    }
+
+    fn collect_unindexed_items<'ast>(
+        items: &'ast [Item],
+        module_path: &[String],
+        found: &mut Vec<UnindexedItem<'ast>>,
+    ) {
+        for item in items {
+            if let Item::Mod(module) = item {
+                let mut inner_path = module_path.to_vec();
+                inner_path.push(module.ident.unraw().to_string());
+                if let Some((_, inner)) = &module.content {
+                    Self::collect_unindexed_items(inner, &inner_path, found);
+                }
+                continue;
+            }
+            if let Some(name) = Self::describe_unindexed_item(item) {
+                found.push(UnindexedItem {
+                    module_path: module_path.to_vec(),
+                    name,
+                    item,
+                });
+            }
+        }
+    }
+
+    fn check_role_kind_items(context: &RuleContext) -> Vec<RuleFinding> {
+        let mut findings = Vec::new();
+        for (ordinal, index) in context.indexes.iter().enumerate() {
+            for item in &index.items {
+                if index.modules[item.module].tree != SourceTree::Src
+                    || context.is_shape_generated_file(&item.file)
+                {
+                    continue;
+                }
+                let Some(word) = Self::find_role_kind_word(context, ordinal, item.module) else {
+                    continue;
+                };
+                if let Some(message) = Self::describe_role_kind_item(item, &word) {
+                    findings.push(build_shape_item_finding(index, item, "KindShape", &message));
+                }
+            }
+        }
+        findings
+    }
+
+    fn check_unindexed_item(
+        context: &RuleContext,
+        ordinal: usize,
+        file: &SourceFile,
+        unindexed: &UnindexedItem,
+    ) -> Option<RuleFinding> {
+        let index = &context.indexes[ordinal];
+        let module = index.modules.iter().find(|module| {
+            module.module.path == unindexed.module_path && module.file == file.path
+        })?;
+        if module.tree != SourceTree::Src
+            || Self::find_role_kind_word(context, ordinal, module.id).is_none()
+        {
+            return None;
+        }
+        Some(build_node_finding(
+            "KindShape",
+            &file.path,
+            find_node_span(unindexed.item.span()),
+            format_shape_subject(index, module.id, &unindexed.name),
+            Self::ROLE_KIND_ITEM_MESSAGE.to_owned(),
+        ))
+    }
+
+    fn check_role_kind_unindexed_items(context: &RuleContext) -> Vec<RuleFinding> {
+        let mut findings = Vec::new();
+        for (ordinal, index) in context.indexes.iter().enumerate() {
+            let sources = context.crates.iter().find(|sources| {
+                sources.crate_name == index.crate_name && sources.target == index.target
+            });
+            let files = sources.iter().flat_map(|sources| &sources.files);
+            for file in files.filter(|file| !file.is_generated) {
+                let mut found = Vec::new();
+                Self::collect_unindexed_items(&file.syntax.items, &file.module.path, &mut found);
+                findings.extend(found.iter().filter_map(|unindexed| {
+                    Self::check_unindexed_item(context, ordinal, file, unindexed)
+                }));
+            }
+        }
+        findings
+    }
+
     fn is_root_file_block(
         index: &crate::source::model::CrateIndex,
         module: &IndexedModule,
@@ -235,11 +365,8 @@ impl KindShape {
             })
             .collect()
     }
-}
-
-impl Rule for KindShape {
-    fn check(&self, context: &RuleContext) -> Vec<RuleFinding> {
-        let mut findings: Vec<_> = context
+    fn check_modules(context: &RuleContext) -> Vec<RuleFinding> {
+        context
             .indexes
             .iter()
             .enumerate()
@@ -254,7 +381,17 @@ impl Rule for KindShape {
                             .chain(Self::check_role_kind(context, ordinal, module))
                     })
             })
-            .collect();
+            .collect()
+    }
+
+    const ROLE_KIND_ITEM_MESSAGE: &'static str = "a role kind holds types and their impls only";
+}
+
+impl Rule for KindShape {
+    fn check(&self, context: &RuleContext) -> Vec<RuleFinding> {
+        let mut findings = Self::check_modules(context);
+        findings.extend(Self::check_role_kind_items(context));
+        findings.extend(Self::check_role_kind_unindexed_items(context));
         for (ordinal, index) in context.indexes.iter().enumerate() {
             for item in &index.items {
                 let syn::Item::Struct(structure) = &item.syntax else {
@@ -305,4 +442,10 @@ impl Rule for KindShape {
 struct ShapeSite {
     module: usize,
     message: &'static str,
+}
+
+struct UnindexedItem<'ast> {
+    module_path: Vec<String>,
+    name: String,
+    item: &'ast Item,
 }

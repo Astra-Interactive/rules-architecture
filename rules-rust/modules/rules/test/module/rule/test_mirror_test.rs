@@ -182,3 +182,109 @@ fn given_behavior_covered_through_an_entrypoint_when_checked_then_no_per_type_te
     let context = read_case_context("TestMirror", "pass-mirrored");
     assert!(TestMirror.check(&context).is_empty());
 }
+
+fn find_integration_test_file(
+    context: &mut crate::check::model::RuleContext,
+) -> &mut crate::source::model::SourceFile {
+    context
+        .crates
+        .iter_mut()
+        .flat_map(|sources| &mut sources.files)
+        .find(|file| file.path.contains("tests/it/invoice/util/"))
+        .expect("integration test file")
+}
+
+#[test]
+fn given_published_crate_with_integration_tests_when_checked_then_tests_it_gets_the_file_checks_of_a_proc_macro_crate()
+ {
+    let mut context = read_case_context("TestMirror", "pass-published-integration");
+    assert!(TestMirror.check(&context).is_empty());
+    context
+        .workspace
+        .files
+        .push("modules/invoice/tests/extra.rs".to_owned());
+    let findings = TestMirror.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].finding.subject, "case-invoice tests");
+    context.workspace.files.pop();
+    context
+        .workspace
+        .directories
+        .push("modules/invoice/tests/other".to_owned());
+    assert_eq!(TestMirror.check(&context).len(), 1);
+    context.workspace.directories.pop();
+    find_integration_test_file(&mut context).path =
+        "modules/invoice/tests/it/invoice/util/wrong.rs".to_owned();
+    let findings = TestMirror.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].finding.message, "a test file ends in _test.rs");
+    assert_eq!(
+        findings[0].finding.location.path,
+        "modules/invoice/tests/it/main.rs"
+    );
+    find_integration_test_file(&mut context).path =
+        "modules/invoice/tests/it/invoice/util/missing_test.rs".to_owned();
+    let findings = TestMirror.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(
+        findings[0].finding.message,
+        "the test file has no source file at its mirrored src path"
+    );
+}
+
+#[test]
+fn given_unpublished_crate_with_a_tests_directory_when_checked_then_it_is_reported_as_before() {
+    let context = read_case_context("TestMirror", "fail-unpublished-integration");
+    let findings = TestMirror.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].finding.location.path, "modules/invoice/tests");
+    assert_eq!(findings[0].finding.subject, "case-invoice tests");
+    for manifest in [
+        "[package]\nname = \"case-invoice\"\nversion = \"0.1.0\"\npublish = false\n",
+        "[package]\nname = \"case-invoice\"\nversion = \"0.1.0\"\npublish = []\n",
+    ] {
+        let mut published = read_case_context("TestMirror", "pass-published-integration");
+        published.workspace.members[0].manifest =
+            crate::workspace::util::parse_toml_file("modules/invoice/Cargo.toml", manifest)
+                .expect("manifest");
+        assert_eq!(TestMirror.check(&published).len(), 1, "{manifest}");
+    }
+}
+
+#[test]
+fn given_published_crate_laid_out_as_tests_it_rs_with_a_helper_directory_when_checked_then_the_layout_and_the_undeclared_helper_each_report_once()
+ {
+    use crate::module::rule::RootFileShape;
+    use crate::source::api::SourceReader;
+    use crate::source::syn::SynSourceReader;
+
+    let mut context = read_case_context("TestMirror", "pass-published-integration");
+    context
+        .workspace
+        .files
+        .retain(|file| !file.starts_with("modules/invoice/tests/"));
+    context.workspace.files.extend([
+        "modules/invoice/tests/it.rs".to_owned(),
+        "modules/invoice/tests/it/helpers.rs".to_owned(),
+    ]);
+    for target in &mut context.workspace.members[0].targets {
+        if target.kinds.iter().any(|kind| kind == "test") {
+            target.src_path = "modules/invoice/tests/it.rs".to_owned();
+        }
+    }
+    context.crates = SynSourceReader.read_sources(&context.workspace);
+    assert!(context.crates.iter().all(|sources| sources.target != "it"));
+    let mirror: Vec<String> = TestMirror
+        .check(&context)
+        .into_iter()
+        .map(|finding| finding.finding.location.path)
+        .collect();
+    assert_eq!(mirror, ["modules/invoice/tests"]);
+    let undeclared: Vec<String> = RootFileShape
+        .check(&context)
+        .into_iter()
+        .filter(|finding| finding.finding.message.contains("no module tree declares"))
+        .map(|finding| finding.finding.location.path)
+        .collect();
+    assert_eq!(undeclared, ["modules/invoice/tests/it/helpers.rs"]);
+}

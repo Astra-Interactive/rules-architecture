@@ -7,6 +7,7 @@ role = "impl-ui"
 composition = "host"
 implementation-access = "none"
 technology-words = ["mongo"]
+role-kinds = ["codec"]
 
 [lints]
 workspace = true

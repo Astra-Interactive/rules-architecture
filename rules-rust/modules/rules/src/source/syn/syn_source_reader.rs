@@ -34,18 +34,25 @@ impl SynSourceReader {
         }
     }
 
-    fn is_tests_it_target(member: &Member, target: &Target) -> bool {
+    fn has_tests_it(workspace: &Workspace, member: &Member) -> bool {
+        member.is_proc_macro() || member.is_published(workspace)
+    }
+
+    fn is_tests_it_target(workspace: &Workspace, member: &Member, target: &Target) -> bool {
         let tests_it = if member.directory.is_empty() {
             "tests/it/main.rs".to_owned()
         } else {
             format!("{}/tests/it/main.rs", member.directory)
         };
-        member.is_proc_macro()
+        Self::has_tests_it(workspace, member)
             && target.kinds.iter().any(|kind| kind == "test")
             && target.src_path == tests_it
     }
 
-    fn select_targets(member: &Member) -> Vec<&Target> {
+    fn select_targets<'member>(
+        workspace: &Workspace,
+        member: &'member Member,
+    ) -> Vec<&'member Target> {
         let mut seen = BTreeSet::new();
         member
             .targets
@@ -53,18 +60,18 @@ impl SynSourceReader {
             .filter(|target| {
                 target.is_lib_target()
                     || target.is_bin()
-                    || Self::is_tests_it_target(member, target)
+                    || Self::is_tests_it_target(workspace, member, target)
             })
             .filter(|target| seen.insert(target.src_path.clone()))
             .collect()
     }
 
-    fn list_source_roots(member: &Member) -> Vec<String> {
+    fn list_source_roots(workspace: &Workspace, member: &Member) -> Vec<String> {
         let mut roots: Vec<String> = ["src", "test", "fixture"]
             .iter()
             .map(|root| (*root).to_owned())
             .collect();
-        if member.is_proc_macro() {
+        if Self::has_tests_it(workspace, member) {
             roots.push("tests/it".to_owned());
         }
         roots
@@ -89,7 +96,7 @@ impl SynSourceReader {
             .flat_map(|sources| &sources.files)
             .map(|file| file.path.as_str())
             .collect();
-        let roots = Self::list_source_roots(member);
+        let roots = Self::list_source_roots(workspace, member);
         workspace
             .files
             .iter()
@@ -106,10 +113,10 @@ impl SynSourceReader {
     }
 
     fn read_member_sources(workspace: &Workspace, member: &Member) -> Vec<CrateSources> {
-        let mut crates: Vec<CrateSources> = Self::select_targets(member)
+        let mut crates: Vec<CrateSources> = Self::select_targets(workspace, member)
             .into_iter()
             .map(|target| {
-                let tree = if Self::is_tests_it_target(member, target) {
+                let tree = if Self::is_tests_it_target(workspace, member, target) {
                     SourceTree::TestsIt
                 } else {
                     SourceTree::Src

@@ -1,5 +1,7 @@
 use crate::check::api::Rule;
+use crate::check::model::RuleContext;
 use crate::config::model::Role;
+use crate::workspace::util::parse_toml_file;
 
 #[test]
 fn given_public_reexport_across_kinds_when_checked_then_only_the_kind_own_file_export_is_exempt() {
@@ -314,4 +316,154 @@ fn given_ui_entry_kind_importing_fixed_entry_kinds_when_checked_then_reports_eac
         .collect();
     lines.sort();
     assert_eq!(vec![Some(3), Some(4)], lines);
+}
+
+fn declare_role_kinds(context: &mut RuleContext, words: &str) {
+    context.workspace.root_manifest = parse_toml_file(
+        "Cargo.toml",
+        &format!("[workspace.metadata.klibs-rules]\nproduct-kind=\"app\"\nrole-kinds=[{words}]\n"),
+    )
+    .expect("fixture metadata");
+}
+
+fn count_pair_findings(source: &str, target: &str, role: Role) -> usize {
+    let source = format!(
+        "mod left {{ mod {source} {{ fn call() {{ crate::right::{target}::Target; }} }} }} mod right {{ mod {target} {{ pub struct Target; }} }}"
+    );
+    let mut context = read_import_context(&source, role, &[], &[], "app");
+    declare_role_kinds(&mut context, "\"limiter\", \"registry\"");
+    KindImportDirection.check(&context).len()
+}
+
+#[test]
+fn given_a_role_kind_as_source_when_checked_then_only_model_util_and_role_kinds_are_allowed() {
+    for (target, expected) in [
+        ("model", 0),
+        ("util", 0),
+        ("registry", 0),
+        ("api", 1),
+        ("usecase", 1),
+        ("command", 1),
+        ("file", 1),
+        ("stub", 1),
+        ("di", 1),
+    ] {
+        assert_eq!(
+            count_pair_findings("limiter", target, Role::Context),
+            expected,
+            "limiter -> {target}"
+        );
+    }
+}
+
+#[test]
+fn given_a_role_kind_as_target_when_checked_then_only_the_listed_kinds_may_use_it() {
+    for (source, expected) in [
+        ("usecase", 0),
+        ("command", 0),
+        ("file", 0),
+        ("stub", 0),
+        ("di", 0),
+        ("registry", 0),
+        ("model", 1),
+        ("api", 1),
+        ("util", 1),
+        ("fake", 1),
+    ] {
+        assert_eq!(
+            count_pair_findings(source, "limiter", Role::Context),
+            expected,
+            "{source} -> limiter"
+        );
+    }
+}
+
+#[test]
+fn given_role_kinds_at_the_crate_root_and_in_a_technology_unit_when_checked_then_the_same_rows_hold()
+ {
+    let mut context = read_import_context(
+        "mod limiter { pub struct VoteLimiter; } mod usecase { fn call() { crate::limiter::VoteLimiter; } } mod api { fn call() { crate::limiter::VoteLimiter; } }",
+        Role::Context,
+        &[],
+        &[],
+        "app",
+    );
+    declare_role_kinds(&mut context, "\"limiter\"");
+    let findings = KindImportDirection.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].finding.subject, "api");
+    let mut technology = read_import_context(
+        "mod helper { fn call() { crate::limiter::VoteLimiter; } } mod limiter { pub struct VoteLimiter; }",
+        Role::Technology,
+        &[],
+        &[],
+        "app",
+    );
+    declare_role_kinds(&mut technology, "\"limiter\"");
+    assert!(KindImportDirection.check(&technology).is_empty());
+}
+
+#[test]
+fn given_role_kind_fixtures_when_checked_then_exact_wrong_imports_report_and_correct_ones_pass() {
+    let context = read_case_context("KindImportDirection", "fail-role-kind");
+    let mut actual: Vec<String> = KindImportDirection
+        .check(&context)
+        .iter()
+        .map(|finding| {
+            format!(
+                "{} {}",
+                finding.finding.location.line.expect("finding line"),
+                finding.finding.subject
+            )
+        })
+        .collect();
+    actual.sort();
+    assert_eq!(
+        actual,
+        ["10 util", "14 limiter", "15 limiter", "2 api", "6 model"]
+    );
+    let context = read_case_context("KindImportDirection", "pass-role-kind");
+    assert!(KindImportDirection.check(&context).is_empty());
+}
+
+#[test]
+fn given_util_using_api_items_when_checked_then_only_a_trait_is_reported() {
+    for (source, declaration, role, expected) in [
+        ("util", "pub trait Repo {}", Role::Context, 1),
+        ("util", "pub trait Repo {}", Role::Technology, 1),
+        ("util", "pub struct Repo;", Role::Context, 0),
+        ("util", "pub enum Repo { Newest }", Role::Context, 0),
+        ("usecase", "pub trait Repo {}", Role::Context, 0),
+        ("fake", "pub trait Repo {}", Role::Context, 0),
+    ] {
+        let code = format!(
+            "mod left {{ mod {source} {{ fn call() {{ crate::right::api::Repo; }} }} }} mod right {{ mod api {{ {declaration} }} }}"
+        );
+        let context = read_import_context(&code, role, &[], &[], "app");
+        assert_eq!(
+            KindImportDirection.check(&context).len(),
+            expected,
+            "{source} {declaration} {role:?}"
+        );
+    }
+}
+
+#[test]
+fn given_util_trait_fixtures_when_checked_then_the_trait_import_and_use_report_and_data_passes() {
+    let context = read_case_context("KindImportDirection", "fail-util-trait");
+    let mut actual: Vec<String> = KindImportDirection
+        .check(&context)
+        .iter()
+        .map(|finding| {
+            format!(
+                "{} {}",
+                finding.finding.location.line.expect("finding line"),
+                finding.finding.subject
+            )
+        })
+        .collect();
+    actual.sort();
+    assert_eq!(actual, ["11 util", "12 util"]);
+    let context = read_case_context("KindImportDirection", "pass-util-trait");
+    assert!(KindImportDirection.check(&context).is_empty());
 }

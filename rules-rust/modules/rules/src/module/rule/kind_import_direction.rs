@@ -51,7 +51,8 @@ impl KindImportDirection {
                 .map(String::as_str)
                 .unwrap_or("");
             return ["api", "model", "util", "table", "entity", "database"].contains(&name)
-                || context.is_technology_kind(&index.crate_name, name);
+                || context.is_technology_kind(&index.crate_name, name)
+                || context.is_role_kind(&index.crate_name, name);
         }
         let is_entry_point = context.project_config.crates.iter().any(|config| {
             config.name == index.crate_name
@@ -143,6 +144,11 @@ impl KindImportDirection {
                 .all(|reference| Self::is_factory_parameter(index, reference))
     }
 
+    fn is_trait_edge(index: &CrateIndex, edge: &SourceEdge) -> bool {
+        edge.item
+            .is_some_and(|item| matches!(index.items[item].syntax, syn::Item::Trait(_)))
+    }
+
     fn is_technology_edge_allowed(
         context: &RuleContext,
         ordinal: usize,
@@ -168,6 +174,7 @@ impl KindImportDirection {
         Some(
             ["api", "model", "util"].contains(&target_name)
                 || (technology_role && ["table", "entity", "database"].contains(&target_name))
+                || context.is_role_kind(&index.crate_name, target_name)
                 || (source_technology.is_some() && source_technology == target_technology),
         )
     }
@@ -208,6 +215,20 @@ impl KindImportDirection {
         Self::is_kind_pair_allowed(context, ordinal, edge, source, target)
     }
 
+    fn is_entry_pair_allowed(
+        context: &RuleContext,
+        crate_name: &str,
+        source_name: &str,
+        target_name: &str,
+    ) -> bool {
+        let is_ui_pair = !Self::FIXED_ENTRY_KINDS.contains(&source_name)
+            && !Self::FIXED_ENTRY_KINDS.contains(&target_name);
+        ["usecase", "api", "model", "util"].contains(&target_name)
+            || context.is_role_kind(crate_name, target_name)
+            || ((is_ui_pair || source_name == target_name)
+                && context.is_entry_kind(crate_name, target_name))
+    }
+
     fn is_kind_pair_allowed(
         context: &RuleContext,
         ordinal: usize,
@@ -239,6 +260,7 @@ impl KindImportDirection {
         {
             return allowed;
         }
+        let is_role_target = context.is_role_kind(&index.crate_name, target_name);
         match source_name {
             "model" => target_name == "model",
             "api" => {
@@ -247,17 +269,27 @@ impl KindImportDirection {
                         && (Self::is_factory_parameter(index, edge)
                             || Self::is_factory_import(index, edge)))
             }
-            "usecase" | "util" | "fake" => ["api", "model", "util"].contains(&target_name),
-            "stub" => ["api", "model", "util"].contains(&target_name) || source == target,
+            "usecase" => ["api", "model", "util"].contains(&target_name) || is_role_target,
+            "fake" => ["api", "model", "util"].contains(&target_name),
+            "util" => {
+                ["model", "util"].contains(&target_name)
+                    || (target_name == "api" && !Self::is_trait_edge(index, edge))
+            }
+            "stub" => {
+                ["api", "model", "util"].contains(&target_name)
+                    || is_role_target
+                    || source == target
+            }
             _ if context.is_technology_kind(&index.crate_name, source_name) => {
-                ["api", "model", "util"].contains(&target_name) || source == target
+                ["api", "model", "util"].contains(&target_name)
+                    || is_role_target
+                    || source == target
             }
             _ if context.is_entry_kind(&index.crate_name, source_name) => {
-                let is_ui_pair = !Self::FIXED_ENTRY_KINDS.contains(&source_name)
-                    && !Self::FIXED_ENTRY_KINDS.contains(&target_name);
-                ["usecase", "api", "model", "util"].contains(&target_name)
-                    || ((is_ui_pair || source_name == target_name)
-                        && context.is_entry_kind(&index.crate_name, target_name))
+                Self::is_entry_pair_allowed(context, &index.crate_name, source_name, target_name)
+            }
+            _ if context.is_role_kind(&index.crate_name, source_name) => {
+                ["model", "util"].contains(&target_name) || is_role_target
             }
             _ => true,
         }

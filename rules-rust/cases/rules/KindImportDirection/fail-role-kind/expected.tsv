@@ -1,0 +1,27 @@
+ModuleVisibility	modules/sample/src/lib.rs:1	case_sample::api	module visibility must be Crate (arch-package.rs.md, Modules and directories)
+KindImportDirection	modules/sample/src/lib.rs:2	api	This kind may not use `limiter` (arch-context.md, Direction and enforcement)
+PackageDependencyCycle	modules/sample/src/lib.rs:2	api <-> model <-> util <-> limiter <-> usecase	api -> limiter at modules/sample/src/lib.rs:2; model -> limiter at modules/sample/src/lib.rs:6; util -> limiter at modules/sample/src/lib.rs:10; limiter -> api at modules/sample/src/lib.rs:14; limiter -> usecase at modules/sample/src/lib.rs:15; limiter -> model at modules/sample/src/lib.rs:16; limiter -> util at modules/sample/src/lib.rs:17; usecase -> limiter at modules/sample/src/lib.rs:25
+ContractShape	modules/sample/src/lib.rs:3	case_sample::api::Contract	Declare contracts as non-generic Send + Sync traits, with async_trait for async methods (arch-domain.rs.md)
+RootFileShape	modules/sample/src/lib.rs:3	case_sample	a module block in the root file holds only use and mod items
+VisibilityTier	modules/sample/src/lib.rs:3	Contract	visibility follows the actual workspace users of the item
+ModuleVisibility	modules/sample/src/lib.rs:5	case_sample::model	module visibility must be Crate (arch-package.rs.md, Modules and directories)
+KindImportDirection	modules/sample/src/lib.rs:6	model	This kind may not use `limiter` (arch-context.md, Direction and enforcement)
+ModelDerives	modules/sample/src/lib.rs:7	case_sample::model::Value	Derive Debug, Clone, PartialEq, Eq, Hash on this model struct (arch-domain.rs.md)
+RootFileShape	modules/sample/src/lib.rs:7	case_sample	a module block in the root file holds only use and mod items
+VisibilityTier	modules/sample/src/lib.rs:7	Value	visibility follows the actual workspace users of the item
+ModuleVisibility	modules/sample/src/lib.rs:9	case_sample::util	module visibility must be Crate (arch-package.rs.md, Modules and directories)
+KindImportDirection	modules/sample/src/lib.rs:10	util	This kind may not use `limiter` (arch-context.md, Direction and enforcement)
+RootFileShape	modules/sample/src/lib.rs:11	case_sample	a module block in the root file holds only use and mod items
+VisibilityTier	modules/sample/src/lib.rs:11	compute_value	visibility follows the actual workspace users of the item
+ModuleVisibility	modules/sample/src/lib.rs:13	case_sample::limiter	module visibility must be Crate (arch-package.rs.md, Modules and directories)
+KindImportDirection	modules/sample/src/lib.rs:14	limiter	This kind may not use `api` (arch-context.md, Direction and enforcement)
+KindImportDirection	modules/sample/src/lib.rs:15	limiter	This kind may not use `usecase` (arch-context.md, Direction and enforcement)
+RootFileShape	modules/sample/src/lib.rs:19	case_sample	a module block in the root file holds only use and mod items
+VisibilityTier	modules/sample/src/lib.rs:19	VoteLimiter	visibility follows the actual workspace users of the item
+ModuleVisibility	modules/sample/src/lib.rs:21	case_sample::registry	module visibility must be Crate (arch-package.rs.md, Modules and directories)
+RootFileShape	modules/sample/src/lib.rs:22	case_sample	a module block in the root file holds only use and mod items
+VisibilityTier	modules/sample/src/lib.rs:22	VoteRegistry	visibility follows the actual workspace users of the item
+ModuleVisibility	modules/sample/src/lib.rs:24	case_sample::usecase	module visibility must be Crate (arch-package.rs.md, Modules and directories)
+RootFileShape	modules/sample/src/lib.rs:26	case_sample	a module block in the root file holds only use and mod items
+UseCaseShape	modules/sample/src/lib.rs:26	case_sample::usecase::PlaceVote	a VerbObjectUseCase lives in usecase, exposes only new/invoke, invokes no other use case and awaits in async invoke
+VisibilityTier	modules/sample/src/lib.rs:26	PlaceVote	visibility follows the actual workspace users of the item

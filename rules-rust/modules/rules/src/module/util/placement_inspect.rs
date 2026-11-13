@@ -96,6 +96,38 @@ pub(crate) fn owns_implementation(
             .contains(&identity)
 }
 
+pub(crate) fn is_try_from_impl(index: &CrateIndex, implementation: &IndexedImpl) -> bool {
+    let Some((path, _)) = &implementation.syntax.trait_ else {
+        return false;
+    };
+    match index.resolve_path(implementation.module, path) {
+        Resolution::Local => {
+            path.segments.len() == 1
+                && path
+                    .segments
+                    .last()
+                    .is_some_and(|last| last.ident == "TryFrom")
+        }
+        Resolution::External(path) => {
+            ["std::convert::TryFrom", "core::convert::TryFrom"].contains(&path.as_str())
+        }
+        _ => false,
+    }
+}
+
+pub(crate) fn list_try_from_impls(index: &CrateIndex, identity: usize) -> Vec<&IndexedImpl> {
+    let item = &index.items[identity];
+    index
+        .implementations
+        .iter()
+        .filter(|implementation| {
+            implementation.file == item.file
+                && is_try_from_impl(index, implementation)
+                && owns_implementation(index, identity, implementation)
+        })
+        .collect()
+}
+
 pub(crate) fn external_trait(
     context: &RuleContext,
     ordinal: usize,

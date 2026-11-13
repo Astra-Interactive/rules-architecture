@@ -171,7 +171,7 @@ impl Rule for TestMirror {
                 format!("{}/tests", member.directory)
             };
             let has_tests = context.workspace.directories.contains(&directory);
-            let allowed_it = member.is_proc_macro()
+            let allowed_it = (member.is_proc_macro() || member.is_published(&context.workspace))
                 && !context.workspace.files.iter().any(|file| {
                     file.starts_with(&format!("{directory}/"))
                         && !file.starts_with(&format!("{directory}/it/"))
@@ -191,7 +191,7 @@ impl Rule for TestMirror {
                         },
                         subject: format!("{} tests", member.name),
                         message:
-                            "tests live in test/; only proc-macro expansion tests use tests/it/"
+                            "tests live in test/; only the public API tests of a published crate and the expansion tests of a proc-macro crate use tests/it/"
                                 .to_owned(),
                     },
                     anchor: Anchor::Crate(member.name.clone()),

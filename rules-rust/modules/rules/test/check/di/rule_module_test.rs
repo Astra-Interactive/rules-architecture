@@ -6,8 +6,8 @@ use std::sync::Arc;
 fn given_concept_rule_modules_when_composed_then_all_rules_have_unique_registration_ids() {
     let module = RuleModule::new();
     let ids = module.active_rule_ids();
-    assert_eq!(ids.len(), 136);
-    assert_eq!(ids.iter().copied().collect::<BTreeSet<_>>().len(), 136);
+    assert_eq!(ids.len(), 137);
+    assert_eq!(ids.iter().copied().collect::<BTreeSet<_>>().len(), 137);
     assert!(
         ids.iter()
             .all(|id| crate::catalogue::util::find_catalogue_entry(id).is_some())

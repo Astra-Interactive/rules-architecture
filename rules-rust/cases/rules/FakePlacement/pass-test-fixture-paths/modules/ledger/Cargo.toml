@@ -1,0 +1,16 @@
+[package]
+name = "case-ledger"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+fake = []
+
+[dependencies]
+case-billing-api = { path = "../billing/api" }
+
+[dev-dependencies]
+case-billing-api = { path = "../billing/api", features = ["fake"] }
+
+[lints]
+workspace = true

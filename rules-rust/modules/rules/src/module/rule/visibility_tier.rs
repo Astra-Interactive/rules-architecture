@@ -279,13 +279,14 @@ impl VisibilityTier {
 
     pub(crate) fn collect_foreign_member_names(
         context: &RuleContext,
-        crate_name: &str,
+        ordinal: usize,
     ) -> BTreeSet<String> {
         context
             .indexes
             .iter()
-            .filter(|index| index.crate_name != crate_name)
-            .flat_map(|index| {
+            .enumerate()
+            .filter(|(other, _)| *other != ordinal)
+            .flat_map(|(_, index)| {
                 let aliases = Self::collect_alias_targets(index);
                 let mut names = Self::collect_crate_member_names(index);
                 Self::extend_with_alias_constructors(&aliases, &mut names);
@@ -365,12 +366,8 @@ impl VisibilityTier {
                 let is_unused_public = is_reachable
                     && matches!(member.visibility, syn::Visibility::Public(_))
                     && !Self::is_named_by(
-                        foreign_names.get_or_init(|| {
-                            Self::collect_foreign_member_names(
-                                context,
-                                &context.indexes[ordinal].crate_name,
-                            )
-                        }),
+                        foreign_names
+                            .get_or_init(|| Self::collect_foreign_member_names(context, ordinal)),
                         &member,
                     );
                 let message = if Self::is_non_tier(member.visibility) {

@@ -437,3 +437,73 @@ fn given_hidden_trait_member_when_another_crate_implements_it_then_the_implement
     ]);
     assert_doc_hidden_lines(&context, &[2]);
 }
+
+const BINARY_LIBRARY: &str = "pub mod di {\n    pub struct RootModule { value: u8 }\n    impl RootModule { pub fn new() -> Self { Self { value: 0 } } }\n    pub struct OtherModule { value: u8 }\n    impl OtherModule { pub fn new() -> Self { Self { value: 0 } } }\n}";
+
+const BINARY_MAIN: &str =
+    "use shop_cli::di::RootModule;\nfn main() { let root_module = RootModule::new(); }";
+
+fn list_subjects(findings: &[crate::check::model::RuleFinding]) -> Vec<&str> {
+    let mut subjects: Vec<&str> = findings
+        .iter()
+        .map(|finding| finding.finding.subject.as_str())
+        .collect();
+    subjects.sort_unstable();
+    subjects
+}
+
+#[test]
+fn given_binary_main_using_the_library_through_the_crate_name_when_indexed_then_the_use_is_a_production_use_of_the_library_item()
+ {
+    let context = crate::test::module::util::read_binary_shape_context(BINARY_LIBRARY, BINARY_MAIN);
+    let library = context
+        .indexes
+        .iter()
+        .position(|index| index.crate_name == "shop_cli" && index.target == "shop_cli")
+        .expect("library index");
+    let root_module = context.indexes[library]
+        .items
+        .iter()
+        .position(|item| item.name == "RootModule")
+        .expect("RootModule");
+    let users: Vec<_> = context
+        .name_index()
+        .users_of(library, root_module)
+        .collect();
+    assert!(
+        users
+            .iter()
+            .any(|usage| usage.source_index != library && !usage.is_test),
+        "the binary target must resolve shop_cli::di::RootModule into the library target"
+    );
+    assert!(context.has_external_name_user(library, root_module));
+}
+
+#[test]
+fn given_public_di_modules_when_main_constructs_one_through_the_crate_name_then_only_the_unused_one_reports()
+ {
+    let context = crate::test::module::util::read_binary_shape_context(BINARY_LIBRARY, BINARY_MAIN);
+    let findings = DiModuleVisibility.check(&context);
+    assert_eq!(list_subjects(&findings), ["OtherModule"]);
+    let context =
+        crate::test::module::util::read_binary_shape_context(BINARY_LIBRARY, "fn main() {}");
+    let findings = DiModuleVisibility.check(&context);
+    assert_eq!(list_subjects(&findings), ["OtherModule", "RootModule"]);
+}
+
+#[test]
+fn given_public_items_in_an_entry_point_crate_when_main_uses_one_then_no_visibility_tier_finding_names_it()
+ {
+    let mut context =
+        crate::test::module::util::read_binary_shape_context(BINARY_LIBRARY, BINARY_MAIN);
+    let subjects_of = |context: &crate::check::model::RuleContext| -> Vec<String> {
+        crate::module::rule::VisibilityTier
+            .check(context)
+            .iter()
+            .map(|finding| finding.finding.subject.clone())
+            .collect()
+    };
+    assert_eq!(subjects_of(&context), Vec::<String>::new());
+    context.project_config.crates[0].role = Some(crate::config::model::Role::Context);
+    assert_eq!(subjects_of(&context), ["OtherModule"]);
+}

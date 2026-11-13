@@ -2,7 +2,7 @@ use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
 use crate::check::util::build_node_finding;
 use crate::module::rule::InvariantVisitor;
-use crate::module::util::{is_model_item, owns_implementation};
+use crate::module::util::{is_model_item, list_try_from_impls, owns_implementation};
 use crate::source::model::{CfgPredicate, CrateIndex, IndexedImpl, IndexedItem};
 use crate::source::util::find_node_span;
 use crate::syntax::util::is_accessor_adapter;
@@ -35,7 +35,13 @@ impl ModelContainsFunctions {
             && matches!(&function.block.stmts[0], syn::Stmt::Expr(expression, _) if Self::reads_field(expression))
     }
 
-    fn invariant_cfg(implementations: &[&IndexedImpl]) -> CfgPredicate {
+    fn invariant_cfg(
+        implementations: &[&IndexedImpl],
+        try_from_implementations: &[&IndexedImpl],
+    ) -> CfgPredicate {
+        let checked_by_try_from = try_from_implementations
+            .iter()
+            .map(|implementation| implementation.cfg.clone());
         CfgPredicate::Any(
             implementations
                 .iter()
@@ -58,6 +64,7 @@ impl ModelContainsFunctions {
                             _ => None,
                         })
                 })
+                .chain(checked_by_try_from)
                 .collect(),
         )
     }
@@ -91,7 +98,8 @@ impl ModelContainsFunctions {
                     && owns_implementation(index, identity, implementation)
             })
             .collect::<Vec<_>>();
-        let invariant = Self::invariant_cfg(&implementations);
+        let invariant =
+            Self::invariant_cfg(&implementations, &list_try_from_impls(index, identity));
         let mut findings = Vec::new();
         for (number, implementation) in implementations.iter().enumerate() {
             if implementations[..number].iter().any(|previous| {

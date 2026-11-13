@@ -82,7 +82,7 @@ impl ContractPlacement {
         !is_fixed_kind && context.is_entry_kind(crate_name, kind)
     }
 
-    fn pascal_kind(kind: &str) -> String {
+    pub(crate) fn pascal_kind(kind: &str) -> String {
         kind.split('_')
             .filter(|word| !word.is_empty())
             .map(|word| {

@@ -2,7 +2,8 @@ use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
 use crate::module::rule::InvariantVisitor;
 use crate::module::util::{
-    build_shape_item_finding, find_kind_name, is_model_item, owns_implementation,
+    build_shape_item_finding, find_kind_name, is_model_item, list_try_from_impls,
+    owns_implementation,
 };
 use crate::syntax::util::is_accessor_adapter;
 use crate::syntax::util::to_snake_case;
@@ -119,7 +120,9 @@ impl ValueObjectShape {
 
     fn has_invariant(context: &RuleContext, ordinal: usize, identity: usize) -> bool {
         let index = &context.indexes[ordinal];
-        is_model_item(context, ordinal, &index.items[identity]) && index.implementations.iter().filter(|implementation| implementation.syntax.trait_.is_none() && owns_implementation(index, identity, implementation)).any(|implementation| implementation.syntax.items.iter().any(|method| matches!(method, ImplItem::Fn(method) if method.sig.ident == "new" && InvariantVisitor::calls_assertion(&method.block))))
+        is_model_item(context, ordinal, &index.items[identity])
+            && (!list_try_from_impls(index, identity).is_empty()
+                || index.implementations.iter().filter(|implementation| implementation.syntax.trait_.is_none() && owns_implementation(index, identity, implementation)).any(|implementation| implementation.syntax.items.iter().any(|method| matches!(method, ImplItem::Fn(method) if method.sig.ident == "new" && InvariantVisitor::calls_assertion(&method.block)))))
     }
 
     fn parser_returns(
@@ -221,11 +224,18 @@ impl ValueObjectShape {
             .collect();
         let constructor = methods.iter().find(|method| {
             method.sig.ident == "new" && InvariantVisitor::calls_assertion(&method.block)
-        })?;
+        });
+        let checked_by_try_from = !list_try_from_impls(index, identity).is_empty();
+        if constructor.is_none() && !checked_by_try_from {
+            return None;
+        }
         let exposed = structure
             .fields
             .iter()
             .any(|field| !matches!(field.vis, Visibility::Inherited));
+        let Some(constructor) = constructor else {
+            return exposed.then(|| build_shape_item_finding(index, item, "ValueObjectShape", "a type checked by TryFrom keeps its fields private: a literal in another module would skip the check"));
+        };
         let missing_accessor = Self::missing_accessor(structure, constructor, &methods);
         (exposed || missing_accessor || Self::invalid_constructor(constructor, &item.name)).then(|| build_shape_item_finding(index, item, "ValueObjectShape", "a validated value object keeps fields private, asserts then constructs, and exposes a same-name accessor for each value"))
     }

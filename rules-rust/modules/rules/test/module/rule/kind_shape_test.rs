@@ -1,7 +1,9 @@
 use crate::check::api::Rule;
+use crate::check::model::{RuleContext, RuleFinding};
 use crate::module::rule::KindShape;
 use crate::test::check::usecase::read_case_context;
 use crate::test::module::util::read_shape_context;
+use crate::workspace::util::parse_toml_file;
 
 #[test]
 fn given_technology_concept_implementations_and_private_helpers_when_checked_then_only_unowned_helper_reports()
@@ -169,4 +171,237 @@ fn given_cfg_specific_field_alias_when_checked_then_incompatible_watch_sender_al
         "mod model { #[cfg(unix)] type Updates = tokio::sync::watch::Sender<u64>; #[cfg(not(unix))] type Updates = String; struct State { #[cfg(not(unix))] updates: Updates } }",
         &[],
     );
+}
+
+fn declare_role_kinds(context: &mut RuleContext, words: &str) {
+    context.workspace.root_manifest = parse_toml_file(
+        "Cargo.toml",
+        &format!("[workspace.metadata.klibs-rules]\nproduct-kind=\"app\"\nrole-kinds=[{words}]\n"),
+    )
+    .expect("manifest");
+}
+
+fn list_findings(findings: &[RuleFinding]) -> Vec<String> {
+    let mut lines: Vec<String> = findings
+        .iter()
+        .map(|finding| {
+            format!(
+                "{}:{} {}",
+                finding.finding.location.path,
+                finding.finding.location.line.expect("finding line"),
+                finding.finding.subject
+            )
+        })
+        .collect();
+    lines.sort();
+    lines
+}
+
+#[test]
+fn given_role_kind_modules_in_a_concept_and_at_the_crate_root_when_checked_then_they_are_kinds() {
+    let mut context = read_shape_context(
+        "pub(crate) mod vote {\n    pub(crate) mod limiter {\n        pub(crate) use vote_cooldown_limiter::VoteCooldownLimiter;\n        mod vote_cooldown_limiter;\n    }\n}\npub(crate) mod registry {\n    pub(crate) use packet_registry::PacketRegistry;\n    mod packet_registry;\n}",
+        &[
+            (
+                "vote/limiter/vote_cooldown_limiter.rs",
+                "pub(crate) struct VoteCooldownLimiter;\nimpl VoteCooldownLimiter { fn new() -> Self { Self } }",
+            ),
+            (
+                "registry/packet_registry.rs",
+                "pub(crate) struct PacketRegistry;",
+            ),
+        ],
+    );
+    declare_role_kinds(&mut context, "\"limiter\", \"registry\"");
+    let limiter = context.indexes[0]
+        .modules
+        .iter()
+        .find(|module| {
+            module
+                .module
+                .path
+                .last()
+                .is_some_and(|name| name == "limiter")
+        })
+        .expect("limiter module")
+        .id;
+    assert_eq!(Some(limiter), context.find_kind_module(0, limiter));
+    let findings = KindShape.check(&context);
+    assert!(findings.is_empty(), "{findings:?}");
+}
+
+#[test]
+fn given_role_kind_types_when_checked_then_only_names_without_the_word_report() {
+    let mut context = read_shape_context(
+        "mod limiter { mod vote_cooldown; mod window_kind; mod slot_limiter; }",
+        &[
+            (
+                "limiter/vote_cooldown.rs",
+                "pub(crate) struct VoteCooldown;",
+            ),
+            (
+                "limiter/window_kind.rs",
+                "pub(crate) enum WindowKind { Short }",
+            ),
+            (
+                "limiter/slot_limiter.rs",
+                "pub(crate) union SlotLimiter { raw: u32 }",
+            ),
+        ],
+    );
+    declare_role_kinds(&mut context, "\"limiter\"");
+    assert_eq!(
+        list_findings(&KindShape.check(&context)),
+        [
+            "limiter/vote_cooldown.rs:1 case_sample::limiter::VoteCooldown",
+            "limiter/window_kind.rs:1 case_sample::limiter::WindowKind",
+        ]
+        .map(|line| format!("modules/sample/src/{line}"))
+    );
+}
+
+#[test]
+fn given_a_role_kind_word_with_underscores_when_checked_then_the_name_ends_with_its_pascal_case() {
+    let mut context = read_shape_context(
+        "mod rate_limiter { mod vote_rate_limiter; mod vote_limiter; }",
+        &[
+            (
+                "rate_limiter/vote_rate_limiter.rs",
+                "pub(crate) struct VoteRateLimiter;",
+            ),
+            (
+                "rate_limiter/vote_limiter.rs",
+                "pub(crate) struct VoteLimiter;",
+            ),
+        ],
+    );
+    declare_role_kinds(&mut context, "\"rate_limiter\"");
+    assert_eq!(
+        list_findings(&KindShape.check(&context)),
+        [
+            "modules/sample/src/rate_limiter/vote_limiter.rs:1 case_sample::rate_limiter::VoteLimiter"
+        ]
+    );
+}
+
+#[test]
+fn given_a_role_kind_module_with_non_type_items_when_checked_then_each_is_reported() {
+    let mut context = read_shape_context(
+        "mod limiter { mod limit_items; }",
+        &[(
+            "limiter/limit_items.rs",
+            "pub(crate) struct VoteLimiter;\n\
+             pub(crate) trait Window {}\n\
+             pub(crate) static WINDOW: u32 = 1;\n\
+             pub(crate) const LIMIT: u32 = 1;\n\
+             pub(crate) fn compute_window() -> u32 { 1 }\n\
+             impl VoteLimiter { const MAX: u32 = 1; fn new() -> Self { Self } }\n\
+             impl std::fmt::Debug for VoteLimiter {}",
+        )],
+    );
+    declare_role_kinds(&mut context, "\"limiter\"");
+    assert_eq!(
+        list_findings(&KindShape.check(&context)),
+        [
+            "2 case_sample::limiter::Window",
+            "3 case_sample::limiter::WINDOW",
+            "4 case_sample::limiter::LIMIT",
+            "5 case_sample::limiter::compute_window",
+        ]
+        .map(|line| format!("modules/sample/src/limiter/limit_items.rs:{line}"))
+    );
+}
+
+#[test]
+fn given_a_role_kind_module_with_macros_extern_items_and_aliases_when_checked_then_every_non_type_item_is_reported()
+ {
+    let mut context = read_shape_context(
+        "mod limiter {\nextern crate core;\nmod limit_items;\n}\n#[cfg(test)]\nmod test {\nmod limiter {\nmod test_items;\n}\n}",
+        &[
+            (
+                "limiter/limit_items.rs",
+                "extern crate alloc;\n\
+                 use std::fmt::Debug;\n\
+                 macro_rules! window { () => { 60 } }\n\
+                 build_table!();\n\
+                 extern \"C\" { fn abs(input: i32) -> i32; }\n\
+                 pub(crate) type Window = u32;\n\
+                 pub(crate) struct VoteLimiter;\n\
+                 impl VoteLimiter { fn new() -> Self { Self } }\n\
+                 trait WindowAlias = Debug;",
+            ),
+            ("test/limiter/test_items.rs", "extern crate alloc;"),
+        ],
+    );
+    declare_role_kinds(&mut context, "\"limiter\"");
+    assert_eq!(
+        list_findings(&KindShape.check(&context)),
+        [
+            "modules/sample/src/lib.rs:2 case_sample::limiter::core",
+            "modules/sample/src/limiter/limit_items.rs:1 case_sample::limiter::alloc",
+            "modules/sample/src/limiter/limit_items.rs:3 case_sample::limiter::window",
+            "modules/sample/src/limiter/limit_items.rs:4 case_sample::limiter::build_table!",
+            "modules/sample/src/limiter/limit_items.rs:5 case_sample::limiter::extern block",
+            "modules/sample/src/limiter/limit_items.rs:9 case_sample::limiter::WindowAlias",
+        ]
+    );
+}
+
+#[test]
+fn given_a_module_named_by_an_unconfigured_word_when_checked_then_it_reports_as_before() {
+    let source = "pub(crate) mod vote { pub(crate) mod parser { mod ballot_parser; } }";
+    let files = [(
+        "vote/parser/ballot_parser.rs",
+        "pub(crate) struct BallotParser;",
+    )];
+    let before = read_shape_context(source, &files);
+    let mut configured = read_shape_context(source, &files);
+    declare_role_kinds(&mut configured, "\"limiter\"");
+    let reported = list_findings(&KindShape.check(&before));
+    assert!(!reported.is_empty());
+    assert!(KindShape.check(&before).iter().any(|finding| {
+        finding
+            .finding
+            .message
+            .contains("a concept holds kind blocks")
+    }));
+    assert_eq!(reported, list_findings(&KindShape.check(&configured)));
+}
+
+#[test]
+fn given_a_role_kind_module_in_an_app_api_crate_when_checked_then_the_crate_role_reports_it() {
+    let mut context = read_shape_context(
+        "mod limiter { mod vote_limiter; }",
+        &[("limiter/vote_limiter.rs", "pub(crate) struct VoteLimiter;")],
+    );
+    declare_role_kinds(&mut context, "\"limiter\"");
+    assert!(KindShape.check(&context).is_empty());
+    context.project_config.crates[0].role = Some(crate::config::model::Role::Api);
+    let findings = KindShape.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].finding.subject, "case_sample::limiter");
+    assert!(
+        findings[0]
+            .finding
+            .message
+            .contains("the crate role does not permit this kind")
+    );
+}
+
+#[test]
+fn given_role_kind_fixtures_when_checked_then_exact_wrong_sites_report_and_correct_kinds_pass() {
+    let context = read_case_context("KindShape", "fail-role-kind");
+    assert_eq!(
+        list_findings(&KindShape.check(&context)),
+        [
+            "modules/sample/src/lib.rs:9 case_sample::vote::parser::ballot_parser",
+            "modules/sample/src/vote/limiter/limit_items.rs:3 case_sample::vote::limiter::Window",
+            "modules/sample/src/vote/limiter/limit_items.rs:5 case_sample::vote::limiter::WINDOW",
+            "modules/sample/src/vote/limiter/limit_items.rs:7 case_sample::vote::limiter::LIMIT",
+            "modules/sample/src/vote/limiter/limit_items.rs:9 case_sample::vote::limiter::compute_window",
+            "modules/sample/src/vote/limiter/vote_cooldown.rs:1 case_sample::vote::limiter::VoteCooldown",
+        ]
+    );
+    let context = read_case_context("KindShape", "pass-role-kind");
+    assert!(KindShape.check(&context).is_empty());
 }

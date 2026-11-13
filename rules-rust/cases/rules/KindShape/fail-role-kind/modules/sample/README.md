@@ -1,0 +1,1 @@
+Exercises role kind modules.

@@ -87,6 +87,7 @@ pub mod config {
         pub(crate) use config_value::parse_reason;
         pub(crate) use config_value::parse_string;
         pub(crate) use config_value::parse_string_list;
+        pub(crate) use kind_word::{FIXED_ENTRY_WORDS, FIXED_KIND_WORDS, RESERVED_KIND_WORDS};
         pub use required_configuration_render::render_required_configuration;
         pub(crate) use role_resolve::detect_role;
         pub(crate) use role_resolve::format_role_name;
@@ -95,6 +96,7 @@ pub mod config {
         mod checks_parse;
         mod config_parse;
         mod config_value;
+        mod kind_word;
         mod required_configuration_render;
         mod role_resolve;
     }
@@ -590,14 +592,14 @@ pub(crate) mod module {
         };
         pub(crate) use lifecycle_graph::has_module_parameter_cycle;
         pub(crate) use placement_inspect::{
-            external_trait, is_model_item, item_concept, owns_implementation, reference_types,
-            resolve_type_uses,
+            external_trait, is_model_item, item_concept, list_try_from_impls, owns_implementation,
+            reference_types, resolve_type_uses,
         };
         pub(crate) use returned_type_use::returned_to_other_owner;
         pub(crate) use shape_inspect::{
-            build_shape_item_finding, build_shape_module_finding, find_kind_name,
-            find_shape_visibility, find_type_path, implements_crate_trait, list_shape_words,
-            resolve_shape_type,
+            build_shape_item_finding, build_shape_module_finding, declares_type_elsewhere,
+            find_kind_name, find_shape_visibility, find_type_path, format_shape_subject,
+            implements_crate_trait, list_shape_words, resolve_shape_type,
         };
         pub(crate) use type_ownership::{
             declaration_owner, exclusive_field_owner, field_owners, has_type_behaviour,
@@ -682,6 +684,7 @@ pub(crate) mod module {
         pub(crate) use unsafe_visitor::UnsafeVisitor;
         pub(crate) use use_case_abstraction::UseCaseAbstraction;
         pub(crate) use use_case_shape::UseCaseShape;
+        pub(crate) use util_contract_parameter_visitor::UtilContractParameterVisitor;
         pub(crate) use util_file_name::UtilFileName;
         pub(crate) use util_function_as_extension::UtilFunctionAsExtension;
         pub(crate) use util_shape::UtilShape;
@@ -738,6 +741,7 @@ pub(crate) mod module {
         mod unsafe_visitor;
         mod use_case_abstraction;
         mod use_case_shape;
+        mod util_contract_parameter_visitor;
         mod util_file_name;
         mod util_function_as_extension;
         mod util_shape;
@@ -894,6 +898,7 @@ pub(crate) mod declaration {
         pub(crate) use namespace_type::NamespaceType;
         pub(crate) use type_alias_on_one_line::TypeAliasOnOneLine;
         pub(crate) use type_alias_visitor::TypeAliasVisitor;
+        pub(crate) use validated_model_derives::ValidatedModelDerives;
         pub(crate) use value_object_shape::ValueObjectShape;
         mod bare_identifier;
         mod callback_declaration;
@@ -907,6 +912,7 @@ pub(crate) mod declaration {
         mod namespace_type;
         mod type_alias_on_one_line;
         mod type_alias_visitor;
+        mod validated_model_derives;
         mod value_object_shape;
     }
     pub(crate) mod util {
@@ -1016,6 +1022,7 @@ mod test {
             mod namespace_type_test;
             mod phase4_declaration_docs_test;
             mod type_alias_on_one_line_test;
+            mod validated_model_derives_test;
             mod value_object_shape_test;
         }
     }
@@ -1116,7 +1123,9 @@ mod test {
                 assert_placement_findings, assert_placement_fixture, read_placement_context,
             };
             pub(crate) use resolver_case_test::assert_resolution_cases;
-            pub(crate) use shape_inspect_test::{read_shape_context, read_workspace_shape_context};
+            pub(crate) use shape_inspect_test::{
+                read_binary_shape_context, read_shape_context, read_workspace_shape_context,
+            };
             pub(crate) use workspace_provider_test::add_workspace_provider;
             mod di_inspect_test;
             mod import_case_test;

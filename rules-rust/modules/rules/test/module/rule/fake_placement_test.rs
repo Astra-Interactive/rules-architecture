@@ -1,5 +1,6 @@
 use crate::check::api::Rule;
 use crate::module::rule::FakePlacement;
+use crate::source::model::SourceTree;
 use crate::test::check::usecase::read_case_context;
 use crate::test::declaration::util::assert_code_fixture;
 use crate::test::module::util::{
@@ -199,4 +200,115 @@ fn given_test_fake_of_another_crates_trait_when_checked_then_reports_it() {
         &context,
         &[("shop_ledger/src/lib.rs", 3, "Node")],
     );
+}
+
+const BILLING_WITH_FIXTURE: &str = "pub mod invoice { pub mod api { pub trait InvoiceRepository {} } }\n#[cfg(any(test, feature = \"fake\"))]\npub mod fixture {\n    pub mod invoice {\n        pub mod fake {\n            pub struct FakeInvoiceRepository;\n            impl crate::invoice::api::InvoiceRepository for FakeInvoiceRepository {}\n        }\n    }\n}";
+
+const BILLING_DEPENDENCY: &str = "shop_billing_api={path=\"../shop_billing_api\"}\n";
+
+fn read_ledger_context(ledger: &str, features: &str) -> crate::check::model::RuleContext {
+    read_workspace_shape_context(&[
+        (
+            "shop_billing_api",
+            "\n[features]\nfake = []\n",
+            BILLING_WITH_FIXTURE,
+        ),
+        (
+            "shop_ledger",
+            &format!("{BILLING_DEPENDENCY}{features}"),
+            ledger,
+        ),
+    ])
+}
+
+fn list_fixture_path_findings(context: &crate::check::model::RuleContext) -> Vec<String> {
+    let mut actual: Vec<String> = FakePlacement
+        .check(context)
+        .iter()
+        .map(|finding| {
+            format!(
+                "{}:{} {}",
+                finding.finding.location.path,
+                finding.finding.location.line.unwrap_or(0),
+                finding.finding.subject
+            )
+        })
+        .collect();
+    actual.sort();
+    actual
+}
+
+#[test]
+fn given_production_paths_into_the_fixture_tree_of_another_crate_when_checked_then_each_path_reports()
+ {
+    let context = read_ledger_context(
+        "pub mod ledger {\n    pub mod util {\n        use shop_billing_api::fixture::invoice::fake::FakeInvoiceRepository;\n        pub fn first() { let repository = FakeInvoiceRepository; }\n        pub fn second() { let repository = shop_billing_api::fixture::invoice::fake::FakeInvoiceRepository; }\n        pub fn third(repository: &dyn shop_billing_api::invoice::api::InvoiceRepository) {}\n    }\n}",
+        "",
+    );
+    let subject = "shop_billing_api::fixture::invoice::fake::FakeInvoiceRepository";
+    assert_eq!(
+        list_fixture_path_findings(&context),
+        [
+            format!("shop_ledger/src/lib.rs:3 {subject}"),
+            format!("shop_ledger/src/lib.rs:4 {subject}"),
+            format!("shop_ledger/src/lib.rs:5 {subject}"),
+        ]
+    );
+}
+
+#[test]
+fn given_a_path_into_a_fixture_module_behind_a_test_or_fake_cfg_when_indexed_then_it_survives_as_a_production_use()
+ {
+    let context = read_ledger_context(
+        "pub mod ledger {\n    pub fn first() { let repository = shop_billing_api::fixture::invoice::fake::FakeInvoiceRepository; }\n}",
+        "",
+    );
+    let uses_of_fixture = context.name_index().uses.iter().filter(|usage| {
+        let target = &context.indexes[usage.target_index];
+        target.crate_name == "shop_billing_api"
+            && target.modules[target.items[usage.target_item].module].tree == SourceTree::Fixture
+            && context.indexes[usage.source_index].crate_name == "shop_ledger"
+    });
+    assert_eq!(
+        1,
+        uses_of_fixture.filter(|usage| !usage.is_test).count(),
+        "the fixture cfg (`any(test, feature = \"fake\")`) is satisfiable without `test`"
+    );
+}
+
+#[test]
+fn given_paths_into_the_fixture_tree_from_tests_fixtures_or_the_own_crate_when_checked_then_none_reports()
+ {
+    let context = read_ledger_context(
+        "pub mod ledger {\n    pub fn item() {}\n}\n#[cfg(test)]\nmod test {\n    mod ledger {\n        use shop_billing_api::fixture::invoice::fake::FakeInvoiceRepository;\n        fn first() { let repository = FakeInvoiceRepository; }\n    }\n}\n#[cfg(any(test, feature = \"fake\"))]\npub mod fixture {\n    pub mod ledger {\n        pub mod fake {\n            use shop_billing_api::fixture::invoice::fake::FakeInvoiceRepository;\n            pub fn wrap() { let repository = FakeInvoiceRepository; }\n        }\n    }\n}",
+        "[features]\nfake = []\n",
+    );
+    assert_eq!(list_fixture_path_findings(&context), Vec::<String>::new());
+    let own = read_workspace_shape_context(&[(
+        "shop_billing_api",
+        "\n[features]\nfake = []\n",
+        "pub mod invoice { pub mod api { pub trait InvoiceRepository {} } pub mod util { pub fn first() { let repository = crate::fixture::invoice::fake::FakeInvoiceRepository; } } }\n#[cfg(any(test, feature = \"fake\"))]\npub mod fixture {\n    pub mod invoice {\n        pub mod fake {\n            pub struct FakeInvoiceRepository;\n            impl crate::invoice::api::InvoiceRepository for FakeInvoiceRepository {}\n        }\n    }\n}",
+    )]);
+    assert_eq!(list_fixture_path_findings(&own), Vec::<String>::new());
+}
+
+#[test]
+fn given_fixture_path_cases_when_checked_then_production_paths_report_and_test_fixture_and_integration_paths_pass()
+ {
+    let bad = read_case_context("FakePlacement", "fail-production-fixture-path");
+    let subject = "case_billing_api::fixture::invoice::fake::FakeInvoiceRepository";
+    let path = "modules/ledger/src/ledger/usecase/count_ledger_use_case.rs";
+    assert_eq!(
+        list_fixture_path_findings(&bad),
+        [
+            format!("{path}:1 {subject}"),
+            format!("{path}:15 {subject}")
+        ]
+    );
+    let good = read_case_context("FakePlacement", "pass-test-fixture-paths");
+    assert!(
+        good.crates.iter().any(|sources| sources.target == "it"),
+        "the published crate's tests/it is read"
+    );
+    assert_eq!(list_fixture_path_findings(&good), Vec::<String>::new());
 }

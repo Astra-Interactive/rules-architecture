@@ -5,6 +5,9 @@ use crate::config::model::ManifestException;
 use crate::config::model::ManifestScope;
 use crate::config::model::ProjectConfig;
 use crate::config::model::Role;
+use crate::config::util::FIXED_ENTRY_WORDS;
+use crate::config::util::FIXED_KIND_WORDS;
+use crate::config::util::RESERVED_KIND_WORDS;
 use crate::config::util::build_configuration_error;
 use crate::config::util::check_known_keys;
 use crate::config::util::detect_role;
@@ -19,8 +22,9 @@ use crate::workspace::model::DependencyKind;
 use crate::workspace::model::Member;
 use crate::workspace::model::TomlValue;
 use crate::workspace::model::Workspace;
+use syn::ext::IdentExt;
 
-const WORKSPACE_KEYS: [&str; 10] = [
+const WORKSPACE_KEYS: [&str; 11] = [
     "product-kind",
     "platform-words",
     "prefix",
@@ -28,29 +32,33 @@ const WORKSPACE_KEYS: [&str; 10] = [
     "technology-words",
     "plural-concepts",
     "extension-kinds",
+    "role-kinds",
     "lifecycle-traits",
     "root-module",
     "checks",
 ];
-const PACKAGE_KEYS: [&str; 9] = [
+const PACKAGE_KEYS: [&str; 10] = [
     "role",
     "entry-point-words",
     "technology-words",
     "plural-concepts",
     "extension-kinds",
+    "role-kinds",
     "composition",
     "implementation-access",
     "host-items",
     "checks",
 ];
-const WORD_LIST_KEYS: [&str; 4] = [
+const WORD_LIST_KEYS: [&str; 5] = [
     "entry-point-words",
     "technology-words",
     "plural-concepts",
     "extension-kinds",
+    "role-kinds",
 ];
 const WORKSPACE_TABLE: [&str; 3] = ["workspace", "metadata", "klibs-rules"];
 const PACKAGE_TABLE: [&str; 3] = ["package", "metadata", "klibs-rules"];
+const ROOT_BLOCK_WORDS: [&str; 2] = ["test", "fixture"];
 const GENERIC_WORDS: [&str; 16] = [
     "alloc", "async", "common", "core", "derive", "lib", "macros", "rt", "runtime", "rust", "std",
     "sync", "sys", "util", "utils", "",
@@ -252,6 +260,82 @@ fn check_workspace_scalars(table: &TomlValue, path: &str) -> Result<(), CheckErr
     Ok(())
 }
 
+fn is_module_name(word: &str) -> bool {
+    syn::parse_str::<syn::Ident>(word).is_ok_and(|identifier| identifier.unraw() == word)
+}
+
+fn describe_role_kind_problem(
+    word: &str,
+    entry_words: &[String],
+    technology_words: &[String],
+) -> Option<&'static str> {
+    if !is_module_name(word) {
+        return Some("not a valid Rust identifier");
+    }
+    if ROOT_BLOCK_WORDS.contains(&word) {
+        return Some("a block name of the crate root");
+    }
+    if FIXED_KIND_WORDS.contains(&word) || RESERVED_KIND_WORDS.contains(&word) {
+        return Some("a fixed kind");
+    }
+    if FIXED_ENTRY_WORDS.contains(&word) || entry_words.iter().any(|entry| entry == word) {
+        return Some("an entry-point word");
+    }
+    technology_words
+        .iter()
+        .any(|technology| technology == word)
+        .then_some("a technology word")
+}
+
+fn check_role_kind_table(
+    table: Option<&TomlValue>,
+    path: &str,
+    entry_words: &[String],
+    technology_words: &[String],
+) -> Result<(), CheckError> {
+    let Some(entry) = table.and_then(|table| table.find_entry("role-kinds")) else {
+        return Ok(());
+    };
+    for word in parse_string_list(&entry.value, path, "role-kinds")? {
+        let Some(collision) = describe_role_kind_problem(&word, entry_words, technology_words)
+        else {
+            continue;
+        };
+        return Err(build_configuration_error(
+            path,
+            entry.line,
+            format!(
+                "`role-kinds` word \"{word}\" is {collision}; a role kind is a word of its own"
+            ),
+        ));
+    }
+    Ok(())
+}
+
+fn check_role_kinds(
+    workspace_table: &TomlValue,
+    workspace_path: &str,
+    member: &Member,
+    technology_words: &[String],
+) -> Result<(), CheckError> {
+    let package_table = member.manifest.root.find(&PACKAGE_TABLE);
+    let package_path = member.manifest.path.as_str();
+    let mut entry_words =
+        parse_optional_list(Some(workspace_table), "entry-point-words", workspace_path)?;
+    entry_words.extend(parse_optional_list(
+        package_table,
+        "entry-point-words",
+        package_path,
+    )?);
+    check_role_kind_table(
+        Some(workspace_table),
+        workspace_path,
+        &entry_words,
+        technology_words,
+    )?;
+    check_role_kind_table(package_table, package_path, &entry_words, technology_words)
+}
+
 pub(crate) fn parse_project_config(workspace: &Workspace) -> Result<ProjectConfig, CheckError> {
     let path = workspace.root_manifest.path.as_str();
     let Some(table) = workspace.root_manifest.root.find(&WORKSPACE_TABLE) else {
@@ -277,12 +361,14 @@ pub(crate) fn parse_project_config(workspace: &Workspace) -> Result<ProjectConfi
     let mut allowed_dependencies = Vec::new();
     let mut crates = Vec::new();
     for member in &workspace.members {
-        crates.push(parse_crate_config(
+        let config = parse_crate_config(
             member,
             &workspace.members,
             &technology_words,
             &platform_words,
-        )?);
+        )?;
+        check_role_kinds(table, path, member, &config.technology_words)?;
+        crates.push(config);
         manifest_exceptions.extend(parse_package_exceptions(member)?);
         allowed_dependencies.extend(parse_package_allowed_dependencies(member)?);
     }

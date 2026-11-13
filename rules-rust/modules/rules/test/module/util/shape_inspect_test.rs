@@ -5,6 +5,24 @@ use crate::test::check::usecase::read_case_context;
 use std::fs;
 
 pub(crate) fn read_workspace_shape_context(members: &[(&str, &str, &str)]) -> RuleContext {
+    read_workspace_with_binaries(members, &[])
+}
+
+pub(crate) fn read_binary_shape_context(library: &str, binary: &str) -> RuleContext {
+    read_workspace_with_binaries(
+        &[(
+            "shop_cli",
+            "\n[package.metadata.klibs-rules]\nrole=\"entry-point\"\n",
+            library,
+        )],
+        &[("shop_cli", binary)],
+    )
+}
+
+fn read_workspace_with_binaries(
+    members: &[(&str, &str, &str)],
+    binaries: &[(&str, &str)],
+) -> RuleContext {
     use crate::workspace::api::WorkspaceReader;
     let mut context = read_case_context("RootFileShape", "pass-tree");
     let directory = tempfile::tempdir().expect("temporary workspace");
@@ -22,6 +40,9 @@ pub(crate) fn read_workspace_shape_context(members: &[(&str, &str, &str)]) -> Ru
         )
         .expect("member manifest");
         fs::write(root.join("src/lib.rs"), source).expect("member source");
+    }
+    for (name, source) in binaries {
+        fs::write(directory.path().join(name).join("src/main.rs"), source).expect("binary source");
     }
     context.workspace = crate::workspace::cargo::CargoWorkspaceReader::new(
         crate::workspace::util::resolve_cargo_path(),

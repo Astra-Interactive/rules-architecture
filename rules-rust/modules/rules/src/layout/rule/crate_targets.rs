@@ -1,5 +1,6 @@
 use crate::check::api::Rule;
 use crate::check::model::{Anchor, Finding, Location, RuleContext, RuleFinding, RuleId};
+use crate::config::model::Role;
 use crate::workspace::model::{Member, Target};
 
 pub(crate) struct CrateTargets;
@@ -8,7 +9,7 @@ impl CrateTargets {
     fn check_target(
         member: &Member,
         target: &Target,
-        has_lib: bool,
+        shares_library: bool,
         bins: usize,
     ) -> Option<RuleFinding> {
         let path = if member.directory.is_empty() {
@@ -27,7 +28,7 @@ impl CrateTargets {
             if path != "src/main.rs" {
                 reasons.push("a binary target starts at src/main.rs");
             }
-            if has_lib {
+            if shares_library {
                 reasons.push("a crate is a library or a binary, never both");
             }
             if bins > 1 {
@@ -65,16 +66,20 @@ impl Rule for CrateTargets {
             .members
             .iter()
             .flat_map(|member| {
+                let is_entry_point = context
+                    .find_role_config(&member.name)
+                    .and_then(|config| config.role)
+                    == Some(Role::EntryPoint);
                 let has_lib = member.targets.iter().any(Target::is_lib_target);
+                let shares_library = has_lib && !is_entry_point;
                 let bins = member
                     .targets
                     .iter()
                     .filter(|target| target.is_bin())
                     .count();
-                member
-                    .targets
-                    .iter()
-                    .filter_map(move |target| Self::check_target(member, target, has_lib, bins))
+                member.targets.iter().filter_map(move |target| {
+                    Self::check_target(member, target, shares_library, bins)
+                })
             })
             .collect()
     }

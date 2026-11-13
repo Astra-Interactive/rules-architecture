@@ -1,11 +1,13 @@
 use crate::check::api::Rule;
 use crate::check::model::{Anchor, Finding, Location, RuleContext, RuleFinding, RuleId};
+use crate::check::util::{build_node_finding, format_module_path};
 use crate::module::util::{
     build_shape_item_finding, build_shape_module_finding, find_kind_name, item_concept,
     owns_implementation,
 };
-use crate::source::model::{IndexedItem, SourceTree};
+use crate::source::model::{CrateIndex, IndexedItem, SourceTree};
 use crate::workspace::model::TomlValue;
+use std::collections::BTreeSet;
 use syn::Visibility;
 
 pub(crate) struct FakePlacement;
@@ -99,6 +101,45 @@ impl FakePlacement {
         })
     }
 
+    fn find_block_path(index: &CrateIndex, mut module: usize) -> &[String] {
+        while index.modules[module].is_file_module {
+            let Some(parent) = index.modules[module].parent else {
+                break;
+            };
+            module = parent;
+        }
+        &index.modules[module].module.path
+    }
+
+    fn check_production_paths(context: &RuleContext) -> Vec<RuleFinding> {
+        let mut seen = BTreeSet::new();
+        context
+            .name_index()
+            .uses
+            .iter()
+            .filter(|usage| !usage.is_test)
+            .filter_map(|usage| {
+                let target = &context.indexes[usage.target_index];
+                let item = &target.items[usage.target_item];
+                let is_fixture = target.modules[item.module].tree == SourceTree::Fixture;
+                let is_foreign =
+                    target.crate_name != context.indexes[usage.source_index].crate_name;
+                (is_fixture && is_foreign && seen.insert((usage.file.clone(), usage.span))).then(
+                    || {
+                        let block = Self::find_block_path(target, item.module);
+                        build_node_finding(
+                            "FakePlacement",
+                            &usage.file,
+                            usage.anchor,
+                            format!("{}::{}", format_module_path(&target.crate_name, block), item.name),
+                            "A path into the fixture tree of another crate is reached from tests only: a test, a fixture tree or tests/it names it, production code never does (arch-package.rs.md, Tests)".to_owned(),
+                        )
+                    },
+                )
+            })
+            .collect()
+    }
+
     fn reaches_fake(manifest: &TomlValue, start: &str) -> bool {
         let mut pending = vec![start.to_owned()];
         let mut visited = std::collections::BTreeSet::new();
@@ -173,6 +214,7 @@ impl Rule for FakePlacement {
             );
             findings.extend(index.modules.iter().filter(|module| module.tree == SourceTree::Src && !module.is_file_module && module.module.path.last().is_some_and(|name| name == "fake")).filter_map(|module| build_shape_module_finding(context, ordinal, module.id, "FakePlacement", "The fake kind exists only in test or fixture trees (arch-package.rs.md)")));
         }
+        findings.extend(Self::check_production_paths(context));
         findings.extend(
             context
                 .workspace

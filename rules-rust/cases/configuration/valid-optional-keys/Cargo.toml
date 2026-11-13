@@ -9,6 +9,7 @@ prefix = "shop"
 root-module = "Root"
 lifecycle-traits = ["Lifecycle"]
 entry-point-words = ["slot"]
+role-kinds = ["registry"]
 
 [workspace.lints.rust]
 unreachable_pub = "warn"

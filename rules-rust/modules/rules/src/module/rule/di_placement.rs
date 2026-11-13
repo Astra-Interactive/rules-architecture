@@ -70,6 +70,20 @@ impl DiPlacement {
         constructed_in_di || Self::holds_as_field(context, ordinal, identity)
     }
 
+    fn has_di_module(context: &RuleContext, crate_name: &str) -> bool {
+        context
+            .indexes
+            .iter()
+            .enumerate()
+            .filter(|(_, index)| index.crate_name == crate_name)
+            .any(|(ordinal, index)| {
+                index.items.iter().any(|item| {
+                    index.modules[item.module].tree == crate::source::model::SourceTree::Src
+                        && crate::module::util::is_di_type(context, ordinal, item)
+                })
+            })
+    }
+
     fn missing_module(context: &RuleContext, ordinal: usize) -> Vec<RuleFinding> {
         let index = &context.indexes[ordinal];
         let mut findings: Vec<_> = index
@@ -91,11 +105,7 @@ impl DiPlacement {
                 )
             })
             .collect();
-        if index
-            .items
-            .iter()
-            .any(|item| crate::module::util::is_di_type(context, ordinal, item))
-        {
+        if Self::has_di_module(context, &index.crate_name) {
             return findings;
         }
         if let Some(usage) = context

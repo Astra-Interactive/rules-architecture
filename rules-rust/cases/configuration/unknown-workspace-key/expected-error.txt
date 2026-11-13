@@ -1,1 +1,1 @@
-Cargo.toml:7: unknown key `role` in [workspace.metadata.klibs-rules]; allowed: product-kind, platform-words, prefix, entry-point-words, technology-words, plural-concepts, extension-kinds, lifecycle-traits, root-module, checks
+Cargo.toml:7: unknown key `role` in [workspace.metadata.klibs-rules]; allowed: product-kind, platform-words, prefix, entry-point-words, technology-words, plural-concepts, extension-kinds, role-kinds, lifecycle-traits, root-module, checks

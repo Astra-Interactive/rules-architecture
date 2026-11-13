@@ -138,3 +138,32 @@ fn given_constructor_computing_its_tuple_field_when_checked_then_the_accessor_is
         &[2],
     );
 }
+
+#[test]
+fn given_model_with_try_from_in_its_file_when_checked_then_an_exposed_field_is_reported() {
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ValueObjectShape,
+        "mod model {\nstruct Money(pub i64); impl TryFrom<i64> for Money { type Error = (); fn try_from(cents: i64) -> Result<Self, ()> { Ok(Self(cents)) } }\npub struct Level { pub(crate) value: u8 } impl TryFrom<u8> for Level { type Error = (); fn try_from(value: u8) -> Result<Self, ()> { Ok(Self { value }) } }\nstruct Safe(i64); impl TryFrom<i64> for Safe { type Error = (); fn try_from(cents: i64) -> Result<Self, ()> { Ok(Self(cents)) } }\nstruct Plain(pub i64);\nstruct Standard(pub i64); impl std::convert::TryFrom<i64> for Standard { type Error = (); fn try_from(cents: i64) -> Result<Self, ()> { Ok(Self(cents)) } }\nstruct MoneyParts { pub(crate) cents: i64 }\n}",
+        &[2, 3, 6],
+    );
+}
+
+#[test]
+fn given_try_from_validated_value_object_when_its_parser_is_checked_then_it_lives_in_util() {
+    crate::test::module::util::assert_di_lines(
+        &crate::declaration::rule::ValueObjectShape,
+        "mod model {\npub struct Money(i64); impl TryFrom<i64> for Money { type Error = MoneyError; fn try_from(cents: i64) -> Result<Self, MoneyError> { Ok(Self(cents)) } }\npub enum MoneyError { Negative }\nfn parse_money(raw: i64) -> Result<Money, MoneyError> { Money::try_from(raw) }\n}\nmod util {\nfn parse_money(raw: i64) -> Result<crate::model::Money, crate::model::MoneyError> { if raw < 0 { return Err(crate::model::MoneyError::Negative); } crate::model::Money::try_from(raw) }\n}",
+        &[4],
+    );
+}
+
+#[test]
+fn given_try_from_policy_fixtures_when_checked_then_exact_nodes_and_subjects_match() {
+    for half in ["try-from-bad", "try-from-good"] {
+        crate::test::module::util::assert_di_fixture(
+            &crate::declaration::rule::ValueObjectShape,
+            "ValueObjectShape",
+            half,
+        );
+    }
+}

@@ -135,3 +135,11 @@ fn given_cross_module_result_aliases_when_checked_then_uses_the_alias_owner_type
         &[9],
     );
 }
+
+#[test]
+fn given_runtime_built_in_main_of_a_binary_entry_point_with_a_library_when_checked_then_main_is_the_boundary()
+ {
+    let context =
+        crate::test::check::usecase::read_case_context("CrateTargets", "pass-binary-entry-point");
+    assert!(crate::check::api::Rule::check(&BlockOnOutsideBoundary, &context).is_empty());
+}

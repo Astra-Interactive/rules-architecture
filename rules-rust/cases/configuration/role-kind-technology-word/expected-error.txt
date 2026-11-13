@@ -1,0 +1,1 @@
+Cargo.toml:7: `role-kinds` word "mongo" is a technology word; a role kind is a word of its own

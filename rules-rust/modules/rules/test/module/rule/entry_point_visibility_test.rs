@@ -134,3 +134,39 @@ fn given_platform_words_when_public_event_derives_or_implements_a_non_platform_t
         ["11 case_sample::slot::InvoiceSlot"]
     );
 }
+
+#[test]
+fn given_entry_kind_types_used_by_main_through_the_crate_name_when_checked_then_only_unused_public_types_report()
+ {
+    let library =
+        "pub mod command {\n    pub struct InvoiceCommand;\n    pub struct OtherCommand;\n}";
+    let context = crate::test::module::util::read_binary_shape_context(
+        library,
+        "use shop_cli::command::InvoiceCommand;\nfn main() { let command = InvoiceCommand; }",
+    );
+    assert_eq!(
+        list_findings_by_line(&context),
+        ["3 shop_cli::command::OtherCommand"]
+    );
+    let context = crate::test::module::util::read_binary_shape_context(library, "fn main() {}");
+    assert_eq!(
+        list_findings_by_line(&context),
+        [
+            "2 shop_cli::command::InvoiceCommand",
+            "3 shop_cli::command::OtherCommand"
+        ]
+    );
+}
+
+#[test]
+fn given_entry_kind_type_used_by_a_library_module_of_the_same_crate_when_checked_then_it_still_reports()
+ {
+    let context = crate::test::module::util::read_binary_shape_context(
+        "pub mod command {\n    pub struct InvoiceCommand;\n}\npub mod di {\n    pub struct RootModule { command: crate::command::InvoiceCommand }\n}",
+        "use shop_cli::di::RootModule;\nfn main() {}",
+    );
+    assert_eq!(
+        list_findings_by_line(&context),
+        ["2 shop_cli::command::InvoiceCommand"]
+    );
+}

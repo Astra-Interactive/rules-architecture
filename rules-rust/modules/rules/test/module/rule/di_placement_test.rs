@@ -91,6 +91,32 @@ fn given_dependency_assembly_without_module_when_checked_then_state_and_fakes_ar
     assert!(DiPlacement.check(&context).is_empty());
 }
 #[test]
+fn given_di_shaped_type_outside_the_src_tree_when_checked_then_it_does_not_stand_in_for_the_di_module_of_src()
+ {
+    let assembly = "trait Repo {} struct FileRepo; impl Repo for FileRepo {} impl FileRepo { fn new() -> Self { Self } } fn build_owner() { let repo = FileRepo::new(); }";
+    for tree in [
+        "#[cfg(test)] mod test { mod di { pub struct FakeModule; } }",
+        "#[cfg(any(test, feature = \"fake\"))] mod fixture { pub mod di { pub struct FakeModule; } }",
+    ] {
+        let context = read_shape_context(&format!("{assembly} {tree}"), &[]);
+        let findings = DiPlacement.check(&context);
+        assert_eq!(findings.len(), 1, "{tree}: {findings:?}");
+        assert_eq!(findings[0].finding.subject, "case-sample");
+    }
+    let mut context = read_shape_context(
+        &format!("{assembly} mod di {{ pub struct FakeModule; }}"),
+        &[],
+    );
+    assert!(DiPlacement.check(&context).is_empty());
+    for module in &mut context.indexes[0].modules {
+        if module.module.path.last().is_some_and(|name| name == "di") {
+            module.tree = crate::source::model::SourceTree::TestsIt;
+        }
+    }
+    assert_eq!(DiPlacement.check(&context).len(), 1);
+}
+
+#[test]
 fn given_owned_resource_lifecycle_when_checked_then_a_module_is_required_and_test_fakes_are_exempt()
 {
     for (source, count) in [
@@ -125,4 +151,24 @@ fn given_second_lifecycle_resource_no_di_item_owns_when_checked_then_only_that_r
     let findings = DiPlacement.check(&context);
     assert_eq!(findings.len(), 1, "{findings:?}");
     assert_eq!(findings[0].finding.subject, "case_sample::CachePool");
+}
+
+#[test]
+fn given_di_module_in_the_library_of_a_binary_entry_point_when_main_constructs_it_then_the_crate_has_its_di_module()
+ {
+    let context = read_case_context("CrateTargets", "pass-binary-entry-point");
+    assert!(DiPlacement.check(&context).is_empty());
+}
+
+#[test]
+fn given_binary_main_assembling_an_implementation_when_no_target_has_a_di_module_then_the_crate_is_reported()
+ {
+    let context = crate::test::module::util::read_binary_shape_context(
+        "pub trait Repo {}\npub struct FileRepo;\nimpl Repo for FileRepo {}\nimpl FileRepo { pub fn new() -> Self { Self } }",
+        "use shop_cli::FileRepo;\nfn main() { let repo = FileRepo::new(); }",
+    );
+    let findings = DiPlacement.check(&context);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].finding.subject, "shop_cli");
+    assert_eq!(findings[0].finding.location.path, "shop_cli/src/main.rs");
 }

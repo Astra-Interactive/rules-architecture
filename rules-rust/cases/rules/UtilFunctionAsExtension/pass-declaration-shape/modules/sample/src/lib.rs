@@ -3,5 +3,5 @@ pub(crate) mod model {
     mod invoice;
 }
 pub(crate) mod util {
-    mod invoice_total;
+    mod invoice_ext;
 }

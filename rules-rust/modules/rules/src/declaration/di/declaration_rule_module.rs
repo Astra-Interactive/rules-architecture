@@ -2,7 +2,7 @@ use crate::check::api::Rule;
 use crate::declaration::rule::{
     BareIdentifier, CallbackDeclaration, ContractShape, ErrorFamilyShape,
     InitializerOnDeclarationLine, LocalItem, ModelDerives, NamespaceType, TypeAliasOnOneLine,
-    ValueObjectShape,
+    ValidatedModelDerives, ValueObjectShape,
 };
 use std::sync::Arc;
 
@@ -21,6 +21,7 @@ impl DeclarationRuleModule {
             Arc::new(ModelDerives),
             Arc::new(ContractShape),
             Arc::new(ValueObjectShape),
+            Arc::new(ValidatedModelDerives),
             Arc::new(ErrorFamilyShape),
             Arc::new(TypeAliasOnOneLine),
             Arc::new(InitializerOnDeclarationLine),
@@ -33,6 +34,7 @@ impl DeclarationRuleModule {
             "ModelDerives",
             "ContractShape",
             "ValueObjectShape",
+            "ValidatedModelDerives",
             "ErrorFamilyShape",
             "TypeAliasOnOneLine",
             "InitializerOnDeclarationLine",

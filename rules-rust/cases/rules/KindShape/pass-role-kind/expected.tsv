@@ -1,0 +1,4 @@
+NamespaceType	modules/sample/src/registry/packet_registry.rs:1	case_sample::registry::packet_registry::PacketRegistry	Use module functions instead of a fieldless namespace type (arch-package.rs.md)
+VisibilityTier	modules/sample/src/registry/packet_registry.rs:4	PacketRegistry	A crate-visible method used only in the file of its type is private
+VisibilityTier	modules/sample/src/vote/limiter/vote_cooldown_limiter.rs:6	VoteCooldownLimiter	A crate-visible method used only in the file of its type is private
+VisibilityTier	modules/sample/src/vote/limiter/vote_cooldown_limiter.rs:10	VoteCooldownLimiter	A crate-visible method used only in the file of its type is private

@@ -1,0 +1,21 @@
+OneTypeFamilyPerFile	modules/sample/src/lib.rs:5	case_sample::vote::limiter::limit_items	Name the file after its primary type family (arch-package.rs.md)
+KindShape	modules/sample/src/lib.rs:9	case_sample::vote::parser::ballot_parser	a concept holds kind blocks; files live in a named kind
+ContractPlacement	modules/sample/src/vote/limiter/limit_items.rs:3	case_sample::vote::limiter::Window	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+KindShape	modules/sample/src/vote/limiter/limit_items.rs:3	case_sample::vote::limiter::Window	a role kind holds types and their impls only
+ReExportShape	modules/sample/src/vote/limiter/limit_items.rs:3	Window	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/vote/limiter/limit_items.rs:3	Window	visibility follows the actual workspace users of the item
+DeclarationOrder	modules/sample/src/vote/limiter/limit_items.rs:5	case_sample::vote::limiter::limit_items	Declare constants, complete type families and functions in dependency order (code-ordering.rs.md)
+KindShape	modules/sample/src/vote/limiter/limit_items.rs:5	case_sample::vote::limiter::WINDOW	a role kind holds types and their impls only
+ReExportShape	modules/sample/src/vote/limiter/limit_items.rs:5	WINDOW	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/vote/limiter/limit_items.rs:5	WINDOW	visibility follows the actual workspace users of the item
+DeclarationOrder	modules/sample/src/vote/limiter/limit_items.rs:7	case_sample::vote::limiter::limit_items	Declare constants, complete type families and functions in dependency order (code-ordering.rs.md)
+KindShape	modules/sample/src/vote/limiter/limit_items.rs:7	case_sample::vote::limiter::LIMIT	a role kind holds types and their impls only
+ReExportShape	modules/sample/src/vote/limiter/limit_items.rs:7	LIMIT	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/vote/limiter/limit_items.rs:7	LIMIT	visibility follows the actual workspace users of the item
+KindShape	modules/sample/src/vote/limiter/limit_items.rs:9	case_sample::vote::limiter::compute_window	a role kind holds types and their impls only
+OneTypeFamilyPerFile	modules/sample/src/vote/limiter/limit_items.rs:9	case_sample::vote::limiter::limit_items::compute_window	Place free functions in a function file, separate from a type family (arch-package.rs.md)
+ReExportShape	modules/sample/src/vote/limiter/limit_items.rs:9	compute_window	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/vote/limiter/limit_items.rs:9	compute_window	visibility follows the actual workspace users of the item
+KindShape	modules/sample/src/vote/limiter/vote_cooldown.rs:1	case_sample::vote::limiter::VoteCooldown	a type in the `limiter` kind ends with `Limiter`, the kind's word
+ReExportShape	modules/sample/src/vote/parser/ballot_parser.rs:1	BallotParser	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
+VisibilityTier	modules/sample/src/vote/parser/ballot_parser.rs:1	BallotParser	visibility follows the actual workspace users of the item

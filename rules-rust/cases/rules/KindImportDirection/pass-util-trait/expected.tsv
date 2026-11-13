@@ -1,0 +1,18 @@
+ModuleVisibility	modules/sample/src/lib.rs:1	case_sample::api	module visibility must be Crate (arch-package.rs.md, Modules and directories)
+ContractShape	modules/sample/src/lib.rs:2	case_sample::api::Repository	Declare contracts as non-generic Send + Sync traits, with async_trait for async methods (arch-domain.rs.md)
+RootFileShape	modules/sample/src/lib.rs:2	case_sample	a module block in the root file holds only use and mod items
+VisibilityTier	modules/sample/src/lib.rs:2	Repository	visibility follows the actual workspace users of the item
+KindContent	modules/sample/src/lib.rs:3	case_sample::api::Page	api holds contracts, model the level's types, usecase its operations; functions live in util (arch-package.md)
+RootFileShape	modules/sample/src/lib.rs:3	case_sample	a module block in the root file holds only use and mod items
+VisibilityTier	modules/sample/src/lib.rs:3	Page	visibility follows the actual workspace users of the item
+KindContent	modules/sample/src/lib.rs:4	case_sample::api::Order	api holds contracts, model the level's types, usecase its operations; functions live in util (arch-package.md)
+RootFileShape	modules/sample/src/lib.rs:4	case_sample	a module block in the root file holds only use and mod items
+VisibilityTier	modules/sample/src/lib.rs:4	Order	visibility follows the actual workspace users of the item
+ModuleVisibility	modules/sample/src/lib.rs:8	case_sample::util	module visibility must be Crate (arch-package.rs.md, Modules and directories)
+RootFileShape	modules/sample/src/lib.rs:11	case_sample	a module block in the root file holds only use and mod items
+VisibilityTier	modules/sample/src/lib.rs:11	compute_page	visibility follows the actual workspace users of the item
+ModuleVisibility	modules/sample/src/lib.rs:13	case_sample::usecase	module visibility must be Crate (arch-package.rs.md, Modules and directories)
+KindContent	modules/sample/src/lib.rs:15	case_sample::usecase::load_page	api holds contracts, model the level's types, usecase its operations; functions live in util (arch-package.md)
+RootFileShape	modules/sample/src/lib.rs:15	case_sample	a module block in the root file holds only use and mod items
+UseCaseShape	modules/sample/src/lib.rs:15	case_sample::usecase::load_page	a VerbObjectUseCase lives in usecase, exposes only new/invoke, invokes no other use case and awaits in async invoke
+VisibilityTier	modules/sample/src/lib.rs:15	load_page	visibility follows the actual workspace users of the item

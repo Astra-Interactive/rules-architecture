@@ -173,6 +173,7 @@ fn build_code_behaviour_entries() -> Vec<CatalogueEntry> {
         build_entry("TimePrimitive", 4, NODE, false),
         build_entry("ModelDerives", 2, NODE, false),
         build_entry("ValueObjectShape", 4, NODE, false),
+        build_entry("ValidatedModelDerives", 4, NODE, false),
         build_entry("ContractShape", 2, NODE, false),
         build_entry("ErrorFamilyShape", 4, NODE, false),
         build_entry("ErrorLogging", 4, NODE, false),

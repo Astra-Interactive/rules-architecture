@@ -1,0 +1,1 @@
+Cargo.toml:7: `role-kinds` word "model" is a fixed kind; a role kind is a word of its own

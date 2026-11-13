@@ -286,3 +286,11 @@ fn given_annotated_local_of_workspace_type_when_its_method_waits_then_only_a_shu
         assert_eq!(lines, expected, "{helper}");
     }
 }
+
+#[test]
+fn given_main_of_a_binary_entry_point_with_a_library_when_checked_then_it_constructs_the_root_module_of_the_library()
+ {
+    let context =
+        crate::test::check::usecase::read_case_context("CrateTargets", "pass-binary-entry-point");
+    assert!(crate::check::api::Rule::check(&crate::module::rule::MainShape, &context).is_empty());
+}

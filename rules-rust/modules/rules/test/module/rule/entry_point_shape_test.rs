@@ -160,3 +160,10 @@ fn given_extern_abi_functions_in_cdylib_when_checked_then_only_exported_symbols_
     lines.sort_unstable();
     assert_eq!(vec![2, 3], lines, "{findings:?}");
 }
+
+#[test]
+fn given_library_and_binary_of_an_entry_point_crate_when_checked_then_the_di_root_and_private_main_pass()
+ {
+    let context = read_case_context("CrateTargets", "pass-binary-entry-point");
+    assert!(EntryPointShape.check(&context).is_empty());
+}

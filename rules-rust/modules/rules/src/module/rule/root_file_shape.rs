@@ -4,6 +4,7 @@ use crate::check::util::{build_node_finding, format_module_path};
 use crate::config::model::Role;
 use crate::source::model::SourceFile;
 use crate::source::util::{find_node_span, format_tokens};
+use crate::workspace::model::{Member, Target};
 use syn::spanned::Spanned;
 use syn::{Item, ItemMod, Visibility};
 
@@ -179,7 +180,46 @@ impl RootFileShape {
         }
     }
 
+    fn check_binary_root(file: &SourceFile, findings: &mut Vec<RuleFinding>) {
+        let mut saw_main = false;
+        for item in &file.syntax.items {
+            match item {
+                Item::Use(import) if matches!(import.vis, Visibility::Inherited) => {
+                    if saw_main {
+                        Self::report(file, item, "use lines precede fn main", findings);
+                    }
+                }
+                Item::Fn(function) if function.sig.ident == "main" => saw_main = true,
+                _ => Self::report(
+                    file,
+                    item,
+                    "src/main.rs of a crate with src/lib.rs holds only use items and fn main; the module tree is declared in src/lib.rs",
+                    findings,
+                ),
+            }
+        }
+    }
+
+    fn is_binary_root(file: &SourceFile, member: Option<&Member>) -> bool {
+        member.is_some_and(|member| {
+            member
+                .targets
+                .iter()
+                .any(|target| target.src_path == file.path && target.is_bin())
+        })
+    }
+
     fn check_root(file: &SourceFile, context: &RuleContext, findings: &mut Vec<RuleFinding>) {
+        let member = context
+            .workspace
+            .members
+            .iter()
+            .find(|member| member.name == file.module.crate_name);
+        let is_bin = Self::is_binary_root(file, member);
+        if is_bin && member.is_some_and(|member| member.targets.iter().any(Target::is_lib_target)) {
+            Self::check_binary_root(file, findings);
+            return;
+        }
         let config = context
             .project_config
             .crates
@@ -188,17 +228,6 @@ impl RootFileShape {
         let is_entry = config.is_some_and(|config| config.role == Some(Role::EntryPoint));
         let is_macro = config.is_some_and(|config| config.role == Some(Role::ProcMacro));
         let hosts = config.map_or(&[][..], |config| config.host_items.as_slice());
-        let is_bin = context
-            .workspace
-            .members
-            .iter()
-            .find(|member| member.name == file.module.crate_name)
-            .is_some_and(|member| {
-                member
-                    .targets
-                    .iter()
-                    .any(|target| target.src_path == file.path && target.is_bin())
-            });
         let mut previous = 0;
         for item in &file.syntax.items {
             match Self::stage(item, is_entry, is_bin, is_macro, hosts) {

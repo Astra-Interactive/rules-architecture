@@ -1,0 +1,9 @@
+[package]
+name = "case-billing-api"
+edition = "2024"
+
+[features]
+fake = []
+
+[lints]
+workspace = true
