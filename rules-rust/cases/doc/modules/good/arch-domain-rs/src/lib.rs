@@ -16,12 +16,18 @@ pub(crate) mod invoice {
         pub(crate) use money::Money;
         pub(crate) use money_error::MoneyError;
         pub(crate) use pay_invoice_result::PayInvoiceResult;
+        pub(crate) use payment_plan::PaymentPlan;
+        pub(crate) use payment_plan_error::PaymentPlanError;
+        pub(crate) use payment_plan_parts::PaymentPlanParts;
         mod invoice;
         mod invoice_error;
         mod invoice_id;
         mod money;
         mod money_error;
         mod pay_invoice_result;
+        mod payment_plan;
+        mod payment_plan_error;
+        mod payment_plan_parts;
     }
     pub(crate) mod usecase {
         pub(crate) use pay_invoice_use_case::PayInvoiceUseCase;

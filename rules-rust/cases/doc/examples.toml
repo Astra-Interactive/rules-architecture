@@ -2,7 +2,7 @@
 # `cargo xtask gate-sync --docs <conf.ide>/.claude/docs` rewrites sha256 and conf-ide-commit; the rest is reviewed by hand.
 
 [sync]
-conf-ide-commit = "dab82f0"
+conf-ide-commit = "7c53072"
 
 [[example]]
 claim = "arch-package.rs:Modules:5"
@@ -135,24 +135,41 @@ anchor = "## Rust: domain building blocks"
 first-line = "// invoice/model/money.rs"
 occurrence = 1
 half = "good"
-lines = "1-29"
+lines = "1-64"
 split = "files"
 wrap = "file"
-sha256 = "065e64e970d7215e7f10e63262b85d32dac21fb787de9d34e7fa3291fe94e491"
+sha256 = "c2ea534b64a2377bbd0c58d8da3d40499fafdb1937f02ec300ea69cb408a5e0a"
 expected = []
 review = []
 [[example.fragment]]
 path = "modules/good/arch-domain-rs/src/invoice/model/money.rs"
-block-lines = "1-16"
-fixture-lines = "1-16"
+block-lines = "1-1"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/arch-domain-rs/src/invoice/model/money.rs"
+block-lines = "2-25"
+fixture-lines = "5-28"
 [[example.fragment]]
 path = "modules/good/arch-domain-rs/src/invoice/util/money_parse.rs"
-block-lines = "18-18"
+block-lines = "27-27"
 fixture-lines = "1-1"
 [[example.fragment]]
 path = "modules/good/arch-domain-rs/src/invoice/util/money_parse.rs"
-block-lines = "19-29"
-fixture-lines = "4-14"
+block-lines = "28-35"
+fixture-lines = "4-11"
+[[example.fragment]]
+path = "modules/good/arch-domain-rs/src/invoice/model/payment_plan.rs"
+block-lines = "37-37"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/arch-domain-rs/src/invoice/model/payment_plan.rs"
+block-lines = "38-58"
+fixture-lines = "5-25"
+[[example.fragment]]
+path = "modules/good/arch-domain-rs/src/invoice/model/payment_plan_parts.rs"
+block-lines = "60-64"
+fixture-lines = "4-8"
+
 
 [[example]]
 claim = "arch-domain.rs:UseCase:8"
@@ -164,7 +181,7 @@ half = "good"
 lines = "1-33"
 split = "none"
 wrap = "file"
-sha256 = "1e36e957e74cd9e8cede367c6be7047897bee57f594adc400f489e85bc1df61a"
+sha256 = "134b6bddb9f5059e40562ad9c94f2eb6bada08bac9d58487e4c388b416bb4d66"
 expected = []
 review = []
 [[example.fragment]]
@@ -186,7 +203,7 @@ half = "good"
 lines = "1-6"
 split = "none"
 wrap = "file"
-sha256 = "51c758e2552114df60e05946512c35e1903b36e7c8dbbbb8e93b825dc0ed866c"
+sha256 = "56fb8e12e2ecedb3f1ebbfd19c1dd64f8da41c25080fa69572fda484f596523d"
 expected = []
 review = []
 [[example.fragment]]
@@ -738,13 +755,13 @@ fixture-lines = "9-27"
 claim = "di-manual.rs:Lifecycle:10"
 document = "di-manual.rs.md"
 anchor = "## Dependency Injection"
-first-line = "// instances/server: di/root_module.rs"
+first-line = "// instances/server: di/root_module.rs, public because `main.rs` constructs it"
 occurrence = 1
 half = "good"
 lines = "1-28"
 split = "none"
 wrap = "file"
-sha256 = "720c52cf2e294857ca3fc154f21e9523c298dda9372e1eef8d3bc509fc4ad32e"
+sha256 = "ee6994302e368f14bca5e2af816ac6c15dc1407a0a4659a7df04d1ca0920351a"
 expected = []
 review = []
 [[example.fragment]]
@@ -760,19 +777,19 @@ fixture-lines = "7-33"
 claim = "di-manual.rs:Main:7"
 document = "di-manual.rs.md"
 anchor = "## Dependency Injection"
-first-line = "// instances/server: src/main.rs, after the `use` lines and the module tree"
+first-line = "// instances/server: src/main.rs, after the `use` lines"
 occurrence = 1
 half = "good"
 lines = "1-26"
 split = "none"
-wrap = "root-file"
-sha256 = "0c39a6db0556c5d0b6aedbe6d695d40259dd4a7f3d3dd7d60b53bd445cbc2d15"
+wrap = "file"
+sha256 = "4369e714bc7397480f83686a4eac6df0e28f51c5e47efb2eaa9f730d70c56d59"
 expected = []
 review = []
 [[example.fragment]]
 path = "instances/di-manual-rs/src/main.rs"
 block-lines = "1-26"
-fixture-lines = "13-38"
+fixture-lines = "8-33"
 
 [[example]]
 claim = "di-manual-constructors.rs:Rule:4"
@@ -820,7 +837,7 @@ half = "good"
 lines = "1-14"
 split = "none"
 wrap = "file"
-sha256 = "625fcbee8905351ec5e8610a38dfcb449a869a1358706f7a94d0b0912d44cdac"
+sha256 = "a5e1d16eb54da153e872baaa13c999d4c71499407f1cd349f568a2d69fd28ff1"
 expected = []
 review = []
 [[example.fragment]]
@@ -842,14 +859,14 @@ half = "good"
 lines = "1-16"
 split = "files"
 wrap = "file"
-sha256 = "bed913549d97ecdcde891cd62a8934dedaaa2de722a76876cdbe0973f8ceb28e"
+sha256 = "05d1f57cfe06e16549c6e5593aee650ed90cd32c4ba172ced5a65b184aa1d1de"
 expected = []
 review = []
 [[example.fragment]]
 path = "modules/good/error-handling-rs/src/order/util/order_parse.rs"
 block-lines = "1-6"
 fixture-lines = "3-8"
-translate = [{ from = "Order { /* ... */ }", to = "Order { id: OrderId(1), items: Vec::new(), total: Money::ZERO }", why = "elision" }]
+translate = [{ from = "Order { /* ... */ }", to = "Order { id: OrderId(1), total: Money::ZERO, closed: false }", why = "elision" }]
 [[example.fragment]]
 path = "modules/good/error-handling-rs/src/order/util/order_ext.rs"
 block-lines = "8-8"
@@ -887,7 +904,7 @@ half = "good"
 lines = "1-5"
 split = "none"
 wrap = "items"
-sha256 = "a07c405776d649b9a67cffa80b92d2d28d9f9a4052181f8dca59c6b738149525"
+sha256 = "c0018bfa28979af18667f128055f2f6e4134a41f77b561f9419f4c8defb81685"
 expected = []
 review = []
 [[example.fragment]]
@@ -1397,19 +1414,19 @@ suffix = " {"
 claim = "rustdoc.rs:Forbid:9"
 document = "rustdoc.rs.md"
 anchor = "### Examples"
-first-line = "/// Function for computing a discount. Takes a price and a rate and returns the discount."
+first-line = "/// Method for computing a discount. Takes a rate and returns the discount."
 occurrence = 1
 half = "bad"
 lines = "1-2"
 split = "none"
-wrap = "items"
-sha256 = "892112cc829927c292f3eff33dabb6fe4118f5870bbdf6217d7753c2efafc470"
-expected = [{ line = 1, carrier = "ReExportShape" }]
+wrap = "impl-body"
+sha256 = "928bcc7b102ed880fd47f302b458194bf711a5d6e3e794a89008c24fc524d987"
+expected = []
 review = [{ why = "Semantic restatement of the function's calculation has no fixed filler phrase or lexical parameter description; prose meaning remains review." }]
 [[example.fragment]]
 path = "modules/bad/rustdoc-rs/src/example_50.rs"
 block-lines = "1-2"
-fixture-lines = "3-4"
+fixture-lines = "4-5"
 suffix = " {"
 
 [[example]]
@@ -1421,14 +1438,14 @@ occurrence = 1
 half = "good"
 lines = "1-9"
 split = "none"
-wrap = "items"
-sha256 = "68152c21580ae4595b0ae01ff8a0583a3ee138435f7e2a317ca7cad341a82b6b"
+wrap = "impl-body"
+sha256 = "5193fe0b397796900c68b623761704efdc63396074de53453114204e5110a592"
 expected = []
 review = []
 [[example.fragment]]
-path = "modules/good/rustdoc-rs/src/pricing/util/discount.rs"
+path = "modules/good/rustdoc-rs/src/pricing/util/money_ext.rs"
 block-lines = "1-9"
-fixture-lines = "4-12"
+fixture-lines = "5-13"
 suffix = " {"
 
 [[example]]

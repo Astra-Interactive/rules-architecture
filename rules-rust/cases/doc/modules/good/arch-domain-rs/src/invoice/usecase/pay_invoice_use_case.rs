@@ -30,7 +30,7 @@ impl PayInvoiceUseCase {
             return PayInvoiceResult::AlreadyPaid;
         }
         let paid = invoice.settle(self.clock.now());
-        match self.invoice_repository.save_invoice(paid.clone()).await {
+        match self.invoice_repository.save_invoice(&paid).await {
             Ok(()) => PayInvoiceResult::Paid(paid),
             Err(error) => PayInvoiceResult::Failed(error),
         }

@@ -7,8 +7,5 @@ pub(crate) fn parse_money(raw: &str) -> Result<Money, MoneyError> {
             raw: raw.to_owned(),
         });
     };
-    if cents < 0 {
-        return Err(MoneyError::Negative { cents });
-    }
-    Ok(Money::new(cents))
+    Money::try_from(cents)
 }

@@ -2,9 +2,9 @@
 use crate::order::model::{Order, OrderError};
 
 impl Order {
-    pub(crate) fn validate(self) -> Result<Order, OrderError> {
-        if self.items.is_empty() {
-            return Err(OrderError::Validation { id: self.id });
+    pub(crate) fn ensure_open(self) -> Result<Order, OrderError> {
+        if self.closed {
+            return Err(OrderError::Closed { id: self.id });
         }
         Ok(self)
     }

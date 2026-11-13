@@ -5,5 +5,5 @@ use async_trait::async_trait;
 #[async_trait]
 pub(crate) trait InvoiceRepository: Send + Sync {
     async fn find_invoice(&self, id: InvoiceId) -> Result<Option<Invoice>, InvoiceError>;
-    async fn save_invoice(&self, invoice: Invoice) -> Result<(), InvoiceError>;
+    async fn save_invoice(&self, invoice: &Invoice) -> Result<(), InvoiceError>;
 }

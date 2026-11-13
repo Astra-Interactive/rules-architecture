@@ -6,8 +6,8 @@ use std::error::Error;
 pub(crate) enum OrderError {
     #[error("order payload is blank")]
     Parse,
-    #[error("order {} must contain at least one item", .id.0)]
-    Validation { id: OrderId },
+    #[error("order {} is closed", .id.0)]
+    Closed { id: OrderId },
     #[error("could not load order {}", .id.0)]
     Load {
         id: OrderId,

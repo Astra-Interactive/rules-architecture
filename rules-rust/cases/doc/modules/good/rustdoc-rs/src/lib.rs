@@ -25,9 +25,8 @@ pub mod pricing {
         pub use money::Money;
         mod money;
     }
-    pub mod util {
-        pub use discount::compute_discount;
-        mod discount;
+    pub(crate) mod util {
+        mod money_ext;
     }
 }
 pub mod user {

@@ -177,6 +177,8 @@ ReExportShape	modules/bad/rustdoc-rs/src/example_48.rs:5	UserError	A non-private
 NamespaceType	modules/bad/rustdoc-rs/src/example_48.rs:9	bad_rustdoc_rs::example_48::UserDirectory	Use module functions instead of a fieldless namespace type (arch-package.rs.md)
 ReExportShape	modules/bad/rustdoc-rs/src/example_48.rs:9	UserDirectory	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 ImportThroughFileModule	modules/bad/rustdoc-rs/src/example_50.rs:1	crate::money::Money	Import and name an item through its kind block, without walking through its private file module
+ImplPlacement	modules/bad/rustdoc-rs/src/example_50.rs:3	Money	An impl stays in its type's file, its documented util extension or a conversion/framework boundary (arch-package.rs.md)
+UtilShape	modules/bad/rustdoc-rs/src/example_50.rs:3	example_50	an out-of-file inherent impl belongs in util or a configured extension kind
 KindShape	modules/bad/rustdoc-rs/src/lib.rs:1	bad_rustdoc_rs::example_48	a concept holds kind blocks; files live in a named kind
 ModuleVisibility	modules/bad/rustdoc-rs/src/lib.rs:1	bad_rustdoc_rs::example_48	module visibility must be Private (arch-package.rs.md, Modules and directories)
 OneTypeFamilyPerFile	modules/bad/rustdoc-rs/src/lib.rs:1	bad_rustdoc_rs::example_48	Name the file after its primary type family (arch-package.rs.md)
@@ -216,6 +218,8 @@ KindImportDirection	modules/good/clean-code-rs/src/banner/component/banner_compo
 KindImportDirection	modules/good/clean-code-rs/src/banner/component/banner_component.rs:12	banner::component::banner_component	This kind may not use `task::service::task_scope` (arch-context.md, Direction and enforcement)
 BareIdentifier	modules/good/clean-code-rs/src/checkout/model/cart.rs:4	good_clean_code_rs::checkout::model::cart::Cart	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
 ModelDerives	modules/good/clean-code-rs/src/checkout/model/cart.rs:4	good_clean_code_rs::checkout::model::cart::Cart	Derive Hash on this model struct (arch-domain.rs.md)
+UtilFunctionAsExtension	modules/good/clean-code-rs/src/checkout/util/checkout_start.rs:4	good_clean_code_rs::checkout::util::start_checkout	a transition is an inherent method of the type it returns, in util
+UtilFunctionAsExtension	modules/good/clean-code-rs/src/invoice/util/invoice_serialization.rs:4	good_clean_code_rs::invoice::util::serialize_reminder	a one-model rule is an inherent extension method in util
 ForeignErrorType	modules/good/clean-code-rs/src/invoice/util/json_format.rs:3	good_clean_code_rs::invoice::util::to_json	inner layers return the concept's own error family, not a foreign error type (error-handling.rs.md)
 ModelDerives	modules/good/closure-naming-rs/src/invoice/model/invoice.rs:4	good_closure_naming_rs::invoice::model::invoice::Invoice	Derive Hash on this model struct (arch-domain.rs.md)
 BareIdentifier	modules/good/di-manual-constructors-rs/src/reminder/model/reminder_schedule.rs:4	good_di_manual_constructors_rs::reminder::model::reminder_schedule::ReminderSchedule	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
@@ -224,6 +228,8 @@ UnitDependency	modules/good/di-manual-rs/billing/Cargo.toml:7	di-billing-api -> 
 ContractShape	modules/good/di-manual-rs/core/src/lifecycle/api/lifecycle.rs:1	shop_core::lifecycle::api::lifecycle::Lifecycle	Declare contracts as non-generic Send + Sync traits, with async_trait for async methods (arch-domain.rs.md)
 ModelDerives	modules/good/error-handling-rs/src/order/model/money.rs:2	good_error_handling_rs::order::model::money::Money	Derive Hash on this model struct (arch-domain.rs.md)
 UtilFunctionAsExtension	modules/good/error-handling-rs/src/order/util/order_save.rs:3	good_error_handling_rs::order::util::save_order	a one-model rule is an inherent extension method in util
+UtilFunctionAsExtension	modules/good/error-handling-rs/src/order/util/outcome_delivery.rs:4	good_error_handling_rs::order::util::deliver_outcome	a one-model rule is an inherent extension method in util
+UtilFunctionAsExtension	modules/good/error-handling-rs/src/order/util/reply_build.rs:5	good_error_handling_rs::order::util::build_reply	a one-model rule is an inherent extension method in util
 BareIdentifier	modules/good/function-reference-rs/src/cart/model/cart_item.rs:2	good_function_reference_rs::cart::model::cart_item::CartItem	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
 ModelDerives	modules/good/function-reference-rs/src/cart/model/cart_item.rs:2	good_function_reference_rs::cart::model::cart_item::CartItem	Derive Hash on this model struct (arch-domain.rs.md)
 BareIdentifier	modules/good/function-reference-rs/src/cart/model/item_content.rs:2	good_function_reference_rs::cart::model::item_content::ItemContent	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
@@ -244,7 +250,6 @@ EnumFamilyFile	modules/good/no-callbacks-rs-1/src/timer/model/timer_config.rs:1	
 BareIdentifier	modules/good/no-callbacks-rs-1/src/timer/model/timer_config.rs:2	good_no_callbacks_rs_1::timer::model::timer_config::TimerConfig	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
 ModelDerives	modules/good/no-callbacks-rs-1/src/timer/model/timer_config.rs:2	good_no_callbacks_rs_1::timer::model::timer_config::TimerConfig	Derive Hash on this model struct (arch-domain.rs.md)
 ModelDerives	modules/good/no-print-rs/src/order/model/order.rs:4	good_no_print_rs::order::model::order::Order	Derive Hash on this model struct (arch-domain.rs.md)
-UtilFunctionAsExtension	modules/good/no-print-rs/src/order/util/order_load.rs:3	good_no_print_rs::order::util::load_order	a one-model rule is an inherent extension method in util
 ContractShape	modules/good/no-tuples-rs/src/shape/api/shape.rs:3	good_no_tuples_rs::shape::api::shape::Shape	Declare contracts as non-generic Send + Sync traits, with async_trait for async methods (arch-domain.rs.md)
 ContractShape	modules/good/rustdoc-rs/src/dictionary/api/dictionary_repository.rs:4	good_rustdoc_rs::dictionary::api::dictionary_repository::DictionaryRepository	Declare contracts as non-generic Send + Sync traits, with async_trait for async methods (arch-domain.rs.md)
 ErrorFamilyShape	modules/good/rustdoc-rs/src/dictionary/model/dictionary_error.rs:1	good_rustdoc_rs::dictionary::model::DictionaryError	an error enum derives Debug + thiserror::Error, labels each variant, and boxes source errors as dyn Error + Send + Sync

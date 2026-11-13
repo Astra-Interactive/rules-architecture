@@ -315,6 +315,7 @@ name = "good-arch-domain-rs"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "serde",
  "thiserror",
 ]
 
