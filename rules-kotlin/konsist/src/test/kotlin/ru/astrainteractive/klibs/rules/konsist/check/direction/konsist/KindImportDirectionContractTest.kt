@@ -127,7 +127,8 @@ internal class KindImportDirectionContractTest {
             listOf(
                 "api/Other.kt",
                 "model/Value.kt",
-                "theme/Theme.kt"
+                "theme/Theme.kt",
+                "util/ValueExt.kt"
             ),
             KindImportDirection().check(sources).map { violation ->
                 violation.path.substringAfter("x/feature/")

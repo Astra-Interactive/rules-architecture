@@ -75,6 +75,32 @@ class LinterPluginTest {
     }
 
     @Test
+    fun GIVEN_project_role_kind_WHEN_architecture_checked_THEN_accepts_its_package(@TempDir rootDirectory: File) {
+        val moduleScript = JAVA_MODULE_SCRIPT + """
+
+            linter {
+                rootPackage.set("com.example.vote")
+                roleKinds.add("limiter")
+            }
+        """.trimIndent()
+        val build = IsolatedProjectsBuild(rootDirectory)
+            .online()
+            .withRootBuildScript("")
+            .withModule(name = "modules:vote", buildScript = moduleScript)
+            .withSourceFile("modules/vote/README.md", "Limits how often players vote.")
+            .withSourceFile(
+                "modules/vote/src/main/kotlin/com/example/vote/vote/limiter/VoteCooldownLimiter.kt",
+                """
+                package com.example.vote.vote.limiter
+
+                internal class VoteCooldownLimiter
+                """.trimIndent()
+            )
+
+        build.run(":modules:vote:architectureCheck")
+    }
+
+    @Test
     fun GIVEN_storage_representation_matching_a_model_WHEN_architecture_checked_THEN_leaves_the_choice_to_review(
         @TempDir rootDirectory: File
     ) {

@@ -163,7 +163,8 @@ internal class UtilShapeTest {
             technologyWords = emptySet(),
             pluralConcepts = emptySet(),
             platformClasses = emptySet(),
-            extensionKinds = setOf("slot")
+            extensionKinds = setOf("slot"),
+            roleKinds = emptySet()
         )
         val sources = SourceTree(directory)
             .main(
@@ -255,5 +256,85 @@ internal class UtilShapeTest {
             .load(UnitKind.CONTEXT, rootPackage = "x.offer")
 
         assertEquals(listOf("Offer.title"), UtilShape().check(sources).map(Violation::subject))
+    }
+
+    @Test
+    fun GIVEN_util_functions_taking_a_project_contract_WHEN_checked_THEN_reports_each_form(@TempDir directory: File) {
+        val sources = SourceTree(directory)
+            .main("x.vote.vote.api/VoteRepository.kt", "interface VoteRepository")
+            .main("x.vote.vote.model/Vote.kt", "data class Vote(val id: Int)")
+            .dependency("x.data.dao.rating.api/RatingRepository.kt", "interface RatingRepository")
+            .main(
+                "x.vote.vote.util/VoteRepositoryExt.kt",
+                """
+                import x.vote.vote.api.VoteRepository
+                import x.vote.vote.model.Vote
+
+                fun VoteRepository.loadVotes(): List<Vote> = emptyList()
+
+                fun countVotes(repository: VoteRepository?): Int = 0
+
+                fun sumVotes(repositories: List<VoteRepository>): Int = 0
+                """
+            )
+            .main(
+                "x.vote.vote.util/RatingExt.kt",
+                """
+                import x.data.dao.rating.api.*
+
+                fun isRated(repository: RatingRepository): Boolean = true
+
+                fun isVoted(repository: x.vote.vote.api.VoteRepository): Boolean = true
+                """
+            )
+            .load(UnitKind.CONTEXT, rootPackage = "x.vote")
+
+        val violations = UtilShape().check(sources)
+
+        assertEquals(
+            listOf(
+                "VoteRepository.loadVotes",
+                "countVotes",
+                "isRated",
+                "isVoted",
+                "sumVotes"
+            ),
+            violations.map(Violation::subject).sorted()
+        )
+        assertEquals(
+            "Move countVotes out of util: a util function takes no contract (VoteRepository); a flow over a " +
+                "contract is a use case, a single call is made by the caller.",
+            violations.first { violation -> violation.subject == "countVotes" }.message
+        )
+    }
+
+    @Test
+    fun GIVEN_util_functions_over_models_platform_and_library_types_WHEN_checked_THEN_reports_nothing(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main("x.vote.vote.api/VoteRepository.kt", "interface VoteRepository")
+            .main("x.vote.vote.model/Vote.kt", "data class Vote(val id: Int)")
+            .main("x.vote.vote.model/Ballot.kt", "interface Ballot {\n    val id: Int\n}")
+            .main(
+                "x.vote.vote.util/VoteExt.kt",
+                """
+                import kotlinx.coroutines.flow.Flow
+                import org.bukkit.entity.Player
+                import x.vote.vote.model.Ballot
+                import x.vote.vote.model.Vote
+
+                fun Vote.isRecent(): Boolean = true
+
+                fun Player.isVoter(votes: List<Vote>): Boolean = true
+
+                fun Flow<Vote>.isEmpty(ballot: Ballot?): Boolean = true
+
+                fun countVotes(repository: String): Int = 0
+                """
+            )
+            .load(UnitKind.CONTEXT, rootPackage = "x.vote")
+
+        assertEquals(emptyList(), UtilShape().check(sources))
     }
 }

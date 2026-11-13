@@ -222,4 +222,34 @@ internal class UnitLayoutTest {
             layout.placementOf("x.paywall.impl.composable")
         )
     }
+
+    @Test
+    fun GIVEN_role_kind_word_WHEN_placed_under_a_concept_or_at_the_unit_root_THEN_it_is_the_role_kind() {
+        val layout = UnitLayout(
+            "x.vote",
+            UnitKind.CONTEXT,
+            SourceTree.NO_PROJECT_WORDS.copy(roleKinds = setOf("limiter"))
+        )
+
+        assertEquals(
+            Placement(
+                listOf("vote"),
+                Kind.ROLE,
+                "limiter",
+                null,
+                emptyList()
+            ),
+            layout.placementOf("x.vote.vote.limiter")
+        )
+        assertEquals(
+            Placement(
+                emptyList(),
+                Kind.ROLE,
+                "limiter",
+                null,
+                emptyList()
+            ),
+            layout.placementOf("x.vote.limiter")
+        )
+    }
 }

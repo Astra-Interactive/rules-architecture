@@ -3,6 +3,7 @@ package ru.astrainteractive.klibs.rules.konsist.check.konsist
 import com.lemonappdev.konsist.api.Konsist
 import com.lemonappdev.konsist.api.declaration.KoBaseDeclaration
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
+import com.lemonappdev.konsist.api.declaration.KoInterfaceDeclaration
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.core.unit.util.isCompose
@@ -11,6 +12,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.model.ExternalOrigin
 import ru.astrainteractive.klibs.rules.konsist.check.model.FileOrigin
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.importedName
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.nestedDataTypeNames
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.packageName
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelNames
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
@@ -49,6 +51,17 @@ internal class UnitSources(
             val kinds = segments.map { segment -> Kind.fromSegment(segment, layout.vocabulary) }
             Kind.MODEL in kinds && Kind.IMPLEMENTATION !in kinds
         }
+    }
+
+    /**
+     * The fully qualified names of the data types nested in the contract interfaces of the main sources: the one
+     * part of a contract that `util` may use.
+     */
+    val contractDataTypes: Set<String> by lazy {
+        mainFiles.filter { file -> placementOf(file)?.kind == Kind.CONTRACT }
+            .flatMap { file -> file.interfaces(includeNested = true) }
+            .flatMap(KoInterfaceDeclaration::nestedDataTypeNames)
+            .toSet()
     }
 
     /**

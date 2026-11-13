@@ -89,6 +89,7 @@ linter {
     pluralConcepts.add("goods") // plural package names that are fine
     platformClasses.add("WatchFaceService") // classes the platform constructs
     extensionKinds.add("slot") // kinds whose parts are extensions: fun SlotContext.backSlot()
+    roleKinds.addAll("codec", "parser") // role kinds, named by the last word of their classes: PacketCodec
 }
 ```
 
@@ -237,66 +238,68 @@ Rules marked *types* need type resolution and report only in `architectureLint`.
 
 ### Konsist
 
-| Check                       | Reports                                                                          |
-|-----------------------------|----------------------------------------------------------------------------------|
-| `KindShape`                 | a file loose in the unit root or a concept, a package below a kind package       |
-| `RootPackagePath`           | a root package that does not end with the unit name                              |
-| `KindImportDirection`       | an import against the kind table: `model` imports only `model`, nothing imports `di` |
-| `PackageDependencyCycle`    | an import cycle between packages                                                 |
-| `PlatformImport`            | a platform or ORM import in `model`, `api`, `usecase` or an `Api` unit           |
-| `ContractPlacement`         | an interface outside `api`, an implementation inside `api`, a `network`/`local`/`remote` package |
-| `UseCaseShape`              | a use case outside `usecase`, with several entries, taking another or passing through |
-| `UseCaseAbstraction`        | an interface or abstract class named `…UseCase`                                  |
-| `UtilShape`                 | a class in `util`, an extension outside `util`                                   |
-| `UtilFileName`              | a `util` file not named `<Receiver>Ext.kt`, `Utils.kt`, `Extensions.kt`          |
-| `UtilFunctionAsExtension`   | a `util` function taking one model instead of extending it                       |
-| `ForbiddenPackageName`      | a forbidden package word; `table`, `entity`, `database` outside technology       |
-| `PluralPackageName`         | a plural package name, `news` and `settings` aside                               |
-| `PlatformPackage`           | a package named after a platform in a multiplatform unit                         |
-| `ComposeKindWithoutCompose` | a `composable` or `theme` package in a unit without Compose                      |
-| `ThemeVisibility`           | a `theme` object with the wrong visibility for its unit                          |
-| `DiPlacement`               | a `*Module` outside `di`                                                         |
-| `DiModuleVisibility`        | a public DI module only its own unit constructs                                  |
-| `RootModulePlacement`       | a `RootModule` outside the entry point's `di`                                    |
-| `EntryPointShape`           | an entry-point file outside its root and `di`                                    |
-| `EntryPointVisibility`      | a public class the platform invokes (`command`, `event`, `route`, …)             |
-| `ImplementationVisibility`  | a public class in a technology package                                           |
-| `CoreShape`                 | a use case or a repository interface in a `core` unit                            |
-| `ContractUnitShape`         | a type that is not `@Serializable` or logic in a `Contract` unit                 |
-| `ErrorPlacement`            | an error type outside `model`                                                    |
-| `SealedFamilyFile`          | a subtype of a sealed type declared in another file                              |
-| `NestedDataClass`           | a top-level data class only one class uses                                       |
-| `NestedEnum`                | a top-level enum only one class uses                                             |
-| `AnonymousProjectObject`    | an anonymous `object :` implementing a project type                              |
-| `TestMirror`                | a test in another package or source set than its subject                         |
-| `FakePlacement`             | a `Fake*` outside a `fake` package, `testFixtures` or a `Fake` unit              |
-| `InMemoryPlacement`         | an `InMemory*` outside a `memory` package                                        |
-| `AndroidNamespace`          | an Android `namespace` that differs from the root package                        |
+The last column names the document section each check enforces.
+
+| Check | Reports | Enforces |
+|---|---|---|
+| `KindShape` | a file loose in the unit root or a concept package; a package below a kind package; a `composable` that holds both files and sub-packages, or a `model`, `util` or `theme` sub-package of it; in an app's `api` unit, a kind package other than `api`, `model`, `util`, `usecase`, `stub`, `di`, `component`, `viewmodel` (`memory` included), or anything but a state holder's interface in `component`/`viewmodel`; in a role kind, a top-level class whose name does not end with the kind's word (`…Limiter` in `limiter`), and a top-level function, interface or `object` | `arch-package.md`, Concepts and kinds 1; `arch-package.md`, Concepts and kinds 3 (role kind); `arch-package.md`, Units 5 |
+| `RootPackagePath` | a root package that does not end with the unit name | `arch-package.md`, Units 3; `arch-package.kt.md`, Packages and directories |
+| `KindImportDirection` | an import or qualified reference against the direction table: `model` imports only `model`; `util` imports `model`, `util`, `theme`, the data, enum and sealed types and the data objects nested in a contract and no other part of it, and `table`, `entity`, `database` in a technology unit; a role kind imports `model`, `util` and role kinds, and only use cases, implementations, entry-point kinds and `di` import it; a screen imported by anything but what hosts or opens it; a domain model, contract or use case that imports a framework registration interface; `di` imported by anything but `di` and the entry point's root classes | `arch-context.md`, Direction and enforcement |
+| `PackageDependencyCycle` | an import cycle between the packages of one compilation | `arch-context.md`, Direction and enforcement |
+| `PlatformImport` | a platform or ORM import in `model`, `api`, `usecase` or an `Api` unit | `arch-domain.md`, What the model may import; `arch-package.md`, Contracts and implementations; `arch-context.md`, The dependency graph |
+| `ContractPlacement` | an interface outside `api`, an implementation inside `api`, a `network`/`local`/`remote` package | `arch-package.md`, Contracts and implementations |
+| `UseCaseShape` | a use case outside `usecase`, with several entries, taking another or passing through | `arch-domain.md`, Use case |
+| `UseCaseAbstraction` | an interface or abstract class named `…UseCase` | `arch-package.md`, Contracts and implementations |
+| `UtilShape` | a class, interface or `object` in `util`; a `util` function whose receiver, a parameter, a context parameter or a type-parameter bound is a contract of the project, an interface in an `api` package of the unit or of a dependency (`Repo?`, `List<Repo>`, a type alias of one and a qualified name included; an explicit import of a namesake hides a wildcard one), the data, enum and sealed types and data objects nested in a contract aside; an extension outside `util` | `arch-package.md`, Concepts and kinds 3 (`util`); `arch-package.md`, Files |
+| `UtilFileName` | in `util`, a file of one receiver's extensions not named `<Receiver>Ext.kt`; anywhere, a file named `Utils.kt`, `Helpers.kt`, `Extensions.kt`, `Misc.kt` or the like | `arch-package.md`, Files; `arch-package.kt.md`, What goes in one file |
+| `UtilFunctionAsExtension` | a `util` function whose form does not follow its signature, over the models of the unit and its dependencies, a typed identifier (`…Id`) not counted: a function that returns the type of a model parameter (`T`, `T?`, `Result<T>`), an extension of another model included (`JailInmate.cover(deposit: Money): Money`), or a top-level one whose model parameters are all of one type (`exceeds(amount: Money, limit: Money)`), is an extension of that type; an extension of a model that returns another type and takes a model of another type (`JailInmate.isBailCovered(deposit: Money)`) is a top-level function named after the decision. An extension whose model parameters are all of its receiver's type (`Money.exceeds(limit: Money)`), a top-level function over two or more model types that returns none of them, and `create<Type>` and `parse<Type>` are not reported | `arch-domain.md`, Rules live in `util` |
+| `ForbiddenPackageName` | a forbidden package word; `table`, `entity`, `database` outside technology | `arch-package.md`, Concepts and kinds 10 |
+| `PluralPackageName` | a plural package name, `news`, `settings` and `pluralConcepts` aside | `arch-package.md`, Concepts and kinds 9 |
+| `PlatformPackage` | a package named after a platform in a multiplatform unit | `arch-package.kt.md`, Packages and directories |
+| `ComposeKindWithoutCompose` | a `composable` or `theme` package in a unit without Compose | `arch-package.md`, Concepts and kinds 4 |
+| `ThemeVisibility` | a `theme` object with the wrong visibility for its unit | `compose.kt.md` |
+| `DiPlacement` | a `*Module` outside `di` | `arch-package.md`, Concepts and kinds 3 (`di`) |
+| `DiModuleVisibility` | a public DI module only its own unit constructs | `arch-package.kt.md`, Visibility; `di-manual.kt.md` |
+| `RootModulePlacement` | a `RootModule` outside the entry point's `di` | `arch-package.md`, Units 1; `di-manual.kt.md` |
+| `EntryPointShape` | an entry-point file outside its root and `di` | `arch-package.md`, Units 1 |
+| `EntryPointVisibility` | a public class the platform invokes (`command`, `event`, `route`, …) | `arch-package.kt.md`, Visibility |
+| `ImplementationVisibility` | a public class in a technology package | `arch-package.kt.md`, Visibility |
+| `CoreShape` | a use case or a repository interface in a `core` unit | `arch-package.md`, Units 1 |
+| `ContractUnitShape` | a type that is not `@Serializable` or logic in a `Contract` unit | `arch-package.kt.md`, Units and Gradle; `arch-context.md`, What crosses |
+| `ErrorPlacement` | an error type outside `model` | `arch-package.md`, Files |
+| `SealedFamilyFile` | a subtype of a sealed type declared in another file | `arch-package.md`, Files |
+| `NestedDataClass` | a top-level data class only one class uses | `arch-package.md`, Files |
+| `NestedEnum` | a top-level enum only one class uses | `arch-package.kt.md`, What goes in one file |
+| `AnonymousProjectObject` | an anonymous `object :` implementing a project type | `arch-package.kt.md`, What goes in one file |
+| `TestMirror` | a test in another package or source set than its subject | `arch-package.kt.md`, Tests |
+| `FakePlacement` | a `Fake*` outside a `fake` package, `testFixtures` or a `Fake` unit; in a `Fake` unit, a class that is neither a `Fake*` nor an `InMemory*` in a `memory` package | `arch-package.kt.md`, Tests |
+| `InMemoryPlacement` | an `InMemory*` outside a `memory` package of its source set: main, `test` or `testFixtures` | `arch-package.kt.md`, Tests |
+| `AndroidNamespace` | an Android `namespace` that differs from the root package | `arch-package.kt.md`, Packages and directories |
 
 ### Structure
 
-| Check                         | Reports                                                                       |
-|-------------------------------|-------------------------------------------------------------------------------|
-| `UnitDependency`              | a project dependency the unit's role may not have                             |
-| `TechnologyDependency`        | a technology dependency the unit's role may not have                          |
-| `ApiUnitDependency`           | an `Api` unit depending on anything but `Api`, `Core` or storage contracts    |
-| `EntryPointDependency`        | a dependency on an entry-point unit                                           |
-| `EntryPointGraphDependency`   | root: a dependency on an entry-point unit anywhere in the unit graph          |
-| `UnitDependencyCycle`         | root: a cycle in the unit graph                                               |
-| `PluginImplUnit`              | root: an `impl` unit in a platform plugin                                     |
-| `UnitReadme`                  | a unit without a one-sentence `README.md`                                     |
-| `NestedUnit`                  | a unit inside another unit's directory                                        |
-| `ContainerSources`            | sources in a container directory above units (`modules/gui/src`)              |
-| `UnitPath`                    | a unit at the build root instead of under a container such as `modules`       |
-| `ProjectDirMatchesPath`       | a unit directory that differs from its Gradle path                            |
-| `PlatformSourceSetUnit`       | a unit named after a Multiplatform target instead of a source set             |
-| `RootSources`                 | sources in the root project                                                   |
-| `RootBuildSubprojects`        | `subprojects { }` or `allprojects { }` in the root build file                 |
-| `ApiConfiguration`            | an `api(…)` dependency not exported through a Multiplatform framework         |
-| `PublishedLibraryExplicitApi` | a published unit without strict explicit API                                  |
-| `UnpublishedExplicitApi`      | explicit API in a unit that is not published                                  |
-| `ApiUnitPlatformDependency`   | a platform dependency in an API unit outside a platform source set            |
-| `PlatformDependencyMetadata`  | a platform dependency whose source set cannot be established                  |
+| Check | Reports | Enforces |
+|---|---|---|
+| `UnitDependency` | a project dependency the unit's role may not have | `arch-context.md`, Direction and enforcement |
+| `TechnologyDependency` | a dependency on a technology unit the unit's role may not have | `arch-context.md`, The dependency graph; `arch-context.md`, Direction and enforcement |
+| `ApiUnitDependency` | an `Api` unit depending on anything but `Api`, `Core` or storage contracts | `arch-context.md`, Direction and enforcement |
+| `EntryPointDependency` | a dependency on an entry-point unit | `arch-package.md`, Units 1; `arch-context.md`, The dependency graph |
+| `EntryPointGraphDependency` | root: a dependency on an entry-point unit anywhere in the unit graph | `arch-package.md`, Units 1; `arch-context.md`, The dependency graph |
+| `UnitDependencyCycle` | root: a cycle in the unit graph | `arch-context.md`, The dependency graph |
+| `PluginImplUnit` | root: an `impl`, `impl-ui` or mixed `core` unit in a platform plugin | `arch-package.md`, Units 4; `arch-package.md`, Units 5 |
+| `UnitReadme` | a unit without a one-sentence `README.md` | `arch-package.md`, Units 8 |
+| `NestedUnit` | a unit inside another unit's directory | `arch-package.md`, Units 7 |
+| `ContainerSources` | sources in a container directory above units (`modules/gui/src`) | `arch-package.md`, Units 7 |
+| `UnitPath` | a unit at the build root instead of under a container such as `modules` | `arch-package.md`, Units 3 |
+| `ProjectDirMatchesPath` | a unit directory that differs from its Gradle path | `arch-package.kt.md`, Units and Gradle |
+| `PlatformSourceSetUnit` | a unit named after a Multiplatform target instead of a source set | `arch-package.md`, Units 5; `arch-package.kt.md`, Packages and directories |
+| `RootSources` | sources in the root project | `arch-package.kt.md`, Units and Gradle |
+| `RootBuildSubprojects` | `subprojects { }` or `allprojects { }` in the root build file | `arch-package.kt.md`, Units and Gradle |
+| `ApiConfiguration` | an `api(…)` dependency not exported through a Multiplatform framework | `arch-package.kt.md`, Units and Gradle |
+| `PublishedLibraryExplicitApi` | a published unit without strict explicit API | `arch-package.md`, Units 1; `arch-package.kt.md`, Visibility |
+| `UnpublishedExplicitApi` | explicit API in a unit that is not published | `arch-package.kt.md`, Visibility |
+| `ApiUnitPlatformDependency` | a platform dependency in an API unit outside a platform source set | `arch-package.kt.md`, Units and Gradle; `arch-context.md`, The dependency graph |
+| `PlatformDependencyMetadata` | a platform dependency whose source set cannot be established | no document rule: the build metadata `ApiUnitPlatformDependency` needs |
 
 ## 📖 Details
 
@@ -347,6 +350,42 @@ Rules marked *types* need type resolution and report only in `architectureLint`.
   adds to them.
 - `RunCatchingCancellation` accepts the inline `CancellationException` check only when mikro-core is not in the
   version catalog.
+
+### How the checks read a project
+
+- The checks cover what a rule states as a fixed name, number or shape: the package names, the concept/kind shape,
+  the naming of implementations, the dependencies between units, and the platform and framework imports of
+  `model`, `api` and `usecase` (the built-in framework list and `technologyWords`). Everything else in the rules is
+  left to review; the Kotlin section of `TODO.md` lists what the rules state and no check reads.
+- A kind is known by its package word: `model`, `api`, `usecase`, `util`, `di`, `theme`, `fake`; `stub`, `table`,
+  `entity` and the technology names (`cache4k`, `datastore`, `exposed`, `file`, `krate`, `ktor`, `memory`,
+  `okhttp`, `retrofit`, `room`, `sqldelight`) as implementation packages; the entry-point and UI words `command`,
+  `component`, `composable`, `context`, `error`, `event`, `expansion`, `gui`, `job`, `menu`, `migration`, `route`,
+  `screen`, `service`, `slot`, `viewmodel`, `warmup`. `entryPointWords`, `technologyWords` with the words of the
+  unit's libraries, and `roleKinds` add to them. Any other package is a concept, and a concept that holds files is
+  reported, except in the units that keep implementations in concept packages and at the entry point's root.
+- A `roleKinds` word is a configuration error when it is not lower-case and trimmed, or when it is a fixed kind word
+  or `database`, a technology word, an `entryPointWords` or `extensionKinds` word, one of `controller`, `helper`,
+  `manager`, `utils`, a forbidden package name (`factory`, `dto`, …), or `module` (a `…Module` belongs to `di`): a
+  role kind is named by a word of its own. The Konsist checks read the word, so the error fails `architectureCheck`
+  of each unit with a main source directory; the root project and a unit without one run no Konsist check and do
+  not report it.
+- A unit's role is the one `unit(…)` declares, in its build file or in a convention plugin that configures
+  `linter`; without it, the role is detected from the path (Roles). The checks apply the resolved role, so a declared
+  role overrides the detected one and an `Api` unit may have a name other than `api`.
+- A framework registration interface is recognised by its signature, never by its name: it sits in an entry-point
+  kind of a unit that is not platform-free (`Api`, `CoreApi`, `StorageContract`, `Contract`), has no supertype and
+  no property, and each of its functions is abstract, not `suspend`, returns nothing and takes only types of the
+  built-in framework list (`org.bukkit.`, `io.ktor.`, `android.`, …). Whether the interface is responsible for
+  registration, and a parameter type that does not resolve, are left to review.
+- The direction checks do not establish whether a declaration needs to cross a unit boundary;
+  `arch-package.md`, Units 6 decides that, and `architectureApiOwnershipReport` only gathers evidence for it.
+- `architectureApiOwnershipReport` counts the references in a declaration's code (calls, supertypes and signatures,
+  aliases included), not imports and not declared Gradle dependencies. Only production sources take part: tests
+  and `testFixtures` are not consumers, and a reference from a `di` package is wiring, not shared behaviour. A
+  single sibling consumer (`CANDIDATE`) is a reason to review ownership, not evidence to move the type; `UNKNOWN`
+  does not prove a declaration unused; a published API (`EXTERNAL`) has consumers outside this build. Neither a
+  candidate nor the number of candidates proves an API unnecessary or blocks the build.
 
 ### Graph and API ownership
 

@@ -181,6 +181,7 @@ internal class LinterPlugin : Plugin<Project> {
         pluralConcepts.set(extension.pluralConcepts)
         platformClasses.set(extension.platformClasses)
         extensionKinds.set(extension.extensionKinds)
+        roleKinds.set(extension.roleKinds)
         rootOfBuild.set(project.path == project.isolated.rootProject.path)
         conventionPlugin.set(
             project.provider {

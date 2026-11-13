@@ -31,7 +31,8 @@ internal class KindImportDirection : ArchitectureCheck {
             Kind.USECASE -> setOf(
                 Kind.MODEL,
                 Kind.CONTRACT,
-                Kind.UTIL
+                Kind.UTIL,
+                Kind.ROLE
             )
             Kind.FAKE -> setOf(
                 Kind.CONTRACT,
@@ -40,7 +41,6 @@ internal class KindImportDirection : ArchitectureCheck {
             )
             Kind.UTIL -> setOf(
                 Kind.MODEL,
-                Kind.CONTRACT,
                 Kind.UTIL,
                 Kind.THEME
             )
@@ -48,16 +48,23 @@ internal class KindImportDirection : ArchitectureCheck {
                 Kind.MODEL,
                 Kind.CONTRACT,
                 Kind.UTIL,
-                Kind.IMPLEMENTATION
+                Kind.IMPLEMENTATION,
+                Kind.ROLE
             )
             Kind.ENTRY_POINT -> setOf(
                 Kind.MODEL,
                 Kind.CONTRACT,
                 Kind.UTIL,
                 Kind.USECASE,
-                Kind.THEME
+                Kind.THEME,
+                Kind.ROLE
             )
             Kind.THEME -> setOf(Kind.MODEL, Kind.THEME)
+            Kind.ROLE -> setOf(
+                Kind.MODEL,
+                Kind.UTIL,
+                Kind.ROLE
+            )
             Kind.DI -> Kind.entries.toSet()
         }
     }
@@ -106,6 +113,10 @@ internal class KindImportDirection : ArchitectureCheck {
         val toKind = to.kind ?: return null
         if (toKind in allowedTargets(fromKind)) return null
         if (fromKind == Kind.UTIL && isTechnologyStorage(sources, to)) return null
+        val isContractData = sources.contractDataTypes.any { name ->
+            importedName == name || importedName.startsWith("$name.")
+        }
+        if (fromKind == Kind.UTIL && isContractData) return null
         val isUiImport = isAllowedUiImport(
             from,
             fromKind,
@@ -114,7 +125,9 @@ internal class KindImportDirection : ArchitectureCheck {
         if (isUiImport) return null
         val kindName = fromKind.name.lowercase().replace('_', ' ')
         val article = if (kindName.first() in VOWELS) "an" else "a"
-        val allowed = allowedTargets(fromKind).joinToString { kind -> kind.name.lowercase().replace('_', ' ') }
+        val hasRoleKinds = sources.layout.vocabulary.roleKinds.isNotEmpty()
+        val listedTargets = if (hasRoleKinds) allowedTargets(fromKind) else allowedTargets(fromKind) - Kind.ROLE
+        val allowed = listedTargets.joinToString { kind -> kind.name.lowercase().replace('_', ' ') }
         return "${from.describe()} must not import $importedName from ${to.describe()}: " +
             "$article $kindName kind depends on $allowed only."
     }
