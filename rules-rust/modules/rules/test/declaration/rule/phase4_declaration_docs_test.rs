@@ -186,7 +186,7 @@ fn given_single_model_fields_when_checked_then_tuple_serde_and_nonmodel_types_ar
         &read_code_context(
             "mod model {\nstruct Money { cents: i64 }\nstruct Valid(i64); #[derive(serde::Serialize)] struct Wire { cents: i64 } } mod file { struct Row { value: i64 } }",
         ),
-        &[2, 3],
+        &[2],
     );
 }
 

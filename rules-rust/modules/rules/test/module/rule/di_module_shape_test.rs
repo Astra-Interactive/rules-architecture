@@ -39,6 +39,43 @@ fn given_deferred_and_direct_service_fields_when_checked_then_only_arc_once_lock
 }
 
 #[test]
+fn given_collections_of_services_when_checked_then_shared_contracts_pass_and_owned_or_concrete_services_report()
+ {
+    for (field, expected) in [
+        ("Vec<std::sync::Arc<dyn crate::api::Repo>>", &[][..]),
+        (
+            "std::collections::HashMap<String, std::sync::Arc<dyn crate::api::Repo>>",
+            &[][..],
+        ),
+        (
+            "std::collections::BTreeMap<String, std::sync::Arc<dyn crate::api::Repo>>",
+            &[][..],
+        ),
+        (
+            "std::collections::VecDeque<std::sync::Arc<dyn crate::api::Repo>>",
+            &[][..],
+        ),
+        ("Vec<Vec<std::sync::Arc<dyn crate::api::Repo>>>", &[][..]),
+        (
+            "std::collections::HashMap<std::sync::Arc<dyn crate::api::Repo>, String>",
+            &[2][..],
+        ),
+        ("Vec<Box<dyn crate::api::Repo>>", &[2][..]),
+        ("Vec<crate::file::FileRepo>", &[2][..]),
+        ("Vec<std::sync::Arc<crate::file::FileRepo>>", &[2][..]),
+        ("Option<std::sync::Arc<dyn crate::api::Repo>>", &[2][..]),
+    ] {
+        crate::test::module::util::assert_di_lines(
+            &crate::module::rule::DiModuleShape,
+            &format!(
+                "mod api {{ pub trait Repo {{}} }} mod file {{ pub struct FileRepo; impl crate::api::Repo for FileRepo {{}} }} mod di {{\nstruct ListModule {{ repos: {field} }}\n}}"
+            ),
+            expected,
+        );
+    }
+}
+
+#[test]
 fn given_workspace_contract_generics_when_di_shape_checked_then_trait_objects_and_unrelated_generics_pass()
  {
     crate::test::module::util::assert_di_lines(

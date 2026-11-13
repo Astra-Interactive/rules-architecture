@@ -175,6 +175,79 @@ fn given_macro_generated_users_when_checked_then_missing_expansion_is_uncertaint
 }
 
 #[test]
+fn given_readable_macros_inside_function_bodies_when_indexed_then_no_name_is_hidden() {
+    for source in [
+        "pub(crate) struct Value; fn run(value: u64) { warn!(\"failed {}\", value); }",
+        "pub(crate) struct Value; fn run(value: u64) { info!(\"seen {}\", value); error!(\"gone\"); }",
+        "pub(crate) struct Value; fn run(buffer: &mut String) { write!(buffer, \"{}\", 1).ok(); let text = format!(\"{}\", 2); }",
+    ] {
+        let context = read_private_context(source);
+        assert!(!context.name_index().has_blind_spots, "{source}");
+    }
+}
+
+#[test]
+fn given_unreadable_or_item_position_macros_when_indexed_then_names_stay_hidden() {
+    for source in [
+        "pub(crate) struct Value; fn run() { custom!(first => second); }",
+        "pub(crate) struct Value; fn run() { custom!(other!(first => second)); }",
+        "pub(crate) struct Value; struct Holder; impl Holder { custom!(); }",
+        "pub(crate) struct Value; mod consumer { custom!(); }",
+        "pub(crate) struct Value; fn run() { macro_rules! local { () => {}; } }",
+    ] {
+        let context = read_private_context(source);
+        assert!(context.name_index().has_blind_spots, "{source}");
+    }
+}
+
+#[test]
+fn given_name_used_only_as_inline_format_capture_when_checked_then_the_capture_is_a_use() {
+    for (body, is_used) in [
+        ("info!(\"limit {LIMIT}\");", true),
+        ("let text = format!(\"limit {LIMIT:>4}\");", true),
+        ("let text = format!(\"limit {:>LIMIT$}\", 1);", true),
+        ("info!(\"limit {{LIMIT}} {}\", 1);", false),
+        ("info!(\"limit\");", false),
+    ] {
+        let source = format!(
+            "mod model {{ pub const LIMIT: u32 = 3; }}\nmod usecase {{ use crate::model::*; fn run() {{ {body} }} }}"
+        );
+        let context = read_private_context(&source);
+        assert!(!context.name_index().has_blind_spots, "{body}");
+        let users = context.indexes[0]
+            .edges
+            .iter()
+            .filter(|edge| edge.path == ["LIMIT"])
+            .count();
+        assert_eq!(usize::from(is_used), users, "{body}");
+    }
+}
+
+#[test]
+fn given_include_macro_in_a_function_body_when_indexed_then_names_stay_hidden() {
+    for source in [
+        "pub(crate) struct Value; fn run() { include!(\"generated.rs\"); }",
+        "pub(crate) struct Value; fn run() { let text = std::include!(\"generated.rs\"); }",
+    ] {
+        let context = read_private_context(source);
+        assert!(context.name_index().has_blind_spots, "{source}");
+    }
+}
+
+#[test]
+fn given_logging_macro_in_a_function_when_visibility_checked_then_the_workspace_pass_still_runs() {
+    let context = read_private_context(
+        "mod model {\npub struct Value;\npub use Value as Exposed;\n}\npub(crate) struct Local;\nfn run(value: u64) { warn!(\"seen {}\", value); }",
+    );
+    let lines = crate::module::rule::VisibilityTier
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.location.line.unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(vec![2, 5], lines);
+}
+
+#[test]
 fn given_an_external_user_of_the_unique_kind_reexport_when_restricted_then_the_reexport_is_reported()
  {
     let mut context = crate::test::source::util::read_resolution_context();

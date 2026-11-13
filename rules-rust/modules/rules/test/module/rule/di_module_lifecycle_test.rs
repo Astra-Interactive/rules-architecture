@@ -189,6 +189,49 @@ fn given_own_task_started_in_on_enable_when_checked_then_only_received_module_li
 }
 
 #[test]
+fn given_own_task_scope_reloaded_in_on_reload_when_checked_then_it_is_accepted() {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::DiModuleLifecycle,
+        "struct TaskScope;\nmod di {\n use super::TaskScope;\n trait Lifecycle { fn on_enable(&self); fn on_disable(&self); fn on_reload(&self); }\n struct InvoiceModule { task_scope: TaskScope }\n impl Lifecycle for InvoiceModule { fn on_enable(&self) {} fn on_disable(&self) { self.task_scope.abort(); } fn on_reload(&self) { self.task_scope.reload(); } }\n}",
+        &[],
+    );
+}
+
+#[test]
+fn given_reload_of_a_received_scope_or_with_a_lifecycle_call_in_its_argument_when_checked_then_it_is_reported()
+ {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::DiModuleLifecycle,
+        "struct TaskScope;\nmod di {\n use super::TaskScope;\n trait Lifecycle { fn on_enable(&self); fn on_reload(&self); }\n struct InvoiceModule { task_scope: std::sync::Arc<TaskScope> }\n impl Lifecycle for InvoiceModule { fn on_enable(&self) {} fn on_reload(&self) { self.task_scope.reload(); } }\n}",
+        &[5],
+    );
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::DiModuleLifecycle,
+        "struct TaskScope;\nstruct Other;\nmod di {\n use super::{Other, TaskScope};\n trait Lifecycle { fn on_enable(&self); fn on_disable(&self); fn on_reload(&self); }\n struct InvoiceModule { task_scope: TaskScope, other: std::sync::Arc<Other> }\n impl Lifecycle for InvoiceModule { fn on_enable(&self) {} fn on_disable(&self) { self.task_scope.abort(); } fn on_reload(&self) { self.task_scope.reload(self.other.compute()); } }\n}",
+        &[6],
+    );
+}
+
+#[test]
+fn given_task_scope_reloaded_outside_on_reload_or_not_owned_when_checked_then_it_is_reported() {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::DiModuleLifecycle,
+        "struct TaskScope;\nmod di {\n use super::TaskScope;\n trait Lifecycle { fn on_enable(&self); fn on_disable(&self); fn on_reload(&self); }\n struct InvoiceModule { task_scope: TaskScope }\n impl Lifecycle for InvoiceModule { fn on_enable(&self) { self.task_scope.reload(); } fn on_disable(&self) { self.task_scope.abort(); } fn on_reload(&self) {} }\n}",
+        &[5],
+    );
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::DiModuleLifecycle,
+        "struct TaskScope;\nstruct CoreModule { task_scope: std::sync::Arc<TaskScope> }\nmod di {\n use super::{CoreModule, TaskScope};\n trait Lifecycle { fn on_enable(&self); fn on_reload(&self); }\n struct BorrowingModule<'a> { core: &'a CoreModule }\n impl Lifecycle for BorrowingModule<'_> { fn on_enable(&self) {} fn on_reload(&self) { self.core.task_scope.reload(); } }\n}",
+        &[6],
+    );
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::DiModuleLifecycle,
+        "struct WarmupUseCase;\nmod di {\n use super::WarmupUseCase;\n trait Lifecycle { fn on_enable(&self); fn on_reload(&self); }\n struct InvoiceModule { warmup_use_case: std::sync::Arc<WarmupUseCase> }\n impl Lifecycle for InvoiceModule { fn on_enable(&self) {} fn on_reload(&self) { self.warmup_use_case.reload(); } }\n}",
+        &[5],
+    );
+}
+
+#[test]
 fn given_non_arc_task_scope_fields_when_checked_then_only_arc_is_accepted() {
     crate::test::module::util::assert_di_lines(
         &crate::module::rule::DiModuleLifecycle,

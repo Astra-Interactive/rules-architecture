@@ -71,6 +71,66 @@ fn given_file_constant_in_util_function_file_when_checked_then_only_lone_data_an
 }
 
 #[test]
+fn given_file_constant_in_util_extension_file_when_checked_then_only_the_constant_of_a_file_without_behaviour_reports()
+ {
+    let context = read_shape_context(
+        "mod model { pub struct Template; } mod util { mod template_ext; mod limit_ext; mod lonely; }",
+        &[
+            (
+                "util/template_ext.rs",
+                "use crate::model::Template;\nconst PLACEHOLDER: &str = \"{x}\";\npub(crate) trait TemplateExt { fn render(&self) -> String; }\nimpl TemplateExt for Template { fn render(&self) -> String { PLACEHOLDER.to_owned() } }",
+            ),
+            (
+                "util/limit_ext.rs",
+                "use crate::model::Template;\nconst LIMIT: usize = 3;\nimpl Template { pub(crate) fn measure(&self) -> usize { LIMIT } }",
+            ),
+            (
+                "util/lonely.rs",
+                "const LONELY: &str = \"x\";\npub(crate) trait LonelyExt { fn render(&self) -> String; }",
+            ),
+        ],
+    );
+    let mut subjects: Vec<_> = UtilShape
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.subject.clone())
+        .collect();
+    subjects.sort();
+    assert_eq!(subjects, ["case_sample::util::LONELY"]);
+}
+
+#[test]
+fn given_constant_that_no_function_or_impl_of_its_file_uses_when_checked_then_it_reports() {
+    let context = read_shape_context(
+        "mod model { pub struct Template; } mod util { mod unused_ext; mod unused_fn; mod captured_fn; }",
+        &[
+            (
+                "util/captured_fn.rs",
+                "const NAMESPACE: &str = \"minecraft\";\npub(crate) fn key(raw: &str) -> String { format!(\"{NAMESPACE}:{raw}\") }",
+            ),
+            (
+                "util/unused_ext.rs",
+                "use crate::model::Template;\nconst UNUSED: usize = 3;\nimpl Template { pub(crate) fn measure(&self) -> usize { 1 } }",
+            ),
+            (
+                "util/unused_fn.rs",
+                "const SPARE: usize = 3;\npub(crate) fn measure() -> usize { 1 }",
+            ),
+        ],
+    );
+    let mut subjects: Vec<_> = UtilShape
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.subject.clone())
+        .collect();
+    subjects.sort();
+    assert_eq!(
+        subjects,
+        ["case_sample::util::SPARE", "case_sample::util::UNUSED"]
+    );
+}
+
+#[test]
 fn given_declaration_shapes_when_checked_then_exact_wrong_sites_report_and_correct_shapes_pass() {
     let context = read_case_context("UtilShape", "fail-declaration-shape");
     let mut actual: Vec<String> = UtilShape

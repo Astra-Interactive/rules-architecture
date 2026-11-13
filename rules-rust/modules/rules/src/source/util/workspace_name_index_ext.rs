@@ -168,10 +168,18 @@ fn build_reference_uses(
 fn has_name_blind_spots(context: &RuleContext) -> bool {
     let mut availability = crate::source::syn::NameAvailabilityVisitor {
         has_hidden_names: false,
+        has_linkable_target: true,
+        external_crates: std::collections::BTreeSet::new(),
     };
-    for file in context.crates.iter().flat_map(|sources| &sources.files) {
-        availability.visit_file(&file.syntax);
-        availability.has_hidden_names |= file.is_generated;
+    for sources in &context.crates {
+        availability.has_linkable_target = sources.has_linkable_target;
+        availability
+            .external_crates
+            .clone_from(&sources.external_crates);
+        for file in &sources.files {
+            availability.visit_file(&file.syntax);
+            availability.has_hidden_names |= file.is_generated;
+        }
     }
     availability.has_hidden_names
         || context

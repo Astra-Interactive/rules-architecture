@@ -16,9 +16,11 @@ use crate::source::util::find_node_span;
 use crate::source::util::find_path_attribute;
 use crate::source::util::find_single_target_value;
 use crate::source::util::has_conditional_path;
+use crate::source::util::is_unlinked_item_macro;
 use crate::source::util::scan_comments;
 use proc_macro2::TokenStream;
 use proc_macro2::TokenTree;
+use std::collections::BTreeSet;
 use std::fs;
 use std::ops::Range;
 use std::path::PathBuf;
@@ -31,6 +33,8 @@ pub(crate) struct ModuleTreeWalker {
     root: PathBuf,
     crate_name: String,
     target: String,
+    has_linkable_target: bool,
+    external_crates: BTreeSet<String>,
     modules: Vec<SourceModule>,
     files: Vec<SourceFile>,
     expectations: Vec<Expectation>,
@@ -43,10 +47,26 @@ impl ModuleTreeWalker {
             root,
             crate_name,
             target,
+            has_linkable_target: true,
+            external_crates: BTreeSet::new(),
             modules: Vec::new(),
             files: Vec::new(),
             expectations: Vec::new(),
             unanalysable: Vec::new(),
+        }
+    }
+
+    pub(crate) fn with_linkable_target(self, has_linkable_target: bool) -> Self {
+        Self {
+            has_linkable_target,
+            ..self
+        }
+    }
+
+    pub(crate) fn with_external_crates(self, external_crates: BTreeSet<String>) -> Self {
+        Self {
+            external_crates,
+            ..self
         }
     }
 
@@ -204,7 +224,9 @@ impl ModuleTreeWalker {
             self.report_node(&frame.file, item, subject, message);
             return;
         }
-        if frame.is_root_file {
+        let is_unlinked =
+            !self.has_linkable_target && is_unlinked_item_macro(item, &self.external_crates);
+        if frame.is_root_file && !is_unlinked {
             let message = format!(
                 "the item macro `{name}!` in the root file may generate items the linter cannot see"
             );
@@ -373,6 +395,8 @@ impl ModuleTreeWalker {
         CrateSources {
             crate_name: self.crate_name,
             target: self.target,
+            has_linkable_target: self.has_linkable_target,
+            external_crates: self.external_crates,
             modules: self.modules,
             files: self.files,
             expectations: self.expectations,

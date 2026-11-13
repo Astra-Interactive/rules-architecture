@@ -1,9 +1,76 @@
 use crate::check::di::CheckModule;
 use crate::source::api::SourceReader;
 use crate::source::model::SourceTree;
+use crate::source::syn::CrateIndexBuilder;
 use crate::source::syn::SynSourceReader;
 use crate::test::check::usecase::read_case_context;
+use crate::test::module::util::read_workspace_shape_context;
+use crate::workspace::api::WorkspaceReader;
+use crate::workspace::cargo::CargoWorkspaceReader;
+use crate::workspace::model::Dependency;
+use crate::workspace::model::DependencyKind;
+use crate::workspace::util::resolve_cargo_path;
 use std::fs;
+
+#[test]
+fn given_cdylib_crate_with_external_item_macro_when_read_then_it_is_neither_unanalysable_nor_a_name_blind_spot()
+ {
+    let directory = tempfile::tempdir().expect("temporary workspace");
+    let root = directory.path();
+    fs::write(
+        root.join("Cargo.toml"),
+        "[workspace]\nresolver = \"3\"\nmembers = [\"plugin\"]\n[workspace.metadata.klibs-rules]\nproduct-kind = \"platform-plugin\"\n",
+    )
+    .expect("workspace manifest");
+    fs::create_dir_all(root.join("plugin/src")).expect("source directory");
+    fs::write(
+        root.join("plugin/Cargo.toml"),
+        "[package]\nname = \"plugin\"\nedition = \"2024\"\n[lib]\ncrate-type = [\"cdylib\"]\n",
+    )
+    .expect("member manifest");
+    fs::write(
+        root.join("plugin/src/lib.rs"),
+        "pumpkin_plugin_api::register_plugin!(Plugin);\nstruct Plugin;",
+    )
+    .expect("root source");
+    let mut context = read_case_context("RootFileShape", "pass-tree");
+    context.workspace = CargoWorkspaceReader::new(resolve_cargo_path())
+        .read_workspace(root)
+        .expect("read workspace");
+    context.crates = SynSourceReader.read_sources(&context.workspace);
+    assert_eq!(
+        1,
+        context.crates[0].unanalysable.len(),
+        "not a dependency yet"
+    );
+    context.workspace.members[0].dependencies.push(Dependency {
+        name: "pumpkin-plugin-api".to_owned(),
+        code_name: "pumpkin_plugin_api".to_owned(),
+        path: None,
+        kind: DependencyKind::Normal,
+        features: Vec::new(),
+        is_target_specific: false,
+        line: Some(1),
+    });
+    context.crates = SynSourceReader.read_sources(&context.workspace);
+    context.indexes = CrateIndexBuilder::build_all(&context.crates, &context.workspace);
+    assert!(!context.crates[0].has_linkable_target);
+    assert!(context.crates[0].unanalysable.is_empty());
+    assert!(!context.name_index().has_blind_spots);
+}
+
+#[test]
+fn given_rlib_crate_with_external_item_macro_when_read_then_it_stays_unanalysable_and_a_name_blind_spot()
+ {
+    let context = read_workspace_shape_context(&[(
+        "library",
+        "",
+        "pumpkin_plugin_api::register_plugin!(Plugin);\nstruct Plugin;",
+    )]);
+    assert!(context.crates[0].has_linkable_target);
+    assert_eq!(1, context.crates[0].unanalysable.len());
+    assert!(context.name_index().has_blind_spots);
+}
 
 #[test]
 fn given_shared_physical_source_in_two_targets_when_read_then_one_attribute_is_not_a_duplicate_expectation()

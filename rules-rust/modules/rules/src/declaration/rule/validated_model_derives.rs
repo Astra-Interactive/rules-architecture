@@ -1,6 +1,7 @@
 use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
 use crate::check::util::build_node_finding;
+use crate::declaration::util::{derives_applied, list_applied_metas};
 use crate::module::util::{format_shape_subject, is_model_item, list_try_from_impls};
 use crate::source::util::find_node_span;
 use syn::punctuated::Punctuated;
@@ -9,49 +10,6 @@ use syn::{Meta, Token, Visibility};
 pub(crate) struct ValidatedModelDerives;
 
 impl ValidatedModelDerives {
-    fn flatten_cfg_attr(meta: &Meta) -> Vec<Meta> {
-        let Meta::List(list) = meta else {
-            return vec![meta.clone()];
-        };
-        if !list.path.is_ident("cfg_attr") {
-            return vec![meta.clone()];
-        }
-        list.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
-            .map(|metas| {
-                metas
-                    .iter()
-                    .skip(1)
-                    .flat_map(Self::flatten_cfg_attr)
-                    .collect()
-            })
-            .unwrap_or_default()
-    }
-
-    fn list_applied_metas(attributes: &[syn::Attribute]) -> Vec<Meta> {
-        attributes
-            .iter()
-            .flat_map(|attribute| Self::flatten_cfg_attr(&attribute.meta))
-            .collect()
-    }
-
-    fn derives(metas: &[Meta], name: &str) -> bool {
-        metas.iter().any(|meta| {
-            let Meta::List(list) = meta else {
-                return false;
-            };
-            list.path.is_ident("derive")
-                && list
-                    .parse_args_with(Punctuated::<syn::Path, Token![,]>::parse_terminated)
-                    .is_ok_and(|paths| {
-                        paths.iter().any(|path| {
-                            path.segments
-                                .last()
-                                .is_some_and(|segment| segment.ident == name)
-                        })
-                    })
-        })
-    }
-
     fn has_serde_try_from(metas: &[Meta]) -> bool {
         metas.iter().any(|meta| {
             let Meta::List(list) = meta else {
@@ -69,12 +27,12 @@ impl ValidatedModelDerives {
     }
 
     fn list_bypasses(structure: &syn::ItemStruct) -> Vec<&'static str> {
-        let metas = Self::list_applied_metas(&structure.attrs);
+        let metas = list_applied_metas(&structure.attrs);
         let mut bypasses = Vec::new();
-        if Self::derives(&metas, "Deserialize") && !Self::has_serde_try_from(&metas) {
+        if derives_applied(&metas, "Deserialize") && !Self::has_serde_try_from(&metas) {
             bypasses.push(Self::DESERIALIZE_MESSAGE);
         }
-        if Self::derives(&metas, "Default") {
+        if derives_applied(&metas, "Default") {
             bypasses.push(Self::DEFAULT_MESSAGE);
         }
         bypasses

@@ -375,6 +375,18 @@ fn given_generic_and_value_shadowing_when_indexed_then_type_names_keep_their_own
 }
 
 #[test]
+fn given_restricted_visibility_when_indexed_then_the_scope_path_is_neither_an_edge_nor_a_reference()
+{
+    let index = build_index(
+        "mod flow { pub(crate) struct A; pub(in crate::flow) struct B; pub(super) struct C; pub(in crate::flow::inner) struct D; pub(crate) fn run() { crate::flow::A; } mod inner { pub(in crate::flow) struct E; } }",
+    );
+    assert!(index.unanalysable.is_empty());
+    assert_eq!(1, index.edges.len());
+    assert_eq!(index.edges[0].path, ["crate", "flow", "A"]);
+    assert_eq!(1, index.references.len());
+}
+
+#[test]
 fn given_cfg_import_alias_when_indexed_then_its_predicate_is_carried_by_consuming_edges() {
     let index = build_index(
         "mod model { pub struct Value; } #[cfg(feature = \"left\")] use crate::model::Value as Alias; #[cfg(not(feature = \"left\"))] fn call() { Alias; }",

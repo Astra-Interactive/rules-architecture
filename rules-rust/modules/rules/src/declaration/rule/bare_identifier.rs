@@ -3,7 +3,10 @@ use crate::check::model::RuleContext;
 use crate::check::model::RuleFinding;
 use crate::check::util::build_node_finding;
 use crate::check::util::format_module_path;
+use crate::declaration::util::derives_applied;
+use crate::declaration::util::has_serde_argument;
 use crate::declaration::util::is_technology;
+use crate::declaration::util::list_applied_metas;
 use crate::source::util::find_node_span;
 use syn::ext::IdentExt;
 use syn::spanned::Spanned;
@@ -186,6 +189,14 @@ impl BareIdentifier {
         is_identity_name && is_typed_identifier
     }
 
+    fn is_format_record(attributes: &[syn::Attribute]) -> bool {
+        let metas = list_applied_metas(attributes);
+        let derives_serde =
+            derives_applied(&metas, "Serialize") || derives_applied(&metas, "Deserialize");
+        let is_value_object = has_serde_argument(&metas, &["transparent", "try_from", "from"]);
+        derives_serde && !is_value_object
+    }
+
     fn check_item(
         context: &RuleContext,
         ordinal: usize,
@@ -198,7 +209,9 @@ impl BareIdentifier {
             syn::Item::Struct(value) => {
                 let invalid_identifier = value.ident.unraw().to_string().ends_with("Id")
                     && !matches!(&value.fields, syn::Fields::Unnamed(fields) if fields.unnamed.len() == 1);
+                let is_format_record = Self::is_format_record(&value.attrs);
                 let single_property = in_model
+                    && !is_format_record
                     && matches!(&value.fields, syn::Fields::Named(fields)
                         if fields.named.len() == 1 && !fields.named.iter().any(Self::is_identity_field));
                 if invalid_identifier || single_property {

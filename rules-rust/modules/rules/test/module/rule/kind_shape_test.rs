@@ -1,5 +1,6 @@
 use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
+use crate::config::model::Role;
 use crate::module::rule::KindShape;
 use crate::test::check::usecase::read_case_context;
 use crate::test::module::util::read_shape_context;
@@ -28,6 +29,182 @@ fn given_technology_concept_implementations_and_private_helpers_when_checked_the
     assert_eq!(
         findings[0].finding.subject,
         "case_sample::invoice::unrelated"
+    );
+}
+
+const MIRROR_IMPLEMENTATION: &str = "pub(crate) struct CommandSlot; impl std::fmt::Display for CommandSlot { fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { Ok(()) } }";
+
+fn list_shape_subjects(source: &str, files: &[(&str, &str)], role: Role) -> Vec<String> {
+    let mut context = read_shape_context(source, files);
+    context.project_config.crates[0].role = Some(role);
+    let mut subjects: Vec<String> = KindShape
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.subject.clone())
+        .collect();
+    subjects.sort();
+    subjects
+}
+
+#[test]
+fn given_test_mirror_of_an_accepted_concept_file_when_checked_then_the_mirror_is_judged_by_its_source()
+ {
+    let subjects = list_shape_subjects(
+        "mod slot { mod command_slot; }\n#[cfg(test)]\n#[path = \"../test\"]\nmod test { mod slot { mod command_slot_test; } }",
+        &[
+            ("slot/command_slot.rs", MIRROR_IMPLEMENTATION),
+            (
+                "../test/slot/command_slot_test.rs",
+                "#[test] fn given_slot_when_run_then_ok() {}",
+            ),
+        ],
+        Role::CorePlatform,
+    );
+    assert!(subjects.is_empty(), "{subjects:?}");
+}
+
+#[test]
+fn given_fixture_file_directly_in_a_concept_when_checked_then_it_is_reported_even_beside_a_same_named_source()
+ {
+    let subjects = list_shape_subjects(
+        "mod slot { mod command_slot; }\n#[cfg(any(test, feature = \"fake\"))]\n#[path = \"../fixture\"]\npub mod fixture { pub mod slot { mod command_slot; } }",
+        &[
+            ("slot/command_slot.rs", MIRROR_IMPLEMENTATION),
+            ("../fixture/slot/command_slot.rs", "pub struct SlotFixture;"),
+        ],
+        Role::CorePlatform,
+    );
+    assert_eq!(subjects, ["case_sample::fixture::slot::command_slot"]);
+}
+
+fn read_published_mirror_context(source: &str, files: &[(&str, &str)]) -> RuleContext {
+    use crate::source::api::SourceReader;
+    use crate::workspace::api::WorkspaceReader;
+    let mut context = read_shape_context("", &[]);
+    let directory = tempfile::tempdir().expect("temporary workspace");
+    let root = directory.path();
+    std::fs::write(
+        root.join("Cargo.toml"),
+        "[workspace]\nresolver = \"3\"\nmembers = [\"sample\"]\n[workspace.metadata.klibs-rules]\nproduct-kind = \"app\"\n",
+    )
+    .expect("workspace manifest");
+    std::fs::create_dir_all(root.join("sample/src")).expect("source directory");
+    std::fs::write(
+        root.join("sample/Cargo.toml"),
+        "[package]\nname = \"sample\"\nversion = \"0.1.0\"\nedition = \"2024\"\n[package.metadata.klibs-rules]\nrole = \"technology\"\n",
+    )
+    .expect("member manifest");
+    std::fs::write(
+        root.join("sample/src/lib.rs"),
+        "mod slot { mod command_slot; mod loose; }",
+    )
+    .expect("root source");
+    std::fs::create_dir_all(root.join("sample/src/slot")).expect("slot directory");
+    std::fs::write(
+        root.join("sample/src/slot/command_slot.rs"),
+        MIRROR_IMPLEMENTATION,
+    )
+    .expect("source file");
+    std::fs::write(root.join("sample/src/slot/loose.rs"), "struct Loose;").expect("loose file");
+    std::fs::create_dir_all(root.join("sample/tests/it/slot")).expect("tests directory");
+    std::fs::write(root.join("sample/tests/it/main.rs"), source).expect("tests root");
+    for (path, text) in files {
+        std::fs::write(root.join("sample/tests/it").join(path), text).expect("test file");
+    }
+    context.workspace = crate::workspace::cargo::CargoWorkspaceReader::new(
+        crate::workspace::util::resolve_cargo_path(),
+    )
+    .read_workspace(root)
+    .expect("read workspace");
+    context.project_config =
+        crate::config::util::parse_project_config(&context.workspace).expect("configuration");
+    context.crates = crate::source::syn::SynSourceReader.read_sources(&context.workspace);
+    context.indexes =
+        crate::source::syn::CrateIndexBuilder::build_all(&context.crates, &context.workspace);
+    context
+}
+
+#[test]
+fn given_tests_it_mirror_of_an_accepted_concept_file_when_checked_then_the_source_twin_is_found_in_the_library_index()
+ {
+    let context = read_published_mirror_context(
+        "mod slot { mod command_slot_test; mod loose_test; }",
+        &[
+            (
+                "slot/command_slot_test.rs",
+                "#[test] fn given_a_when_b_then_c() {}",
+            ),
+            (
+                "slot/loose_test.rs",
+                "#[test] fn given_a_when_b_then_c() {}",
+            ),
+        ],
+    );
+    let mut subjects: Vec<String> = KindShape
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.subject.clone())
+        .collect();
+    subjects.sort();
+    assert_eq!(
+        subjects,
+        ["sample::slot::loose", "sample::slot::loose_test"]
+    );
+}
+
+#[test]
+fn given_test_mirror_of_a_rejected_or_missing_source_when_checked_then_the_mirror_is_reported_too()
+{
+    let subjects = list_shape_subjects(
+        "mod slot { mod command_slot; mod loose; }\n#[cfg(test)]\n#[path = \"../test\"]\nmod test { mod slot { mod command_slot_test; mod loose_test; mod orphan_test; } }",
+        &[
+            ("slot/command_slot.rs", MIRROR_IMPLEMENTATION),
+            ("slot/loose.rs", "struct Loose;"),
+            (
+                "../test/slot/command_slot_test.rs",
+                "#[test] fn given_a_when_b_then_c() {}",
+            ),
+            (
+                "../test/slot/loose_test.rs",
+                "#[test] fn given_a_when_b_then_c() {}",
+            ),
+            (
+                "../test/slot/orphan_test.rs",
+                "#[test] fn given_a_when_b_then_c() {}",
+            ),
+        ],
+        Role::CorePlatform,
+    );
+    assert_eq!(
+        subjects,
+        [
+            "case_sample::slot::loose",
+            "case_sample::test::slot::loose_test",
+            "case_sample::test::slot::orphan_test"
+        ]
+    );
+}
+
+#[test]
+fn given_test_mirror_in_a_crate_that_is_not_a_mixed_unit_when_checked_then_source_and_mirror_report()
+ {
+    let subjects = list_shape_subjects(
+        "mod slot { mod command_slot; }\n#[cfg(test)]\n#[path = \"../test\"]\nmod test { mod slot { mod command_slot_test; } }",
+        &[
+            ("slot/command_slot.rs", MIRROR_IMPLEMENTATION),
+            (
+                "../test/slot/command_slot_test.rs",
+                "#[test] fn given_a_when_b_then_c() {}",
+            ),
+        ],
+        Role::Api,
+    );
+    assert_eq!(
+        subjects,
+        [
+            "case_sample::slot::command_slot",
+            "case_sample::test::slot::command_slot_test"
+        ]
     );
 }
 

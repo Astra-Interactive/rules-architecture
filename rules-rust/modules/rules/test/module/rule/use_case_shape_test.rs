@@ -74,6 +74,26 @@ fn given_declaration_shapes_when_checked_then_exact_wrong_sites_report_and_corre
 }
 
 #[test]
+fn given_model_that_implements_an_api_trait_when_held_by_a_use_case_then_it_is_data_and_only_a_file_implementation_reports()
+ {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::UseCaseShape,
+        "mod api { pub trait FeatureFlagged {} pub trait Repo {} } mod model { pub struct AppConfig; impl crate::api::FeatureFlagged for AppConfig {} } mod file { pub struct Repo; impl crate::api::Repo for Repo {} } mod usecase {\nstruct ReloadConfigurationUseCase { config: crate::model::AppConfig } impl ReloadConfigurationUseCase { pub fn invoke(&self) { let result = 1; } }\nstruct LoadInvoiceUseCase { repo: crate::file::Repo } impl LoadInvoiceUseCase { pub fn invoke(&self) { let result = 1; } } }",
+        &[3],
+    );
+}
+
+#[test]
+fn given_di_struct_that_implements_an_api_trait_when_held_by_a_use_case_then_it_is_not_an_implementation()
+ {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::UseCaseShape,
+        "mod api { pub trait FeatureFlagged {} } mod di { pub struct Wiring; impl crate::api::FeatureFlagged for Wiring {} } mod usecase {\nstruct ReloadConfigurationUseCase { wiring: crate::di::Wiring } impl ReloadConfigurationUseCase { pub fn invoke(&self) { let result = 1; } } }",
+        &[],
+    );
+}
+
+#[test]
 fn given_concrete_and_generic_use_case_fields_when_checked_then_trait_object_and_business_logic_pass()
  {
     crate::test::module::util::assert_di_lines(

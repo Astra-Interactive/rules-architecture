@@ -9,6 +9,7 @@ use crate::source::model::SourceTree;
 use crate::source::model::UnanalysableSite;
 use crate::source::model::UnanalysableSource;
 use crate::source::util::find_node_span;
+use crate::source::util::list_format_captures;
 use crate::source::util::parse_macro_arguments;
 use crate::source::util::parse_select_parts;
 use std::collections::BTreeSet;
@@ -265,6 +266,22 @@ impl<'a> PathEdgeVisitor<'a> {
         }
     }
 
+    fn record_format_captures(&mut self, text: &syn::LitStr) {
+        for name in list_format_captures(&text.value()) {
+            if self.scopes.iter().any(|scope| scope.contains(&name)) {
+                continue;
+            }
+            let path = syn::Path::from(syn::Ident::new(&name, text.span()));
+            let resolution = self.index.resolve_path(self.module, &path);
+            if matches!(
+                resolution,
+                Resolution::Internal(_) | Resolution::External(_)
+            ) {
+                self.record_resolution(&path);
+            }
+        }
+    }
+
     fn visit_quote_interpolations(&mut self, tokens: proc_macro2::TokenStream) {
         let mut tokens = tokens.into_iter();
         while let Some(token) = tokens.next() {
@@ -362,6 +379,8 @@ impl<'ast> Visit<'ast> for PathEdgeVisitor<'_> {
     }
 
     fn visit_attribute(&mut self, _attribute: &'ast syn::Attribute) {}
+
+    fn visit_visibility(&mut self, _visibility: &'ast syn::Visibility) {}
 
     fn visit_path(&mut self, path: &'ast syn::Path) {
         self.record_resolution(path);
@@ -524,6 +543,11 @@ impl<'ast> Visit<'ast> for PathEdgeVisitor<'_> {
                 self.visit_expr(&field.right);
             } else {
                 self.visit_expr(argument);
+            }
+            if let syn::Expr::Lit(literal) = argument
+                && let syn::Lit::Str(text) = &literal.lit
+            {
+                self.record_format_captures(text);
             }
         }
     }

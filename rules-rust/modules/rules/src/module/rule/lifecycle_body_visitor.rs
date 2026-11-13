@@ -260,6 +260,12 @@ impl LifecycleBodyVisitor<'_> {
             && call.method == "spawn"
             && Self::field(&call.receiver).is_some_and(|field| self.task_scopes.contains(&field))
     }
+
+    fn is_own_scope_reload(&self, call: &syn::ExprMethodCall) -> bool {
+        self.method == "on_reload"
+            && call.method == "reload"
+            && Self::field(&call.receiver).is_some_and(|field| self.scopes.contains(&field))
+    }
 }
 
 impl<'ast> Visit<'ast> for LifecycleBodyVisitor<'_> {
@@ -283,6 +289,12 @@ impl<'ast> Visit<'ast> for LifecycleBodyVisitor<'_> {
 
     fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
         if self.is_own_task_start(call) {
+            return;
+        }
+        if self.is_own_scope_reload(call) {
+            for argument in &call.args {
+                self.visit_expr(argument);
+            }
             return;
         }
         let name = call.method.to_string();

@@ -17,12 +17,14 @@ use syn::parse::Parser;
 use syn::punctuated::Punctuated;
 use syn::visit::Visit;
 
-pub(crate) fn parse_macro_arguments(item: &Macro) -> Vec<Expr> {
+pub(crate) fn try_parse_macro_arguments(item: &Macro) -> Option<Vec<Expr>> {
     let parser = Punctuated::<Expr, Token![,]>::parse_terminated;
-    match parser.parse2(item.tokens.clone()) {
-        Ok(arguments) => arguments.into_iter().collect(),
-        Err(_) => Vec::new(),
-    }
+    let arguments = parser.parse2(item.tokens.clone()).ok()?;
+    Some(arguments.into_iter().collect())
+}
+
+pub(crate) fn parse_macro_arguments(item: &Macro) -> Vec<Expr> {
+    try_parse_macro_arguments(item).unwrap_or_default()
 }
 
 fn is_select_name(name: &str) -> bool {

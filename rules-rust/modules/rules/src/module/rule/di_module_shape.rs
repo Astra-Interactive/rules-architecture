@@ -258,6 +258,50 @@ impl DiModuleShape {
             })
     }
 
+    fn is_shared(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        typed: &syn::Type,
+        cfg: &crate::source::model::CfgPredicate,
+    ) -> bool {
+        let outer = context.resolve_outer_external_type_paths_under(ordinal, module, typed, cfg);
+        let is_outer = |names: &[&str]| {
+            outer.iter().any(|path| {
+                ["std", "alloc"].contains(&path.package.as_str())
+                    && path
+                        .segments
+                        .last()
+                        .is_some_and(|name| names.contains(&name.as_str()))
+            })
+        };
+        if is_outer(&["Arc", "OnceLock"]) {
+            return true;
+        }
+        let is_map = is_outer(&["HashMap", "BTreeMap"]);
+        if !is_map && !is_outer(&["Vec", "VecDeque"]) {
+            return false;
+        }
+        let syn::Type::Path(path) = typed else {
+            return false;
+        };
+        let Some(segment) = path.path.segments.last() else {
+            return false;
+        };
+        let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments else {
+            return false;
+        };
+        let element = arguments
+            .args
+            .iter()
+            .filter_map(|argument| match argument {
+                syn::GenericArgument::Type(inner) => Some(inner),
+                _ => None,
+            })
+            .nth(usize::from(is_map));
+        element.is_some_and(|inner| Self::is_shared(context, ordinal, module, inner, cfg))
+    }
+
     fn service_fields(
         context: &RuleContext,
         ordinal: usize,
@@ -293,16 +337,7 @@ impl DiModuleShape {
                         Self::service_identity(context, target.index, identity)
                     })
                 });
-            let shared = context
-                .resolve_outer_external_type_paths_under(ordinal, item.module, &field.ty, &cfg)
-                .iter()
-                .any(|path| {
-                    ["std", "alloc"].contains(&path.package.as_str())
-                        && path
-                            .segments
-                            .last()
-                            .is_some_and(|name| ["Arc", "OnceLock"].contains(&name.as_str()))
-                });
+            let shared = Self::is_shared(context, ordinal, item.module, &field.ty, &cfg);
             let concrete_contract = concrete
                 && context
                     .resolve_workspace_type(ordinal, item.module, &field.ty)

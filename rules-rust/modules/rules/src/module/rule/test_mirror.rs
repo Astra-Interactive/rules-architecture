@@ -2,6 +2,7 @@ use crate::check::api::Rule;
 use crate::check::model::{Anchor, Finding, Location, RuleContext, RuleFinding, RuleId};
 use crate::check::util::{build_node_finding, format_module_path};
 use crate::module::rule::TestAttributeVisitor;
+use crate::module::util::find_mirrored_source_path;
 use crate::source::model::{ModuleDeclaration, SourceFile, SourceModule, SourceTree};
 use crate::source::util::find_node_span;
 use syn::spanned::Spanned;
@@ -19,16 +20,7 @@ impl TestMirror {
             .find(|member| member.name == file.module.crate_name)?
             .directory
             .as_str();
-        let prefix = if directory.is_empty() {
-            String::new()
-        } else {
-            format!("{directory}/")
-        };
-        let relative = file.path.strip_prefix(&prefix)?;
-        let test = relative
-            .strip_prefix("tests/it/")
-            .or_else(|| relative.strip_prefix("test/"))?;
-        Some(format!("{prefix}src/{}.rs", test.strip_suffix("_test.rs")?))
+        find_mirrored_source_path(directory, &file.path)
     }
 
     fn has_behaviour(file: &SourceFile) -> bool {

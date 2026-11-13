@@ -5,6 +5,7 @@ use crate::config::model::Role;
 use crate::module::rule::ContractPlacement;
 use crate::module::util::build_shape_item_finding;
 use crate::module::util::build_shape_module_finding;
+use crate::module::util::find_mirrored_source_path;
 use crate::module::util::format_shape_subject;
 use crate::module::util::resolve_shape_type;
 use crate::source::model::{IndexedItem, IndexedModule, SourceFile, SourceTree};
@@ -96,6 +97,44 @@ impl KindShape {
             }
         }
         used_by_implementation
+    }
+
+    fn is_accepted_concept_file(
+        context: &RuleContext,
+        ordinal: usize,
+        file_module: &IndexedModule,
+    ) -> bool {
+        if file_module.tree == SourceTree::Src {
+            return Self::is_implementation_file(context, ordinal, file_module.id);
+        }
+        let index = &context.indexes[ordinal];
+        let Some(member) = context
+            .workspace
+            .members
+            .iter()
+            .find(|member| member.name == index.crate_name)
+        else {
+            return false;
+        };
+        if file_module.tree == SourceTree::Fixture {
+            return false;
+        }
+        let Some(mirrored) = find_mirrored_source_path(&member.directory, &file_module.file) else {
+            return false;
+        };
+        context
+            .indexes
+            .iter()
+            .enumerate()
+            .filter(|(_, twin_index)| twin_index.crate_name == index.crate_name)
+            .any(|(twin_ordinal, twin_index)| {
+                twin_index
+                    .modules
+                    .iter()
+                    .filter(|module| module.tree == SourceTree::Src && module.is_file_module)
+                    .filter(|module| module.file == mirrored)
+                    .any(|module| Self::is_implementation_file(context, twin_ordinal, module.id))
+            })
     }
 
     fn holds_only_state_holders(
@@ -333,7 +372,7 @@ impl KindShape {
             sites.extend(
                 files
                     .iter()
-                    .filter(|child| !Self::is_implementation_file(context, ordinal, child.id))
+                    .filter(|child| !Self::is_accepted_concept_file(context, ordinal, child))
                     .map(|child| ShapeSite {
                         module: child.id,
                         message: "a concept holds kind blocks; files live in a named kind",

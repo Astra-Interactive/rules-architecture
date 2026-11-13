@@ -258,6 +258,87 @@ fn given_factory_runtime_contract_parameters_when_checked_then_its_import_and_pa
 }
 
 #[test]
+fn given_restricted_visibility_in_platform_model_when_checked_then_the_scope_word_is_no_import() {
+    for source in [
+        "mod flow { pub(crate) mod model { pub(crate) struct SubscriptionId(pub(crate) u64); } }",
+        "mod text { pub(crate) mod model { pub(crate) enum HostTextError { Rejected { reason: String } } } }",
+        "mod flow { pub(crate) mod model { pub(in crate::flow) struct Scoped; pub(super) struct Parent; } }",
+    ] {
+        let context = read_import_context(source, Role::CorePlatform, &[], &[], "platform-plugin");
+        let findings = KindImportDirection.check(&context);
+        assert!(findings.is_empty(), "{source}: {findings:?}");
+    }
+}
+
+#[test]
+fn given_real_use_of_a_kindless_module_in_platform_model_when_checked_then_the_edge_stays_reported()
+{
+    for source in [
+        "mod flow {\npub(crate) struct HandlerSubscription;\npub(crate) mod model {\nuse crate::flow::HandlerSubscription;\n}\n}",
+        "mod flow {\npub(crate) struct HandlerSubscription;\npub(crate) mod model {\nfn call() { crate::flow::HandlerSubscription; }\n}\n}",
+    ] {
+        let context = read_import_context(source, Role::CorePlatform, &[], &[], "platform-plugin");
+        let findings = KindImportDirection.check(&context);
+        assert_eq!(1, findings.len(), "{source}: {findings:?}");
+        assert!(
+            findings[0].finding.message.contains("`flow`"),
+            "{findings:?}"
+        );
+    }
+}
+
+#[test]
+fn given_fake_of_a_di_trait_that_hands_out_other_fakes_when_checked_then_the_replaced_contract_and_the_fakes_are_allowed()
+ {
+    let context = read_import_context(
+        "mod di { pub trait HostModule {} }\n#[cfg(any(test, feature = \"fake\"))]\npub mod fixture {\npub mod scheduling { pub mod fake { pub struct FakeScheduler; } }\npub mod host { pub mod fake {\nuse crate::di::HostModule;\nuse crate::fixture::scheduling::fake::FakeScheduler;\npub struct FakeHostModule { pub scheduler: std::sync::Arc<FakeScheduler> }\nimpl HostModule for FakeHostModule {}\n} }\n}",
+        Role::CorePlatform,
+        &[],
+        &[],
+        "platform-plugin",
+    );
+    let findings = KindImportDirection.check(&context);
+    assert!(findings.is_empty(), "{findings:?}");
+}
+
+#[test]
+fn given_fake_that_uses_di_types_it_does_not_implement_or_src_implementations_when_checked_then_each_import_is_reported()
+ {
+    for source in [
+        "mod di { pub trait OtherModule {} }\n#[cfg(any(test, feature = \"fake\"))]\npub mod fixture { pub mod host { pub mod fake {\nuse crate::di::OtherModule;\npub struct FakeHost;\n} } }",
+        "mod di { pub struct CoreModule; }\n#[cfg(any(test, feature = \"fake\"))]\npub mod fixture { pub mod host { pub mod fake {\nuse crate::di::CoreModule;\npub struct FakeHost { pub core: std::sync::Arc<CoreModule> }\n} } }",
+        "mod lifecycle { pub mod memory { pub struct LifecycleSwitch; } }\n#[cfg(test)]\nmod test { mod lifecycle { pub(crate) mod fake {\nuse crate::lifecycle::memory::LifecycleSwitch;\npub(crate) struct FakeUnloadingLifecycle { pub(crate) switch: std::sync::Arc<LifecycleSwitch> }\n} } }",
+        "mod di { pub trait HostModule {} }\n#[cfg(any(test, feature = \"fake\"))]\npub mod fixture { pub mod host { pub mod fake {\nuse crate::di::HostModule;\npub struct FakeHost;\n} } }",
+    ] {
+        let context = read_import_context(source, Role::CorePlatform, &[], &[], "platform-plugin");
+        let findings = KindImportDirection.check(&context);
+        assert!(
+            findings
+                .iter()
+                .any(|finding| finding.finding.location.line == Some(4)),
+            "{source}: {findings:?}"
+        );
+    }
+}
+
+#[test]
+fn given_fake_implementing_another_trait_of_the_same_name_or_a_trait_of_another_kind_when_checked_then_the_import_is_reported()
+ {
+    for source in [
+        "mod di { pub trait HostModule {} }\nmod api { pub trait HostModule {} }\n#[cfg(any(test, feature = \"fake\"))]\npub mod fixture { pub mod host { pub mod fake {\nuse crate::di::HostModule as DiHost;\npub struct FakeHost;\nimpl crate::api::HostModule for FakeHost {}\n} } }",
+        "mod usecase { pub trait Runner {} }\n#[cfg(any(test, feature = \"fake\"))]\npub mod fixture { pub mod host { pub mod fake {\nuse crate::usecase::Runner;\npub struct FakeRunner;\nimpl Runner for FakeRunner {}\n} } }",
+        "mod lifecycle { pub mod memory { pub trait Switch {} } }\n#[cfg(any(test, feature = \"fake\"))]\npub mod fixture { pub mod host { pub mod fake {\nuse crate::lifecycle::memory::Switch;\npub struct FakeSwitch;\nimpl Switch for FakeSwitch {}\n} } }",
+    ] {
+        let context = read_import_context(source, Role::CorePlatform, &[], &[], "platform-plugin");
+        let findings = KindImportDirection.check(&context);
+        let has_import_row = findings.iter().any(|finding| {
+            finding.finding.location.line == Some(5) || finding.finding.location.line == Some(4)
+        });
+        assert!(has_import_row, "{source}: {findings:?}");
+    }
+}
+
+#[test]
 fn given_fake_in_fixture_tree_when_it_uses_a_file_implementation_then_only_that_import_is_reported()
 {
     let context = read_import_context(

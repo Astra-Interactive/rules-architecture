@@ -5,6 +5,7 @@ use crate::source::model::ModuleId;
 use crate::source::model::SourceTree;
 use crate::source::syn::ExpectationVisitor;
 use crate::source::syn::ModuleTreeWalker;
+use crate::workspace::model::DependencyKind;
 use crate::workspace::model::Member;
 use crate::workspace::model::Target;
 use crate::workspace::model::Workspace;
@@ -32,6 +33,21 @@ impl SynSourceReader {
             });
             seen.extend(files);
         }
+    }
+
+    fn list_external_crates(workspace: &Workspace, member: &Member) -> BTreeSet<String> {
+        let workspace_crates: BTreeSet<String> = workspace
+            .members
+            .iter()
+            .map(|candidate| candidate.name.replace('-', "_"))
+            .collect();
+        member
+            .dependencies
+            .iter()
+            .filter(|dependency| dependency.kind == DependencyKind::Normal)
+            .map(|dependency| dependency.code_name.clone())
+            .filter(|code_name| !workspace_crates.contains(code_name))
+            .collect()
     }
 
     fn has_tests_it(workspace: &Workspace, member: &Member) -> bool {
@@ -126,6 +142,8 @@ impl SynSourceReader {
                     member.name.clone(),
                     target.name.clone(),
                 )
+                .with_linkable_target(member.has_rust_library())
+                .with_external_crates(Self::list_external_crates(workspace, member))
                 .walk_crate(&target.src_path, tree)
             })
             .collect();
