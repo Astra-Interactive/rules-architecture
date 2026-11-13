@@ -10,8 +10,8 @@ import ru.astrainteractive.klibs.rules.konsist.check.model.util.packageName
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelClasses
 
 /**
- * Reports an in-memory implementation (`InMemory*`) outside a `memory` package of the main sources: it is
- * production code that tests and demos share, not a test double.
+ * Reports an in-memory implementation (`InMemory*`) outside a `memory` package, in the main sources and in a test
+ * source set alike: it sits in the `memory` package of its concept in the source set of the code that constructs it.
  */
 @Suppress("InMemoryPlacement")
 internal class InMemoryPlacement : ArchitectureCheck {
@@ -23,12 +23,17 @@ internal class InMemoryPlacement : ArchitectureCheck {
             .filter { declaration -> IN_MEMORY_NAME.matches(declaration.name) }
     }
 
-    override fun check(sources: UnitSources): List<Violation> {
-        val inMain = sources.mainFiles
+    private fun checkFiles(
+        sources: UnitSources,
+        files: List<KoFileDeclaration>,
+        findDestination: (KoFileDeclaration) -> String
+    ): List<Violation> {
+        return files
             .filterNot { file -> file.packageName.substringAfterLast('.') == MEMORY_SEGMENT }
             .flatMap { file ->
                 inMemoryDeclarations(file).map { declaration ->
-                    val message = "Move ${declaration.name} to the memory package of its concept."
+                    val message = "Move ${declaration.name} to the memory package of its concept" +
+                        "${findDestination.invoke(file)}."
                     sources.createViolation(
                         RULE,
                         file,
@@ -38,18 +43,19 @@ internal class InMemoryPlacement : ArchitectureCheck {
                     )
                 }
             }
-        val inTests = sources.testFiles.flatMap { file ->
-            inMemoryDeclarations(file).map { declaration ->
-                val message = "Move ${declaration.name} to a memory package of the main sources: an in-memory " +
-                    "implementation is production code."
-                sources.createViolation(
-                    RULE,
-                    file,
-                    declaration,
-                    declaration.name,
-                    message
-                )
-            }
+    }
+
+    override fun check(sources: UnitSources): List<Violation> {
+        val inMain = checkFiles(
+            sources,
+            sources.mainFiles
+        ) { "" }
+        val inTests = checkFiles(
+            sources,
+            sources.testFiles
+        ) { file ->
+            val sourceSet = sources.testSourceSetOf(file) ?: UNNAMED_SOURCE_SET
+            " in the $sourceSet source set"
         }
         return inMain + inTests
     }
@@ -58,6 +64,7 @@ internal class InMemoryPlacement : ArchitectureCheck {
         const val RULE = "InMemoryPlacement"
         const val MEMORY_SEGMENT = "memory"
         const val TEST_SUFFIX = "Test"
+        const val UNNAMED_SOURCE_SET = "same"
 
         @JvmField
         val IN_MEMORY_NAME = Regex("""InMemory[A-Z]\w*""")

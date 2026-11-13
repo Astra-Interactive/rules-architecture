@@ -13,9 +13,9 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 /**
  * Reports a test fake (`Fake*`) outside a `fake` package of the test tree, which sits inside the concept of the
  * contract it replaces, and a fake in the main sources, which belongs to the test tree or to `testFixtures`. A
- * `<feature>/fake` unit, whose root package ends with `fake`, holds the shared fakes of a Multiplatform unit in
- * its main sources. A fake in the test sources of a contract another unit declares belongs to the `testFixtures` of
- * that unit, shared with every unit that tests against it.
+ * `<feature>/fake` unit, whose root package ends with `fake`, holds the shared fakes and `InMemory…` doubles (in
+ * `memory`) of a Multiplatform unit in its main sources. A fake in the test sources of a contract another unit
+ * declares belongs to the `testFixtures` of that unit, shared with every unit that tests against it.
  */
 @Suppress("FakePlacement")
 internal class FakePlacement : ArchitectureCheck {
@@ -100,9 +100,11 @@ internal class FakePlacement : ArchitectureCheck {
     private fun findProductCode(sources: UnitSources): List<Violation> {
         if (sources.kind != UnitKind.FAKE) return emptyList()
         return sources.mainFiles.flatMap { file ->
+            val isMemory = file.packageName.substringAfterLast('.') == MEMORY_SEGMENT
             file.topLevelClasses()
                 .plus(file.objects(includeNested = false))
                 .filterNot { declaration -> FAKE_NAME.matches(declaration.name) }
+                .filterNot { declaration -> isMemory && IN_MEMORY_NAME.matches(declaration.name) }
                 .map { declaration ->
                     val message = "Move ${declaration.name} out of this fake unit: a <feature>/fake unit is tooling " +
                         "and holds the shared fakes only, no product code."
@@ -124,10 +126,14 @@ internal class FakePlacement : ArchitectureCheck {
     private companion object {
         const val RULE = "FakePlacement"
         const val FAKE_SEGMENT = "fake"
+        const val MEMORY_SEGMENT = "memory"
         const val TEST_SUFFIX = "Test"
         const val TEST_FIXTURES = "testFixtures"
 
         @JvmField
         val FAKE_NAME = Regex("""Fake[A-Z]\w*""")
+
+        @JvmField
+        val IN_MEMORY_NAME = Regex("""InMemory[A-Z]\w*""")
     }
 }

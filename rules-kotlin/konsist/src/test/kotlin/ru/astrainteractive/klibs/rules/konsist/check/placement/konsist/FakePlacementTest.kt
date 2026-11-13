@@ -107,6 +107,40 @@ internal class FakePlacementTest {
     }
 
     @Test
+    fun GIVEN_in_memory_class_in_a_memory_package_of_a_fake_unit_WHEN_checked_THEN_accepts_it_as_a_shared_double(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "commonMain",
+                "x.vote.fake.vote.memory",
+                "InMemoryVoteRepository.kt",
+                "class InMemoryVoteRepository : VoteRepository"
+            )
+            .main(
+                "commonMain",
+                "x.vote.fake.vote.memory",
+                "VotePricing.kt",
+                "class VotePricing"
+            )
+            .main(
+                "commonMain",
+                "x.vote.fake.ballot.fake",
+                "FakeBallotRepository.kt",
+                "class FakeBallotRepository : BallotRepository"
+            )
+            .loadSourceSets(
+                UnitKind.FAKE,
+                mainSourceSet = "commonMain",
+                testSourceSet = "commonTest"
+            )
+
+        assertEquals(listOf("VotePricing"), FakePlacement().check(sources).map(Violation::subject))
+        assertEquals(emptyList(), InMemoryPlacement().check(sources))
+        assertEquals(emptyList(), KindShape().check(sources))
+    }
+
+    @Test
     fun GIVEN_fake_role_with_a_misplaced_fake_WHEN_checked_THEN_requires_the_fake_kind(@TempDir directory: File) {
         val sources = SourceTree(directory)
             .main("x.offer.fake.offer.model/FakeOffer.kt", "class FakeOffer")
