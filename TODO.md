@@ -2,7 +2,9 @@
 
 The section "Kotlin linter (arch-fix, 2026-11-13)" near the end holds the Kotlin gaps of the `arch-fix` work.
 The section "Rust linter (arch-fix, 2026-11-13)" before it holds the Rust gaps of the same work (`klibs-rules` 0.2.0);
-T18 below was closed by that work.
+T18 below was closed by that work. The section "Rust linter (PumpkinMcPlugin rollout, 2026-11-14)" holds what that
+rollout left open, and the section "Kotlin linter (documents of 2026-11-14)" the Kotlin gap of the documents of
+`conf.ide` `8054a37`.
 
 What `.claude/docs` says and the Rust linter (`rules-rust`, crate `klibs-rules`) does not check, or checks
 wrongly. Sections are named after the document; every item quotes the document's words. Every item here is not
@@ -57,6 +59,8 @@ the code follows the document).
     confirmed it.
   - `not mechanical`: the audit found no rule and judged that a checker cannot tell the case without a
     classifier, and round 13 confirmed it.
+  - `kept (2026-11-14)`: found by reading the rule against the documents of `conf.ide` `8054a37`; no rule is
+    written, for the reason in its Gap. The decision is that session's own and has no `decisions.md` entry.
 - **Doc** lines are those of `.claude/docs` on 2026-11-10, before the document changes of round 13. **Rule**
   paths are under `rules-rust/modules/rules/src/` and their line numbers are those of `7c2d81e` (round 14:
   `35b8d3b`, round 15: `a70c4ce`, round 16: `321713f`; round 16 cites today's document lines); **Test** paths
@@ -1494,6 +1498,15 @@ paths are under `rules-rust/modules/rules/src/`. No item has a test.
     strings, UUIDs or numbers", which names a string, a UUID or a number although the field of the reported struct
     (`Vec<Portal>`, a model struct, a `bool`) is none of them.
   - Rule: `BareIdentifier`, `declaration/rule/bare_identifier.rs` (`check`)
+- [ ] **RP-06** — missed · kept (2026-11-14): an `InMemory…` store that writes through
+  - Doc (`arch-package.md:243–246`): "`InMemory<Contract>` names a store that only holds its values in memory; a store
+    that keeps them in memory and writes them to a file or a database is named by that technology
+    (`YamlRatingRepository`, `FileJailRepository`) and sits in the technology's package."
+  - Gap: `InMemoryPlacement` compares the name with the module (`InMemory<Trait>` in `memory`, and an implementation
+    in `memory` named so); nothing reads what the type does. A `std::fs` path in its file does not tell a write from a
+    path held as a value, and a store that writes through an injected trait shows nothing in its file.
+  - Rule: `InMemoryPlacement`, `module/rule/in_memory_placement.rs` (`check`, `wrong_implementation`)
+  - Near: **KT-26** — the same sentence in the Kotlin linter.
 
 ## Kotlin linter (arch-fix, 2026-11-13)
 
@@ -1684,6 +1697,28 @@ there. **Rule** paths are under `rules-kotlin/konsist/src/main/kotlin/ru/astrain
     `tween(durationMs, delayMs, easing)` became `Easing.EaseInOut.tween(durationMs, delayMs)`, `fadeIn(spec)` became
     `spec.fadeIn()` (eight builders), and the infix `enter with exit` became the constructor call
     `ContentTransform(enter, exit)`.
+
+## Kotlin linter (documents of 2026-11-14)
+
+What the documents of `conf.ide` `8054a37` state and the Kotlin linter (`rules-kotlin`, `0.28.1`) does not check. The
+two cases `0.28.1` fixed (`KindImportDirection` on a fake that imports another fake of a `<feature>/fake` unit,
+`DiPlacement` on a `…Module` in a `fake` package of such a unit) are not here. **Doc** lines are those of
+`conf.ide` on 2026-11-14; **Rule** paths are under
+`rules-kotlin/konsist/src/main/kotlin/ru/astrainteractive/klibs/rules/konsist/` unless they name another module. The
+item has no test.
+
+- [ ] **KT-26** — missed · kept (2026-11-14): an `InMemory…` store that writes through
+  - Doc (`arch-package.md:243–246`): "`InMemory<Contract>` names a store that only holds its values in memory; a store
+    that keeps them in memory and writes them to a file or a database is named by that technology
+    (`YamlRatingRepository`, `FileJailRepository`) and sits in the technology's package."
+  - Gap: `InMemoryPlacement` compares the name with the package (an `InMemory…` class sits in `memory`), and
+    `ImplementationName` reads the `Impl` and `Interface` suffixes and the `I` prefix; nothing reads what an
+    `InMemory…` class does. A file-API import does not tell a write from a `File` held as a value, and a store that
+    writes through an injected contract shows nothing in its file.
+  - Rule: `InMemoryPlacement`, `check/placement/konsist/InMemoryPlacement.kt`; `ImplementationName`,
+    `rules-kotlin/detekt/src/main/kotlin/ru/astrainteractive/klibs/rules/naming/detekt/ImplementationName.kt`
+  - Near: **KT-01**, **KT-02** — who constructs an `InMemory…` and under which concept it sits; **RP-06** — the same
+    sentence in the Rust linter.
 
 ## Not in this list
 
