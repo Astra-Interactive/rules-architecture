@@ -123,17 +123,34 @@ fn given_trait_impl_on_a_reference_to_a_secondary_type_when_checked_then_detects
 }
 
 #[test]
-fn given_free_function_beside_a_type_alias_when_checked_then_the_function_is_reported() {
+fn given_free_functions_beside_type_aliases_only_when_checked_then_the_file_is_a_function_file() {
     let mut context = read_case_context("OneTypeFamilyPerFile", "pass-syntax");
     context.crates[0].files[0].syntax = syn::parse_file("").expect("empty root");
-    context.crates[0].files[1].syntax =
-        syn::parse_file("type Ticket = u32;\nfn read() -> Ticket { 1 }").expect("alias file");
-    let findings = OneTypeFamilyPerFile.check(&context);
-    assert_eq!(findings.len(), 1, "{findings:?}");
-    assert!(findings[0].finding.subject.ends_with("::read"));
-    context.crates[0].files[1].syntax =
-        syn::parse_file("fn read() -> u32 { 1 }\nfn write() {}").expect("function file");
-    assert!(OneTypeFamilyPerFile.check(&context).is_empty());
+    for source in [
+        "type Ticket = u32;\nfn read() -> Ticket { 1 }",
+        "type TestOpenMenus = std::sync::Arc<Vec<u32>>;\ntype Slot = Option<u32>;\nfn read() {}\nfn write() {}",
+        "fn read() -> u32 { 1 }\nfn write() {}",
+    ] {
+        context.crates[0].files[1].syntax = syn::parse_file(source).expect("function file");
+        let findings = OneTypeFamilyPerFile.check(&context);
+        assert!(findings.is_empty(), "{source}: {findings:?}");
+    }
+}
+
+#[test]
+fn given_free_function_beside_a_type_and_an_alias_when_checked_then_the_function_is_reported() {
+    let mut context = read_case_context("OneTypeFamilyPerFile", "pass-syntax");
+    context.crates[0].files[0].syntax = syn::parse_file("").expect("empty root");
+    for source in [
+        "struct Subject;\nfn read() -> u32 { 1 }",
+        "struct Subject;\ntype Ticket = u32;\nfn read() -> Ticket { 1 }",
+        "type Ticket = u32;\nstruct Subject;\nfn read() -> Ticket { 1 }",
+    ] {
+        context.crates[0].files[1].syntax = syn::parse_file(source).expect("type file");
+        let findings = OneTypeFamilyPerFile.check(&context);
+        assert_eq!(findings.len(), 1, "{source}: {findings:?}");
+        assert!(findings[0].finding.subject.ends_with("::read"));
+    }
 }
 
 #[test]

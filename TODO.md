@@ -1447,7 +1447,9 @@ the rule sources that followed. The fixed cases (`BareIdentifier` on a serde rec
 `crate` of `pub(crate)`, `KindShape` on test mirrors, `UtilShape` on a constant of an extension file, the name blind
 spot of function-body macros, the `Unanalysable` row of an item macro in a crate without a library target,
 `UseCaseShape` and `ConstructorDependency` on a model that implements an `api` trait, `DiModuleShape` on a list of
-shared services, `PlatformImport` in the test and fixture trees) are not here. Each item below is a case that was read
+shared services, `PlatformImport` in the test and fixture trees, `OneTypeFamilyPerFile` on a file of type aliases and
+functions, `CriticalSectionWrite` on a returned field of a local, `KindImportDirection` on a test-tree fake that uses the
+`memory` of its own concept) are not here. Each item below is a case that was read
 in the source, found present, and left to a decision. **Doc** lines are those of `conf.ide` on 2026-11-14; **Rule**
 paths are under `rules-rust/modules/rules/src/`. No item has a test.
 

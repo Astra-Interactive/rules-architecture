@@ -254,9 +254,32 @@ impl KindImportDirection {
                 })
     }
 
-    fn is_fake_target_allowed(index: &CrateIndex, target: usize, target_name: &str) -> bool {
+    fn is_own_concept_memory(index: &CrateIndex, source: usize, target: usize) -> bool {
+        let source = &index.modules[source];
+        let target = &index.modules[target];
+        let [_, concept @ .., _] = source.module.path.as_slice() else {
+            return false;
+        };
+        let [owner @ .., kind] = target.module.path.as_slice() else {
+            return false;
+        };
+        let owner = match (target.tree, owner) {
+            (SourceTree::Test, [_, concept_path @ ..]) => concept_path,
+            (SourceTree::Src, concept_path) => concept_path,
+            _ => return false,
+        };
+        source.tree == SourceTree::Test && kind == "memory" && owner == concept
+    }
+
+    fn is_fake_target_allowed(
+        index: &CrateIndex,
+        source: usize,
+        target: usize,
+        target_name: &str,
+    ) -> bool {
         ["api", "model", "util"].contains(&target_name)
             || (target_name == "fake" && index.modules[target].tree != SourceTree::Src)
+            || Self::is_own_concept_memory(index, source, target)
     }
 
     fn is_kind_pair_allowed(
@@ -303,7 +326,7 @@ impl KindImportDirection {
                             || Self::is_factory_import(index, edge)))
             }
             "usecase" => ["api", "model", "util"].contains(&target_name) || is_role_target,
-            "fake" => Self::is_fake_target_allowed(index, target, target_name),
+            "fake" => Self::is_fake_target_allowed(index, source, target, target_name),
             "util" => {
                 ["model", "util"].contains(&target_name)
                     || (target_name == "api" && !Self::is_trait_edge(index, edge))

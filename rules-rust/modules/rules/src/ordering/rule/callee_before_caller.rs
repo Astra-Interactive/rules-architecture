@@ -78,8 +78,7 @@ impl CalleeBeforeCaller {
             syn::Item::Struct(_)
             | syn::Item::Enum(_)
             | syn::Item::Union(_)
-            | syn::Item::Trait(_)
-            | syn::Item::Type(_) => true,
+            | syn::Item::Trait(_) => true,
             syn::Item::Mod(module) => module
                 .content
                 .as_ref()

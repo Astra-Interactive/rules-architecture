@@ -307,7 +307,7 @@ fn given_fake_that_uses_di_types_it_does_not_implement_or_src_implementations_wh
     for source in [
         "mod di { pub trait OtherModule {} }\n#[cfg(any(test, feature = \"fake\"))]\npub mod fixture { pub mod host { pub mod fake {\nuse crate::di::OtherModule;\npub struct FakeHost;\n} } }",
         "mod di { pub struct CoreModule; }\n#[cfg(any(test, feature = \"fake\"))]\npub mod fixture { pub mod host { pub mod fake {\nuse crate::di::CoreModule;\npub struct FakeHost { pub core: std::sync::Arc<CoreModule> }\n} } }",
-        "mod lifecycle { pub mod memory { pub struct LifecycleSwitch; } }\n#[cfg(test)]\nmod test { mod lifecycle { pub(crate) mod fake {\nuse crate::lifecycle::memory::LifecycleSwitch;\npub(crate) struct FakeUnloadingLifecycle { pub(crate) switch: std::sync::Arc<LifecycleSwitch> }\n} } }",
+        "mod lifecycle { pub mod memory { pub struct LifecycleSwitch; } }\n#[cfg(test)]\nmod test { mod other { pub(crate) mod fake {\nuse crate::lifecycle::memory::LifecycleSwitch;\npub(crate) struct FakeUnloadingLifecycle { pub(crate) switch: std::sync::Arc<LifecycleSwitch> }\n} } }",
         "mod di { pub trait HostModule {} }\n#[cfg(any(test, feature = \"fake\"))]\npub mod fixture { pub mod host { pub mod fake {\nuse crate::di::HostModule;\npub struct FakeHost;\n} } }",
     ] {
         let context = read_import_context(source, Role::CorePlatform, &[], &[], "platform-plugin");
@@ -316,6 +316,42 @@ fn given_fake_that_uses_di_types_it_does_not_implement_or_src_implementations_wh
             findings
                 .iter()
                 .any(|finding| finding.finding.location.line == Some(4)),
+            "{source}: {findings:?}"
+        );
+    }
+}
+
+#[test]
+fn given_test_tree_fake_when_it_uses_the_memory_implementation_of_its_own_concept_then_the_import_is_allowed()
+ {
+    for source in [
+        "mod task { pub mod memory { pub struct TaskScope; } }\n#[cfg(test)]\nmod test { mod task { pub(crate) mod fake {\nuse crate::task::memory::TaskScope;\npub(crate) struct FakeAbortingJob { pub(crate) scope: std::sync::Arc<TaskScope> }\n} } }",
+        "mod scheduling { pub mod task { pub mod memory { pub struct TaskScope; } } }\n#[cfg(test)]\nmod test { mod scheduling { mod task { pub(crate) mod fake {\nuse crate::scheduling::task::memory::TaskScope;\npub(crate) struct FakeAbortingJob { pub(crate) scope: std::sync::Arc<TaskScope> }\n} } } }",
+        "#[cfg(test)]\nmod test { mod task { pub(crate) mod memory { pub(crate) struct InMemoryTaskStore; }\npub(crate) mod fake {\nuse crate::test::task::memory::InMemoryTaskStore;\npub(crate) struct FakeAbortingJob { pub(crate) store: std::sync::Arc<InMemoryTaskStore> }\n} } }",
+    ] {
+        let context = read_import_context(source, Role::CorePlatform, &[], &[], "platform-plugin");
+        let findings = KindImportDirection.check(&context);
+        assert!(findings.is_empty(), "{source}: {findings:?}");
+    }
+}
+
+#[test]
+fn given_fake_outside_the_test_tree_or_memory_of_another_concept_or_other_implementation_when_checked_then_the_import_is_reported()
+ {
+    for source in [
+        "mod task { pub mod memory { pub struct TaskScope; } }\n#[cfg(any(test, feature = \"fake\"))]\npub mod fixture { pub mod task { pub mod fake {\nuse crate::task::memory::TaskScope;\npub struct FakeAbortingJob { pub scope: std::sync::Arc<TaskScope> }\n} } }",
+        "mod task { pub mod memory { pub struct TaskScope; } pub mod fake {\nuse crate::task::memory::TaskScope;\npub struct FakeAbortingJob { pub scope: std::sync::Arc<TaskScope> }\n} }",
+        "mod task { pub mod memory { pub struct TaskScope; } }\n#[cfg(test)]\nmod test { mod other { pub(crate) mod fake {\nuse crate::task::memory::TaskScope;\npub(crate) struct FakeAbortingJob { pub(crate) scope: std::sync::Arc<TaskScope> }\n} } }",
+        "mod task { pub mod file { pub struct FileTaskStore; } }\n#[cfg(test)]\nmod test { mod task { pub(crate) mod fake {\nuse crate::task::file::FileTaskStore;\npub(crate) struct FakeAbortingJob { pub(crate) store: std::sync::Arc<FileTaskStore> }\n} } }",
+        "mod scheduling { pub mod memory { pub struct TaskScope; } pub mod task {} }\n#[cfg(test)]\nmod test { mod scheduling { mod task { pub(crate) mod fake {\nuse crate::scheduling::memory::TaskScope;\npub(crate) struct FakeAbortingJob { pub(crate) scope: std::sync::Arc<TaskScope> }\n} } } }",
+        "#[cfg(test)]\nmod test { mod task { pub(crate) mod memory { pub(crate) struct InMemoryTaskStore; } }\nmod other { pub(crate) mod fake {\nuse crate::test::task::memory::InMemoryTaskStore;\npub(crate) struct FakeAbortingJob { pub(crate) store: std::sync::Arc<InMemoryTaskStore> }\n} } }",
+    ] {
+        let context = read_import_context(source, Role::CorePlatform, &[], &[], "platform-plugin");
+        let findings = KindImportDirection.check(&context);
+        assert!(
+            findings.iter().any(|finding| {
+                finding.finding.location.line == Some(4) || finding.finding.location.line == Some(2)
+            }),
             "{source}: {findings:?}"
         );
     }

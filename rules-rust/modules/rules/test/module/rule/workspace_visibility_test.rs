@@ -224,6 +224,33 @@ fn given_name_used_only_as_inline_format_capture_when_checked_then_the_capture_i
 }
 
 #[test]
+fn given_function_reexported_from_a_same_named_module_when_another_crate_calls_it_then_it_has_a_user()
+ {
+    for (consumer, is_used) in [
+        (
+            "use alpha::plugin::util::permission_node;\nfn run() { permission_node(); }",
+            true,
+        ),
+        ("fn run() {}", false),
+    ] {
+        let context = crate::test::module::util::read_workspace_shape_context(&[
+            (
+                "alpha",
+                "",
+                "pub mod plugin { pub mod util { pub use permission_node::permission_node; mod permission_node { pub fn permission_node() {} } } }",
+            ),
+            ("beta", "alpha = { path = \"../alpha\" }\n", consumer),
+        ]);
+        let mut rows = crate::module::rule::VisibilityTier.check(&context);
+        rows.extend(crate::module::rule::ReExportShape.check(&context));
+        let reported = rows
+            .iter()
+            .any(|finding| finding.finding.subject.contains("permission_node"));
+        assert_eq!(!is_used, reported, "{consumer}: {rows:?}");
+    }
+}
+
+#[test]
 fn given_include_macro_in_a_function_body_when_indexed_then_names_stay_hidden() {
     for source in [
         "pub(crate) struct Value; fn run() { include!(\"generated.rs\"); }",
