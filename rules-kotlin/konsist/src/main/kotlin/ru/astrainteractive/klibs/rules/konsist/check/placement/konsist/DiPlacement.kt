@@ -15,7 +15,11 @@ internal class DiPlacement : ArchitectureCheck {
 
     override fun check(sources: UnitSources): List<Violation> {
         return sources.mainFiles
-            .filter { file -> sources.placementOf(file)?.kind != Kind.DI }
+            .filter { file ->
+                val kind = sources.placementOf(file)?.kind
+                val isFakeOfFakeUnit = sources.kind == UnitKind.FAKE && kind == Kind.FAKE
+                kind != Kind.DI && !isFakeOfFakeUnit
+            }
             .flatMap { file ->
                 file.topLevelClasses()
                     .plus(file.objects(includeNested = false))

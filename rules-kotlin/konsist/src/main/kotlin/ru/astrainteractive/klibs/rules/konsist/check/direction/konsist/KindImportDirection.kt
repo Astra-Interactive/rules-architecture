@@ -37,7 +37,8 @@ internal class KindImportDirection : ArchitectureCheck {
             Kind.FAKE -> setOf(
                 Kind.CONTRACT,
                 Kind.MODEL,
-                Kind.UTIL
+                Kind.UTIL,
+                Kind.FAKE
             )
             Kind.UTIL -> setOf(
                 Kind.MODEL,
