@@ -70,7 +70,8 @@ internal class CliArgumentsTest {
                     technologyWords = setOf("mongo"),
                     pluralConcepts = setOf("goods"),
                     platformClasses = setOf("WatchFaceService"),
-                    extensionKinds = setOf("slot")
+                    extensionKinds = setOf("slot"),
+                    roleKinds = emptySet()
                 ),
                 dependencyDirectories = listOf(File("/data/dao/src/main/kotlin")),
                 androidNamespace = "com.example",
@@ -136,6 +137,137 @@ internal class CliArgumentsTest {
             assertTrue(
                 error.message.orEmpty().startsWith(expectedReason),
                 "expected '$expectedReason' but was '${error.message}'"
+            )
+        }
+    }
+
+    @Test
+    fun GIVEN_repeated_role_kind_options_WHEN_parsed_THEN_collects_them_into_the_vocabulary() {
+        val arguments = CliArguments.parse(
+            required + listOf(
+                "--role-kind",
+                "limiter",
+                "--role-kind",
+                "codec"
+            )
+        )
+
+        assertEquals(setOf("limiter", "codec"), arguments.vocabulary.roleKinds)
+    }
+
+    @Test
+    fun GIVEN_role_kind_that_is_a_fixed_technology_or_entry_point_word_WHEN_parsed_THEN_fails_with_the_reason() {
+        val projectWords = listOf(
+            "--technology-word",
+            "mongo",
+            "--entry-point-word",
+            "widget",
+            "--extension-kind",
+            "panel"
+        )
+        val conflictingWords = listOf(
+            "api",
+            "model",
+            "usecase",
+            "util",
+            "di",
+            "theme",
+            "stub",
+            "fake",
+            "table",
+            "entity",
+            "database",
+            "warmup",
+            "migration",
+            "error",
+            "composable",
+            "exposed",
+            "memory",
+            "mongo",
+            "command",
+            "slot",
+            "widget",
+            "panel"
+        )
+
+        conflictingWords.forEach { word ->
+            val error = assertFailsWith<IllegalArgumentException>(word) {
+                CliArguments.parse(required + projectWords + listOf("--role-kind", word))
+            }
+            assertEquals(
+                "--role-kind '$word' is a fixed kind, a technology or an entry-point word of the project; a role " +
+                    "kind is named by a word of its own.",
+                error.message
+            )
+        }
+    }
+
+    @Test
+    fun GIVEN_role_kind_that_the_document_renames_WHEN_parsed_THEN_fails_with_the_reason() {
+        listOf(
+            "manager",
+            "helper",
+            "controller",
+            "utils"
+        ).forEach { word ->
+            val error = assertFailsWith<IllegalArgumentException>(word) {
+                CliArguments.parse(required + listOf("--role-kind", word))
+            }
+            assertEquals(
+                "--role-kind '$word' names no role: a class named ...${word.replaceFirstChar(Char::uppercase)} is " +
+                    "renamed, not given a kind.",
+                error.message
+            )
+        }
+    }
+
+    @Test
+    fun GIVEN_role_kind_that_is_a_forbidden_package_name_WHEN_parsed_THEN_fails_with_the_reason() {
+        listOf(
+            "factory",
+            "adapter",
+            "repository",
+            "validation",
+            "dto"
+        ).forEach { word ->
+            val error = assertFailsWith<IllegalArgumentException>(word) {
+                CliArguments.parse(required + listOf("--role-kind", word))
+            }
+            assertEquals(
+                "--role-kind '$word' is a forbidden package name: a package is named for a concept or a kind, " +
+                    "never a layer or a filler word.",
+                error.message
+            )
+        }
+    }
+
+    @Test
+    fun GIVEN_role_kind_whose_classes_another_check_places_WHEN_parsed_THEN_fails_with_the_reason() {
+        val error = assertFailsWith<IllegalArgumentException> {
+            CliArguments.parse(required + listOf("--role-kind", "module"))
+        }
+
+        assertEquals(
+            "--role-kind 'module' names classes another check places: a class named ...Module belongs to di.",
+            error.message
+        )
+    }
+
+    @Test
+    fun GIVEN_role_kind_with_capitals_or_padding_WHEN_parsed_THEN_fails_with_the_reason() {
+        listOf(
+            "Limiter",
+            "Model",
+            " codec",
+            "codec "
+        ).forEach { word ->
+            val error = assertFailsWith<IllegalArgumentException>(word) {
+                CliArguments.parse(required + listOf("--role-kind", word))
+            }
+            assertEquals(
+                "--role-kind '$word' must be lower-case and trimmed: a role kind is a package segment, the last " +
+                    "word of its classes in lower case.",
+                error.message
             )
         }
     }

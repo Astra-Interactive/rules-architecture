@@ -55,7 +55,8 @@ internal class PluralPackageNameTest {
                     technologyWords = emptySet(),
                     pluralConcepts = setOf("goods"),
                     platformClasses = emptySet(),
-                    extensionKinds = emptySet()
+                    extensionKinds = emptySet(),
+                    roleKinds = emptySet()
                 )
             )
 

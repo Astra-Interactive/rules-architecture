@@ -23,7 +23,7 @@ internal class ForbiddenPackageName : ArchitectureCheck {
 
     private fun findForbidden(sources: UnitSources, segments: List<String>): List<String> {
         return segments.filterIndexed { index, segment ->
-            if (segment in FORBIDDEN) return@filterIndexed true
+            if (segment in Kind.FORBIDDEN_WORDS) return@filterIndexed true
             if (segment !in TECHNOLOGY_ONLY) return@filterIndexed false
             val isInTechnology = sources.kind == UnitKind.TECHNOLOGY
             val followsTechnology = segments.take(index).any { previous -> isTechnologyWord(sources, previous) }
@@ -57,40 +57,6 @@ internal class ForbiddenPackageName : ArchitectureCheck {
             "database",
             "entity",
             "table"
-        )
-
-        @JvmField
-        val FORBIDDEN = setOf(
-            "adapter",
-            "aggregate",
-            "application",
-            "common",
-            "controller",
-            "dao",
-            "domain",
-            "dto",
-            "entrypoint",
-            "enum",
-            "exception",
-            "factory",
-            "helpers",
-            "impl",
-            "in",
-            "inbound",
-            "infrastructure",
-            "internal",
-            "misc",
-            "out",
-            "outbound",
-            "port",
-            "presentation",
-            "repository",
-            "shared",
-            "spi",
-            "type",
-            "ui",
-            "validation",
-            "valueobject",
         )
     }
 }

@@ -51,6 +51,13 @@ public abstract class LinterExtension {
      */
     public abstract val extensionKinds: SetProperty<String>
 
+    /**
+     * The project's role kinds, each named by the last word of the classes it holds (`limiter` for
+     * `VoteCooldownLimiter`); a word that is a fixed kind, a technology or an entry-point word is a configuration
+     * error.
+     */
+    public abstract val roleKinds: SetProperty<String>
+
     public fun unit(value: UnitRole) {
         val policy = value.toPolicy()
         require(configuredUnitKind == null || configuredUnitKind == value.kind) {

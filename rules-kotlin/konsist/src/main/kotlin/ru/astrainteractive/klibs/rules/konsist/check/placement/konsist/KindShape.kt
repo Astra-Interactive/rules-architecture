@@ -1,5 +1,6 @@
 package ru.astrainteractive.klibs.rules.konsist.check.placement.konsist
 
+import com.lemonappdev.konsist.api.declaration.KoBaseDeclaration
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import com.lemonappdev.konsist.api.provider.KoNameProvider
 import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
@@ -8,6 +9,7 @@ import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.baseName
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelClasses
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelNames
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Placement
@@ -120,6 +122,68 @@ internal class KindShape : ArchitectureCheck {
         }
     }
 
+    private fun <T> createNotClassViolations(
+        sources: UnitSources,
+        file: KoFileDeclaration,
+        placement: Placement,
+        declarations: List<T>
+    ): List<Violation> where T : KoBaseDeclaration, T : KoNameProvider {
+        return declarations.map { declaration ->
+            sources.createViolation(
+                RULE,
+                file,
+                declaration,
+                declaration.name,
+                "Move ${declaration.name} out of '${packagePath(placement)}': a role kind holds classes only."
+            )
+        }
+    }
+
+    private fun checkRoleKindFile(
+        sources: UnitSources,
+        file: KoFileDeclaration,
+        placement: Placement
+    ): List<Violation> {
+        val suffix = checkNotNull(placement.kindWord).replaceFirstChar(Char::uppercase)
+        val misnamed = file.topLevelClasses()
+            .filterNot { declaration -> declaration.name.endsWith(suffix) }
+            .map { declaration ->
+                sources.createViolation(
+                    RULE,
+                    file,
+                    declaration,
+                    declaration.name,
+                    "Rename ${declaration.name} so that its name ends with $suffix: a role kind holds the classes " +
+                        "its word names."
+                )
+            }
+        val functions = createNotClassViolations(
+            sources,
+            file,
+            placement,
+            file.functions(includeNested = false, includeLocal = false)
+        )
+        val types = createNotClassViolations(
+            sources,
+            file,
+            placement,
+            file.interfaces(includeNested = false) + file.objects(includeNested = false)
+        )
+        return misnamed + functions + types
+    }
+
+    private fun findRoleKindViolations(sources: UnitSources): List<Violation> {
+        return sources.mainFiles.flatMap { file ->
+            val placement = sources.placementOf(file)
+            if (placement?.kind != Kind.ROLE) return@flatMap emptyList()
+            checkRoleKindFile(
+                sources,
+                file,
+                placement
+            )
+        }
+    }
+
     override fun check(sources: UnitSources): List<Violation> {
         val shapeViolations = sources.mainFiles.mapNotNull { file ->
             val placement = sources.placementOf(file) ?: return@mapNotNull null
@@ -135,7 +199,7 @@ internal class KindShape : ArchitectureCheck {
                 message
             )
         }
-        return shapeViolations + findMixedComposables(sources)
+        return shapeViolations + findMixedComposables(sources) + findRoleKindViolations(sources)
     }
 
     private companion object {

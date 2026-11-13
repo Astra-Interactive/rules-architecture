@@ -216,7 +216,8 @@ internal class SourceTree(
             technologyWords = emptySet(),
             pluralConcepts = emptySet(),
             platformClasses = emptySet(),
-            extensionKinds = emptySet()
+            extensionKinds = emptySet(),
+            roleKinds = emptySet()
         )
     }
 }

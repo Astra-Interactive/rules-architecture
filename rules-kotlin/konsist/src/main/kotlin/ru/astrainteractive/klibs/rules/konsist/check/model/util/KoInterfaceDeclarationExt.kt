@@ -1,7 +1,9 @@
 package ru.astrainteractive.klibs.rules.konsist.check.model.util
 
+import com.lemonappdev.konsist.api.declaration.KoClassDeclaration
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import com.lemonappdev.konsist.api.declaration.KoInterfaceDeclaration
+import com.lemonappdev.konsist.api.declaration.KoObjectDeclaration
 import com.lemonappdev.konsist.api.provider.KoAnnotationProvider
 import ru.astrainteractive.klibs.rules.core.technology.util.isTechnologyName
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
@@ -56,6 +58,21 @@ private fun KoInterfaceDeclaration.countModelProperties(files: List<KoFileDeclar
 internal fun KoInterfaceDeclaration.isDataShape(kind: Kind?, files: List<KoFileDeclaration>): Boolean {
     if (kind != Kind.MODEL) return false
     return (countModelProperties(files, emptySet()) ?: return false) > 0
+}
+
+/**
+ * The fully qualified names of the data, enum and sealed classes, the sealed interfaces and the data objects declared
+ * directly in this interface: the data types a contract carries.
+ */
+internal fun KoInterfaceDeclaration.nestedDataTypeNames(): List<String> {
+    val classes = classes(includeNested = false).filter { declaration ->
+        declaration.hasDataModifier || declaration.hasEnumModifier || declaration.hasSealedModifier
+    }
+    val interfaces = interfaces(includeNested = false).filter(KoInterfaceDeclaration::hasSealedModifier)
+    val objects = objects(includeNested = false).filter(KoObjectDeclaration::hasDataModifier)
+    return classes.mapNotNull(KoClassDeclaration::fullyQualifiedName) +
+        interfaces.mapNotNull(KoInterfaceDeclaration::fullyQualifiedName) +
+        objects.mapNotNull(KoObjectDeclaration::fullyQualifiedName)
 }
 
 /**
