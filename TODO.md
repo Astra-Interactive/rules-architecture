@@ -1436,6 +1436,65 @@ a test; the two `closed by decision` items follow the brief of that work and hav
   - Gap: the count is over the files one task adds; a checker sees the tree, not the task.
   - Rule: none
 
+## Rust linter (PumpkinMcPlugin rollout, 2026-11-14)
+
+What the first lint run of `klibs-rules` `0.2.0` on PumpkinMcPlugin showed (28 rows after 50 runs) and the reading of
+the rule sources that followed. The fixed cases (`BareIdentifier` on a serde record, `KindImportDirection` on the
+`crate` of `pub(crate)`, `KindShape` on test mirrors, `UtilShape` on a constant of an extension file, the name blind
+spot of function-body macros, the `Unanalysable` row of an item macro in a crate without a library target,
+`UseCaseShape` and `ConstructorDependency` on a model that implements an `api` trait, `DiModuleShape` on a list of
+shared services, `PlatformImport` in the test and fixture trees) are not here. Each item below is a case that was read
+in the source, found present, and left to a decision. **Doc** lines are those of `conf.ide` on 2026-11-14; **Rule**
+paths are under `rules-rust/modules/rules/src/`. No item has a test.
+
+- [ ] **RP-01** — missed (document conflict) · candidate (rollout): `KindShape` accepts a concept file for any trait
+  impl
+  - Doc (`arch-package.md:130–132`): "its implementations and their helpers may sit directly in a concept"
+  - Gap: `is_implementation_file` counts any `impl Trait for T` with `T` declared in the file, so a guard with `impl
+    Drop`, or a type with `impl Default` or `impl Display`, makes its file an "implementation" that may sit directly in
+    a concept. The document speaks of implementations of contracts. The test
+    `given_technology_concept_implementations_and_private_helpers_when_checked_then_only_unowned_helper_reports` pins
+    `impl std::fmt::Display` as an implementation, and the concept files of PumpkinMcPlugin `core/pumpkin` are
+    accepted through such impls, so tightening the rule flips rows there. It needs a trial run on that project and the
+    owner's reading of "implementation" (a workspace `api` trait or a trait of a platform library, not a derivable std
+    trait).
+  - Rule: `KindShape`, `module/rule/kind_shape.rs` (`is_implementation_file`; `is_accepted_concept_file` calls it for
+    a test mirror, so a decision here moves both)
+- [ ] **RP-02** — false positive (to confirm) · candidate (rollout): `DiModuleLifecycle` rejects any call in a
+  lifecycle body but a forward, `abort`, `spawn` and a shared clone
+  - Doc (`di-manual.rs.md:54–58`): "its methods call the same method of only the DI modules it owns, in order";
+    (`di-manual.rs.md:141–142`): "A task that seeds or migrates a resource … is started by its `on_enable`"
+  - Gap: `fn on_reload(&self) { self.reload_configuration(); self.listener.on_reload(); }` is reported for the first
+    call, since `visit_expr_method_call` accepts only the forwards of owned children, `abort`, a task start and a
+    shared clone. The first sentence is what the rule enforces; the second allows more than the rule does, and a
+    configuration reload in `on_reload` has no legal form unless it goes through a job. Either the document names the
+    job form, or the rule accepts a call to a private method of the same module whose body passes the same check.
+    (Closed part, 2026-11-14: `self.<own TaskScope field>.reload()` in `on_reload` is accepted, the twin of the
+    `spawn` of `is_own_task_start`; the call of a private method of the module is still reported.)
+  - Rule: `DiModuleLifecycle`, `module/rule/lifecycle_body_visitor.rs` (`visit_expr_call`, `visit_expr_method_call`)
+- [ ] **RP-03** — missed · candidate (rollout): `TaskScope` is recognised by its type name
+  - Doc (`di-manual.rs.md:62–64`): "A DI module whose types start tasks either owns a `TaskScope` for them or hands
+    them the shared scope that `CoreModule` holds"
+  - Gap: `DiModuleShape` (`service_identity`) skips every workspace type named `TaskScope`, and the lifecycle body
+    visitor accepts the start of a task through a field of that name (`is_own_task_start`), so any other type with
+    that name is exempt too. The document names no path of the type; resolving its identity needs one.
+  - Rule: `DiModuleShape`, `module/rule/di_module_shape.rs` (`service_identity`); `DiModuleLifecycle`,
+    `module/rule/lifecycle_body_visitor.rs` (`is_own_task_start`)
+- [ ] **RP-04** — missed (document wording) · candidate (rollout): `FakePlacement` judges a double by its name
+  - Doc (`arch-package.rs.md:303–304`): "A `Fake…` scripts failures or records calls. A same-crate fake lives in the
+    test tree, in `fake/` …"
+  - Gap: `FakePlacement` ignores every type whose name does not start with `Fake`, so a double that records calls but
+    is named otherwise is never placed or checked. The document defines the fake by its name, so the rule follows it;
+    a double renamed to leave the `fake` kind is silent, which is a rename for the checker (`no-workarounds.md`) that
+    only a reviewer sees.
+  - Rule: `FakePlacement`, `module/rule/fake_placement.rs`
+- [ ] **RP-05** — message · candidate (rollout): one text for three branches of `BareIdentifier`
+  - Doc (`arch-domain.rs.md:61–63`): "A single-property value object is a tuple struct too."
+  - Gap: the finding of the single-property branch prints "Use a single-field tuple identifier instead of bare
+    strings, UUIDs or numbers", which names a string, a UUID or a number although the field of the reported struct
+    (`Vec<Portal>`, a model struct, a `bool`) is none of them.
+  - Rule: `BareIdentifier`, `declaration/rule/bare_identifier.rs` (`check`)
+
 ## Kotlin linter (arch-fix, 2026-11-13)
 
 What the documents of the `arch-fix` branch of `conf.ide` state and the Kotlin linter (`rules-kotlin`, `0.28.0`)
