@@ -1,5 +1,9 @@
 # TODO: Rust rules the documents state and the linter lacks
 
+The section "Rust linter (arch-fix, 2026-11-13)" near the end holds the Rust gaps of the `arch-fix` work
+(`klibs-rules` 0.2.0);
+T18 below was closed by that work.
+
 What `.claude/docs` says and the Rust linter (`rules-rust`, crate `klibs-rules`) does not check, or checks
 wrongly. Sections are named after the document; every item quotes the document's words. Every item here is not
 in the code. The cases were read at `master` `7c2d81e`; those of round 14 at `35b8d3b`, those of round 15 at
@@ -127,14 +131,22 @@ by decision`, 9 `not mechanical`.
 
 ## arch-domain.md
 
-- [ ] **T18** — missed · closed by decision (F26: not reported, as in the Kotlin rule), confirmed in round 13
-  - Outcome: kept: closed by decision (F26: not reported, as in the Kotlin rule), confirmed in round 13
-  - Doc (`arch-domain.md:19–21`): "It is never a member of the type …, and never a top-level function that
-    takes the type as a parameter."
-  - Gap: a free `util` function taking one model plus a non-model parameter
-    (`fn is_expired(invoice: Invoice, now: SystemTime) -> bool`) is accepted; only one-parameter functions are
+- [x] **T18** — missed · was closed by decision (F26: not reported, as in the Kotlin rule); reversed by the `arch-fix`
+  work (2026-11-13)
+  - Outcome: in the code (arch-fix, 2026-11-13, `klibs-rules` 0.2.0): `arch-domain.md`, "Rules live in `util`", asks for
+    the form by signature, and `UtilFunctionAsExtension` reports a free `util` function with one model type among its
+    parameters (`fn is_expired(invoice: Invoice, now: SystemTime) -> bool`), one whose model-typed parameters are all
+    of one type (`fn exceeds(amount: Money, limit: Money) -> bool`) and one that returns the type of a model
+    parameter; a function over two or more different model types that returns none of them is not reported, and a
+    `create_*` or `parse_*` returning `Result` of a model is exempt (tests in `util_function_as_extension_test.rs`)
+  - Doc (`arch-domain.md:19–23`): "One that returns anything else is an extension when its inputs are of one model
+    type …, and a top-level function in a file named after the decision when they are of two or more"
+  - Gap (before): a free `util` function taking one model plus a non-model parameter
+    (`fn is_expired(invoice: Invoice, now: SystemTime) -> bool`) was accepted; only one-parameter functions were
     checked.
-  - Rule: `UtilFunctionAsExtension`, `module/rule/util_function_as_extension.rs:18–23`
+  - Rule: `UtilFunctionAsExtension`, `module/rule/util_function_as_extension.rs`
+  - Kotlin (2026-11-13): "as in the Kotlin rule" no longer held after `0.28.0`: the Kotlin `UtilFunctionAsExtension`
+    reports a top-level function with one model among other parameters, and the Rust rule now does the same.
 
 - [ ] **16S-S06** — not mechanical · candidate (round 16; Sonnet)
   - Outcome: kept (round 21): nothing links a trait to the entity it would be the interface of
@@ -171,6 +183,9 @@ by decision`, 9 `not mechanical`.
     checks the invariant"
   - Gap: a `new` that guards with `if … { panic!() }` instead of `assert!` is not recognised as an invariant
     check, so the type's `pub` field passes; a test pins this form as unreported.
+  - Update (arch-fix, 2026-11-13): the document's one invariant check is now `impl TryFrom<Raw> for Type` in the
+    type's file (`arch-domain.rs.md:64–71`), and `ValueObjectShape` reports a `pub` or `pub(crate)` field of such a
+    type; this gap is left for a type with no `TryFrom`.
   - Rule: `ValueObjectShape`, `declaration/rule/value_object_shape.rs:65–68,139–176`
 
 - [x] **14S09** — false positive (document conflict) · kept (round 14): a `&mut self` method of a std
@@ -1341,6 +1356,85 @@ by decision`, 9 `not mechanical`.
   - Doc (`time-api.rs.md:3–4`): "do not represent moments in time or durations as raw primitive or text types"
   - Gap: locals are not read; `let timeout_ms: u64 = 500;` passes (the README scopes the check; no decision).
   - Rule: `TimePrimitive`, `runtime/rule/time_primitive.rs:429–442`
+
+## Rust linter (arch-fix, 2026-11-13)
+
+What the documents of the `arch-fix` branch of `conf.ide` state and the Rust linter (`rules-rust`, `klibs-rules`
+`0.2.0`) does not check, found while the role kinds, the `util` contract check, the rule form by signature, the
+validated model, the binary entry point, `tests/it` of a published crate and the fixture paths were built. **Doc**
+lines are those of that branch on 2026-11-13. **Rule** paths are under `rules-rust/modules/rules/src/`. No item has
+a test; the two `closed by decision` items follow the brief of that work and have no `decisions.md` entry.
+
+- [ ] **RS-01** — missed · kept (arch-fix): a `<Type>Ext` trait impl in `util` that takes a contract
+  - Doc (`arch-package.md:149`): "none has a receiver or parameter whose type is a contract of the project … or calls
+    one"; (`arch-package.rs.md:280–283`): "a trait `<Type>Ext` with its one `impl` when another crate declares the
+    type"
+  - Gap: the parameter check reads free functions and the methods of an out-of-file inherent `impl`. The methods of
+    `impl InvoiceExt for Invoice`, the form used when another crate declares the type, are not read, so a
+    `&dyn InvoiceRepository` parameter there passes.
+  - Rule: `UtilShape`, `module/rule/util_shape.rs` (`check_method_parameters`),
+    `module/rule/util_contract_parameter_visitor.rs`
+- [ ] **RS-02** — missed · kept (arch-fix): a `type` alias that hides `dyn Trait` in a `util` parameter
+  - Doc (`arch-package.md:149`), as RS-01
+  - Gap: `type Repo = Arc<dyn InvoiceRepository>;` and `fn is_stale(repo: Repo)` in `util` pass; the alias is not
+    expanded to the trait it names.
+  - Rule: `UtilShape`, `module/rule/util_contract_parameter_visitor.rs`
+- [ ] **RS-03** — missed · kept (arch-fix): a `util` use of an `api` trait through a module path only
+  - Doc (`arch-context.md:70`): "`util` | `model`, `util`, a data type nested in an `api` contract"
+  - Gap: `use crate::invoice::api;` followed by `api::InvoiceRepository` names a module in its import and no item, so
+    the import is not taken for the use of a trait; only an import or a use of the trait item itself is reported.
+  - Rule: `KindImportDirection`, `module/rule/kind_import_direction.rs` (`is_trait_edge`)
+- [ ] **RS-04** — missed · kept (arch-fix): a rule in the methods of a trait impl
+  - Doc (`arch-domain.rs.md:15–18`): "A method of an inherent impl or of a project's trait that takes a parameter of
+    another model type or returns a decision is a rule and goes to `util`"
+  - Gap: `UtilFunctionAsExtension` reads free functions and the methods of an out-of-file inherent `impl` of a model
+    type; the methods of a trait impl (`impl InvoiceExt for Invoice`, a trait declared in `util`) are not read, and
+    `ModelContainsFunctions` reads inherent impls only, so a project trait's method in a model file that takes
+    another model type passes.
+  - Rule: `UtilFunctionAsExtension`, `module/rule/util_function_as_extension.rs` (`check_implementation`);
+    `ModelContainsFunctions`, `module/rule/model_contains_functions.rs`
+- [ ] **RS-05** — missed · kept (arch-fix): `src/lib.rs` of a lib-plus-main entry point keeps the entry-point
+  allowances
+  - Doc (`arch-package.rs.md:180–182`): "A binary entry-point crate is `src/lib.rs`, which declares the module tree
+    and the test block, plus `src/main.rs`, which holds `use` lines and `fn main`"
+  - Gap: `src/lib.rs` is judged as the root of an `entry-point` library, where a private `use` and the host items
+    stay allowed because a `cdylib` host root needs them; a `use` line or a host item in the `lib.rs` of a
+    lib-plus-main crate passes.
+  - Rule: `RootFileShape`, `module/rule/root_file_shape.rs` (`check_root`)
+- [ ] **RS-06** — missed · kept (arch-fix): a module-only import of another crate's `fixture` tree
+  - Doc (`arch-package.rs.md:333–334`): "Another crate enables the feature only in `[dev-dependencies]`, never in
+    `[dependencies]`, so it reaches the fake from its test tree alone"
+  - Gap: `use other::fixture::invoice::fake;` in `src/` names a module, not an item, so the import is no use of an
+    item; the uses that follow (`fake::FakeInvoiceRepository`) are reported, the import line is not.
+  - Rule: `FakePlacement`, `module/rule/fake_placement.rs` (`check_production_paths`)
+- [ ] **RS-07** — missed · kept (arch-fix): a validated type checked by `TryFrom` alone has no accessor requirement
+  - Doc (`arch-domain.rs.md:67–70`): "each field gets an accessor named after what it holds"
+  - Gap: the accessor and constructor-purity checks run on a type with an asserting `new`; a type checked by
+    `impl TryFrom` in its file is held to private fields only, so a private field with no accessor passes (the
+    `PaymentPlan` example of the document has none).
+  - Rule: `ValueObjectShape`, `declaration/rule/value_object_shape.rs`
+- [x] **RS-08** — closed 2026-11-13: the document example now derives `Hash` and the gate passes · was: false positive (document conflict): `ModelDerives` on the `PaymentPlan`
+  example
+  - Doc (`arch-domain.rs.md:9–11`): "They derive `Debug`, `Clone` and `PartialEq` …, and also `Eq` and `Hash` when
+    every field implements them"; the examples at `arch-domain.rs.md:111` and `:133` derive `Debug, Clone, PartialEq,
+    Eq, Deserialize` over `Money` and `Vec<Money>`, which implement `Hash`
+  - Gap: `ModelDerives` reports `Derive Hash on this model struct` for `PaymentPlan` and `PaymentPlanParts`, as the
+    sentence at `:9–11` asks; the example breaks its own document. The gate half `arch-domain.rs:Invariant:5` fails
+    on these two lines until `conf.ide` adds `Hash` to both derives.
+  - Rule: `ModelDerives`, `declaration/rule/model_derives.rs`
+- [ ] **RS-09** — no rule · closed by decision (arch-fix brief, 2026-11-13; no `decisions.md` entry): an entry point
+  that calls a contract where a use case of the concept makes that change
+  - Doc (`arch-domain.md:86–89`): "A single contract call with no branch is made from the entry point directly,
+    unless a use case of the concept makes that change: then the entry point calls the use case."
+  - Gap: which use case "makes that change" is a reading of behaviour; no check compares an entry point's contract
+    call with the use cases of its concept.
+  - Rule: none; nearest `UseCaseShape` (pass-through)
+- [ ] **RS-10** — no rule · closed by decision (arch-fix brief, 2026-11-13; no `decisions.md` entry): the
+  concept-creation count
+  - Doc (`arch-package.md:97–100`): "A task creates a concept package for a thing the unit does not yet name when it
+    adds, for that thing, three or more files of two or more kinds"
+  - Gap: the count is over the files one task adds; a checker sees the tree, not the task.
+  - Rule: none
 
 ## Not in this list
 
