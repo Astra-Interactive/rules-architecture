@@ -44,4 +44,6 @@ tasks.withType<Detekt>().configureEach {
 
 tasks.test {
     useJUnitPlatform()
+    // KonsistCliSkillTreeTest compares its worked trees with the skill only when the documents' path is given.
+    providers.systemProperty("klibsRulesDocs").orNull?.let { documents -> systemProperty("klibsRulesDocs", documents) }
 }
