@@ -1,7 +1,7 @@
 # TODO: Rust rules the documents state and the linter lacks
 
-The section "Rust linter (arch-fix, 2026-11-13)" near the end holds the Rust gaps of the `arch-fix` work
-(`klibs-rules` 0.2.0);
+The section "Kotlin linter (arch-fix, 2026-11-13)" near the end holds the Kotlin gaps of the `arch-fix` work.
+The section "Rust linter (arch-fix, 2026-11-13)" before it holds the Rust gaps of the same work (`klibs-rules` 0.2.0);
 T18 below was closed by that work.
 
 What `.claude/docs` says and the Rust linter (`rules-rust`, crate `klibs-rules`) does not check, or checks
@@ -1436,6 +1436,124 @@ a test; the two `closed by decision` items follow the brief of that work and hav
   - Gap: the count is over the files one task adds; a checker sees the tree, not the task.
   - Rule: none
 
+## Kotlin linter (arch-fix, 2026-11-13)
+
+What the documents of the `arch-fix` branch of `conf.ide` state and the Kotlin linter (`rules-kotlin`, `0.28.0`)
+does not check, found while the role kinds, the `util` contract check, the rule form by signature and the in-memory
+placement in test trees were built. **Doc** lines are those of that branch on 2026-11-13. **Rule** paths are under
+`rules-kotlin/konsist/src/main/kotlin/ru/astrainteractive/klibs/rules/konsist/` unless they name another module. No
+item has a test. The earlier Kotlin audit (see "Not in this list") is not merged here.
+
+- [ ] **KT-01** — missed · kept (arch-fix): a production `InMemory…` that only tests construct
+  - Doc (`arch-package.kt.md:107–110`): "`InMemory<Contract>` in a `memory` package of its concept: in production
+    code when production code constructs it (a DI module, a demo instance), in the test tree at the same path when
+    only the unit's own tests do, in `testFixtures` (KMP: `<feature>/fake`) when other units' tests do."
+  - Gap: `InMemoryPlacement` accepts an `InMemory…` in any `memory` package of main or test sources. It does not ask
+    who constructs it: a production class only tests construct passes, and so does a test-tree class other units'
+    tests need. The check sees one unit, and a DI module of another unit (the entry point's) may construct it.
+  - Rule: `InMemoryPlacement`, `check/placement/konsist/InMemoryPlacement.kt:26–46`
+- [ ] **KT-02** — missed · kept (arch-fix): an `InMemory…` under another concept than its contract
+  - Doc (`arch-package.kt.md:107–108`): "`InMemory<Contract>` in a `memory` package of its concept"
+  - Gap: only the last package segment is compared with `memory`; `vote/memory/InMemoryRatingCache` beside
+    `rating/api/RatingCache` passes.
+  - Rule: `InMemoryPlacement`, `check/placement/konsist/InMemoryPlacement.kt:32`
+- [ ] **KT-03** — missed · kept (arch-fix): a `util` function that reaches a contract outside its signature
+  - Doc (`arch-package.md:149`): "none has a receiver or parameter whose type is a contract of the project (a
+    function type that stands in for one included) or calls one"
+  - Gap: `UtilShape` reads the receiver and parameter types for a contract name. A function type that names no
+    contract (`load: suspend (PlayerId) -> Rating` standing in for `RatingRepository.load`) passes. A contract
+    reached in the body passes too. `KindImportDirection` reports an import or a fully qualified reference of the
+    unit's own `api`, but not one of a dependency unit, which it checks only for framework registration interfaces.
+  - Rule: `UtilShape`, `check/placement/konsist/UtilShape.kt:96–122`; `KindImportDirection`,
+    `check/direction/konsist/KindImportDirection.kt:16–23`
+- [ ] **KT-04** — missed · kept (arch-fix): a `util` parameter typed as a `component`, `viewmodel` or `usecase`
+  interface
+  - Doc (`arch-context.md:14`): "A state holder's public interface in an `api` unit is a contract, even in
+    `component` or `viewmodel`."; (`arch-package.md:149`): "none has a receiver or parameter whose type is a
+    contract of the project"
+  - Gap: `UtilShape` takes the interfaces of `api` packages (this unit's and a dependency's) as contracts.
+    `KindImportDirection` reports a `util` import of this unit's `component`, `viewmodel` or `usecase` interface,
+    but a parameter typed as such an interface of a dependency unit (`OfferComponent` of `payment/api`) passes.
+  - Rule: `UtilShape`, `check/placement/konsist/UtilShape.kt:70–94`
+- [ ] **KT-05** — missed · kept (arch-fix): a top-level property or type alias in a role kind
+  - Doc (`arch-package.md:160`): "role kind | a class no row above fits …, in a kind named by the last word of its
+    class name"
+  - Gap: `KindShape` reports a top-level function, interface or `object` in a role kind and a class not named by its
+    word. A top-level `val`, `const val` or `typealias` there passes.
+  - Rule: `KindShape`, `check/placement/konsist/KindShape.kt:142–173`
+- [ ] **KT-06** — missed · kept (arch-fix): a transition with an expression body and no declared return type
+  - Doc (`arch-domain.md:17–18`): "One that returns its own type (a transition) is an extension of it in
+    `util/<Type>Ext.kt`"
+  - Gap: the returned type is read from the declared return type. `fun addChunk(claim: Claim, chunk: ClaimChunk) =
+    claim.copy(…)` declares none, so it is judged as a rule over two model types and passes. Over one model type it is
+    reported with the "rule about one type" message instead of the transition one.
+  - Rule: `UtilFunctionAsExtension`, `check/placement/konsist/UtilFunctionAsExtension.kt:33–37`
+- [ ] **KT-07** — missed · kept (arch-fix): an extension of a type the project does not declare
+  - Doc (`arch-domain.md:19–23`): "One that returns anything else is an extension when its inputs are of one model
+    type …, and a top-level function in a file named after the decision when they are of two or more"
+  - Gap: an extension is judged only when its receiver is a model. `fun String.isBailCovered(inmate: JailInmate,
+    deposit: Money): Boolean` and `fun List<JailInmate>.countCovered(deposit: Money): Int` pass; the document makes
+    the first a top-level function over two model types.
+  - Rule: `UtilFunctionAsExtension`, `check/placement/konsist/UtilFunctionAsExtension.kt:57–71`
+- [ ] **KT-08** — missed · kept (arch-fix): a model matched by its simple name
+  - Doc (`arch-domain.md:19–23`), as KT-07
+  - Gap: the models are the simple names of the types in `model` packages of the unit and its dependencies, and a
+    parameter is compared by simple name. A library type that shares a model's simple name counts as that model.
+  - Rule: `UtilFunctionAsExtension`, `check/placement/konsist/UtilFunctionAsExtension.kt:24–41`
+- [ ] **KT-09** — no rule · kept (arch-fix): `impl-ui` units are not detected from the path
+  - Doc (`arch-package.md:69–71`): "its UI lives in a UI unit (`impl-ui`) beside `impl`"
+  - Gap: `detectUnitKind` has no `impl-ui` branch. A unit at `components/shop/payment/impl-ui` is detected as
+    `Context` unless its build declares `UnitRole.ImplUi()`. The README's Roles table says that the role is
+    configured.
+  - Rule: `gradle-plugin/src/main/kotlin/ru/astrainteractive/klibs/rules/gradle/linter/util/ProjectExt.kt:108–129`
+- [ ] **KT-10** — no rule · closed by decision (arch-fix brief, 2026-11-13; no `decisions.md` entry): an entry
+  point that calls a contract where a use case of the concept makes that change
+  - Doc (`arch-domain.md:86–89`): "A single contract call with no branch is made from the entry point directly,
+    unless a use case of the concept makes that change: then the entry point calls the use case."
+  - Gap: which use case "makes that change" is a reading of behaviour; no check compares an entry point's contract
+    call with the use cases of its concept.
+  - Rule: none; nearest `UseCaseShape` (pass-through)
+- [ ] **KT-11** — no rule · closed by decision (arch-fix brief, 2026-11-13; no `decisions.md` entry): the
+  concept-creation count
+  - Doc (`arch-package.md:97–100`): "A task creates a concept package for a thing the unit does not yet name when it
+    adds, for that thing, three or more files of two or more kinds"
+  - Gap: the count is over the files one task adds; a checker sees the tree, not the task.
+  - Rule: none
+- [ ] **KT-12** — missed · kept (arch-fix): `database` is not a kind word
+  - Doc (`arch-context.md:120–121`): "The fixed kinds are `api`, `model`, `usecase`, `util`, `di`, `theme`, `stub`,
+    `warmup`, `migration`, `error`, `table`, `entity`, `database`, …"
+  - Gap: `Kind` holds `table` and `entity` but not `database`; `CliArguments` and `KindImportDirection` add it by
+    hand. A `database` package is placed as a concept, so its own imports are not checked against the direction
+    table.
+  - Rule: `layout/model/Kind.kt:23–29`; `cli/model/CliArguments.kt:76`;
+    `check/direction/konsist/KindImportDirection.kt:257–261`
+- [ ] **KT-13** — false positive · kept (arch-fix): the `model` and `error` kinds of the entry-point unit
+  - Doc (`arch-package.md:26–28`): "an **entry-point unit** …: the classes the platform constructs …, `RootModule`
+    and the `model` and `error` kinds of its framework failure type, nothing else"
+  - Gap: `EntryPointShape` accepts only the root package and `di`; a file in the entry point's `model` or `error`
+    package is reported "out of the entry point".
+  - Rule: `EntryPointShape`, `check/placement/konsist/EntryPointShape.kt:30–53`
+- [ ] **KT-14** — false positive (to confirm) · kept (arch-fix): an inherited `operator`
+  - Doc (`arch-domain.kt.md:29`): "A use case's one public entry is `operator fun invoke`"
+  - Gap: a `Default…UseCase` that overrides its interface's `operator fun invoke()` with `override fun invoke()` is
+    reported "has the public functions invoke", although Kotlin inherits `operator`. Whether the explicit
+    `override operator fun` is the project's form is the owner's call.
+  - Rule: `UseCaseShape`, `check/declaration/konsist/UseCaseShape.kt:25–35`
+- [ ] **KT-15** — missed · kept (arch-fix): a capitalised or padded word of the other word options
+  - Doc (`arch-context.md:124–126`): "Entry-point, UI and role-kind words are those in the project's linter
+    configuration (Kotlin `entryPointWords`, `roleKinds`; …). Any other package that holds files fails the build."
+  - Gap: a `roleKinds` word that is not lower-case and trimmed fails the parse. `entryPointWords`,
+    `technologyWords`, `pluralConcepts` and `extensionKinds` are still compared with package segments exactly, so
+    `"Slot"` or `" mongo"` passes the parse and matches no package: the package the project meant is reported as a
+    concept that holds files. `platformClasses` takes class names, so only padding applies to it.
+  - Rule: `cli/model/CliArguments.kt:155–162` (`parse`; only `roleKinds` goes through `checkRoleKinds`, `:119–145`)
+- [ ] **KT-16** — missed · kept (arch-fix): a type alias of a type alias of a contract
+  - Doc (`arch-package.md:150`): "none has a receiver or parameter whose type is a contract of the project"
+  - Gap: `UtilShape` counts a type alias whose type names a contract (`typealias Votes = VoteRepository`,
+    `typealias Ratings = List<RatingRepository>`) as a contract. An alias of such an alias (`typealias Ballots =
+    Votes`) is judged against the contracts alone, so a parameter of that type passes.
+  - Rule: `UtilShape`, `check/placement/konsist/UtilShape.kt:81–92`
+
 ## Not in this list
 
 - The cases that are in the code (implemented, or fixed by a document change): see the second paragraph.
@@ -1444,8 +1562,9 @@ a test; the two `closed by decision` items follow the brief of that work and hav
 - Cases where the code already follows the document: F65 (a comment between `use` lines is reported), 9S07
   (`it` as a fn-pointer parameter name is reported), 7A04 and F16 (the committed Bad examples pin the reported
   code as a violation).
-- The Kotlin linter. Its gaps were last audited on 2026-10-30/31 in `.claude/handoff/lint-audit-matrix.md` and
-  `lint-fix-plan.md`; those lists predate later fixes and document changes.
+- The Kotlin linter's audited gaps. They were last audited on 2026-10-30/31 in `.claude/handoff/lint-audit-matrix.md`
+  and `lint-fix-plan.md`; those lists predate later fixes and document changes. Only the gaps found by the
+  `arch-fix` work are in "Kotlin linter (arch-fix, 2026-11-13)" above.
 - `notes.rs.md:5` ("`cargo clippy --workspace --all-targets -- -D warnings` runs in CI"): a CI step of the
   consumer repository; the document names no fixed file a rule could read, so round 12 did not count it.
 - The rounds did not converge (20, 35, 22, 19, 18, 29, 22 and 26 new cases in rounds 5–12, 35 in round 14, 8 in
