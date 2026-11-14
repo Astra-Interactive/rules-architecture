@@ -3,13 +3,40 @@ on:
   push:
     branches:
       - master
-    paths-ignore:
-      - 'rules-rust/**'
-      - '.github/workflows/rust-*.yml'
   workflow_dispatch:
+    inputs:
+      project:
+        description: Project to release
+        required: true
+        type: choice
+        options:
+          - kotlin
+          - rust
 jobs:
+  changes:
+    name: Detect changed projects
+    runs-on: ubuntu-latest
+    outputs:
+      kotlin: ${{ steps.filter.outputs.kotlin }}
+      rust: ${{ steps.filter.outputs.rust }}
+    steps:
+      - name: Checkout repository
+        if: github.event_name == 'push'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Detect changed projects
+        if: github.event_name == 'push'
+        id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            kotlin:
+              - 'rules-kotlin/**'
+            rust:
+              - 'rules-rust/**'
   gradle_validation:
     name: Validate Gradle wrapper
+    needs: changes
+    if: github.event.inputs.project == 'kotlin' || needs.changes.outputs.kotlin == 'true'
     uses: ./.github/workflows/call-gradle-wrapper-validation.yml
   release:
     name: Publish release
@@ -22,3 +49,17 @@ jobs:
       ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYID: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYID }}
       ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYPASSWORD: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYPASSWORD }}
       ACTIONS_TOKEN: ${{ secrets.ACTIONS_TOKEN }}
+  rust_release:
+    name: Publish Rust release
+    needs: changes
+    if: github.event.inputs.project == 'rust' || needs.changes.outputs.rust == 'true'
+    # Two releases of one version must not run side by side; a waiting run releases whatever is unpublished.
+    concurrency:
+      group: rust-release
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      pull-requests: read
+    uses: ./.github/workflows/call-rust-release.yml
+    secrets:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

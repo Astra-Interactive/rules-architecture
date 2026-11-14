@@ -465,7 +465,7 @@ generated sources under `build/`), which describe no Rust behaviour.
 
 ```text
 rules-rust/
-  Cargo.toml, clippy.toml, rust-toolchain.toml, .cargo/config.toml
+  Cargo.toml, clippy.toml, rust-toolchain.toml, release-plz.toml, .cargo/config.toml
   modules/rules/   the published crate `klibs-rules`: src/, test/ (case workspaces, both gate halves)
   xtask/           `cargo xtask gate-sync --docs <dir> [--check]`
   cases/           standalone workspaces, excluded from this one
@@ -489,12 +489,11 @@ rules-rust/
 - Validation tests prove that incorrect code is reported and correct code is accepted, including finding subjects,
   locations and documented exceptions. Coverage percentages do not block CI; tests are added for behavior and
   regressions rather than to exercise implementation lines or assertion failure paths.
-- CI: `rust-pr.yml` (floor 1.93.0 through `RUSTUP_TOOLCHAIN`, and the pinned toolchain with the gate sync),
-  `rust-release.yml`, `rust-msrv.yml` (weekly fresh resolution of
-  `cases/consumer/fixed` on 1.93.0), `rust-doc-drift.yml` (weekly gate sync). None is a required check.
-- Release: bump `version` in `modules/rules/Cargo.toml`; on merge `rust-release.yml` finds the commit that set the
-  version, runs the gate sync on it, tags it `rules-rust-<version>`, publishes from the tag through crates.io Trusted
-  Publishing (`rust-lang/crates-io-auth-action@v1`) and creates the GitHub release; every step resumes after a failure.
-  When the documents drifted after the bump, the release stops before tagging: re-sync the gate and bump the version
-  in one commit, which abandons the drifted version. The first release, 0.1.1, is published by hand from its tag
-  with the owner's token read from the environment, after which the Trusted Publisher is registered.
+- CI: `pr.yml` runs the Rust checks (`call-rust-validation.yml`) only when the pull request changes `rules-rust/` or
+  `.github/workflows/`: rustfmt, clippy and the tests on the pinned toolchain, the tests on the floor 1.93.0 (through
+  `RUSTUP_TOOLCHAIN`, asserted with `KLIBS_RULES_EXPECT_TOOLCHAIN`) and `cargo publish --dry-run`.
+- Release: bump `version` in `modules/rules/Cargo.toml`. On a push to `master` that changes `rules-rust/`, `release.yml`
+  runs `release-plz release` (`call-rust-release.yml`, configured by `release-plz.toml`): when crates.io does not have
+  the version, it publishes the crate with the `CARGO_REGISTRY_TOKEN` secret, tags the commit `rules-rust-<version>`
+  and creates the GitHub release; a push without a bump publishes nothing. A manual run of `release.yml` with the
+  `rust` project does the same without a change under `rules-rust/`.

@@ -1,0 +1,5 @@
+# release-plz release (.github/workflows/call-rust-release.yml), https://release-plz.dev/docs/config
+[[package]]
+name = "klibs-rules"
+git_tag_name = "rules-rust-{{ version }}"
+git_release_name = "rules-rust - {{ version }}"

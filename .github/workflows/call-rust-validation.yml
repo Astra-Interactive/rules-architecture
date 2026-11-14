@@ -1,0 +1,51 @@
+name: "Rust checks"
+on:
+  workflow_call:
+
+jobs:
+  checks:
+    name: "Run rustfmt, clippy and tests"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rules-rust
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install the toolchain of rust-toolchain.toml
+        run: rustup toolchain install
+      - name: Check formatting
+        run: cargo fmt --all --check
+      - name: Run clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Run tests
+        run: cargo test --workspace --locked
+  msrv:
+    name: "Run tests on the minimum supported Rust version"
+    runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: "1.93.0"
+      KLIBS_RULES_EXPECT_TOOLCHAIN: "1.93.0"
+    defaults:
+      run:
+        working-directory: rules-rust
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install the minimum supported toolchain
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component clippy,rustfmt
+      - name: Run tests
+        run: cargo test --workspace --locked
+  publish_validation:
+    name: "Dry-run the crates.io publication"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rules-rust
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install the toolchain of rust-toolchain.toml
+        run: rustup toolchain install
+      - name: Package and verify klibs-rules
+        run: cargo publish --dry-run --locked --package klibs-rules

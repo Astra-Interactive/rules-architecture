@@ -1,0 +1,34 @@
+name: "Publish Rust release"
+on:
+  workflow_call:
+    secrets:
+      CARGO_REGISTRY_TOKEN:
+        required: true
+
+jobs:
+  publish:
+    name: "Publish to crates.io and create GitHub release"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install the toolchain of rust-toolchain.toml
+        working-directory: rules-rust
+        run: rustup toolchain install
+      # Publishes klibs-rules when crates.io does not have its version yet, then tags the commit
+      # and creates the GitHub release; does nothing when the version is already published.
+      - name: Release the unpublished version
+        uses: release-plz/action@66b324fd6c72d05d2a08568492ecdd62bfb8a62b # v0.5.148
+        with:
+          command: release
+          manifest_path: rules-rust/Cargo.toml
+          config: rules-rust/release-plz.toml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
