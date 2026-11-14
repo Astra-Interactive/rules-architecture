@@ -99,15 +99,13 @@ fn given_split_sub_context_without_an_api_unit_when_checked_then_each_of_its_uni
 }
 
 #[test]
-fn given_tooling_or_technology_units_under_one_directory_when_checked_then_only_context_units_are_reported_as_split()
+fn given_technology_units_under_one_directory_when_checked_then_only_context_units_are_reported_as_split()
  {
-    for role in [Role::Tooling, Role::Technology] {
-        let mut context = read_role_context(role, role, DependencyKind::Normal);
-        enable_plugin_product(&mut context);
-        context.workspace.members[0].directory = "modules/tools/lint".to_owned();
-        context.workspace.members[1].directory = "modules/tools/format".to_owned();
-        assert!(PluginImplUnit.check(&context).is_empty(), "{role:?}");
-    }
+    let mut context = read_role_context(Role::Technology, Role::Technology, DependencyKind::Normal);
+    enable_plugin_product(&mut context);
+    context.workspace.members[0].directory = "modules/tools/lint".to_owned();
+    context.workspace.members[1].directory = "modules/tools/format".to_owned();
+    assert!(PluginImplUnit.check(&context).is_empty());
     let mut context = read_role_context(Role::Context, Role::Context, DependencyKind::Normal);
     enable_plugin_product(&mut context);
     context.workspace.members[0].directory = "modules/tools/lint".to_owned();
@@ -122,19 +120,19 @@ fn given_tooling_or_technology_units_under_one_directory_when_checked_then_only_
 }
 
 #[test]
-fn given_split_context_units_with_a_tooling_sibling_when_checked_then_only_the_context_units_are_reported()
+fn given_split_context_units_with_a_technology_sibling_when_checked_then_only_the_context_units_are_reported()
  {
     let mut context = read_role_context(Role::Context, Role::Context, DependencyKind::Normal);
     enable_plugin_product(&mut context);
-    let mut tooling = context.workspace.members[0].clone();
-    tooling.name = "case-tool".to_owned();
-    tooling.directory = "modules/billing/lint".to_owned();
-    tooling.manifest.path = "modules/billing/lint/Cargo.toml".to_owned();
-    context.workspace.members.push(tooling);
-    let mut tooling_config = context.project_config.crates[0].clone();
-    tooling_config.name = "case-tool".to_owned();
-    tooling_config.role = Some(Role::Tooling);
-    context.project_config.crates.push(tooling_config);
+    let mut sibling = context.workspace.members[0].clone();
+    sibling.name = "case-tool".to_owned();
+    sibling.directory = "modules/billing/lint".to_owned();
+    sibling.manifest.path = "modules/billing/lint/Cargo.toml".to_owned();
+    context.workspace.members.push(sibling);
+    let mut sibling_config = context.project_config.crates[0].clone();
+    sibling_config.name = "case-tool".to_owned();
+    sibling_config.role = Some(Role::Technology);
+    context.project_config.crates.push(sibling_config);
     let mut subjects: Vec<String> = PluginImplUnit
         .check(&context)
         .into_iter()

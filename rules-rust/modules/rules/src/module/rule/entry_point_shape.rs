@@ -85,7 +85,7 @@ impl Rule for EntryPointShape {
                         ordinal,
                         module.id,
                         "EntryPointShape",
-                        "an entry-point root holds only di and its fixture/test blocks",
+                        "an entry-point root holds only di, model, error and its fixture and test blocks (arch-package.md, Units 1)",
                     ));
                 }
             }

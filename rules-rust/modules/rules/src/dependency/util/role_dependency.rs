@@ -1,7 +1,10 @@
 use crate::check::model::{Anchor, Finding, Location, RuleContext, RuleFinding, RuleId};
 use crate::config::model::{CrateConfig, Role};
+use crate::config::util::format_role_name;
 use crate::source::model::SourceTree;
 use crate::workspace::model::{Dependency, DependencyKind, Member, TomlValue};
+
+const DIRECTION_SOURCE: &str = "arch-context.md, Direction and enforcement";
 
 impl RuleContext {
     pub(crate) fn find_role_config(&self, name: &str) -> Option<&CrateConfig> {
@@ -59,8 +62,7 @@ impl RuleContext {
         let to = self
             .find_role_config(&provider.name)
             .and_then(|config| config.role);
-        if [Some(Role::Tooling), Some(Role::ProcMacro)].contains(&from) || to == Some(Role::Tooling)
-        {
+        if from == Some(Role::ProcMacro) {
             return false;
         }
         if dependency.features.iter().any(|feature| feature == "fake") {
@@ -104,6 +106,58 @@ impl RuleContext {
             Some(Role::CorePlatform | Role::CoreUi) => to == Some(Role::CoreApi),
             _ => false,
         }
+    }
+
+    pub(crate) fn find_dependency_violation(
+        &self,
+        member: &Member,
+        dependency: &Dependency,
+        provider: &Member,
+    ) -> Option<String> {
+        if self.is_role_dependency_allowed(member, dependency, provider) {
+            return None;
+        }
+        let from = self
+            .find_role_config(&member.name)
+            .and_then(|config| config.role);
+        let to = self
+            .find_role_config(&provider.name)
+            .and_then(|config| config.role);
+        let has_fake_feature = dependency.features.iter().any(|feature| feature == "fake");
+        if has_fake_feature && from != Some(Role::ProcMacro) {
+            return Some(format!(
+                "{} enables the fake feature of {} outside [dev-dependencies] (arch-package.rs.md, Tests)",
+                member.name, provider.name
+            ));
+        }
+        let Some(from_role) = from else {
+            return Some(format!(
+                "{} has no role the linter detects: declare its role (README, Roles)",
+                member.name
+            ));
+        };
+        let has_no_row = matches!(
+            from_role,
+            Role::ProcMacro | Role::Core | Role::CoreApi | Role::Contract
+        );
+        if has_no_row {
+            return Some(format!(
+                "{} ({}) depends on no crate of the project (proc-macro, core, core-api, contract)",
+                member.name,
+                format_role_name(from_role)
+            ));
+        }
+        let has_sibling_access = self
+            .find_role_config(&member.name)
+            .is_some_and(|config| config.implementation_access == "siblings");
+        Some(format!(
+            "{} ({}) may not depend on {} ({}): {} ({DIRECTION_SOURCE})",
+            member.name,
+            format_role_name(from_role),
+            provider.name,
+            to.map_or("no detected role", format_role_name),
+            from_role.describe_requirement(to, has_sibling_access)
+        ))
     }
 }
 

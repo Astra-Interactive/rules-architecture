@@ -202,6 +202,18 @@ fn given_callback_fields_when_checked_then_real_aliases_and_generic_bounds_repor
 }
 
 #[test]
+fn given_maybe_closure_bounds_when_checked_then_only_the_real_bound_makes_a_callback() {
+    let source = "struct Inline<F: ?Fn()> { handler: F }\nstruct Real<F: Fn()> { handler: F }\nstruct Clause<F> where F: ?FnMut() { handler: F }\nstruct Object { handler: Box<dyn ?FnOnce()> }";
+    assert_lines(&CallbackDeclaration, &read_code_context(source), &[2]);
+}
+
+#[test]
+fn given_maybe_closure_bounds_on_named_callbacks_when_checked_then_only_the_real_bound_reports() {
+    let source = "struct Inline<F: ?Fn()> { on_done: F }\nstruct Real<F: Fn()> { on_done: F }\nstruct Clause<F> where F: ?FnMut() { on_done: F }\nstruct Object { on_done: Box<dyn ?FnOnce()> }\nfn bind<F: ?Fn()>(on_done: F) {}\nfn bind_real<F: Fn()>(on_done: F) {}";
+    assert_lines(&CallbackDeclaration, &read_code_context(source), &[2, 6]);
+}
+
+#[test]
 fn given_tuple_bindings_when_checked_then_destructuring_and_named_channel_values_pass() {
     assert_lines(
         &AnonymousTuple,
@@ -441,12 +453,21 @@ fn given_doc_code_spans_when_checked_then_only_resolved_unlinked_candidates_repo
 
 #[test]
 fn given_doc_self_members_and_private_scope_when_checked_then_real_member_identity_is_used() {
+    // `Self::run` in the doc of `run` itself is not reported: a comment does not link the item it
+    // documents (rustdoc.rs.md, What to write).
     assert_lines(
         &IntraDocLink,
         &read_code_context(
             "mod model { pub struct Order; }\nmod api { use crate::model::Order as Purchase;\n/// `Purchase` resolves this alias.\nfn helper() {} }\nstruct Handler; impl Handler {\n/// `Self::run` exists and `Self::missing` does not.\nfn run(&self) {} }",
         ),
-        &[3, 6],
+        &[3],
+    );
+    assert_lines(
+        &IntraDocLink,
+        &read_code_context(
+            "struct Handler; impl Handler {\nfn run(&self) {}\n/// `Self::run` exists and `Self::missing` does not.\nfn stop(&self) {} }",
+        ),
+        &[3],
     );
 }
 

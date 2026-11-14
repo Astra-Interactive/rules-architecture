@@ -1,4 +1,4 @@
-ContractPlacement	modules/sample/src/usecase/compute_invoice_use_case.rs:1	case_sample::usecase::ComputeInvoiceUseCase	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ContractPlacement	modules/sample/src/usecase/compute_invoice_use_case.rs:1	case_sample::usecase::ComputeInvoiceUseCase	a trait of this crate is a contract and lives in api; an extension trait of another crate's type is a <Type>Ext in util/<type>_ext.rs (arch-package.rs.md, What goes in one file)
 ReExportShape	modules/sample/src/usecase/compute_invoice_use_case.rs:1	ComputeInvoiceUseCase	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 UseCaseAbstraction	modules/sample/src/usecase/compute_invoice_use_case.rs:1	case_sample::usecase::ComputeInvoiceUseCase	a use-case abstraction lives in usecase of its owner's app api unit
 VisibilityTier	modules/sample/src/usecase/compute_invoice_use_case.rs:1	ComputeInvoiceUseCase	visibility follows the actual workspace users of the item

@@ -62,6 +62,13 @@ fn generic_closure(
     }
     bounds
         .into_iter()
+        .map(|bounds| {
+            bounds
+                .iter()
+                .filter(|bound| !matches!(bound, syn::TypeParamBound::Trait(bound) if bound.maybe.is_some()))
+                .cloned()
+                .collect::<syn::punctuated::Punctuated<syn::TypeParamBound, syn::Token![+]>>()
+        })
         .filter(|bounds| !bounds.is_empty())
         .any(|bounds| {
             let typed: syn::Type = syn::parse_quote!(impl #bounds);
@@ -100,7 +107,7 @@ fn syntax_callback(
         syn::Type::FnPtr(_) => true,
         syn::Type::Reference(reference) => callback_field_type(context, ordinal, module, &reference.elem, cfg, generics, depth + 1),
         syn::Type::Ptr(pointer) => callback_field_type(context, ordinal, module, &pointer.elem, cfg, generics, depth + 1),
-        syn::Type::TraitObject(object) => object.bounds.iter().any(|bound| matches!(bound, syn::TypeParamBound::Trait(bound) if listener_bound(context, ordinal, module, &bound.path, cfg))),
+        syn::Type::TraitObject(object) => object.bounds.iter().any(|bound| matches!(bound, syn::TypeParamBound::Trait(bound) if bound.maybe.is_none() && listener_bound(context, ordinal, module, &bound.path, cfg))),
         syn::Type::Path(path) => {
             if path.path.get_ident().is_some_and(|name| generic_closure(context, ordinal, module, generics, name, cfg)) { return true; }
             let pointer = context.resolve_outer_external_type_paths_under(ordinal, module, typed, cfg).iter().any(is_single_value_wrapper);

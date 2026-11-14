@@ -93,7 +93,12 @@ impl Rule for EventPlacement {
                     && kind == "event"
                     && (implements_host_trait || Self::has_host_derive(context, ordinal, item));
                 if !platform_event {
-                    findings.push(build_shape_item_finding(index, item, "EventPlacement", "Domain Event types live in model; platform event implementations stay in event of a platform crate (arch-domain.rs.md)"));
+                    findings.push(build_shape_item_finding(
+                        index,
+                        item,
+                        "EventPlacement",
+                        "a type named …Event lives in model (arch-domain.md, Domain event); only a platform's event type stays in event of a platform crate",
+                    ));
                 }
             }
         }

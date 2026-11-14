@@ -93,6 +93,10 @@ mechanical), 15 `candidate (round 19)` (11 missed, 4 false positive), 6 `candida
 rule, 1 false positive), 17 `not taken` (two of them join the rests of two cases), 4 `closed
 by decision`, 9 `not mechanical`.
 
+On 2026-11-14 the `xtask` crate was retired (`ShellAutomation`, `XtaskAlias` and the `tooling` role leave the
+linter): 14T05 is ticked `[x]` and the totals above count it open; 16T-H60, 16F-06, 17T-H52, 17T-H73 and 17A-S03 were
+already `[x]` and gained an `Outcome: closed (2026-11-14)` line.
+
 ## arch-context.md
 
 - [x] **10T11** — false positive (document conflict) · kept (round 13): the app `api` list of
@@ -439,10 +443,10 @@ by decision`, 9 `not mechanical`.
     not seen as a user, so the `pub` tuple field it uses is reported.
   - Rule: `VisibilityTier`, `module/rule/visibility_tier.rs` (`check_tier_members`, `is_unused_public`)
 
-- [ ] **14T05** — not mechanical · kept (round 14): build automation outside the workspace root and member
+- [x] **14T05** — not mechanical · kept (round 14): build automation outside the workspace root and member
   directories; a script in another directory that runs no `cargo` may be a container entry point or a test
   fixture, and what counts as build automation is the reviewer's call
-  - Outcome: kept, re-read in round 22 (F40): kept (round 14): build automation outside the workspace root and member directories; a script in another directory that runs no `cargo` may be a container entry point or a test fixture, and what counts as build automation is the reviewer's call
+  - Outcome: closed (2026-11-14): the `xtask` crate is gone (the owner: "xtask у нас больше нет"), so `ShellAutomation` is retired with no successor and the documents no longer say where a script may not be; the case has no rule to cover (brainstorm item 9, `.claude/handoff/2026-11-14-brainstorm-nanolimbo-klibs-rules-findings.md`)
   - Doc (`arch-package.rs.md:241–243`): "Build automation … is a subcommand of the `xtask` crate …, never a
     shell script."
   - Gap: a shell script in a non-member subdirectory is reported only when it runs `cargo`; a release or
@@ -525,6 +529,7 @@ by decision`, 9 `not mechanical`.
   - Rule: `RootPackagePath`, `layout/rule/root_package_path.rs`
   - Near: **12T01, rest** — renamed dependencies in `RootBuildSubprojects`.
 - [x] **16T-H60** — missed · candidate (round 16; Haiku): `cargo` after a shell keyword
+  - Outcome: closed (2026-11-14): `ShellAutomation` is retired with no successor, since the `xtask` crate is gone; the case has no rule to cover (brainstorm item 9, `.claude/handoff/2026-11-14-brainstorm-nanolimbo-klibs-rules-findings.md`)
   - Doc (`arch-package.rs.md:241–243`): "Build automation … is a subcommand of the `xtask` crate …, never a shell
     script."
   - Gap: the first token of each segment must be `cargo` (after `exec`, `sudo`, `time`, `env`), so
@@ -532,6 +537,7 @@ by decision`, 9 `not mechanical`.
   - Rule: `ShellAutomation`, `layout/rule/shell_automation.rs:16–31,85`
   - Near: **14T05** — the directory scope.
 - [x] **16F-06** — missed · candidate (round 16; Fable): other task-runner files
+  - Outcome: closed (2026-11-14): `ShellAutomation` is retired with no successor, since the `xtask` crate is gone; the case has no rule to cover (brainstorm item 9, `.claude/handoff/2026-11-14-brainstorm-nanolimbo-klibs-rules-findings.md`)
   - Doc (`arch-package.rs.md:241–243`): "never a shell script"
   - Gap: five fixed names and nine extensions are known; `Makefile.toml`, `Taskfile.yml` and `.justfile` pass.
   - Rule: `ShellAutomation`, `layout/rule/shell_automation.rs:9–14,75–84`
@@ -582,6 +588,7 @@ by decision`, 9 `not mechanical`.
     silent.
   - Rule: `NestedEnum`, `NestedDataStruct`, `module/util/type_ownership.rs:93`
 - [x] **17T-H52** — missed · candidate (round 17; Haiku): a dotted script name
+  - Outcome: closed (2026-11-14): `ShellAutomation` is retired with no successor, since the `xtask` crate is gone; the case has no rule to cover (brainstorm item 9, `.claude/handoff/2026-11-14-brainstorm-nanolimbo-klibs-rules-findings.md`)
   - Doc (`arch-package.rs.md:241–243`): "never a shell script"
   - Gap: a name with a `.` returns before the shebang test; `bootstrap.local` with `#!/bin/sh` passes.
   - Rule: `ShellAutomation`, `layout/rule/shell_automation.rs:57–60`
@@ -591,6 +598,7 @@ by decision`, 9 `not mechanical`.
   - Gap: every `Item::Macro` in a root module block is accepted, a `macro_rules!` definition included.
   - Rule: `RootFileShape`, `module/rule/root_file_shape.rs:41`
 - [x] **17T-H73** — false positive (minor, to confirm) · candidate (round 17; Haiku): the array form of the alias
+  - Outcome: closed (2026-11-14): `XtaskAlias` is retired with no successor, since the `xtask` crate and its alias are gone; the case has no rule to cover (brainstorm item 9, `.claude/handoff/2026-11-14-brainstorm-nanolimbo-klibs-rules-findings.md`)
   - Doc (`arch-package.rs.md:242`): "`[alias] xtask = "run --package xtask --"`"
   - Gap: only the string form is accepted; `xtask = ["run", "--package", "xtask", "--"]` is reported.
   - Rule: `XtaskAlias`, `layout/rule/xtask_alias.rs:26–29`
@@ -843,6 +851,7 @@ by decision`, 9 `not mechanical`.
   - Rule: `GlobalState`, `module/rule/global_state_visitor.rs:134–143`
   - Near: **11A08** — other logging crates.
 - [x] **17A-S03** — false positive (to confirm) · candidate (round 17; Sonnet): the logger in a tooling `main`
+  - Outcome: closed (2026-11-14): the `tooling` role is retired with the `xtask` crate, so no tooling `main` remains; `GlobalState` lets only `fn main` of an `entry-point` crate install the logging subscriber (brainstorm item 9, `.claude/handoff/2026-11-14-brainstorm-nanolimbo-klibs-rules-findings.md`)
   - Doc (`di-manual.rs.md:145–146`): "The one global is the logging subscriber, which `main` installs once"
   - Gap: only `main` of an `entry-point` crate may install it; an `xtask` `main` is reported (a test pins it; no
     decision).
@@ -1082,7 +1091,7 @@ by decision`, 9 `not mechanical`.
     `std::io::stdout()`"; (`time-api.rs.md:76–78`): "No other clock read is called"; (`async.rs.md:22–25`): "`send`
     is never called on a state holder"
   - Gap: the expectation is prescribed for every role and item (only `print_stdout`/`print_stderr` are gated to
-    entry-point and tooling crates), so every `disallowed-methods` entry without a rule of its own escapes under
+    `entry-point` crates; the `tooling` role of the 15 roles of that day is retired, 14 remain), so every `disallowed-methods` entry without a rule of its own escapes under
     it: `std::io::stdout`/`stderr` outside a CLI, the time-crate clock reads and `SystemTime::elapsed`,
     `watch::Sender::send`. `SystemClockOutsideDi` covers `SystemTime::now` only. Merges 16A-S02, 16A-S07, 16F-12.
   - Rule: `ExpectScope`, `suppression/rule/lint_expectation_visitor.rs:24–34`

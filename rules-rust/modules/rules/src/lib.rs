@@ -41,6 +41,7 @@ pub mod check {
     }
     pub(crate) mod util {
         pub(crate) use api_ownership_build::build_api_ownership;
+        pub(crate) use mirrored_findings::drop_mirrored_findings;
         pub(crate) use report_build::build_report;
         pub(crate) use rule_finding_build::build_child_module_path;
         pub(crate) use rule_finding_build::build_node_finding;
@@ -48,6 +49,7 @@ pub mod check {
         pub(crate) use unanalysable_findings::build_unanalysable_findings;
         pub(crate) use workspace_argument_parse::parse_workspace_directory;
         mod api_ownership_build;
+        mod mirrored_findings;
         mod report_build;
         mod report_ext;
         mod rule_context_ext;
@@ -270,6 +272,7 @@ pub(crate) mod source {
         mod external_path_ext;
         mod format_captures;
         mod macro_arguments;
+        mod module_id_ext;
         mod node_span_ext;
         mod select_arguments;
         mod syntax_record;
@@ -346,6 +349,7 @@ pub(crate) mod catalogue {
     pub(crate) mod util {
         pub(crate) use rule_catalogue::find_catalogue_entry;
         pub(crate) use rule_catalogue::find_retired_rule;
+        mod retired_rule_ext;
         mod rule_catalogue;
     }
 }
@@ -375,7 +379,11 @@ pub(crate) mod comment {
     }
     pub(crate) mod model {
         pub(crate) use doc_owner::DocOwner;
+        pub(crate) use doc_subject::DocSubject;
+        pub(crate) use doc_target::DocTarget;
         mod doc_owner;
+        mod doc_subject;
+        mod doc_target;
     }
     pub(crate) mod util {
         pub(crate) use comment_shape::find_forbidden_shape;
@@ -384,7 +392,7 @@ pub(crate) mod comment {
         };
         pub(crate) use doc_examples::collect_invalid_example_sections;
         pub(crate) use doc_inline_code::doc_inline_candidates;
-        pub(crate) use doc_resolve::doc_resolves;
+        pub(crate) use doc_resolve::{doc_names_subject, doc_resolves};
         pub(crate) use doc_text::strip_doc_code;
         mod comment_shape;
         mod doc_attributes;
@@ -525,9 +533,7 @@ pub(crate) mod layout {
         pub(crate) use root_build_subprojects::RootBuildSubprojects;
         pub(crate) use root_package_path::RootPackagePath;
         pub(crate) use root_sources::RootSources;
-        pub(crate) use shell_automation::ShellAutomation;
         pub(crate) use unit_path::UnitPath;
-        pub(crate) use xtask_alias::XtaskAlias;
         mod container_sources;
         mod crate_targets;
         mod nested_unit;
@@ -538,9 +544,7 @@ pub(crate) mod layout {
         mod root_build_subprojects;
         mod root_package_path;
         mod root_sources;
-        mod shell_automation;
         mod unit_path;
-        mod xtask_alias;
     }
 
     pub(crate) mod di {
@@ -553,6 +557,7 @@ pub(crate) mod dependency {
     pub(crate) mod util {
         pub(crate) use role_dependency::build_dependency_finding;
         mod role_dependency;
+        mod role_ext;
     }
     pub(crate) mod rule {
         pub(crate) use api_unit_dependency::ApiUnitDependency;
@@ -1030,7 +1035,8 @@ mod test {
     pub(crate) mod declaration {
         pub(crate) mod util {
             pub(crate) use rule_case_test::{
-                assert_code_findings, assert_code_fixture, read_code_context,
+                FindingMessage, assert_code_findings, assert_code_fixture, list_finding_messages,
+                read_code_context, read_fixture_messages,
             };
             mod rule_case_test;
         }
@@ -1088,9 +1094,7 @@ mod test {
             mod root_build_subprojects_test;
             mod root_package_path_test;
             mod root_sources_test;
-            mod shell_automation_test;
             mod unit_path_test;
-            mod xtask_alias_test;
         }
     }
     mod dependency {

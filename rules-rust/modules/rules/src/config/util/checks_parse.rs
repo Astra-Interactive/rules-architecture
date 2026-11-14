@@ -19,7 +19,7 @@ fn check_rule_id(
     line: u32,
 ) -> Result<(), CheckError> {
     if let Some(retired) = find_retired_rule(rule_id) {
-        let message = format!("`{rule_id}` is retired: use `{}`", retired.replacement);
+        let message = format!("`{rule_id}` is retired: {}", retired.describe_retirement());
         return Err(build_configuration_error(path, line, message));
     }
     let Some(entry) = find_catalogue_entry(rule_id) else {

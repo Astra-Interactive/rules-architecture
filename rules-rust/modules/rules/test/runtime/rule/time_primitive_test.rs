@@ -1,6 +1,58 @@
+use crate::check::api::Rule;
 use crate::runtime::rule::TimePrimitive;
+use crate::test::declaration::util::FindingMessage;
 use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
+use crate::test::declaration::util::list_finding_messages;
+use crate::test::declaration::util::read_code_context;
+
+const STORED_INSTANT_MESSAGE: &str = "An Instant is not a field or a return type: keep it a local and keep the elapsed Duration (time-api.rs.md)";
+const USED_INSTANT_MESSAGE: &str =
+    "An Instant is never sent, stored or shown: pass elapsed() (time-api.rs.md)";
+const UNIT_SUFFIX_MESSAGE: &str =
+    "A duration is a Duration, not an integer or text with a unit suffix (time-api.rs.md)";
+
+fn build_expected_message(line: u32, message: &str) -> FindingMessage {
+    FindingMessage {
+        line,
+        message: message.to_owned(),
+    }
+}
+
+#[test]
+fn given_instant_fields_returns_and_unit_suffixed_integers_when_checked_then_each_cause_has_its_own_message()
+ {
+    let context = read_code_context(
+        "pub struct Limiter { newest_started_at: Option<std::time::Instant> }\npub fn grid_start() -> Option<std::time::Instant> { None }\nconst LEGACY_LATENCY_MILLIS: i32 = 60;\npub struct Settings { pub timeout_seconds: u32 }",
+    );
+    assert_eq!(
+        vec![
+            build_expected_message(1, STORED_INSTANT_MESSAGE),
+            build_expected_message(2, STORED_INSTANT_MESSAGE),
+            build_expected_message(3, UNIT_SUFFIX_MESSAGE),
+            build_expected_message(4, UNIT_SUFFIX_MESSAGE),
+        ],
+        list_finding_messages(&TimePrimitive.check(&context))
+    );
+}
+
+#[test]
+fn given_local_instant_sent_put_in_a_struct_literal_or_shown_when_checked_then_the_message_says_it_is_never_sent_stored_or_shown()
+ {
+    let context = read_code_context(
+        "use std::time::Instant;\nuse tokio::sync::mpsc;\npub struct Sample { pub at: Instant }\npub fn keep() -> Sample {\n    let started = Instant::now();\n    Sample { at: started }\n}\npub async fn send() {\n    let started = Instant::now();\n    let (ticks, _received) = mpsc::channel::<Instant>(8);\n    ticks.send(started).await.ok();\n}\npub fn show() {\n    let started = Instant::now();\n    tracing::info!(at = ?started);\n    let _text = format!(\"{started:?}\");\n}",
+    );
+    assert_eq!(
+        vec![
+            build_expected_message(3, STORED_INSTANT_MESSAGE),
+            build_expected_message(6, USED_INSTANT_MESSAGE),
+            build_expected_message(11, USED_INSTANT_MESSAGE),
+            build_expected_message(15, USED_INSTANT_MESSAGE),
+            build_expected_message(16, USED_INSTANT_MESSAGE),
+        ],
+        list_finding_messages(&TimePrimitive.check(&context))
+    );
+}
 
 #[test]
 fn given_shadowed_instant_patterns_when_logged_then_uses_the_nearest_binding() {

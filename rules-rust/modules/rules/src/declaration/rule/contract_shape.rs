@@ -40,7 +40,10 @@ impl ContractShape {
             }
             _ => return None,
         };
-        if bound.modifiers.require_empty().is_err() || bound.lifetimes.is_some() {
+        if bound.maybe.is_some()
+            || bound.modifiers.require_empty().is_err()
+            || bound.lifetimes.is_some()
+        {
             return None;
         }
         match index.resolve_path(module, &bound.path) {

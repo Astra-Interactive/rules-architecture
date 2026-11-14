@@ -158,6 +158,16 @@ fn given_tdd_model_derives_copy_array_and_bounded_generics_when_linted_then_requ
 }
 
 #[test]
+fn given_maybe_copy_bound_when_linted_then_it_is_not_a_copy_bound() {
+    assert_code_findings(
+        &ModelDerives,
+        "ModelDerives",
+        "mod model {\n#[derive(Debug, Clone, PartialEq, Eq, Hash)] struct MaybeId<T: ?Copy>(T);\n#[derive(Debug, Clone, PartialEq, Eq, Hash)] struct MaybeWhereId<T>(T) where T: ?Copy;\n#[derive(Debug, Clone, PartialEq, Eq, Hash)] struct RealId<T: Copy>(T);\n}",
+        &[4],
+    );
+}
+
+#[test]
 fn given_tdd_model_derives_eq_and_hash_bounds_when_linted_then_requires_hash() {
     assert_code_findings(
         &ModelDerives,

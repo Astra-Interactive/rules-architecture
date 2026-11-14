@@ -1,6 +1,7 @@
 use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
 use crate::check::util::build_node_finding;
+use crate::check::util::drop_mirrored_findings;
 use crate::config::model::Role;
 use crate::module::rule::ContractPlacement;
 use crate::module::util::build_shape_item_finding;
@@ -397,7 +398,7 @@ impl KindShape {
             .collect();
         let files: Vec<_> = children
             .iter()
-            .filter(|child| child.is_file_module)
+            .filter(|child| child.is_file_module && !child.module.is_test_root())
             .collect();
         let blocks = children.iter().any(|child| !child.is_file_module);
         let mut sites = Vec::new();
@@ -507,7 +508,7 @@ impl Rule for KindShape {
                 }
             }
         }
-        findings
+        drop_mirrored_findings(findings)
     }
 }
 

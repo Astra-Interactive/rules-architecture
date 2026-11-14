@@ -50,7 +50,7 @@ pub(crate) fn has_bound(
     bounds: &syn::punctuated::Punctuated<syn::TypeParamBound, syn::Token![+]>,
     name: &str,
 ) -> bool {
-    bounds.iter().any(|bound| matches!(bound, syn::TypeParamBound::Trait(bound) if bound.path.segments.last().is_some_and(|segment| segment.ident.unraw() == name)))
+    bounds.iter().any(|bound| matches!(bound, syn::TypeParamBound::Trait(bound) if bound.maybe.is_none() && bound.path.segments.last().is_some_and(|segment| segment.ident.unraw() == name)))
 }
 
 pub(crate) fn has_standard_bound(

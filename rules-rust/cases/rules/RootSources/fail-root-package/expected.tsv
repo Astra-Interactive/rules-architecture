@@ -1,4 +1,4 @@
-UnitPath	.	case-root	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
+UnitPath	.	case-root	place entry points at instances/<name> and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
 RootSources	Cargo.toml:1	.	the root manifest is virtual: move the crate to modules/<name> and keep only [workspace] here
 NestedUnit	modules/sample/Cargo.toml	case-sample	modules/sample is inside .: a crate directory holds no other crate
 RootSources	src	.	the workspace root holds no src/: every crate sits in its own directory

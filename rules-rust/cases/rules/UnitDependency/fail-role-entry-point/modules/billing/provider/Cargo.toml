@@ -6,4 +6,4 @@ edition = "2024"
 workspace = true
 
 [package.metadata.klibs-rules]
-role = "tooling"
+role = "entry-point"

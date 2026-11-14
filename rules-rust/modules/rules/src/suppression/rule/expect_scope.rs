@@ -14,7 +14,7 @@ impl ExpectScope {
         context
             .find_role_config(crate_name)
             .and_then(|config| config.role)
-            .is_some_and(|role| matches!(role, Role::EntryPoint | Role::Tooling))
+            .is_some_and(|role| role == Role::EntryPoint)
     }
 }
 

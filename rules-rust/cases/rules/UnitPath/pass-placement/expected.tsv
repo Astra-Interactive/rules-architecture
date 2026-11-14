@@ -1,3 +1,2 @@
-XtaskAlias	.cargo/config.toml	.cargo/config.toml	set `[alias] xtask = "run --package xtask --"` in the root Cargo configuration
 RootPackagePath	Cargo.toml	.	set `[workspace.metadata.klibs-rules] prefix`: member names give no unique prefix
 MainShape	instances/runner/src/main.rs:1	runner::main	entry main builds a runtime, constructs/enables the root in one block_on, then disables it synchronously

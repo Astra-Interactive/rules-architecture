@@ -8,11 +8,11 @@ fn given_subscriber_builder_bound_to_a_local_when_installed_outside_main_then_it
 }
 
 #[test]
-fn given_logger_installed_in_a_tooling_main_when_checked_then_only_a_library_main_is_reported() {
+fn given_logger_installed_in_main_when_checked_then_only_an_entry_point_main_installs_it() {
     let mut context = crate::test::module::util::read_di_context(
         "fn main() { tracing_subscriber::fmt().init(); }",
     );
-    context.project_config.crates[0].role = Some(crate::config::model::Role::Tooling);
+    context.project_config.crates[0].role = Some(crate::config::model::Role::EntryPoint);
     assert!(crate::check::api::Rule::check(&crate::module::rule::GlobalState, &context).is_empty());
     context.project_config.crates[0].role = Some(crate::config::model::Role::Context);
     let lines: Vec<Option<u32>> =

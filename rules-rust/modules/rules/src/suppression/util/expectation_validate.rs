@@ -31,8 +31,8 @@ fn check_rule_id(expectation: &Expectation, rule_id: &str) -> Result<(), Finding
     };
     if let Some(retired) = find_retired_rule(rule_id) {
         let message = format!(
-            "`{rule_id}` is retired in klibs-rules: use `{}`",
-            retired.replacement
+            "`{rule_id}` is retired in klibs-rules: {}",
+            retired.describe_retirement()
         );
         return Err(meta("RetiredRule", message));
     }

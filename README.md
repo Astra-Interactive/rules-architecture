@@ -639,7 +639,6 @@ role = "impl-ui" # detected from the path when not set; `core` and `impl-ui` are
 
 | Role               | Detected when not declared                                        |
 |--------------------|-------------------------------------------------------------------|
-| `tooling`          | the package is named `xtask`                                      |
 | `proc-macro`       | its lib target is a `proc-macro`                                  |
 | `entry-point`      | under `instances/`, or a crate without a Rust library target      |
 | `core-ui`          | `modules/core/ui` or below it                                     |
@@ -655,7 +654,9 @@ role = "impl-ui" # detected from the path when not set; `core` and `impl-ui` are
 | `technology`       | final directory segment matches a technology word of a dependency |
 | `context`          | remaining crates                                                  |
 
-The first matching row wins; the details are in [Roles](rules-rust/README.md#roles).
+The first matching row wins; the details are in [Roles](rules-rust/README.md#roles). A program the project keeps for
+its developers is an `entry-point` crate; the architecture check is the installed `cargo klibs-rules`, not an `xtask`
+crate, and `role = "tooling"` is a configuration error.
 
 </details>
 

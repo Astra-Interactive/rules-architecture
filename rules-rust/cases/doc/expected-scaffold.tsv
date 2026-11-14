@@ -94,18 +94,18 @@ ReExportShape	modules/bad/code-ordering-rs/src/example_22.rs:10	IntervalFeatureF
 KindShape	modules/bad/code-ordering-rs/src/lib.rs:1	bad_code_ordering_rs::example_22	a concept holds kind blocks; files live in a named kind
 OneTypeFamilyPerFile	modules/bad/code-ordering-rs/src/lib.rs:1	bad_code_ordering_rs::example_22	Name the file after its primary type family (arch-package.rs.md)
 RootFileShape	modules/bad/code-ordering-rs/src/lib.rs:1	bad_code_ordering_rs	the root file holds only the module tree and the items the platform calls
-ContractPlacement	modules/bad/di-manual-constructors-rs/src/example_27.rs:3	bad_di_manual_constructors_rs::InvoiceRepository	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ContractPlacement	modules/bad/di-manual-constructors-rs/src/example_27.rs:3	bad_di_manual_constructors_rs::InvoiceRepository	a trait of this crate is a contract and lives in api; an extension trait of another crate's type is a <Type>Ext in util/<type>_ext.rs (arch-package.rs.md, What goes in one file)
 ReExportShape	modules/bad/di-manual-constructors-rs/src/example_27.rs:3	InvoiceRepository	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-ContractPlacement	modules/bad/di-manual-constructors-rs/src/example_27.rs:5	bad_di_manual_constructors_rs::MailSender	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ContractPlacement	modules/bad/di-manual-constructors-rs/src/example_27.rs:5	bad_di_manual_constructors_rs::MailSender	a trait of this crate is a contract and lives in api; an extension trait of another crate's type is a <Type>Ext in util/<type>_ext.rs (arch-package.rs.md, What goes in one file)
 ReExportShape	modules/bad/di-manual-constructors-rs/src/example_27.rs:5	MailSender	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-ContractPlacement	modules/bad/di-manual-constructors-rs/src/example_27.rs:7	bad_di_manual_constructors_rs::Clock	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ContractPlacement	modules/bad/di-manual-constructors-rs/src/example_27.rs:7	bad_di_manual_constructors_rs::Clock	a trait of this crate is a contract and lives in api; an extension trait of another crate's type is a <Type>Ext in util/<type>_ext.rs (arch-package.rs.md, What goes in one file)
 ReExportShape	modules/bad/di-manual-constructors-rs/src/example_27.rs:7	Clock	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-SystemClockOutsideDi	modules/bad/di-manual-constructors-rs/src/example_27.rs:7	bad_di_manual_constructors_rs::Clock	SystemClock lives in system and Clock declares exactly fn now(&self) -> SystemTime
+SystemClockOutsideDi	modules/bad/di-manual-constructors-rs/src/example_27.rs:7	bad_di_manual_constructors_rs::Clock	the Clock trait declares exactly fn now(&self) -> SystemTime (time-api.rs.md)
 NamespaceType	modules/bad/di-manual-constructors-rs/src/example_27.rs:9	bad_di_manual_constructors_rs::example_27::ReminderSchedule	Use module functions instead of a fieldless namespace type (arch-package.rs.md)
 ReExportShape	modules/bad/di-manual-constructors-rs/src/example_27.rs:9	ReminderSchedule	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 ReExportShape	modules/bad/di-manual-constructors-rs/src/example_27.rs:17	SmtpMailSender	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 ReExportShape	modules/bad/di-manual-constructors-rs/src/example_27.rs:27	SystemClock	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-SystemClockOutsideDi	modules/bad/di-manual-constructors-rs/src/example_27.rs:27	bad_di_manual_constructors_rs::SystemClock	SystemClock lives in system and Clock declares exactly fn now(&self) -> SystemTime
+SystemClockOutsideDi	modules/bad/di-manual-constructors-rs/src/example_27.rs:27	bad_di_manual_constructors_rs::SystemClock	SystemClock is declared in a system module (time-api.rs.md)
 ReExportShape	modules/bad/di-manual-constructors-rs/src/example_27.rs:31	InvoiceReminder	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 KindShape	modules/bad/di-manual-constructors-rs/src/lib.rs:1	bad_di_manual_constructors_rs::example_27	a concept holds kind blocks; files live in a named kind
 OneTypeFamilyPerFile	modules/bad/di-manual-constructors-rs/src/lib.rs:1	bad_di_manual_constructors_rs::example_27	Name the file after its primary type family (arch-package.rs.md)
@@ -131,11 +131,11 @@ RootFileShape	modules/bad/function-reference-rs/src/lib.rs:1	bad_function_refere
 ReExportShape	modules/bad/no-callbacks-rs/src/example_38.rs:3	Offer	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 ErrorPlacement	modules/bad/no-callbacks-rs/src/example_38.rs:5	bad_no_callbacks_rs::OfferError	Error families and result enums live in model, including replacements for old error modules (error-handling.rs.md)
 ReExportShape	modules/bad/no-callbacks-rs/src/example_38.rs:5	OfferError	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-ContractPlacement	modules/bad/no-callbacks-rs/src/example_38.rs:7	bad_no_callbacks_rs::OfferGateway	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ContractPlacement	modules/bad/no-callbacks-rs/src/example_38.rs:7	bad_no_callbacks_rs::OfferGateway	a trait of this crate is a contract and lives in api; an extension trait of another crate's type is a <Type>Ext in util/<type>_ext.rs (arch-package.rs.md, What goes in one file)
 ReExportShape	modules/bad/no-callbacks-rs/src/example_38.rs:7	OfferGateway	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 ReExportShape	modules/bad/no-callbacks-rs/src/example_40.rs:3	TimerConfig	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 ReExportShape	modules/bad/no-callbacks-rs/src/example_40.rs:5	TimerEndCause	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-ContractPlacement	modules/bad/no-callbacks-rs/src/example_40.rs:14	bad_no_callbacks_rs::TimerRegistry	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ContractPlacement	modules/bad/no-callbacks-rs/src/example_40.rs:14	bad_no_callbacks_rs::TimerRegistry	a trait of this crate is a contract and lives in api; an extension trait of another crate's type is a <Type>Ext in util/<type>_ext.rs (arch-package.rs.md, What goes in one file)
 ReExportShape	modules/bad/no-callbacks-rs/src/example_40.rs:14	TimerRegistry	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 ReExportShape	modules/bad/no-callbacks-rs/src/example_41.rs:1	Money	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 KindShape	modules/bad/no-callbacks-rs/src/lib.rs:1	bad_no_callbacks_rs::example_38	a concept holds kind blocks; files live in a named kind
@@ -158,7 +158,7 @@ KindShape	modules/bad/no-print-rs/src/lib.rs:1	bad_no_print_rs::example_44	a con
 OneTypeFamilyPerFile	modules/bad/no-print-rs/src/lib.rs:1	bad_no_print_rs::example_44	Name the file after its primary type family (arch-package.rs.md)
 RootFileShape	modules/bad/no-print-rs/src/lib.rs:1	bad_no_print_rs	the root file holds only the module tree and the items the platform calls
 ReExportShape	modules/bad/no-tuples-rs/src/example_46.rs:1	ProductId	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-ContractPlacement	modules/bad/no-tuples-rs/src/example_46.rs:3	bad_no_tuples_rs::Shape	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ContractPlacement	modules/bad/no-tuples-rs/src/example_46.rs:3	bad_no_tuples_rs::Shape	a trait of this crate is a contract and lives in api; an extension trait of another crate's type is a <Type>Ext in util/<type>_ext.rs (arch-package.rs.md, What goes in one file)
 ReExportShape	modules/bad/no-tuples-rs/src/example_46.rs:3	Shape	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 OneTypeFamilyPerFile	modules/bad/no-tuples-rs/src/example_46.rs:8	bad_no_tuples_rs::example_46::measure_label	Place free functions in a function file, separate from a type family (arch-package.rs.md)
 ReExportShape	modules/bad/no-tuples-rs/src/example_46.rs:8	measure_label	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
@@ -224,7 +224,7 @@ ForeignErrorType	modules/good/clean-code-rs/src/invoice/util/json_format.rs:3	go
 ModelDerives	modules/good/closure-naming-rs/src/invoice/model/invoice.rs:4	good_closure_naming_rs::invoice::model::invoice::Invoice	Derive Hash on this model struct (arch-domain.rs.md)
 BareIdentifier	modules/good/di-manual-constructors-rs/src/reminder/model/reminder_schedule.rs:4	good_di_manual_constructors_rs::reminder::model::reminder_schedule::ReminderSchedule	A model struct with one named field is a single-property value object: write it as a tuple struct (arch-domain.rs.md)
 ModelDerives	modules/good/di-manual-constructors-rs/src/reminder/model/reminder_schedule.rs:4	good_di_manual_constructors_rs::reminder::model::reminder_schedule::ReminderSchedule	Derive Hash on this model struct (arch-domain.rs.md)
-UnitDependency	modules/good/di-manual-rs/billing/Cargo.toml:7	di-billing-api -> shop-core	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+UnitDependency	modules/good/di-manual-rs/billing/Cargo.toml:7	di-billing-api -> shop-core	di-billing-api (context) may not depend on shop-core (context): a context crate depends on api, core-api, core, core-platform and storage-contract crates (arch-context.md, Direction and enforcement)
 ContractShape	modules/good/di-manual-rs/core/src/lifecycle/api/lifecycle.rs:1	shop_core::lifecycle::api::lifecycle::Lifecycle	Declare contracts as non-generic Send + Sync traits, with async_trait for async methods (arch-domain.rs.md)
 ModelDerives	modules/good/error-handling-rs/src/order/model/money.rs:2	good_error_handling_rs::order::model::money::Money	Derive Hash on this model struct (arch-domain.rs.md)
 UtilFunctionAsExtension	modules/good/error-handling-rs/src/order/util/order_save.rs:3	good_error_handling_rs::order::util::save_order	a one-model rule is an inherent extension method in util
@@ -238,7 +238,7 @@ BareIdentifier	modules/good/function-reference-rs/src/order/model/order.rs:2	goo
 ModelDerives	modules/good/function-reference-rs/src/order/model/order.rs:2	good_function_reference_rs::order::model::order::Order	Derive Hash on this model struct (arch-domain.rs.md)
 BareIdentifier	modules/good/imports-rs/src/invoice/model/invoice.rs:2	good_imports_rs::invoice::model::invoice::Invoice	A model struct with one named field is a single-property value object: write it as a tuple struct (arch-domain.rs.md)
 ModelDerives	modules/good/imports-rs/src/invoice/model/invoice.rs:2	good_imports_rs::invoice::model::invoice::Invoice	Derive Hash on this model struct (arch-domain.rs.md)
-UnitDependency	modules/good/no-callbacks-rs-1/Cargo.toml:7	good-no-callbacks-rs-1 -> acme-sdk	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+UnitDependency	modules/good/no-callbacks-rs-1/Cargo.toml:7	good-no-callbacks-rs-1 -> acme-sdk	good-no-callbacks-rs-1 (context) may not depend on acme-sdk (context): a context crate depends on api, core-api, core, core-platform and storage-contract crates (arch-context.md, Direction and enforcement)
 ErrorFamilyShape	modules/good/no-callbacks-rs-1/src/consent/model/consent_error.rs:1	good_no_callbacks_rs_1::consent::model::ConsentError	an error enum derives Debug + thiserror::Error, labels each variant, and boxes source errors as dyn Error + Send + Sync
 BareIdentifier	modules/good/no-callbacks-rs-1/src/offer/model/offer.rs:2	good_no_callbacks_rs_1::offer::model::offer::Offer	A model struct with one named field is a single-property value object: write it as a tuple struct (arch-domain.rs.md)
 ModelDerives	modules/good/no-callbacks-rs-1/src/offer/model/offer.rs:2	good_no_callbacks_rs_1::offer::model::offer::Offer	Derive Hash on this model struct (arch-domain.rs.md)
@@ -286,9 +286,9 @@ UnsafePlacement	modules/probe/std/src/probes.rs:41	modules/probe/std/src/probes.
 UnsafePlacement	modules/probe/std/src/probes.rs:44	modules/probe/std/src/probes.rs	Keep unsafe code behind a safe technology implementation (arch-package.rs.md)
 UnsafePlacement	modules/probe/std/src/probes.rs:46	modules/probe/std/src/probes.rs	Keep unsafe code behind a safe technology implementation (arch-package.rs.md)
 ReExportShape	modules/probe/std/src/probes.rs:49	probe_redundant_closure_for_method_calls	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-LockChoice	modules/probe/std/src/probes.rs:53	probe::probes	Follow the LockChoice typed runtime requirement (async.rs.md; time-api.rs.md)
+LockChoice	modules/probe/std/src/probes.rs:53	probe::probes	A counter or a flag is an atomic, not a lock around a bool or an integer (async.rs.md, Shared state and locks)
 ReExportShape	modules/probe/std/src/probes.rs:53	probe_std_mutex	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
-LockChoice	modules/probe/std/src/probes.rs:57	probe::probes	Follow the LockChoice typed runtime requirement (async.rs.md; time-api.rs.md)
+LockChoice	modules/probe/std/src/probes.rs:57	probe::probes	A counter or a flag is an atomic, not a lock around a bool or an integer (async.rs.md, Shared state and locks)
 ReExportShape	modules/probe/std/src/probes.rs:57	probe_std_rw_lock	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 ReExportShape	modules/probe/std/src/probes.rs:61	probe_poison_error	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 ReExportShape	modules/probe/std/src/probes.rs:65	probe_thread_spawn	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block

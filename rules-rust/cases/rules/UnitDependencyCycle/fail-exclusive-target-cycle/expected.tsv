@@ -1,6 +1,6 @@
 RootPackagePath	Cargo.toml	.	set `[workspace.metadata.klibs-rules] prefix`: member names give no unique prefix
 UnitDependencyCycle	Cargo.toml	delta, epsilon	a development dependency closes a cycle between these crates: each compilation's graph must remain acyclic
-UnitDependency	modules/delta/Cargo.toml:6	delta -> epsilon	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
-UnitDependency	modules/epsilon/Cargo.toml:6	epsilon -> delta	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
-UnitDependency	modules/unix-side/Cargo.toml:6	unix-side -> windows-side	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
-UnitDependency	modules/windows-side/Cargo.toml:6	windows-side -> unix-side	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+UnitDependency	modules/delta/Cargo.toml:6	delta -> epsilon	delta (context) may not depend on epsilon (context): a context crate depends on api, core-api, core, core-platform and storage-contract crates (arch-context.md, Direction and enforcement)
+UnitDependency	modules/epsilon/Cargo.toml:6	epsilon -> delta	epsilon (context) may not depend on delta (context): a context crate depends on api, core-api, core, core-platform and storage-contract crates (arch-context.md, Direction and enforcement)
+UnitDependency	modules/unix-side/Cargo.toml:6	unix-side -> windows-side	unix-side (context) may not depend on windows-side (context): a context crate depends on api, core-api, core, core-platform and storage-contract crates (arch-context.md, Direction and enforcement)
+UnitDependency	modules/windows-side/Cargo.toml:6	windows-side -> unix-side	windows-side (context) may not depend on unix-side (context): a context crate depends on api, core-api, core, core-platform and storage-contract crates (arch-context.md, Direction and enforcement)

@@ -1,6 +1,134 @@
 use crate::runtime::rule::BlockOnOutsideBoundary;
 use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
+use crate::test::declaration::util::read_fixture_messages;
+
+struct RuleFixture<'rule> {
+    id: &'rule str,
+    rule: &'rule dyn crate::check::api::Rule,
+}
+
+#[test]
+fn given_runtime_construction_and_blocking_outside_main_when_checked_then_each_names_the_boundary()
+{
+    let messages = read_fixture_messages(&BlockOnOutsideBoundary, "BlockOnOutsideBoundary");
+    let lines: Vec<u32> = messages.iter().map(|reported| reported.line).collect();
+    assert_eq!(vec![2, 5, 6, 7, 8], lines);
+    for reported in &messages {
+        if reported.line != 2 {
+            assert_eq!(
+                "Build and block a runtime only in entry-point root main; technology boundaries may block_on (di-manual.rs.md)",
+                reported.message,
+                "line {}",
+                reported.line
+            );
+        }
+    }
+}
+
+fn build_boundary_fixtures() -> Vec<RuleFixture<'static>> {
+    use crate::runtime::rule::{
+        BlockOnInTest, BlockingCallInAsync, DurationOverloadCall, ThreadPrimitive, WatchTimeout,
+    };
+    vec![
+        RuleFixture {
+            id: "BlockOnOutsideBoundary",
+            rule: &BlockOnOutsideBoundary,
+        },
+        RuleFixture {
+            id: "BlockOnInTest",
+            rule: &BlockOnInTest,
+        },
+        RuleFixture {
+            id: "BlockingCallInAsync",
+            rule: &BlockingCallInAsync,
+        },
+        RuleFixture {
+            id: "ThreadPrimitive",
+            rule: &ThreadPrimitive,
+        },
+        RuleFixture {
+            id: "WatchTimeout",
+            rule: &WatchTimeout,
+        },
+        RuleFixture {
+            id: "DurationOverloadCall",
+            rule: &DurationOverloadCall,
+        },
+    ]
+}
+
+fn build_lock_fixtures() -> Vec<RuleFixture<'static>> {
+    use crate::runtime::rule::{
+        BlockingLockInSync, BroadcastLag, CriticalSectionWrite, ImpureUpdateClosure,
+        JoinSetBehindLock, LockChoice, SelectCancelSafety,
+    };
+    vec![
+        RuleFixture {
+            id: "JoinSetBehindLock",
+            rule: &JoinSetBehindLock,
+        },
+        RuleFixture {
+            id: "CriticalSectionWrite",
+            rule: &CriticalSectionWrite,
+        },
+        RuleFixture {
+            id: "LockChoice",
+            rule: &LockChoice,
+        },
+        RuleFixture {
+            id: "BroadcastLag",
+            rule: &BroadcastLag,
+        },
+        RuleFixture {
+            id: "SelectCancelSafety",
+            rule: &SelectCancelSafety,
+        },
+        RuleFixture {
+            id: "ImpureUpdateClosure",
+            rule: &ImpureUpdateClosure,
+        },
+        RuleFixture {
+            id: "BlockingLockInSync",
+            rule: &BlockingLockInSync,
+        },
+    ]
+}
+
+fn list_placeholder_messages(fixtures: Vec<RuleFixture<'_>>) -> Vec<String> {
+    let mut offenders = Vec::new();
+    for fixture in fixtures {
+        let messages = read_fixture_messages(fixture.rule, fixture.id);
+        assert!(
+            !messages.is_empty(),
+            "{} reports nothing on its fixture",
+            fixture.id
+        );
+        for reported in messages {
+            if reported.message.contains("Follow the") || reported.message.contains(fixture.id) {
+                offenders.push(format!(
+                    "{}:{}: {}",
+                    fixture.id, reported.line, reported.message
+                ));
+            }
+        }
+    }
+    offenders
+}
+
+#[test]
+fn given_failing_fixture_of_every_boundary_runtime_rule_when_checked_then_no_message_is_a_placeholder()
+ {
+    let offenders = list_placeholder_messages(build_boundary_fixtures());
+    assert!(offenders.is_empty(), "{}", offenders.join("\n"));
+}
+
+#[test]
+fn given_failing_fixture_of_every_lock_and_channel_rule_when_checked_then_no_message_is_a_placeholder()
+ {
+    let offenders = list_placeholder_messages(build_lock_fixtures());
+    assert!(offenders.is_empty(), "{}", offenders.join("\n"));
+}
 
 #[test]
 fn given_persistent_code_fixtures_when_checked_then_match_exact_anchors() {

@@ -1,1 +1,1 @@
-UnitDependency	modules/billing/consumer/Cargo.toml:12	case-billing-consumer -> case-billing-provider	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+UnitDependency	modules/billing/consumer/Cargo.toml:12	case-billing-consumer -> case-billing-provider	case-billing-consumer (proc-macro) depends on no crate of the project (proc-macro, core, core-api, contract)

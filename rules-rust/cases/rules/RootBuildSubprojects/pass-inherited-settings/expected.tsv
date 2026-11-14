@@ -1,5 +1,5 @@
 RootPackagePath	Cargo.toml	.	set `[workspace.metadata.klibs-rules] prefix`: member names give no unique prefix
-UnitDependency	modules/sample/Cargo.toml:10	sample -> leaf	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
-UnitDependency	modules/sample/Cargo.toml:12	sample -> leaf	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
-UnitDependency	modules/sample/Cargo.toml:14	sample -> leaf	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
-UnitDependency	modules/sample/Cargo.toml:16	sample -> leaf	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+UnitDependency	modules/sample/Cargo.toml:10	sample -> leaf	sample (context) may not depend on leaf (context): a context crate depends on api, core-api, core, core-platform and storage-contract crates (arch-context.md, Direction and enforcement)
+UnitDependency	modules/sample/Cargo.toml:12	sample -> leaf	sample (context) may not depend on leaf (context): a context crate depends on api, core-api, core, core-platform and storage-contract crates (arch-context.md, Direction and enforcement)
+UnitDependency	modules/sample/Cargo.toml:14	sample -> leaf	sample (context) may not depend on leaf (context): a context crate depends on api, core-api, core, core-platform and storage-contract crates (arch-context.md, Direction and enforcement)
+UnitDependency	modules/sample/Cargo.toml:16	sample -> leaf	sample (context) may not depend on leaf (context): a context crate depends on api, core-api, core, core-platform and storage-contract crates (arch-context.md, Direction and enforcement)

@@ -1,3 +1,6 @@
+use crate::test::declaration::util::FindingMessage;
+use crate::test::declaration::util::list_finding_messages;
+
 #[test]
 fn given_clock_constructions_when_checked_then_di_and_test_tree_are_exempt() {
     crate::test::module::util::assert_di_lines(
@@ -23,6 +26,38 @@ fn given_clock_signatures_when_checked_then_exact_standard_time_and_shared_recei
         &crate::module::rule::SystemClockOutsideDi,
         "trait Clock { fn now(&self) -> Result<std::time::SystemTime, ()>; }",
         &[1],
+    );
+}
+
+fn list_clock_messages(source: &str) -> Vec<FindingMessage> {
+    let context = crate::test::module::util::read_di_context(source);
+    list_finding_messages(&crate::check::api::Rule::check(
+        &crate::module::rule::SystemClockOutsideDi,
+        &context,
+    ))
+}
+
+#[test]
+fn given_misplaced_system_clock_when_checked_then_the_message_names_the_system_module() {
+    assert_eq!(
+        vec![FindingMessage {
+            line: 1,
+            message: "SystemClock is declared in a system module (time-api.rs.md)".to_owned(),
+        }],
+        list_clock_messages("mod clock { pub struct SystemClock; }")
+    );
+}
+
+#[test]
+fn given_clock_with_another_signature_when_checked_then_the_message_names_the_trait_signature() {
+    assert_eq!(
+        vec![FindingMessage {
+            line: 1,
+            message:
+                "the Clock trait declares exactly fn now(&self) -> SystemTime (time-api.rs.md)"
+                    .to_owned(),
+        }],
+        list_clock_messages("trait Clock { fn now(&self) -> std::time::Instant; }")
     );
 }
 

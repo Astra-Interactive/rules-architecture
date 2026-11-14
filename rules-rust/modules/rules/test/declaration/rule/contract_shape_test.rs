@@ -259,6 +259,16 @@ fn given_generic_and_where_clause_api_traits_when_checked_then_only_missing_supe
 }
 
 #[test]
+fn given_maybe_send_or_sync_supertrait_when_checked_then_it_is_not_a_real_bound() {
+    assert_code_findings(
+        &ContractShape,
+        "ContractShape",
+        "mod api {\ntrait MaybeSend: ?Send + Sync {}\ntrait MaybeSync: Send + ?Sync {}\ntrait Real: Send + Sync {}\n}",
+        &[2, 3],
+    );
+}
+
+#[test]
 fn given_static_lifetime_supertrait_when_checked_then_only_the_clone_bound_reports() {
     assert_code_findings(
         &ContractShape,

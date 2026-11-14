@@ -8,7 +8,11 @@ use crate::test::check::usecase::read_case_context;
 fn given_root_declarations_when_checked_then_only_ordered_platform_items_and_module_tree_pass() {
     let mut context = read_case_context("RootFileShape", "pass-tree");
     context.crates[0].files[0].syntax = syn::parse_file("pub use std::fmt::Debug; mod plain; pub(crate) mod invoice { mod record; use record::Record; struct Extra; call!(); } #[cfg(test)] #[path = \"../test\"] mod test {} mod fixture {}").expect("valid syntax");
-    assert_eq!(RootFileShape.check(&context).len(), 6);
+    assert_eq!(
+        RootFileShape.check(&context).len(),
+        5,
+        "the non-private `pub use` is ReExportShape's finding alone"
+    );
     context.project_config.crates[0].role = Some(Role::EntryPoint);
     context.project_config.crates[0].host_items = vec![
         "Plugin".to_owned(),
@@ -188,7 +192,6 @@ fn given_modules_and_other_items_in_main_of_a_crate_with_a_library_when_checked_
             (main.clone(), Some(4)),
             (main.clone(), Some(5)),
             (main.clone(), Some(6)),
-            (main.clone(), Some(7)),
             (main.clone(), Some(9)),
             (main, Some(12)),
         ]
@@ -235,8 +238,192 @@ fn given_the_library_root_of_a_crate_with_a_binary_when_checked_then_it_is_judge
     );
 }
 
+const TEST_BLOCK_MESSAGE: &str = "declare the test tree as an inline block: #[cfg(test)] #[path = \"../test\"] mod test { … } (arch-package.rs.md, Tests)";
+
+struct CascadeRule<'rule> {
+    name: &'rule str,
+    rule: &'rule dyn Rule,
+}
+
+fn list_cascade_lines(context: &RuleContext, cascade: &[CascadeRule<'_>]) -> Vec<String> {
+    let mut lines = Vec::new();
+    for entry in cascade {
+        for finding in entry.rule.check(context) {
+            lines.push(format!(
+                "{}\t{}\t{}\t{}",
+                entry.name,
+                finding.finding.location.path,
+                finding.finding.subject,
+                finding.finding.message
+            ));
+        }
+    }
+    lines.sort();
+    lines
+}
+
 #[test]
-fn given_main_alone_in_a_tooling_crate_when_checked_then_it_keeps_the_tree_as_its_root_file() {
+fn given_test_module_declared_through_a_file_when_checked_then_one_root_finding_names_the_inline_block()
+ {
+    let context = crate::test::module::util::read_workspace_shape_context_with_files(
+        &[(
+            "sample",
+            "",
+            "#[cfg(test)]\n#[path = \"../test/lib.rs\"]\nmod test;",
+        )],
+        &[
+            ("sample/test/lib.rs", "mod options { mod bench_options; }"),
+            (
+                "sample/test/options/bench_options.rs",
+                "#[test]\nfn given_options_when_parsed_then_ready() {}",
+            ),
+        ],
+    );
+    let lines = list_cascade_lines(
+        &context,
+        &[
+            CascadeRule {
+                name: "RootFileShape",
+                rule: &RootFileShape,
+            },
+            CascadeRule {
+                name: "KindShape",
+                rule: &crate::module::rule::KindShape,
+            },
+            CascadeRule {
+                name: "TestMirror",
+                rule: &crate::module::rule::TestMirror,
+            },
+        ],
+    );
+    let about_test_block: Vec<&String> = lines
+        .iter()
+        .filter(|line| {
+            let columns: Vec<&str> = line.split('\t').collect();
+            columns[0] == "RootFileShape" || columns[2] == "sample::test"
+        })
+        .collect();
+    assert_eq!(
+        vec![&format!(
+            "RootFileShape\tsample/src/lib.rs\tsample\t{TEST_BLOCK_MESSAGE}"
+        )],
+        about_test_block,
+        "{lines:#?}"
+    );
+    assert!(
+        lines.iter().any(|line| line.starts_with("TestMirror\t")
+            && line.contains("\tsample::test::options::bench_options\t")),
+        "the module below the test block keeps its own finding: {lines:#?}"
+    );
+}
+
+#[test]
+fn given_inline_test_block_with_another_path_when_checked_then_the_one_finding_names_the_inline_block()
+ {
+    let context = crate::test::module::util::read_workspace_shape_context_with_files(
+        &[(
+            "sample",
+            "",
+            "#[cfg(test)]\n#[path = \"../tests\"]\nmod test {\n    mod options {}\n}",
+        )],
+        &[],
+    );
+    let findings = RootFileShape.check(&context);
+    assert_eq!(1, findings.len(), "{findings:?}");
+    assert_eq!(TEST_BLOCK_MESSAGE, findings[0].finding.message);
+    let context = crate::test::module::util::read_workspace_shape_context_with_files(
+        &[(
+            "sample",
+            "",
+            "#[cfg(test)]\n#[path = \"../test\"]\nmod test {}",
+        )],
+        &[],
+    );
+    assert!(RootFileShape.check(&context).is_empty());
+}
+
+#[test]
+fn given_non_private_use_at_the_crate_root_when_checked_then_only_the_re_export_finding_remains() {
+    let context = crate::test::module::util::read_workspace_shape_context_with_files(
+        &[(
+            "sample",
+            "",
+            "pub mod options {\n    pub mod model {\n        pub use bench_options::BenchOptions;\n        mod bench_options;\n    }\n}\npub use options::model::BenchOptions;",
+        )],
+        &[(
+            "sample/src/options/model/bench_options.rs",
+            "pub struct BenchOptions;",
+        )],
+    );
+    let lines = list_cascade_lines(
+        &context,
+        &[
+            CascadeRule {
+                name: "RootFileShape",
+                rule: &RootFileShape,
+            },
+            CascadeRule {
+                name: "ImportOrdering",
+                rule: &crate::import::rule::ImportOrdering,
+            },
+            CascadeRule {
+                name: "ReExportShape",
+                rule: &crate::module::rule::ReExportShape,
+            },
+        ],
+    );
+    assert_eq!(1, lines.len(), "{lines:#?}");
+    assert!(
+        lines[0].starts_with("ReExportShape\tsample/src/lib.rs\t"),
+        "{lines:#?}"
+    );
+    assert!(
+        lines[0].ends_with(
+            "\tno re-export at the crate root (arch-package.rs.md, Modules and directories)"
+        ),
+        "{lines:#?}"
+    );
+}
+
+#[test]
+fn given_non_private_use_in_main_of_a_crate_with_a_library_when_checked_then_only_the_re_export_finding_remains()
+ {
+    let context = crate::test::module::util::read_binary_shape_context(
+        "pub mod di {}",
+        "use std::env;\npub use std::fmt::Debug;\nfn main() {}",
+    );
+    let lines = list_cascade_lines(
+        &context,
+        &[
+            CascadeRule {
+                name: "RootFileShape",
+                rule: &RootFileShape,
+            },
+            CascadeRule {
+                name: "ImportOrdering",
+                rule: &crate::import::rule::ImportOrdering,
+            },
+            CascadeRule {
+                name: "ReExportShape",
+                rule: &crate::module::rule::ReExportShape,
+            },
+        ],
+    );
+    assert_eq!(1, lines.len(), "{lines:#?}");
+    assert!(
+        lines[0].starts_with("ReExportShape\tshop_cli/src/main.rs\t"),
+        "{lines:#?}"
+    );
+    assert!(
+        lines[0].ends_with(
+            "\tno re-export at the crate root (arch-package.rs.md, Modules and directories)"
+        ),
+        "{lines:#?}"
+    );
+}
+
+#[test]
+fn given_main_alone_in_a_binary_only_crate_when_checked_then_it_keeps_the_tree_as_its_root_file() {
     let mut context = read_case_context("CrateTargets", "pass-binary-entry-point");
     context.workspace.members[0]
         .targets

@@ -269,12 +269,10 @@ impl GlobalStateVisitor<'_> {
             findings: Vec::new(),
             builder_locals: Vec::new(),
         };
-        let installs_logger = matches!(
-            context
-                .find_role_config(&index.crate_name)
-                .and_then(|config| config.role),
-            Some(Role::EntryPoint | Role::Tooling)
-        );
+        let installs_logger = context
+            .find_role_config(&index.crate_name)
+            .and_then(|config| config.role)
+            == Some(Role::EntryPoint);
         for item in &index.items {
             visitor.module = item.module;
             visitor.file = item.file.clone();

@@ -76,8 +76,13 @@ impl<'source> ImportOrderVisitor<'source> {
         let mut has_item = false;
         let mut last_use: Option<&syn::ItemUse> = None;
         let mut next: Option<TextPosition> = closing;
+        let is_crate_root = closing.is_none() && !self.check_modules;
         for (position, item) in items.iter().enumerate() {
             if let syn::Item::Use(value) = item {
+                let is_re_export = !matches!(value.vis, syn::Visibility::Inherited);
+                if is_crate_root && is_re_export {
+                    continue;
+                }
                 let has_gap = self.has_gap_after(last_use, value);
                 if (is_ordered && has_item) || has_gap {
                     self.push_finding(value.span());

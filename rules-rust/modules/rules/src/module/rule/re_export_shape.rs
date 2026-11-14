@@ -22,6 +22,19 @@ impl ReExportShape {
             })
     }
 
+    fn is_root_binding(index: &CrateIndex, binding: &ImportBinding) -> bool {
+        index.modules[binding.module].parent.is_none()
+    }
+
+    fn is_reexported_at_root(index: &CrateIndex, identity: usize) -> bool {
+        index.imports.iter().any(|root| {
+            root.is_externally_public
+                && root.cfg.is_satisfiable()
+                && Self::is_root_binding(index, root)
+                && matches!(index.resolve_segments(root.module, &root.path, 0), Resolution::Internal(targets) if targets.iter().any(|target| target.item == Some(identity)))
+        })
+    }
+
     fn check_workspace(context: &RuleContext) -> Vec<RuleFinding> {
         let mut findings = Vec::new();
         for (ordinal, index) in context.indexes.iter().enumerate() {
@@ -30,6 +43,17 @@ impl ReExportShape {
                     && binding.cfg.is_satisfiable()
                     && index.modules[binding.module].tree == crate::source::model::SourceTree::Src
             }) {
+                if Self::is_root_binding(index, binding) {
+                    findings.push(build_node_finding(
+                        "ReExportShape",
+                        &binding.file,
+                        binding.span,
+                        binding.name.clone().unwrap_or_else(|| "*".to_owned()),
+                        "no re-export at the crate root (arch-package.rs.md, Modules and directories)"
+                            .to_owned(),
+                    ));
+                    continue;
+                }
                 let Resolution::Internal(targets) =
                     index.resolve_segments(binding.module, &binding.path, 0)
                 else {
@@ -45,6 +69,7 @@ impl ReExportShape {
                     && items.iter().all(|identity| {
                         !Self::is_private(&index.items[*identity])
                             && !context.has_external_name_user(ordinal, *identity)
+                            && !Self::is_reexported_at_root(index, *identity)
                     });
                 let named_restricted = binding.is_crate_public
                     && items.iter().any(|identity| {
@@ -120,6 +145,7 @@ impl ReExportShape {
                     && index.modules[binding.module].tree == crate::source::model::SourceTree::Src
                     && binding.module != item.module
                     && Some(binding.module) != kind_block
+                    && !Self::is_root_binding(index, binding)
                     && item.cfg.and(&binding.cfg).is_satisfiable()
                     && matches!(index.resolve_segments(binding.module, &binding.path, 0), Resolution::Internal(targets) if targets.iter().any(|target| target.item == Some(ordinal)))
             })

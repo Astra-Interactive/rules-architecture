@@ -1,8 +1,7 @@
 use crate::config::model::Role;
 use crate::workspace::model::Member;
 
-const ROLE_NAMES: [&str; 15] = [
-    "tooling",
+const ROLE_NAMES: [&str; 14] = [
     "proc-macro",
     "entry-point",
     "core-ui",
@@ -18,8 +17,7 @@ const ROLE_NAMES: [&str; 15] = [
     "technology",
     "context",
 ];
-const ROLES: [Role; 15] = [
-    Role::Tooling,
+const ROLES: [Role; 14] = [
     Role::ProcMacro,
     Role::EntryPoint,
     Role::CoreUi,
@@ -60,9 +58,6 @@ pub(crate) fn detect_role(
     platform_words: &[String],
     technology_words: &[String],
 ) -> Option<Role> {
-    if member.name == "xtask" {
-        return Some(Role::Tooling);
-    }
     if member.is_proc_macro() {
         return Some(Role::ProcMacro);
     }

@@ -99,15 +99,10 @@ fn given_allow_under_conditional_cfg_attr_when_checked_then_reports_each_attribu
 }
 
 #[test]
-fn given_print_stdout_expectation_when_checked_then_only_entry_and_tooling_crates_keep_it() {
+fn given_print_stdout_expectation_when_checked_then_only_entry_point_crates_keep_it() {
     let source = "#[expect(clippy::print_stdout, reason = \"report\")]\nfn show(total: u64) {\n    println!(\"{total}\");\n}\n";
-    for role in [Role::EntryPoint, Role::Tooling] {
-        let findings = check_source_in_role(source, role);
-        assert!(
-            findings.is_empty(),
-            "role: {role:?}\nfindings: {findings:?}"
-        );
-    }
+    let findings = check_source_in_role(source, Role::EntryPoint);
+    assert!(findings.is_empty(), "findings: {findings:?}");
     let findings = check_source_in_role(source, Role::Context);
     assert_eq!(1, findings.len(), "findings: {findings:?}");
     assert_eq!("ExpectScope", findings[0].finding.rule_id.0);
@@ -115,16 +110,11 @@ fn given_print_stdout_expectation_when_checked_then_only_entry_and_tooling_crate
 }
 
 #[test]
-fn given_disallowed_methods_expectation_over_a_stdout_write_when_checked_then_only_entry_and_tooling_crates_keep_it()
+fn given_disallowed_methods_expectation_over_a_stdout_write_when_checked_then_only_entry_point_crates_keep_it()
  {
     let source = "#[expect(clippy::disallowed_methods, reason = \"prints the invoice\")]\nfn show(total: u64) {\n    use std::io::Write as _;\n    let _written = writeln!(std::io::stdout(), \"{total}\");\n}\nfn run() {}\n#[expect(clippy::disallowed_methods, reason = \"the owner joins the pump at shutdown\")]\nfn pump() -> std::thread::JoinHandle<()> {\n    std::thread::spawn(run)\n}\n";
-    for role in [Role::EntryPoint, Role::Tooling] {
-        let findings = check_source_in_role(source, role);
-        assert!(
-            findings.is_empty(),
-            "role: {role:?}\nfindings: {findings:?}"
-        );
-    }
+    let findings = check_source_in_role(source, Role::EntryPoint);
+    assert!(findings.is_empty(), "findings: {findings:?}");
     let lines: Vec<Option<u32>> = check_source_in_role(source, Role::Context)
         .iter()
         .map(|finding| finding.finding.location.line)

@@ -14,7 +14,7 @@ VisibilityTier	modules/sample/src/lib.rs:9	Pair	visibility follows the actual wo
 AnonymousTuple	modules/sample/src/lib.rs:10	case_sample::sample	a tuple of 2 elements as a type: use a struct with named fields (no-tuples.rs.md)
 RootFileShape	modules/sample/src/lib.rs:10	case_sample	a module block in the root file holds only use and mod items
 VisibilityTier	modules/sample/src/lib.rs:10	ORIGIN	visibility follows the actual workspace users of the item
-ContractPlacement	modules/sample/src/lib.rs:11	case_sample::sample::Positioned	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ContractPlacement	modules/sample/src/lib.rs:11	case_sample::sample::Positioned	a trait of this crate is a contract and lives in api; an extension trait of another crate's type is a <Type>Ext in util/<type>_ext.rs (arch-package.rs.md, What goes in one file)
 RootFileShape	modules/sample/src/lib.rs:11	case_sample	a module block in the root file holds only use and mod items
 VisibilityTier	modules/sample/src/lib.rs:11	Positioned	visibility follows the actual workspace users of the item
 AnonymousTuple	modules/sample/src/lib.rs:12	case_sample::sample	a tuple of 2 elements as a type: use a struct with named fields (no-tuples.rs.md)

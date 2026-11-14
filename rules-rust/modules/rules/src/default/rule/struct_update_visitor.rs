@@ -15,6 +15,8 @@ use syn::spanned::Spanned;
 use syn::visit::Visit;
 
 pub(crate) struct StructUpdateVisitor<'source> {
+    context: &'source RuleContext,
+    ordinal: usize,
     index: &'source CrateIndex,
     file: &'source SourceFile,
     module: usize,
@@ -38,7 +40,22 @@ impl StructUpdateVisitor<'_> {
                         if function.sig.ident == "new" && function.sig.inputs.is_empty())
                 })
         });
-        StructDefaultValue::derives(attributes, "Deserialize") || has_empty_new
+        let has_hand_written_deserialize =
+            self.index.implementations.iter().any(|implementation| {
+                let Some((path, _)) = &implementation.syntax.trait_ else {
+                    return false;
+                };
+                owns_implementation(self.index, identity, implementation)
+                    && StructDefaultValue::is_serde_deserialize_trait(
+                        self.context,
+                        self.ordinal,
+                        implementation.module,
+                        path,
+                    )
+            });
+        StructDefaultValue::derives(attributes, "Deserialize")
+            || has_hand_written_deserialize
+            || has_empty_new
     }
 
     fn is_own_data(&self, module: usize, path: &syn::Path, depth: usize) -> bool {
@@ -79,11 +96,12 @@ impl StructUpdateVisitor<'_> {
     pub(crate) fn check_context(context: &RuleContext) -> Vec<RuleFinding> {
         let mut findings = Vec::new();
         for file in context.crates.iter().flat_map(|sources| &sources.files) {
-            let Some(index) = context.indexes.iter().find(|index| {
+            let Some(ordinal) = context.indexes.iter().position(|index| {
                 index.crate_name == file.module.crate_name && index.target == file.module.target
             }) else {
                 continue;
             };
+            let index = &context.indexes[ordinal];
             let Some(module) = index
                 .modules
                 .iter()
@@ -92,6 +110,8 @@ impl StructUpdateVisitor<'_> {
                 continue;
             };
             let mut visitor = StructUpdateVisitor {
+                context,
+                ordinal,
                 index,
                 file,
                 module: module.id,

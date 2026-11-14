@@ -18,19 +18,38 @@ struct TimeVisitor<'context> {
     context: &'context RuleContext,
     ordinal: usize,
     module: usize,
-    spans: Vec<proc_macro2::Span>,
+    violations: Vec<TimeViolation>,
     bindings: Vec<LocalBinding>,
     in_serde_entry_type: bool,
     in_trait_impl: bool,
 }
 
-struct LocalBinding {
-    name: String,
-    is_instant: bool,
-    is_sender: bool,
-}
-
 impl TimeVisitor<'_> {
+    fn report(&mut self, span: proc_macro2::Span, message: &'static str) {
+        self.violations.push(TimeViolation { span, message });
+    }
+
+    fn report_instant(&mut self, span: proc_macro2::Span) {
+        self.report(
+            span,
+            "An Instant is not a field or a return type: keep it a local and keep the elapsed Duration (time-api.rs.md)",
+        );
+    }
+
+    fn report_used_instant(&mut self, span: proc_macro2::Span) {
+        self.report(
+            span,
+            "An Instant is never sent, stored or shown: pass elapsed() (time-api.rs.md)",
+        );
+    }
+
+    fn report_unit_suffix(&mut self, span: proc_macro2::Span) {
+        self.report(
+            span,
+            "A duration is a Duration, not an integer or text with a unit suffix (time-api.rs.md)",
+        );
+    }
+
     fn bind_signature(&mut self, signature: &syn::Signature) {
         self.bindings.clear();
         for parameter in &signature.inputs {
@@ -285,7 +304,7 @@ impl TimeVisitor<'_> {
                 continue;
             };
             if self.is_unit_named_primitive(&binding.ident, &parameter.ty) {
-                self.spans.push(parameter.span());
+                self.report_unit_suffix(parameter.span());
             }
         }
     }
@@ -303,7 +322,7 @@ impl TimeVisitor<'_> {
             matches!(init.expr.as_ref(), syn::Expr::Lit(literal) if matches!(literal.lit, syn::Lit::Int(_)))
         });
         if integer_literal && Self::has_unit_suffix(&binding.ident) && !self.is_wire_boundary() {
-            self.spans.push(local.span());
+            self.report_unit_suffix(local.span());
         }
     }
 
@@ -561,7 +580,7 @@ impl<'ast> Visit<'ast> for TimeVisitor<'_> {
                 .iter()
                 .any(|argument| self.local_instant(argument))
         {
-            self.spans.push(call.span());
+            self.report_used_instant(call.span());
         }
         syn::visit::visit_expr_method_call(self, call);
     }
@@ -569,7 +588,7 @@ impl<'ast> Visit<'ast> for TimeVisitor<'_> {
     fn visit_expr_struct(&mut self, expression: &'ast syn::ExprStruct) {
         for field in &expression.fields {
             if self.local_instant(&field.expr) {
-                self.spans.push(field.span());
+                self.report_used_instant(field.span());
             }
         }
         syn::visit::visit_expr_struct(self, expression);
@@ -584,7 +603,7 @@ impl<'ast> Visit<'ast> for TimeVisitor<'_> {
         if (logging || self.is_formatting_macro(&item.path))
             && self.logs_instant(item.tokens.clone())
         {
-            self.spans.push(item.span());
+            self.report_used_instant(item.span());
         }
     }
     fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
@@ -609,8 +628,10 @@ impl<'ast> Visit<'ast> for TimeVisitor<'_> {
                 .ident
                 .as_ref()
                 .is_some_and(|ident| self.is_unit_named_primitive(ident, &field.ty));
-        if self.instant(&field.ty) || is_unit_named {
-            self.spans.push(field.span());
+        if self.instant(&field.ty) {
+            self.report_instant(field.span());
+        } else if is_unit_named {
+            self.report_unit_suffix(field.span());
         }
         syn::visit::visit_field(self, field);
     }
@@ -633,38 +654,49 @@ impl<'ast> Visit<'ast> for TimeVisitor<'_> {
         if let syn::ReturnType::Type(_, typed) = returned
             && self.instant(typed)
         {
-            self.spans.push(returned.span());
+            self.report_instant(returned.span());
         }
         syn::visit::visit_return_type(self, returned);
     }
 
     fn visit_item_const(&mut self, item: &'ast syn::ItemConst) {
         if self.is_unit_named_primitive(&item.ident, &item.ty) {
-            self.spans.push(item.span());
+            self.report_unit_suffix(item.span());
         }
         syn::visit::visit_item_const(self, item);
     }
 
     fn visit_item_static(&mut self, item: &'ast syn::ItemStatic) {
         if self.is_unit_named_primitive(&item.ident, &item.ty) {
-            self.spans.push(item.span());
+            self.report_unit_suffix(item.span());
         }
         syn::visit::visit_item_static(self, item);
     }
 
     fn visit_impl_item_const(&mut self, item: &'ast syn::ImplItemConst) {
         if self.is_unit_named_primitive(&item.ident, &item.ty) {
-            self.spans.push(item.span());
+            self.report_unit_suffix(item.span());
         }
         syn::visit::visit_impl_item_const(self, item);
     }
 
     fn visit_trait_item_const(&mut self, item: &'ast syn::TraitItemConst) {
         if self.is_unit_named_primitive(&item.ident, &item.ty) {
-            self.spans.push(item.span());
+            self.report_unit_suffix(item.span());
         }
         syn::visit::visit_trait_item_const(self, item);
     }
+}
+
+struct TimeViolation {
+    span: proc_macro2::Span,
+    message: &'static str,
+}
+
+struct LocalBinding {
+    name: String,
+    is_instant: bool,
+    is_sender: bool,
 }
 
 impl Rule for TimePrimitive {
@@ -694,15 +726,20 @@ impl Rule for TimePrimitive {
                     context,
                     ordinal,
                     module: module.id,
-                    spans: Vec::new(),
+                    violations: Vec::new(),
                     bindings: Vec::new(),
                     in_serde_entry_type: false,
                     in_trait_impl: false,
                 };
                 visitor.visit_file(&file.syntax);
-                for span in visitor.spans {
-                    findings.push(build_node_finding("TimePrimitive", &file.path, find_node_span(span),
-                format_module_path(&index.crate_name, &file.module.path), "Keep Instant process-local; represent time constants as Duration (time-api.rs.md)".to_owned()));
+                for violation in visitor.violations {
+                    findings.push(build_node_finding(
+                        "TimePrimitive",
+                        &file.path,
+                        find_node_span(violation.span),
+                        format_module_path(&index.crate_name, &file.module.path),
+                        violation.message.to_owned(),
+                    ));
                 }
             }
         }

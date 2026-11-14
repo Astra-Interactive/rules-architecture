@@ -6,6 +6,20 @@ use crate::test::module::util::read_placement_context;
 use crate::test::module::util::read_shape_context;
 
 #[test]
+fn given_foreign_block_in_an_entry_point_root_when_checked_then_the_message_lists_every_allowed_block()
+ {
+    let mut context =
+        read_shape_context("mod command {}\nmod di {}\nmod model {}\nmod error {}", &[]);
+    context.project_config.crates[0].role = Some(crate::config::model::Role::EntryPoint);
+    let findings = EntryPointShape.check(&context);
+    assert_eq!(1, findings.len(), "{findings:?}");
+    assert_eq!(
+        "an entry-point root holds only di, model, error and its fixture and test blocks (arch-package.md, Units 1)",
+        findings[0].finding.message
+    );
+}
+
+#[test]
 fn given_cdylib_host_items_when_checked_then_only_hidden_configured_host_reports() {
     let mut context = read_shape_context("fn start_host() {} pub fn shutdown_host() {}", &[]);
     context.project_config.crates[0].role = Some(crate::config::model::Role::EntryPoint);

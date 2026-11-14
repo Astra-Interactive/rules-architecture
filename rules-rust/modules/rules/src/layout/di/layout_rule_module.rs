@@ -2,7 +2,7 @@ use crate::check::api::Rule;
 use crate::layout::rule::{
     ContainerSources, CrateTargets, NestedUnit, PlatformSourceSetUnit, PluginImplUnit,
     ProjectDirMatchesPath, PublishedVersion, RootBuildSubprojects, RootPackagePath, RootSources,
-    ShellAutomation, UnitPath, XtaskAlias,
+    UnitPath,
 };
 use std::sync::Arc;
 
@@ -23,8 +23,6 @@ impl LayoutRuleModule {
             Arc::new(UnitPath),
             Arc::new(RootPackagePath),
             Arc::new(PublishedVersion),
-            Arc::new(XtaskAlias),
-            Arc::new(ShellAutomation),
             Arc::new(PlatformSourceSetUnit),
             Arc::new(PluginImplUnit),
         ];
@@ -38,8 +36,6 @@ impl LayoutRuleModule {
             "UnitPath",
             "RootPackagePath",
             "PublishedVersion",
-            "XtaskAlias",
-            "ShellAutomation",
             "PlatformSourceSetUnit",
             "PluginImplUnit",
         ];
