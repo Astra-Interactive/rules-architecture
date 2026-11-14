@@ -8,16 +8,39 @@ use crate::module::util::{
 };
 use crate::source::model::{CfgPredicate, CrateIndex, IndexedImpl, SourceTree};
 use crate::source::util::find_node_span;
+use crate::source::util::list_format_captures;
+use proc_macro2::{TokenStream, TokenTree};
+use quote::ToTokens;
 use syn::spanned::Spanned;
 use syn::{FnArg, ImplItem, Item, Type};
 
 pub(crate) struct UtilShape;
 
 impl UtilShape {
-    fn holds_function(index: &CrateIndex, module: usize, file: &str) -> bool {
-        index.items.iter().any(|item| {
-            item.module == module && item.file == file && matches!(item.syntax, Item::Fn(_))
+    fn mentions_name(tokens: TokenStream, name: &str) -> bool {
+        tokens.into_iter().any(|token| match token {
+            TokenTree::Ident(identifier) => identifier == name,
+            TokenTree::Group(group) => Self::mentions_name(group.stream(), name),
+            TokenTree::Literal(literal) => list_format_captures(&literal.to_string())
+                .iter()
+                .any(|captured| captured == name),
+            TokenTree::Punct(_) => false,
         })
+    }
+
+    fn is_used_by_behaviour(index: &CrateIndex, module: usize, file: &str, name: &str) -> bool {
+        let used_by_function = index.items.iter().any(|item| {
+            item.module == module
+                && item.file == file
+                && matches!(item.syntax, Item::Fn(_))
+                && Self::mentions_name(item.syntax.to_token_stream(), name)
+        });
+        let used_by_implementation = index.implementations.iter().any(|implementation| {
+            implementation.module == module
+                && implementation.file == file
+                && Self::mentions_name(implementation.syntax.to_token_stream(), name)
+        });
+        used_by_function || used_by_implementation
     }
 }
 
@@ -160,7 +183,7 @@ impl Rule for UtilShape {
                         | Item::Static(_)
                 );
                 let file_constant = matches!(item.syntax, Item::Const(_) | Item::Static(_))
-                    && Self::holds_function(index, item.module, &item.file);
+                    && Self::is_used_by_behaviour(index, item.module, &item.file, &item.name);
                 let util = find_kind_name(context, ordinal, item.module) == "util";
                 if data && !file_constant && util {
                     findings.push(build_shape_item_finding(index, item, "UtilShape", "util holds functions and extension implementations, never data declarations"));

@@ -17,6 +17,7 @@ pub mod check {
         pub(crate) use rule_context::RuleContext;
         pub(crate) use rule_finding::RuleFinding;
         pub use rule_id::RuleId;
+        pub(crate) use workspace_argument_error::WorkspaceArgumentError;
         mod accepted_exception;
         mod anchor;
         mod api_ownership_report;
@@ -28,10 +29,15 @@ pub mod check {
         mod rule_context;
         mod rule_finding;
         mod rule_id;
+        mod workspace_argument_error;
     }
     pub mod usecase {
         pub use check_workspace_use_case::CheckWorkspaceUseCase;
         mod check_workspace_use_case;
+    }
+    pub mod command {
+        pub use check_workspace_command::run_check_workspace_command;
+        mod check_workspace_command;
     }
     pub(crate) mod util {
         pub(crate) use api_ownership_build::build_api_ownership;
@@ -40,12 +46,14 @@ pub mod check {
         pub(crate) use rule_finding_build::build_node_finding;
         pub(crate) use rule_finding_build::format_module_path;
         pub(crate) use unanalysable_findings::build_unanalysable_findings;
+        pub(crate) use workspace_argument_parse::parse_workspace_directory;
         mod api_ownership_build;
         mod report_build;
         mod report_ext;
         mod rule_context_ext;
         mod rule_finding_build;
         mod unanalysable_findings;
+        mod workspace_argument_parse;
         mod workspace_type_query;
     }
     pub(crate) mod file {
@@ -238,9 +246,11 @@ pub(crate) mod source {
         pub(crate) use comment_scan::scan_comments;
         pub(crate) use derive_attribute::list_derive_paths;
         pub(crate) use expression_attribute::find_expression_attributes;
+        pub(crate) use format_captures::list_format_captures;
         pub(crate) use macro_arguments::parse_macro_arguments;
         pub(crate) use macro_arguments::parse_macro_expressions;
         pub(crate) use macro_arguments::parse_select_parts;
+        pub(crate) use macro_arguments::try_parse_macro_arguments;
         pub(crate) use macro_arguments::visit_macro_body;
         pub(crate) use select_arguments::parse_select_arguments;
         pub(crate) use syntax_record::find_declared_visibility;
@@ -251,17 +261,20 @@ pub(crate) mod source {
         pub(crate) use target_predicate::find_single_target_value;
         pub(crate) use target_predicate::list_manifest_target_values;
         pub(crate) use target_predicate::list_target_values;
+        pub(crate) use unlinked_item_macro::is_unlinked_item_macro;
         mod cfg_predicate_ext;
         mod comment_scan;
         mod crate_index_ext;
         mod derive_attribute;
         mod expression_attribute;
         mod external_path_ext;
+        mod format_captures;
         mod macro_arguments;
         mod node_span_ext;
         mod select_arguments;
         mod syntax_record;
         mod target_predicate;
+        mod unlinked_item_macro;
         mod workspace_name_index_ext;
     }
     pub(crate) mod syn {
@@ -601,6 +614,7 @@ pub(crate) mod module {
             find_kind_name, find_shape_visibility, find_type_path, format_shape_subject,
             implements_crate_trait, list_shape_words, resolve_shape_type,
         };
+        pub(crate) use source_mirror::find_mirrored_source_path;
         pub(crate) use type_ownership::{
             declaration_owner, exclusive_field_owner, field_owners, has_type_behaviour,
             is_used_beside_its_field_owner,
@@ -612,6 +626,7 @@ pub(crate) mod module {
         mod registration_shape;
         mod returned_type_use;
         mod shape_inspect;
+        mod source_mirror;
         mod type_ownership;
         mod workspace_visibility;
 
@@ -677,6 +692,9 @@ pub(crate) mod module {
         pub(crate) use root_file_shape::RootFileShape;
         pub(crate) use root_module_construction::RootModuleConstruction;
         pub(crate) use root_module_placement::RootModulePlacement;
+        pub(crate) use scope_call_visitor::ScopeCallVisitor;
+        pub(crate) use scope_origin_visitor::ScopeOriginVisitor;
+        pub(crate) use scope_ownership::ScopeOwnership;
         pub(crate) use system_clock_outside_di::SystemClockOutsideDi;
         pub(crate) use test_attribute_visitor::TestAttributeVisitor;
         pub(crate) use test_mirror::TestMirror;
@@ -757,6 +775,9 @@ pub(crate) mod module {
         mod main_shape_visitor;
         mod root_construction_visitor;
         mod root_module_construction;
+        mod scope_call_visitor;
+        mod scope_origin_visitor;
+        mod scope_ownership;
         mod system_clock_outside_di;
     }
 
@@ -916,12 +937,14 @@ pub(crate) mod declaration {
         mod value_object_shape;
     }
     pub(crate) mod util {
+        pub(crate) use applied_meta::{derives_applied, has_serde_argument, list_applied_metas};
         pub(crate) use callback_field_type::callback_field_type;
         pub(crate) use contract_method_shape::invalid_contract_method;
         pub(crate) use eq_hash_shape::supports_eq_hash;
         pub(crate) use type_shape::{
             derives, has_bound, has_kind, has_standard_bound, is_technology,
         };
+        mod applied_meta;
         mod callback_field_type;
         mod contract_method_shape;
         mod eq_hash_shape;
@@ -1037,6 +1060,7 @@ mod test {
         mod util {
             mod api_ownership_build_test;
             mod report_ext_test;
+            mod workspace_argument_parse_test;
         }
         mod di {
             mod rule_module_test;
@@ -1107,6 +1131,7 @@ mod test {
             pub(crate) use workspace_name_index_test::read_resolution_context;
             mod cfg_predicate_ext_test;
             mod comment_scan_test;
+            mod format_captures_test;
             mod macro_arguments_test;
             mod syntax_record_test;
             mod target_predicate_test;
@@ -1125,6 +1150,7 @@ mod test {
             pub(crate) use resolver_case_test::assert_resolution_cases;
             pub(crate) use shape_inspect_test::{
                 read_binary_shape_context, read_shape_context, read_workspace_shape_context,
+                read_workspace_shape_context_with_files,
             };
             pub(crate) use workspace_provider_test::add_workspace_provider;
             mod di_inspect_test;
@@ -1133,6 +1159,7 @@ mod test {
             mod registration_base_test;
             mod resolver_case_test;
             mod shape_inspect_test;
+            mod source_mirror_test;
             mod workspace_provider_test;
         }
         mod rule {

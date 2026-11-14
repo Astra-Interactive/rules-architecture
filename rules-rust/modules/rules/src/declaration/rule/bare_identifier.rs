@@ -3,7 +3,10 @@ use crate::check::model::RuleContext;
 use crate::check::model::RuleFinding;
 use crate::check::util::build_node_finding;
 use crate::check::util::format_module_path;
+use crate::declaration::util::derives_applied;
+use crate::declaration::util::has_serde_argument;
 use crate::declaration::util::is_technology;
+use crate::declaration::util::list_applied_metas;
 use crate::source::util::find_node_span;
 use syn::ext::IdentExt;
 use syn::spanned::Spanned;
@@ -158,7 +161,7 @@ impl BareIdentifier {
         ordinal: usize,
         module: usize,
         fields: &syn::Fields,
-        spans: &mut Vec<proc_macro2::Span>,
+        sites: &mut Vec<BareSite>,
     ) {
         for field in fields {
             let Some(name) = &field.ident else {
@@ -170,7 +173,10 @@ impl BareIdentifier {
             let is_bare_plural = (name == "ids" || name.ends_with("_ids"))
                 && Self::is_bare_collection(context, ordinal, module, &field.ty);
             if is_bare_single || is_bare_plural {
-                spans.push(field.span());
+                sites.push(BareSite {
+                    span: field.span(),
+                    message: Self::IDENTIFIER_MESSAGE,
+                });
             }
         }
     }
@@ -186,40 +192,65 @@ impl BareIdentifier {
         is_identity_name && is_typed_identifier
     }
 
+    fn is_format_record(attributes: &[syn::Attribute]) -> bool {
+        let metas = list_applied_metas(attributes);
+        let derives_serde =
+            derives_applied(&metas, "Serialize") || derives_applied(&metas, "Deserialize");
+        let is_value_object = has_serde_argument(&metas, &["transparent", "try_from", "from"]);
+        derives_serde && !is_value_object
+    }
+
     fn check_item(
         context: &RuleContext,
         ordinal: usize,
         module: usize,
         item: &syn::Item,
         in_model: bool,
-    ) -> Vec<proc_macro2::Span> {
-        let mut spans = Vec::new();
+    ) -> Vec<BareSite> {
+        let mut sites = Vec::new();
         match item {
             syn::Item::Struct(value) => {
                 let invalid_identifier = value.ident.unraw().to_string().ends_with("Id")
                     && !matches!(&value.fields, syn::Fields::Unnamed(fields) if fields.unnamed.len() == 1);
+                let is_format_record = Self::is_format_record(&value.attrs);
                 let single_property = in_model
+                    && !is_format_record
                     && matches!(&value.fields, syn::Fields::Named(fields)
                         if fields.named.len() == 1 && !fields.named.iter().any(Self::is_identity_field));
-                if invalid_identifier || single_property {
-                    spans.push(value.ident.span());
+                if invalid_identifier {
+                    sites.push(BareSite {
+                        span: value.ident.span(),
+                        message: Self::IDENTIFIER_MESSAGE,
+                    });
+                } else if single_property {
+                    sites.push(BareSite {
+                        span: value.ident.span(),
+                        message: Self::SINGLE_PROPERTY_MESSAGE,
+                    });
                 }
-                Self::check_fields(context, ordinal, module, &value.fields, &mut spans);
+                Self::check_fields(context, ordinal, module, &value.fields, &mut sites);
             }
             syn::Item::Enum(value) => {
                 for variant in &value.variants {
-                    Self::check_fields(context, ordinal, module, &variant.fields, &mut spans);
+                    Self::check_fields(context, ordinal, module, &variant.fields, &mut sites);
                 }
             }
             syn::Item::Type(value)
                 if in_model && value.ident.unraw().to_string().ends_with("Id") =>
             {
-                spans.push(value.ident.span());
+                sites.push(BareSite {
+                    span: value.ident.span(),
+                    message: Self::IDENTIFIER_MESSAGE,
+                });
             }
             _ => {}
         }
-        spans
+        sites
     }
+
+    const IDENTIFIER_MESSAGE: &'static str = "Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)";
+
+    const SINGLE_PROPERTY_MESSAGE: &'static str = "A model struct with one named field is a single-property value object: write it as a tuple struct (arch-domain.rs.md)";
 
     const STANDARD_COLLECTIONS: [&'static str; 4] = ["Vec", "VecDeque", "HashSet", "BTreeSet"];
 
@@ -246,17 +277,35 @@ impl Rule for BareIdentifier {
                 if contract || is_technology(context, index, item.module) {
                     continue;
                 }
-                for span in Self::check_item(
+                for site in Self::check_item(
                     context,
                     ordinal,
                     item.module,
                     &item.syntax,
                     crate::declaration::util::has_kind(index, item.module, "model"),
                 ) {
-                    findings.push(build_node_finding("BareIdentifier", &item.file, find_node_span(span), format!("{}::{}", format_module_path(&index.crate_name, &index.modules[item.module].module.path), item.name), "Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)".to_owned()));
+                    findings.push(build_node_finding(
+                        "BareIdentifier",
+                        &item.file,
+                        find_node_span(site.span),
+                        format!(
+                            "{}::{}",
+                            format_module_path(
+                                &index.crate_name,
+                                &index.modules[item.module].module.path
+                            ),
+                            item.name
+                        ),
+                        site.message.to_owned(),
+                    ));
                 }
             }
         }
         findings
     }
+}
+
+struct BareSite {
+    span: proc_macro2::Span,
+    message: &'static str,
 }

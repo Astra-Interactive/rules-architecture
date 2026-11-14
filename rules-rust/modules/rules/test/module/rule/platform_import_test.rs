@@ -76,6 +76,20 @@ fn given_framework_and_technology_paths_when_checked_then_domains_report_and_bou
 }
 
 #[test]
+fn given_platform_path_in_test_and_fixture_trees_when_checked_then_only_the_source_tree_reports() {
+    let context = read_import_context(
+        "mod model {\n use host_api::Context;\n}\n#[cfg(test)]\nmod test {\n mod model {\n use host_api::Context;\n }\n}\n#[cfg(any(test, feature = \"fake\"))]\npub mod fixture {\n pub mod model {\n use host_api::Context;\n }\n}",
+        Role::Context,
+        &["host"],
+        &[],
+        "app",
+    );
+    let findings = PlatformImport.check(&context);
+    assert_eq!(1, findings.len(), "{findings:?}");
+    assert_eq!(Some(2), findings[0].finding.location.line);
+}
+
+#[test]
 fn given_empty_platform_words_when_checked_then_technology_paths_still_report_and_local_names_are_distinct()
  {
     let context = read_import_context(

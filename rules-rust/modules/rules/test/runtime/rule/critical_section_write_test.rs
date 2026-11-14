@@ -96,6 +96,94 @@ fn given_write_followed_by_returned_value_when_checked_then_does_not_treat_the_t
 }
 
 #[test]
+fn given_write_followed_by_a_field_of_a_value_computed_before_it_when_checked_then_the_tail_is_a_returned_value()
+ {
+    let prefix = "struct Emptied { menus: Vec<u32>, screens: Vec<u32> }\nfn compute(open: &[u32]) -> Emptied { Emptied { menus: Vec::new(), screens: open.to_vec() } }\n";
+    for tail in ["emptied.screens", "return emptied.screens;"] {
+        let source = format!(
+            "{prefix}fn run(gate: parking_lot::Mutex<Vec<u32>>) -> Vec<u32> {{\n    let mut open = gate.lock();\n    let emptied = compute(&open);\n    *open = emptied.menus;\n    {tail}\n}}"
+        );
+        assert_code_findings(&CriticalSectionWrite, "CriticalSectionWrite", &source, &[]);
+    }
+}
+
+#[test]
+fn given_write_followed_by_a_call_or_a_second_write_or_a_statement_when_checked_then_the_section_is_still_reported()
+ {
+    let prefix = "struct Emptied { menus: Vec<u32>, screens: Vec<u32> }\nfn compute(open: &[u32]) -> Emptied { Emptied { menus: Vec::new(), screens: open.to_vec() } }\nfn notify() {}\n";
+    for tail in [
+        "emptied.screens.clone()",
+        "return emptied.screens.clone();",
+        "compute(&open).screens",
+        "*open = emptied.screens;\n    emptied.screens",
+        "notify();\n    emptied.screens",
+    ] {
+        let source = format!(
+            "{prefix}fn run(gate: parking_lot::Mutex<Vec<u32>>) -> Vec<u32> {{\n    let mut open = gate.lock();\n    let emptied = compute(&open);\n    *open = emptied.menus;\n    {tail}\n}}"
+        );
+        assert_code_findings(&CriticalSectionWrite, "CriticalSectionWrite", &source, &[5]);
+    }
+}
+
+#[test]
+fn given_write_followed_by_a_literal_or_a_typed_local_when_checked_then_the_tail_is_a_returned_value()
+ {
+    for tail in ["0", "return 0;", "next", "return next;"] {
+        let source = format!(
+            "fn run(gate: parking_lot::Mutex<u32>) -> u32 {{\n    let mut guard = gate.lock();\n    let next: u32 = 1;\n    *guard = next;\n    {tail}\n}}"
+        );
+        assert_code_findings(&CriticalSectionWrite, "CriticalSectionWrite", &source, &[]);
+    }
+}
+
+#[test]
+fn given_write_followed_by_a_tail_that_only_names_a_value_when_checked_then_the_tail_is_a_returned_value()
+ {
+    let prefix = "const LIMIT: u32 = 3;\nstruct Holder { total: u32 }\nenum Kind { Idle }\nstruct Emptied { menus: Vec<u32>, screens: Vec<u32> }\nfn compute(open: &[u32]) -> Emptied { Emptied { menus: Vec::new(), screens: open.to_vec() } }\n";
+    for body in [
+        "fn run(gate: parking_lot::Mutex<u32>, value: u32) -> u32 {\n    let mut guard = gate.lock();\n    *guard = value;\n    value\n}",
+        "fn run(gate: parking_lot::Mutex<u32>, value: u32) -> u32 {\n    let mut guard = gate.lock();\n    *guard = value;\n    return value;\n}",
+        "fn run(gate: parking_lot::Mutex<u32>) -> u32 {\n    let next = 1;\n    let mut guard = gate.lock();\n    *guard = next;\n    next\n}",
+        "fn run(gate: parking_lot::Mutex<u32>) -> u32 {\n    let next = 1;\n    let mut guard = gate.lock();\n    *guard = next;\n    return next;\n}",
+        "fn run(gate: parking_lot::Mutex<Option<u32>>) -> Option<u32> {\n    let mut guard = gate.lock();\n    *guard = Some(1);\n    None\n}",
+        "fn run(gate: parking_lot::Mutex<Option<u32>>) -> Option<u32> {\n    let mut guard = gate.lock();\n    *guard = Some(1);\n    return None;\n}",
+        "fn run(gate: parking_lot::Mutex<u32>) -> Kind {\n    let mut guard = gate.lock();\n    *guard = 1;\n    Kind::Idle\n}",
+        "fn run(gate: parking_lot::Mutex<Vec<u32>>) -> Vec<u32> {\n    let mut open = gate.lock();\n    let Emptied { menus, screens } = compute(&open);\n    *open = menus;\n    screens\n}",
+        "fn run(gate: parking_lot::Mutex<Vec<u32>>) -> Vec<u32> {\n    let mut open = gate.lock();\n    let (menus, screens) = (Vec::new(), open.to_vec());\n    *open = menus;\n    return screens;\n}",
+        "fn run(gate: parking_lot::Mutex<i32>) -> i32 {\n    let mut guard = gate.lock();\n    *guard = 1;\n    -1\n}",
+        "fn run(gate: parking_lot::Mutex<i32>) -> i32 {\n    let mut guard = gate.lock();\n    *guard = 1;\n    (0)\n}",
+        "fn run(gate: parking_lot::Mutex<i32>) -> i32 {\n    let mut guard = gate.lock();\n    *guard = 1;\n    return -1;\n}",
+        "fn run(gate: parking_lot::Mutex<u32>) -> u32 {\n    let mut guard = gate.lock();\n    *guard = 1;\n    LIMIT\n}",
+        "fn run(gate: parking_lot::Mutex<u32>, holder: Holder) -> u32 {\n    let mut guard = gate.lock();\n    *guard = 1;\n    holder.total\n}",
+        "fn run(gate: parking_lot::Mutex<u32>, holder: Holder) -> u32 {\n    let mut guard = gate.lock();\n    *guard = 1;\n    return holder.total;\n}",
+    ] {
+        let source = format!("{prefix}{body}");
+        assert_code_findings(&CriticalSectionWrite, "CriticalSectionWrite", &source, &[]);
+    }
+}
+
+#[test]
+fn given_write_followed_by_a_tail_that_computes_when_checked_then_the_section_is_still_reported() {
+    let prefix = "fn compute(values: &[u32]) -> u32 { 0 }\n";
+    for tail in [
+        "next.clone()",
+        "return next.clone();",
+        "compute(&[next])",
+        "return compute(&[next]);",
+        "vec![next]",
+        "{ next }",
+        "[next][0]",
+        "next + 1",
+        "-next.abs()",
+    ] {
+        let source = format!(
+            "{prefix}fn run(gate: parking_lot::Mutex<u32>) -> u32 {{\n    let mut guard = gate.lock();\n    let next = 1;\n    *guard = next;\n    {tail}\n}}"
+        );
+        assert_code_findings(&CriticalSectionWrite, "CriticalSectionWrite", &source, &[3]);
+    }
+}
+
+#[test]
 fn given_normative_runtime_counterexamples_when_checked_then_matches_exact_node_anchors() {
     assert_code_findings(
         &CriticalSectionWrite,

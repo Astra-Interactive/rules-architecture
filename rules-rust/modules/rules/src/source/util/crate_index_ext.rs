@@ -85,6 +85,16 @@ impl CrateIndex {
         path: &[String],
         depth: usize,
     ) -> Resolution {
+        self.resolve_named(module, path, depth, true)
+    }
+
+    fn resolve_named(
+        &self,
+        module: usize,
+        path: &[String],
+        depth: usize,
+        with_values: bool,
+    ) -> Resolution {
         let Some(first) = path.first() else {
             return Resolution::Internal(vec![ResolvedPath {
                 module,
@@ -107,18 +117,18 @@ impl CrateIndex {
                 }
                 return Resolution::Unresolved;
             }
-            "crate" => return self.resolve_member(0, &path[1..], depth),
-            "self" => return self.resolve_member(module, &path[1..], depth),
+            "crate" => return self.resolve_member(0, &path[1..], depth, with_values),
+            "self" => return self.resolve_member(module, &path[1..], depth, with_values),
             "super" => {
                 return self.modules[module]
                     .parent
                     .map_or(Resolution::Unresolved, |parent| {
-                        self.resolve_segments(parent, &path[1..], depth)
+                        self.resolve_named(parent, &path[1..], depth, with_values)
                     });
             }
             _ => {}
         }
-        let local = self.resolve_member(module, path, depth);
+        let local = self.resolve_member(module, path, depth, with_values);
         if local != Resolution::Unresolved {
             return local;
         }
@@ -139,7 +149,7 @@ impl CrateIndex {
         if Self::is_builtin(first) {
             return Resolution::Local;
         }
-        self.resolve_globs(module, path, depth)
+        self.resolve_globs(module, path, depth, with_values)
     }
 
     fn resolve_prelude(path: &[String]) -> Option<Resolution> {
@@ -229,7 +239,13 @@ impl CrateIndex {
         "Future",
     ];
 
-    fn resolve_member(&self, module: usize, path: &[String], depth: usize) -> Resolution {
+    fn resolve_member(
+        &self,
+        module: usize,
+        path: &[String],
+        depth: usize,
+        with_values: bool,
+    ) -> Resolution {
         let Some(first) = path.first() else {
             return Resolution::Internal(vec![ResolvedPath {
                 module,
@@ -244,12 +260,30 @@ impl CrateIndex {
             .map(|child| child.id)
             .collect();
         if !children.is_empty() {
-            return Self::combine(
+            let through_modules = Self::combine(
                 children
                     .into_iter()
-                    .map(|child| self.resolve_member(child, &path[1..], depth)),
+                    .map(|child| self.resolve_member(child, &path[1..], depth, with_values)),
             );
+            if path.len() > 1 || !with_values {
+                return through_modules;
+            }
+            let as_value = self.resolve_declared_member(module, path, depth, with_values);
+            return Self::combine([through_modules, as_value]);
         }
+        self.resolve_declared_member(module, path, depth, with_values)
+    }
+
+    fn resolve_declared_member(
+        &self,
+        module: usize,
+        path: &[String],
+        depth: usize,
+        with_values: bool,
+    ) -> Resolution {
+        let Some(first) = path.first() else {
+            return Resolution::Unresolved;
+        };
         let items: Vec<ResolvedPath> = self
             .items
             .iter()
@@ -272,19 +306,25 @@ impl CrateIndex {
             })
             .collect();
         if imports.is_empty() {
-            return self.resolve_globs(module, path, depth);
+            return self.resolve_globs(module, path, depth, with_values);
         }
         Self::combine(imports.into_iter().map(|binding| {
             let mut target = binding.path.clone();
             target.extend_from_slice(&path[1..]);
             Self::with_predicate(
-                self.resolve_segments(module, &target, depth + 1),
+                self.resolve_named(module, &target, depth + 1, with_values),
                 &binding.cfg,
             )
         }))
     }
 
-    fn resolve_globs(&self, module: usize, path: &[String], depth: usize) -> Resolution {
+    fn resolve_globs(
+        &self,
+        module: usize,
+        path: &[String],
+        depth: usize,
+        with_values: bool,
+    ) -> Resolution {
         let mut results = Vec::new();
         let mut external = false;
         for binding in self
@@ -292,11 +332,11 @@ impl CrateIndex {
             .iter()
             .filter(|binding| binding.module == module && binding.is_glob)
         {
-            match self.resolve_segments(module, &binding.path, depth + 1) {
+            match self.resolve_named(module, &binding.path, depth + 1, false) {
                 Resolution::Internal(targets) => {
                     results.extend(targets.into_iter().map(|target| {
                         Self::with_predicate(
-                            self.resolve_member(target.module, path, depth + 1),
+                            self.resolve_member(target.module, path, depth + 1, with_values),
                             &binding.cfg.and(&target.cfg),
                         )
                     }));

@@ -1,6 +1,6 @@
 LintConfig	clippy.toml	clippy.toml	the required clippy.toml is missing at the workspace root
-BareIdentifier	modules/sample/src/first/model/first.rs:2	case_sample::first::model::first::First	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
+BareIdentifier	modules/sample/src/first/model/first.rs:2	case_sample::first::model::first::First	A model struct with one named field is a single-property value object: write it as a tuple struct (arch-domain.rs.md)
 ModuleVisibility	modules/sample/src/lib.rs:1	case_sample::first	module visibility must be Crate (arch-package.rs.md, Modules and directories)
 PackageDependencyCycle	modules/sample/src/lib.rs:3	first::model <-> second::model	first::model -> second::model::second at modules/sample/src/lib.rs:3; second::model -> first::model::first at modules/sample/src/lib.rs:10
 ModuleVisibility	modules/sample/src/lib.rs:8	case_sample::second	module visibility must be Crate (arch-package.rs.md, Modules and directories)
-BareIdentifier	modules/sample/src/second/model/second.rs:2	case_sample::second::model::second::Second	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
+BareIdentifier	modules/sample/src/second/model/second.rs:2	case_sample::second::model::second::Second	A model struct with one named field is a single-property value object: write it as a tuple struct (arch-domain.rs.md)

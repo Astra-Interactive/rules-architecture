@@ -31,6 +31,12 @@ pub(crate) mod invoice {
         mod invoice_id;
     }
 }
+pub(crate) mod lifecycle {
+    pub(crate) mod api {
+        pub(crate) use lifecycle::Lifecycle;
+        mod lifecycle;
+    }
+}
 pub(crate) mod reminder {
     pub(crate) mod di {
         pub(crate) use reminder_module::ReminderModule;

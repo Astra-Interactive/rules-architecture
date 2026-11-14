@@ -1,0 +1,34 @@
+name: "Validate Rust version is changed"
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  version_changed:
+    name: "Validate klibs-rules version is changed"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Checkout base branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.base_ref }}
+          path: base
+      - name: Check the klibs-rules version is changed
+        shell: bash
+        run: |
+          read_version() {
+            cargo metadata --no-deps --format-version 1 --manifest-path "$1" \
+              | jq -r '.packages[] | select(.name == "klibs-rules") | .version'
+          }
+          BASE_VERSION=$(read_version base/rules-rust/Cargo.toml)
+          CURRENT_VERSION=$(read_version rules-rust/Cargo.toml)
+          echo "Base version: ${BASE_VERSION}"
+          echo "Current version: ${CURRENT_VERSION}"
+          if [ -z "${CURRENT_VERSION}" ] || [ "${CURRENT_VERSION}" = "${BASE_VERSION}" ]; then
+            echo "::error file=rules-rust/modules/rules/Cargo.toml::The klibs-rules version is not changed (still ${CURRENT_VERSION}). Bump the version before merging."
+            exit 1
+          fi

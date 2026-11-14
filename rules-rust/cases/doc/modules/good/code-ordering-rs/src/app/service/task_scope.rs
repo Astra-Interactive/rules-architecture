@@ -10,4 +10,6 @@ impl TaskScope {
     pub(crate) fn name(&self) -> &str {
         &self.name
     }
+
+    pub(crate) fn abort(&self) {}
 }

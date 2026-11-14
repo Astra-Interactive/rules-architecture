@@ -229,6 +229,59 @@ impl KindImportDirection {
                 && context.is_entry_kind(crate_name, target_name))
     }
 
+    fn is_replaced_contract(context: &RuleContext, ordinal: usize, edge: &SourceEdge) -> bool {
+        let index = &context.indexes[ordinal];
+        let Some(identity) = edge.item else {
+            return false;
+        };
+        let item = &index.items[identity];
+        let kind = crate::module::util::find_kind_name(context, ordinal, item.module);
+        let is_contract =
+            matches!(item.syntax, syn::Item::Trait(_)) && ["api", "di"].contains(&kind);
+        is_contract
+            && index
+                .implementations
+                .iter()
+                .filter(|implementation| implementation.file == edge.file)
+                .filter_map(|implementation| {
+                    let (path, _) = implementation.syntax.trait_.as_ref()?;
+                    Some(context.resolve_workspace_path(ordinal, implementation.module, path))
+                })
+                .any(|targets| {
+                    targets
+                        .iter()
+                        .any(|target| target.index == ordinal && target.path.item == Some(identity))
+                })
+    }
+
+    fn is_own_concept_memory(index: &CrateIndex, source: usize, target: usize) -> bool {
+        let source = &index.modules[source];
+        let target = &index.modules[target];
+        let [_, concept @ .., _] = source.module.path.as_slice() else {
+            return false;
+        };
+        let [owner @ .., kind] = target.module.path.as_slice() else {
+            return false;
+        };
+        let owner = match (target.tree, owner) {
+            (SourceTree::Test, [_, concept_path @ ..]) => concept_path,
+            (SourceTree::Src, concept_path) => concept_path,
+            _ => return false,
+        };
+        source.tree == SourceTree::Test && kind == "memory" && owner == concept
+    }
+
+    fn is_fake_target_allowed(
+        index: &CrateIndex,
+        source: usize,
+        target: usize,
+        target_name: &str,
+    ) -> bool {
+        ["api", "model", "util"].contains(&target_name)
+            || (target_name == "fake" && index.modules[target].tree != SourceTree::Src)
+            || Self::is_own_concept_memory(index, source, target)
+    }
+
     fn is_kind_pair_allowed(
         context: &RuleContext,
         ordinal: usize,
@@ -252,6 +305,9 @@ impl KindImportDirection {
         if source_name == "di" {
             return true;
         }
+        if source_name == "fake" && Self::is_replaced_contract(context, ordinal, edge) {
+            return true;
+        }
         if target_name == "di" {
             return false;
         }
@@ -270,7 +326,7 @@ impl KindImportDirection {
                             || Self::is_factory_import(index, edge)))
             }
             "usecase" => ["api", "model", "util"].contains(&target_name) || is_role_target,
-            "fake" => ["api", "model", "util"].contains(&target_name),
+            "fake" => Self::is_fake_target_allowed(index, source, target, target_name),
             "util" => {
                 ["model", "util"].contains(&target_name)
                     || (target_name == "api" && !Self::is_trait_edge(index, edge))

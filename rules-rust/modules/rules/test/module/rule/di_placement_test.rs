@@ -21,6 +21,27 @@ fn given_contracts_only_crate_when_checked_then_di_block_is_reported_but_impleme
 }
 
 #[test]
+fn given_module_named_fakes_in_test_and_fixture_trees_when_checked_then_only_the_src_tree_is_judged()
+ {
+    let context = read_shape_context(
+        "#[cfg(test)]\nmod test { mod flow { pub(crate) struct FakeWiringModule; impl FakeWiringModule { pub(crate) fn new() -> Self { Self } } } }\n#[cfg(any(test, feature = \"fake\"))]\npub mod fixture { pub mod host { pub mod fake { pub struct FakeHostModule; impl FakeHostModule { pub fn new() -> Self { Self } } } } }",
+        &[],
+    );
+    let findings = DiPlacement.check(&context);
+    assert!(findings.is_empty(), "{findings:?}");
+    let context = read_shape_context(
+        "mod flow { pub struct WiringModule; impl WiringModule { pub fn new() -> Self { Self } } }",
+        &[],
+    );
+    let findings = DiPlacement.check(&context);
+    assert_eq!(1, findings.len(), "{findings:?}");
+    assert_eq!(
+        "case_sample::flow::WiringModule",
+        findings[0].finding.subject
+    );
+}
+
+#[test]
 fn given_declaration_shapes_when_checked_then_exact_wrong_sites_report_and_correct_shapes_pass() {
     let context = read_case_context("DiPlacement", "fail-declaration-shape");
     let mut actual: Vec<String> = DiPlacement

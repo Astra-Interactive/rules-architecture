@@ -5,9 +5,12 @@ use crate::config::model::Role;
 use crate::module::rule::ContractPlacement;
 use crate::module::util::build_shape_item_finding;
 use crate::module::util::build_shape_module_finding;
+use crate::module::util::external_trait;
+use crate::module::util::find_kind_name;
+use crate::module::util::find_mirrored_source_path;
 use crate::module::util::format_shape_subject;
 use crate::module::util::resolve_shape_type;
-use crate::source::model::{IndexedItem, IndexedModule, SourceFile, SourceTree};
+use crate::source::model::{IndexedImpl, IndexedItem, IndexedModule, SourceFile, SourceTree};
 use crate::source::util::find_node_span;
 use syn::Item;
 use syn::ext::IdentExt;
@@ -44,6 +47,31 @@ impl KindShape {
         )
     }
 
+    fn implements_contract(
+        context: &RuleContext,
+        ordinal: usize,
+        implementation: &IndexedImpl,
+    ) -> bool {
+        let Some((path, _)) = &implementation.syntax.trait_ else {
+            return false;
+        };
+        let workspace = context.resolve_workspace_path(ordinal, implementation.module, path);
+        if !workspace.is_empty() {
+            return workspace.iter().any(|target| {
+                target.path.item.is_some_and(|identity| {
+                    let contract = &context.indexes[target.index].items[identity];
+                    matches!(contract.syntax, Item::Trait(_))
+                        && find_kind_name(context, target.index, contract.module) == "api"
+                })
+            });
+        }
+        external_trait(context, ordinal, implementation).is_some_and(|path| {
+            let identity = context.resolve_external_identity(ordinal, &path);
+            context.is_platform_identity(&identity)
+                || context.is_technology_identity(ordinal, &identity)
+        })
+    }
+
     fn is_implementation_file(context: &RuleContext, ordinal: usize, module: usize) -> bool {
         if !Self::is_mixed_unit(context, ordinal) {
             return false;
@@ -55,11 +83,17 @@ impl KindShape {
         let implemented: std::collections::BTreeSet<usize> = index
             .implementations
             .iter()
-            .filter(|implementation| implementation.syntax.trait_.is_some())
+            .filter(|implementation| Self::implements_contract(context, ordinal, implementation))
             .filter(|implementation| {
-                resolve_shape_type(index, implementation.module, &implementation.syntax.self_ty)
-                    .iter()
-                    .any(|target| index.items[*target].module == implementation.module)
+                let targets = resolve_shape_type(
+                    index,
+                    implementation.module,
+                    &implementation.syntax.self_ty,
+                );
+                targets.is_empty()
+                    || targets
+                        .iter()
+                        .any(|target| index.items[*target].module == implementation.module)
             })
             .map(|implementation| implementation.module)
             .collect();
@@ -96,6 +130,44 @@ impl KindShape {
             }
         }
         used_by_implementation
+    }
+
+    fn is_accepted_concept_file(
+        context: &RuleContext,
+        ordinal: usize,
+        file_module: &IndexedModule,
+    ) -> bool {
+        if file_module.tree == SourceTree::Src {
+            return Self::is_implementation_file(context, ordinal, file_module.id);
+        }
+        let index = &context.indexes[ordinal];
+        let Some(member) = context
+            .workspace
+            .members
+            .iter()
+            .find(|member| member.name == index.crate_name)
+        else {
+            return false;
+        };
+        if file_module.tree == SourceTree::Fixture {
+            return false;
+        }
+        let Some(mirrored) = find_mirrored_source_path(&member.directory, &file_module.file) else {
+            return false;
+        };
+        context
+            .indexes
+            .iter()
+            .enumerate()
+            .filter(|(_, twin_index)| twin_index.crate_name == index.crate_name)
+            .any(|(twin_ordinal, twin_index)| {
+                twin_index
+                    .modules
+                    .iter()
+                    .filter(|module| module.tree == SourceTree::Src && module.is_file_module)
+                    .filter(|module| module.file == mirrored)
+                    .any(|module| Self::is_implementation_file(context, twin_ordinal, module.id))
+            })
     }
 
     fn holds_only_state_holders(
@@ -333,7 +405,7 @@ impl KindShape {
             sites.extend(
                 files
                     .iter()
-                    .filter(|child| !Self::is_implementation_file(context, ordinal, child.id))
+                    .filter(|child| !Self::is_accepted_concept_file(context, ordinal, child))
                     .map(|child| ShapeSite {
                         module: child.id,
                         message: "a concept holds kind blocks; files live in a named kind",

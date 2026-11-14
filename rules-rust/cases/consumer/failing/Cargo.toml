@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["modules/invoice", "xtask"]
+members = ["modules/invoice"]
 
 [workspace.metadata.klibs-rules]
 product-kind = "app"

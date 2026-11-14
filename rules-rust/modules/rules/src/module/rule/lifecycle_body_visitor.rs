@@ -13,6 +13,7 @@ pub(crate) struct LifecycleBodyVisitor<'scope> {
     scopes: &'scope [String],
     task_scopes: &'scope [String],
     shared: &'scope [String],
+    runtime_handles: &'scope [String],
     pub(crate) invalid: bool,
     pub(crate) aborted: BTreeSet<String>,
     pub(crate) child_lifecycle: bool,
@@ -35,6 +36,7 @@ impl LifecycleBodyVisitor<'_> {
             scopes,
             task_scopes,
             shared,
+            runtime_handles,
         } = fields;
         let mut visitor = LifecycleBodyVisitor {
             context,
@@ -45,6 +47,7 @@ impl LifecycleBodyVisitor<'_> {
             scopes,
             task_scopes,
             shared,
+            runtime_handles,
             invalid: false,
             aborted: BTreeSet::new(),
             child_lifecycle: false,
@@ -260,6 +263,29 @@ impl LifecycleBodyVisitor<'_> {
             && call.method == "spawn"
             && Self::field(&call.receiver).is_some_and(|field| self.task_scopes.contains(&field))
     }
+
+    fn find_runtime_shutdown<'call>(
+        &self,
+        call: &'call syn::ExprMethodCall,
+    ) -> Option<&'call syn::ExprMethodCall> {
+        let is_on_handle = self.method == "on_disable"
+            && call.method == "block_on"
+            && Self::field(&call.receiver)
+                .is_some_and(|field| self.runtime_handles.contains(&field));
+        if !is_on_handle || call.args.len() != 1 {
+            return None;
+        }
+        let Some(syn::Expr::MethodCall(closing)) = call.args.first() else {
+            return None;
+        };
+        Self::field(&closing.receiver).map(|_| closing)
+    }
+
+    fn is_own_scope_reload(&self, call: &syn::ExprMethodCall) -> bool {
+        self.method == "on_reload"
+            && call.method == "reload"
+            && Self::field(&call.receiver).is_some_and(|field| self.scopes.contains(&field))
+    }
 }
 
 impl<'ast> Visit<'ast> for LifecycleBodyVisitor<'_> {
@@ -283,6 +309,18 @@ impl<'ast> Visit<'ast> for LifecycleBodyVisitor<'_> {
 
     fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
         if self.is_own_task_start(call) {
+            return;
+        }
+        if let Some(closing) = self.find_runtime_shutdown(call) {
+            for argument in &closing.args {
+                self.visit_expr(argument);
+            }
+            return;
+        }
+        if self.is_own_scope_reload(call) {
+            for argument in &call.args {
+                self.visit_expr(argument);
+            }
             return;
         }
         let name = call.method.to_string();
@@ -315,4 +353,5 @@ pub(crate) struct LifecycleFields<'scope> {
     pub(crate) scopes: &'scope [String],
     pub(crate) task_scopes: &'scope [String],
     pub(crate) shared: &'scope [String],
+    pub(crate) runtime_handles: &'scope [String],
 }

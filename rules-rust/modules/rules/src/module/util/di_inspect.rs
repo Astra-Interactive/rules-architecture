@@ -274,6 +274,11 @@ pub(crate) fn workspace_implementation_under(
             return false;
         };
         crate::module::util::owns_implementation(index, identity, implementation)
+            && !["model", "di"].contains(&find_kind_name(
+                context,
+                ordinal,
+                index.items[identity].module,
+            ))
             && context
                 .resolve_workspace_path(ordinal, implementation.module, path)
                 .iter()

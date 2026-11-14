@@ -2,6 +2,7 @@ use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
 use crate::module::rule::PlacementTypeVisitor;
 use crate::module::util::{build_shape_item_finding, build_shape_module_finding, find_kind_name};
+use crate::source::model::SourceTree;
 
 pub(crate) struct DiPlacement;
 
@@ -176,6 +177,7 @@ impl Rule for DiPlacement {
         for (ordinal, index) in context.indexes.iter().enumerate() {
             for (identity, item) in index.items.iter().enumerate() {
                 if item.name.ends_with("Module")
+                    && index.modules[item.module].tree == SourceTree::Src
                     && find_kind_name(context, ordinal, item.module) != "di"
                     && Self::has_module_shape(context, ordinal, identity)
                 {

@@ -1,3 +1,4 @@
+use crate::lifecycle::api::Lifecycle;
 use crate::reminder::service::{InvoiceReminder, TaskScope};
 use std::sync::Arc;
 
@@ -17,5 +18,13 @@ impl ReminderModule {
     pub(crate) fn start_reminder(&self) {
         let reminder = Arc::clone(&self.invoice_reminder);
         self.task_scope.spawn(async move { reminder.run().await });
+    }
+}
+
+impl Lifecycle for ReminderModule {
+    fn on_enable(&self) {}
+
+    fn on_disable(&self) {
+        self.task_scope.abort();
     }
 }

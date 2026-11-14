@@ -1139,6 +1139,29 @@ impl TypedRuntimeVisitor<'_> {
         self.receiver_has(receiver, &["tokio::sync::Mutex", "tokio::sync::RwLock"])
     }
 
+    fn names_value(expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Lit(_) | syn::Expr::Path(_) => true,
+            syn::Expr::Paren(paren) => Self::names_value(&paren.expr),
+            syn::Expr::Unary(unary) => {
+                matches!(unary.op, syn::UnOp::Neg(_)) && Self::names_value(&unary.expr)
+            }
+            syn::Expr::Field(field) => Self::names_value(&field.base),
+            _ => false,
+        }
+    }
+
+    fn has_tail_value(statements: &[syn::Stmt]) -> bool {
+        match statements.last() {
+            Some(syn::Stmt::Expr(syn::Expr::Return(returned), _)) => returned
+                .expr
+                .as_ref()
+                .is_some_and(|value| Self::names_value(value)),
+            Some(syn::Stmt::Expr(value, None)) => Self::names_value(value),
+            _ => false,
+        }
+    }
+
     fn check_guard_tail(
         &mut self,
         local: &syn::Local,
@@ -1166,13 +1189,7 @@ impl TypedRuntimeVisitor<'_> {
                 .map(|statement| GuardWrites::count(statement, name, &collections, &aliases))
                 .collect::<Vec<_>>();
             let count = writes.iter().sum::<usize>();
-            let tail_value = usize::from(
-                matches!(
-                    following.last(),
-                    Some(syn::Stmt::Expr(syn::Expr::Path(_), None))
-                ) || matches!(following.last(), Some(syn::Stmt::Expr(syn::Expr::Return(returned), _))
-                    if returned.expr.as_ref().is_some_and(|value| matches!(&**value, syn::Expr::Path(_) | syn::Expr::Lit(_)))),
-            );
+            let tail_value = usize::from(Self::has_tail_value(following));
             let trailing = writes
                 .iter()
                 .position(|count| *count > 0)

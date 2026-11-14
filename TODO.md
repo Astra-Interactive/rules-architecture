@@ -2,7 +2,9 @@
 
 The section "Kotlin linter (arch-fix, 2026-11-13)" near the end holds the Kotlin gaps of the `arch-fix` work.
 The section "Rust linter (arch-fix, 2026-11-13)" before it holds the Rust gaps of the same work (`klibs-rules` 0.2.0);
-T18 below was closed by that work.
+T18 below was closed by that work. The section "Rust linter (PumpkinMcPlugin rollout, 2026-11-14)" holds what that
+rollout left open, and the section "Kotlin linter (documents of 2026-11-14)" the Kotlin gap of the documents of
+`conf.ide` `8054a37`.
 
 What `.claude/docs` says and the Rust linter (`rules-rust`, crate `klibs-rules`) does not check, or checks
 wrongly. Sections are named after the document; every item quotes the document's words. Every item here is not
@@ -57,6 +59,8 @@ the code follows the document).
     confirmed it.
   - `not mechanical`: the audit found no rule and judged that a checker cannot tell the case without a
     classifier, and round 13 confirmed it.
+  - `kept (2026-11-14)`: found by reading the rule against the documents of `conf.ide` `8054a37`; no rule is
+    written, for the reason in its Gap. The decision is that session's own and has no `decisions.md` entry.
 - **Doc** lines are those of `.claude/docs` on 2026-11-10, before the document changes of round 13. **Rule**
   paths are under `rules-rust/modules/rules/src/` and their line numbers are those of `7c2d81e` (round 14:
   `35b8d3b`, round 15: `a70c4ce`, round 16: `321713f`; round 16 cites today's document lines); **Test** paths
@@ -1436,6 +1440,51 @@ a test; the two `closed by decision` items follow the brief of that work and hav
   - Gap: the count is over the files one task adds; a checker sees the tree, not the task.
   - Rule: none
 
+## Rust linter (PumpkinMcPlugin rollout, 2026-11-14)
+
+What the first lint run of `klibs-rules` `0.2.0` on PumpkinMcPlugin showed (28 rows after 50 runs) and the reading of
+the rule sources that followed. The fixed cases (`BareIdentifier` on a serde record, `KindImportDirection` on the
+`crate` of `pub(crate)`, `KindShape` on test mirrors, `UtilShape` on a constant of an extension file, the name blind
+spot of function-body macros, the `Unanalysable` row of an item macro in a crate without a library target,
+`UseCaseShape` and `ConstructorDependency` on a model that implements an `api` trait, `DiModuleShape` on a list of
+shared services, `PlatformImport` in the test and fixture trees, `OneTypeFamilyPerFile` on a file of type aliases and
+functions, `CriticalSectionWrite` on a returned field of a local, `KindImportDirection` on a test-tree fake that uses the
+`memory` of its own concept, and the five cases of the second round: `KindShape` on a concept file whose only impl is
+of a standard trait (an implementation is an impl of an `api` trait of the workspace or of a trait the platform's or
+the technology's library declares), `DiModuleLifecycle` on a private method called in a lifecycle body (kept, pinned
+by tests; the document names the job form), `TaskScope` recognised by name (a second `TaskScope` declaration in one
+product of the workspace is reported), `FakePlacement` on a double under another name in a `fake` block (a file of a
+`fake` block declares a `Fake…` type), `BareIdentifier` printing one text for its branches; with them `ImplPlacement`
+on a contract impl for a type another crate declares, the handed and the owned `TaskScope` (a type handed an
+`Arc<TaskScope>` only spawns, an owner holds it by value or builds the `Arc` in its own `new`), `block_on` on the
+stored runtime `Handle` in `on_disable`) are not here. **Doc** lines are those of `conf.ide` on 2026-11-14; **Rule**
+paths are under `rules-rust/modules/rules/src/`.
+
+- [ ] **RP-06** — missed · kept (2026-11-14): an `InMemory…` store that writes through
+  - Doc (`arch-package.md:243–246`): "`InMemory<Contract>` names a store that only holds its values in memory; a store
+    that keeps them in memory and writes them to a file or a database is named by that technology
+    (`YamlRatingRepository`, `FileJailRepository`) and sits in the technology's package."
+  - Gap: `InMemoryPlacement` compares the name with the module (`InMemory<Trait>` in `memory`, and an implementation
+    in `memory` named so); nothing reads what the type does. A `std::fs` path in its file does not tell a write from a
+    path held as a value, and a store that writes through an injected trait shows nothing in its file.
+  - Rule: `InMemoryPlacement`, `module/rule/in_memory_placement.rs` (`check`, `wrong_implementation`)
+  - Near: **KT-26** — the same sentence in the Kotlin linter.
+- [ ] **RP-07** — missed · kept (review of 2026-11-14): a handed scope held inside a wrapper
+  - Doc (`di-manual.rs.md`, Lifecycle and scopes; `async.rs.md`, Tasks): "Such a type calls `spawn` and nothing else on it"
+  - Gap: the handed-scope finding reads fields whose outer type is `Arc<TaskScope>`; the same scope held as
+    `Option<Arc<TaskScope>>`, `Mutex<Arc<TaskScope>>` or `OnceLock<Arc<TaskScope>>` and aborted or reloaded through a
+    `let`, `if let` or a guard binding is not reported. Aliases made by `let s = Arc::clone(&self.scope)`, `&self.scope`,
+    `.as_ref()`, `UFCS` and tuple fields are.
+  - Rule: `DiModuleLifecycle`, `module/rule/di_module_lifecycle.rs` (`list_handed_fields`), `module/rule/scope_call_visitor.rs`
+- [ ] **RP-08** — missed · kept (re-review of 2026-11-14): a scope built outside the type's own constructors
+  - Doc (`async.rs.md`, Tasks; `di-manual.rs.md`, Lifecycle and scopes): "it builds the scope in its `new` and holds it by value"
+  - Gap: ownership is read from the expression a constructor of the type (`new`, `with_…`, any associated function returning
+    `Self`, `Arc<Self>`, `Box<Self>`, or a `Result` or `Option` of them) assigns to the field: `TaskScope::new()`,
+    `TaskScope::default()`, `Arc::new(…)` and `Arc::default()` of those, a local bound to one, or `#[derive(Default)]`. A
+    scope built in a builder type or a free function, or through a method chain (`TaskScope::new().named(..)`), is read as
+    handed, so its owner is reported in a non-DI type and its abort is reported in a DI module. Tests pin this reading.
+  - Rule: `DiModuleLifecycle`, `module/rule/scope_ownership.rs`, `module/rule/scope_origin_visitor.rs`
+
 ## Kotlin linter (arch-fix, 2026-11-13)
 
 What the documents of the `arch-fix` branch of `conf.ide` state and the Kotlin linter (`rules-kotlin`, `0.28.0`)
@@ -1625,6 +1674,35 @@ there. **Rule** paths are under `rules-kotlin/konsist/src/main/kotlin/ru/astrain
     `tween(durationMs, delayMs, easing)` became `Easing.EaseInOut.tween(durationMs, delayMs)`, `fadeIn(spec)` became
     `spec.fadeIn()` (eight builders), and the infix `enter with exit` became the constructor call
     `ContentTransform(enter, exit)`.
+- [ ] **KT-27** — missed · candidate (rollout): a double under another name in a test-tree `fake` package
+  - Doc (`arch-package.kt.md`, Tests): "A file of a `fake` package declares a `Fake…` class, and a double under
+    another name is not written."
+  - Gap: `FakePlacement` reads the `Fake[A-Z]\w*` name only; its reverse check (`findProductCode`) reports a class
+    not named `Fake…` in a `<feature>/fake` unit, and a test-tree `fake` package has none, so a renamed double is
+    silent there. The Rust twin exists (`FakePlacement`, `module/rule/fake_placement.rs`, `check_fake_file`).
+  - Rule: `FakePlacement`, `check/placement/konsist/FakePlacement.kt`
+
+## Kotlin linter (documents of 2026-11-14)
+
+What the documents of `conf.ide` `8054a37` state and the Kotlin linter (`rules-kotlin`, `0.28.1`) does not check. The
+two cases `0.28.1` fixed (`KindImportDirection` on a fake that imports another fake of a `<feature>/fake` unit,
+`DiPlacement` on a `…Module` in a `fake` package of such a unit) are not here. **Doc** lines are those of
+`conf.ide` on 2026-11-14; **Rule** paths are under
+`rules-kotlin/konsist/src/main/kotlin/ru/astrainteractive/klibs/rules/konsist/` unless they name another module. The
+item has no test.
+
+- [ ] **KT-26** — missed · kept (2026-11-14): an `InMemory…` store that writes through
+  - Doc (`arch-package.md:243–246`): "`InMemory<Contract>` names a store that only holds its values in memory; a store
+    that keeps them in memory and writes them to a file or a database is named by that technology
+    (`YamlRatingRepository`, `FileJailRepository`) and sits in the technology's package."
+  - Gap: `InMemoryPlacement` compares the name with the package (an `InMemory…` class sits in `memory`), and
+    `ImplementationName` reads the `Impl` and `Interface` suffixes and the `I` prefix; nothing reads what an
+    `InMemory…` class does. A file-API import does not tell a write from a `File` held as a value, and a store that
+    writes through an injected contract shows nothing in its file.
+  - Rule: `InMemoryPlacement`, `check/placement/konsist/InMemoryPlacement.kt`; `ImplementationName`,
+    `rules-kotlin/detekt/src/main/kotlin/ru/astrainteractive/klibs/rules/naming/detekt/ImplementationName.kt`
+  - Near: **KT-01**, **KT-02** — who constructs an `InMemory…` and under which concept it sits; **RP-06** — the same
+    sentence in the Rust linter.
 
 ## Not in this list
 

@@ -1,5 +1,5 @@
 LintConfig	clippy.toml	clippy.toml	the required clippy.toml is missing at the workspace root
 ModuleVisibility	modules/sample/src/lib.rs:1	case_sample::model	module visibility must be Crate (arch-package.rs.md, Modules and directories)
 ModuleVisibility	modules/sample/src/lib.rs:5	case_sample::util	module visibility must be Crate (arch-package.rs.md, Modules and directories)
-BareIdentifier	modules/sample/src/model/value.rs:2	case_sample::model::value::Value	Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)
+BareIdentifier	modules/sample/src/model/value.rs:2	case_sample::model::value::Value	A model struct with one named field is a single-property value object: write it as a tuple struct (arch-domain.rs.md)
 VisibilityTier	modules/sample/src/util/value_ext.rs:4	Value	A crate-visible method used only in the file of its type is private

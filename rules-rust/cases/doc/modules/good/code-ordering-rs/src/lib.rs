@@ -18,6 +18,12 @@ pub(crate) mod feature_flag {
         mod interval_feature_flag_reloader;
     }
 }
+pub(crate) mod lifecycle {
+    pub(crate) mod api {
+        pub(crate) use lifecycle::Lifecycle;
+        mod lifecycle;
+    }
+}
 pub(crate) mod order {
     pub(crate) mod component {
         pub(crate) use order_pricing::OrderPricing;

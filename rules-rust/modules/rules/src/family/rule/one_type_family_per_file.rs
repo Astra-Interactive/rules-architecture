@@ -220,14 +220,6 @@ impl OneTypeFamilyPerFile {
             .collect();
         let subject = format_module_path(&file.module.crate_name, &file.module.path);
         if types.is_empty() {
-            let declares_alias = file
-                .syntax
-                .items
-                .iter()
-                .any(|item| matches!(item, syn::Item::Type(_)));
-            if declares_alias {
-                return Self::build_free_function_findings(file, &subject);
-            }
             return findings;
         }
         let primary = find_primary_type(file, sources);

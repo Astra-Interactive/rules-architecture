@@ -3,7 +3,7 @@ use crate::check::model::{RuleContext, RuleFinding};
 use crate::check::util::build_node_finding;
 use crate::config::model::Role;
 use crate::module::util::find_kind_name;
-use crate::source::model::{ExternalPath, Resolution, SourceReference};
+use crate::source::model::{ExternalPath, Resolution, SourceReference, SourceTree};
 use crate::source::util::find_node_span;
 use syn::spanned::Spanned;
 
@@ -61,6 +61,9 @@ impl PlatformImport {
         let Resolution::External(path) = &reference.resolution else {
             return None;
         };
+        if context.indexes[ordinal].modules[reference.module].tree != SourceTree::Src {
+            return None;
+        }
         let identity = context.resolve_external_identity(ordinal, path);
         if Self::is_allowed_library(&identity) {
             return None;

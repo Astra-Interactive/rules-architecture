@@ -1,12 +1,16 @@
 [package]
 name = "klibs-rules"
-version = "0.2.0"
+version = "0.3.0"
 description = "Checks a Cargo workspace against the Astra-Interactive architecture rules"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 include = ["src/**", "README.md"]
+
+[[bin]]
+name = "cargo-klibs-rules"
+path = "src/main.rs"
 
 [dependencies]
 cargo_metadata.workspace = true

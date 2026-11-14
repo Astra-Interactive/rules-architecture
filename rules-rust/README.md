@@ -2,129 +2,29 @@
 
 `klibs-rules` checks a Cargo workspace against the Astra-Interactive architecture rules (the `.rs.md` documents of
 `conf.ide/.claude/docs` and the language-neutral `arch-*.md`). It is the Rust counterpart of `rules-kotlin`: a
-required rustc, clippy and rustfmt configuration plus rules of its own, run as a test of the consumer's `xtask`.
+required rustc, clippy and rustfmt configuration plus rules of its own, run as `cargo klibs-rules`.
 
 ## Installation
 
-1. `klibs-rules = "=X.Y.Z"` in the `[dependencies]` of the consumer's `xtask` crate.
+1. `cargo install klibs-rules --version X.Y.Z --locked` installs the `cargo-klibs-rules` binary, which Cargo runs as
+   `cargo klibs-rules`.
 2. The required configuration: the `[workspace.lints]` block and `clippy.toml` that
    `klibs_rules::config::util::render_required_configuration()` renders (below), `[lints] workspace = true` in every
    member, `resolver = "3"` in the root `[workspace]`.
 3. `[workspace.metadata.klibs-rules] product-kind`, `platform-words` when the project has host frameworks, and the
    `role` of every crate the detection does not cover.
-4. `[alias] xtask = "run --package xtask --"` in `.cargo/config.toml`.
-5. The `xtask` template below: `xtask/Cargo.toml`, `xtask/README.md`, `xtask/src/main.rs`, the command and its test.
-   A tooling crate is `src/main.rs` alone, so the template's `main.rs` holds the module tree and the test block; only
-   an `entry-point` crate splits `src/lib.rs` (the tree) from `src/main.rs` (`use` lines and `fn main`).
-6. Pin the toolchain in `rust-toolchain.toml`: `LintConfig` asks the rustfmt beside the running cargo which keys are
+4. Pin the toolchain in `rust-toolchain.toml`: `LintConfig` asks the rustfmt beside the running cargo which keys are
    nightly-only, and that list differs by release (`hex_literal_case` is stable on 1.99.0, nightly-only on 1.93.0), so
    an unpinned project can get a rustfmt finding on one machine and none on another.
 
-```toml
-# xtask/Cargo.toml (no `version`: the crate is not published)
-[package]
-name = "xtask"
-edition = "2024"
-
-[dependencies]
-klibs-rules = "=0.2.0"
-
-[lints]
-workspace = true
-```
-
-```text
-# xtask/README.md
-Runs the build automation of this workspace, the architecture check among it.
-```
-
-```rust
-// xtask/src/main.rs
-use crate::architecture::command::run_architecture_check;
-use std::env;
-use std::path::Path;
-use std::process::ExitCode;
-
-pub(crate) mod architecture {
-    pub(crate) mod command {
-        pub(crate) use architecture_check_command::run_architecture_check;
-        mod architecture_check_command;
-    }
-}
-
-fn main() -> ExitCode {
-    let task = env::args().nth(1);
-    match task.as_deref() {
-        Some("architecture-check") => run_architecture_check(Path::new(env!("CARGO_MANIFEST_DIR"))),
-        _ => ExitCode::from(2),
-    }
-}
-
-#[cfg(test)]
-#[path = "../test"]
-mod test {
-    mod architecture {
-        mod command {
-            mod architecture_check_command_test;
-        }
-    }
-}
-```
-
-```rust
-// xtask/src/architecture/command/architecture_check_command.rs
-use klibs_rules::check::di::CheckModule;
-use std::path::Path;
-use std::process::ExitCode;
-
-#[expect(
-    clippy::print_stdout,
-    reason = "the architecture report is this command's product"
-)]
-pub(crate) fn run_architecture_check(workspace_dir: &Path) -> ExitCode {
-    let check_module = CheckModule::new();
-    let checked = match check_module.check_workspace_use_case.invoke_with_ownership(workspace_dir) {
-        Ok(report) => report,
-        Err(error) => {
-            println!("{error}");
-            return ExitCode::from(2);
-        }
-    };
-    let report = &checked.report;
-    println!("{}", report.to_violation_lines());
-    if let Err(error) = check_module.report_writer.write_with_ownership(&checked) {
-        println!("{error}");
-        return ExitCode::from(2);
-    }
-    report.to_exit_code()
-}
-```
-
-```rust
-// xtask/test/architecture/command/architecture_check_command_test.rs
-use klibs_rules::check::di::CheckModule;
-use std::path::Path;
-
-#[test]
-fn given_this_workspace_when_checked_then_no_rule_is_violated() {
-    let check_module = CheckModule::new();
-
-    let report = check_module
-        .check_workspace_use_case
-        .invoke(Path::new(env!("CARGO_MANIFEST_DIR")))
-        .expect("the klibs-rules configuration loads");
-
-    assert!(report.is_clean(), "{}", report.to_violation_lines());
-}
-```
-
-`cases/consumer/fixed` is this template in a workspace that passes; `cases/consumer/failing` reports two findings;
+`cases/consumer/fixed` is a workspace that passes; `cases/consumer/failing` reports two findings;
 `cases/consumer/single-crate` is a root `[package]` before its re-layout (`RootSources`).
 
-Locally and in CI: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`
-(runs the architecture test). `cargo xtask architecture-check` prints the report and writes
-`<target>/klibs-rules/violations.txt`, `<target>/klibs-rules/policy.txt` and `<target>/klibs-rules/api-ownership.txt`; it exits 0 when clean, 1 with findings, 2 on
-a configuration, metadata or write error. No test writes a report file.
+Locally and in CI: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
+and `cargo klibs-rules`, which prints the report, writes `<target>/klibs-rules/violations.txt`,
+`<target>/klibs-rules/policy.txt` and `<target>/klibs-rules/api-ownership.txt`, and exits 0 when clean, 1 with findings,
+2 on a configuration, metadata, write or argument error. `cargo klibs-rules --manifest-path <Cargo.toml>` checks another
+workspace. CI installs the tool first with the same `cargo install` line.
 
 The ownership report is advisory: `CANDIDATE`, `RETAIN`, `UNKNOWN`, `UNCERTAIN` and `EXTERNAL` records provide evidence
 for a human ownership decision and do not fail the architecture check. Existing callers may keep `invoke()` and
@@ -158,7 +58,8 @@ A manifest exception naming an unknown or retired rule id, or a rule with no fin
 configuration error. The Cargo configuration read is the one Cargo uses at the workspace root: `.cargo/config` when
 it exists, `.cargo/config.toml` otherwise; parent directories and `$CARGO_HOME/config.toml` are out of scope.
 `cargo metadata`, `rustfmt` and the toolchain checks use the cargo named by `$CARGO`, or `cargo` on `PATH` when
-`$CARGO` is unset (an `xtask` binary started by hand or from an IDE), and the rustfmt beside it, or `rustfmt` on `PATH`.
+`$CARGO` is unset, and the rustfmt beside it, or `rustfmt` on `PATH`. `$CARGO` is unset when `cargo-klibs-rules` is
+started by hand rather than as `cargo klibs-rules`.
 
 ## Roles
 
@@ -248,7 +149,7 @@ and the groups `clippy::restriction`, `clippy::pedantic` and `clippy::nursery` a
 
 The floor is 1.93.0; the library declares `rust-version = "1.93"`.
 
-## Rules in 0.2.0
+## Rules
 
 | Id | Anchor | Reports |
 |---|---|---|
@@ -289,14 +190,14 @@ The floor is 1.93.0; the library declares `rust-version = "1.93"`.
 | `ReExportShape` | node | missing/duplicate/renamed/glob kind re-exports, re-exported private items, a re-export of a kind block's item in any other block, an ancestor block included, public re-exports without external users, crate-private re-exports whose item has external users, and a `pub(super)`, `pub(self)` or `pub(in …)` re-export (`arch-package.rs.md`, Modules and directories) |
 | `ImportThroughFileModule` | node | a `use`, type or expression path that walks through a file module, except the kind block's own re-exports (`arch-package.rs.md`, Modules and directories) |
 | `ApiConfiguration` | node | `pub use` or `pub(crate) use` of a path whose first segment is an external crate (`arch-package.rs.md`, Units and Cargo) |
-| `KindShape` | module | a concept block holding a file module (at that file module's declaration); a block holding both files and blocks; a kind block inside a kind block; an empty kind block; a block that holds files and is no kind; a role-kind module (a word of `role-kinds`) is a kind: its structs, enums and unions end with the word in PascalCase (`limiter` → `VoteCooldownLimiter`), and it holds types (struct, enum, union, type alias), their impls and `use` items only (every other item is reported: a free function, trait, trait alias, `static`, `const`, `macro_rules!`, an item macro call, `extern crate`, an `extern` block); a module in the test, fixture or `tests/it` tree is not checked; a role-kind module in an app `api` crate is reported by the crate-role check (`arch-package.md`, Concepts and kinds 1 and 3) |
-| `KindImportDirection` | node | imports forbidden by the architectural kind directions, checked per kind module whichever concepts the two belong to, including framework/registration boundaries, respecting cfg and test boundaries: `model` imports `model`; `api` imports `model`; `util` imports `model`, `util` and the data types of `api`, not a trait of `api`; `usecase`, `stub`, technology kinds and entry-point kinds also import role kinds; a role kind imports `model`, `util` and role kinds; `fake` imports `api`, `model` and `util`; `di` imports everything and only `di` imports `di` (`arch-context.md`, Direction and enforcement) |
+| `KindShape` | module | a concept block holding a file module (at that file module's declaration; in a technology, platform or core-platform crate a file module of the test tree or of `tests/it` passes when the `src` file it mirrors passes: `test/<x>_test.rs` and `tests/it/<x>_test.rs` mirror `src/<x>.rs`; a fixture file has no source twin); a block holding both files and blocks; a kind block inside a kind block; an empty kind block; a block that holds files and is no kind; a role-kind module (a word of `role-kinds`) is a kind: its structs, enums and unions end with the word in PascalCase (`limiter` → `VoteCooldownLimiter`), and it holds types (struct, enum, union, type alias), their impls and `use` items only (every other item is reported: a free function, trait, trait alias, `static`, `const`, `macro_rules!`, an item macro call, `extern crate`, an `extern` block); a module in the test, fixture or `tests/it` tree is not checked; a role-kind module in an app `api` crate is reported by the crate-role check (`arch-package.md`, Concepts and kinds 1 and 3) |
+| `KindImportDirection` | node | imports forbidden by the architectural kind directions, checked per kind module whichever concepts the two belong to, including framework/registration boundaries, respecting cfg and test boundaries: `model` imports `model`; `api` imports `model`; `util` imports `model`, `util` and the data types of `api`, not a trait of `api`; `usecase`, `stub`, technology kinds and entry-point kinds also import role kinds; a role kind imports `model`, `util` and role kinds; `fake` imports `api`, `model`, `util`, a `fake` module of the test or fixture tree and the trait of its crate's `api` or `di` that its file implements, and a fake of the `test` tree also the `memory` of its own concept, in `src` or in the `test` tree (`test/task/fake` with `task::memory` or `test/task/memory`); `di` imports everything and only `di` imports `di` (`arch-context.md`, Direction and enforcement) |
 | `PackageDependencyCycle` | node | each strongly connected component of more than one kind module among production edges, under compatible cfg predicates, with one `file:line` per pair (`arch-context.md`, Direction and enforcement) |
-| `PlatformImport` | node | in `model`, `api` and `usecase` modules and in every module of a plugin `api`, `core-api`, `storage-contract` or `contract` crate, a path to a platform crate or a technology crate (a crate whose word names a technology module or `technology` crate of the workspace, or is in `technology-words`) (`arch-domain.md`, What the model may import; `arch-package.md`, Contracts and implementations) |
+| `PlatformImport` | node | in the `src` tree (the test and fixture trees are not checked), in `model`, `api` and `usecase` modules and in every module of a plugin `api`, `core-api`, `storage-contract` or `contract` crate, a path to a platform crate or a technology crate (a crate whose word names a technology module or `technology` crate of the workspace, or is in `technology-words`) (`arch-domain.md`, What the model may import; `arch-package.md`, Contracts and implementations) |
 | `ContractPlacement` | node | a trait outside `api`, except a `<Type>Factory`, a `<Type>Ext` in `util`, a use-case trait in `usecase` (P3: app `api` crates only), a state holder's trait beside its `Default…` in an entry-point kind, and a registration trait in its mechanism's module; an `impl` of a crate trait inside `api`; a `stub` module holding anything but structs that implement crate traits. P3: an app use-case trait not in the owner's `api` `usecase`, or its `Default…` not in the `impl` `usecase`. Approx registration shape: every method synchronous, required, returning `()`, taking `&self` plus parameters whose types all come from external crates; such a trait may sit in an entry-point kind or in mixed `core`, but not in `model`, `usecase` or `util` of a core crate (`arch-package.md`, Contracts and implementations) |
 | `UseCaseShape` | node | placement/naming/public-surface checks, use-case chaining, supported plain contract passthrough and contract field ownership; semantic business-rule necessity remains review (`arch-domain.md`, Use case; `arch-package.md`, Units 6) |
 | `UseCaseAbstraction` | node | a trait named `*UseCase` outside the `usecase` kind of an app's `api` crate (`arch-package.md`, Units 6) |
-| `UtilShape` | node | a struct, enum, union, type alias, const or static in `util`, and an inherent `impl T` outside T's file and outside `util`, except in `extension-kinds`; in the `src` tree only (the `util` blocks of the test and fixture trees and of `tests/it` are not checked), a function in `util` (free, or a method of an out-of-file inherent impl) with a parameter that names a project trait declared in an `api` kind: `&dyn Trait`, `Arc<dyn Trait>`, `Box<dyn Trait>`, `impl Trait`, or a generic bounded by it (inline or in `where`); `<Type>Ext` trait impls, a type alias that hides `dyn Trait` and a module-path use of an `api` item are not examined (`arch-package.md`, Concepts and kinds 3; `arch-package.rs.md`, What goes in one file) |
+| `UtilShape` | node | a struct, enum, union, type alias, const or static in `util` (a const or static passes when a function or an `impl` of its file uses its name, such as an `<Type>Ext` trait with its impl), and an inherent `impl T` outside T's file and outside `util`, except in `extension-kinds`; in the `src` tree only (the `util` blocks of the test and fixture trees and of `tests/it` are not checked), a function in `util` (free, or a method of an out-of-file inherent impl) with a parameter that names a project trait declared in an `api` kind: `&dyn Trait`, `Arc<dyn Trait>`, `Box<dyn Trait>`, `impl Trait`, or a generic bounded by it (inline or in `where`); `<Type>Ext` trait impls, a type alias that hides `dyn Trait` and a module-path use of an `api` item are not examined (`arch-package.md`, Concepts and kinds 3; `arch-package.rs.md`, What goes in one file) |
 | `UtilFileName` | node, module | generic utils/helpers/extensions filenames and supported util receiver/predicate naming mismatches, where the owner of a `<Type>Ext` may be a primitive, slice, array or reference type; generated files skipped (`arch-package.rs.md`, What goes in one file) |
 | `UtilFunctionAsExtension` | node | the form of a `util` rule follows its signature, in the `src` tree only (the `util` blocks of the test and fixture trees and of `tests/it` are not checked). The cfg variants of one model type (the same name in the same module under exclusive `cfg`s) count as one type. A free function whose model-typed parameters (`&`, `&mut`, `Box`, `Rc` and `Arc` removed; `Vec`, `Option` and `Result` are not; a type named `…Id` is no model type) are all of one type is a method of that type; with two or more different model types it is reported only when it returns the type of one of them (`T`, `Result<T, _>`, `Option<T>`: a transition is a method of the type it returns), and is otherwise a free function named after the decision. A method of an out-of-file inherent `impl` of a model type in `util` is reported when it has a parameter of another model type and does not return its own type (`Self`, the type, `Result` or `Option` of it); a method whose model-typed parameters are all of its own type passes. `create_*` and `parse_*` returning `Result` of a model are exempt; methods of trait impls are not examined (`arch-domain.md`, Rules live in `util`) |
 | `PluralPackageName` | module | a block name ending in `s` but not in `ss`, `us` or `is`, unless in `plural-concepts` or one of Kotlin's two built-in words, `news` and `settings` (README); the singular words `alias`, `atlas`, `bias`, `canvas`, `christmas`, `gas` and `pancreas` are not plural (a closed list: another singular word in `-as` goes into `plural-concepts`) (`arch-package.md`, Concepts and kinds 9) |
@@ -330,12 +231,12 @@ The floor is 1.93.0; the library declares `rust-version = "1.93"`.
 | `ImplementationName` | node | Impl/Interface suffixes, an `Impl` prefix (`ImplRatingRepository`; not `Implicit…`), interface I prefixes, and generic Database/Network/Local/Remote prefixes (ending at a word boundary) on proven implementations, those of a use-case trait in the `usecase` kind included, and on type aliases; correspondence with a full trait name remains review (`arch-package.md`, Contracts and implementations) |
 | `RolelessTypeName` | node | as Kotlin does: a struct, enum, union or trait named `*Validator`; one named `*Factory` that is not the runtime-factory form; one named `*WarmUp` outside a `warmup` module and `*Migration` outside a `migration` module (`arch-package.md`, Concepts and kinds 3; `arch-domain.md`, Factory) |
 | `KindNameInPackage` | node | utility suffixes, Model/Entity repetition in model kinds, API suffixes on contracts, and the word Service in any type name outside a `service` module (module path only, not the crate name); a type alias is checked like a declared type (`arch-domain.md`, Entity, value object, identifier; `arch-domain.md`, Domain service) |
-| `BareIdentifier` | node | bare standard strings, UUIDs or integer primitives (including supported aliases and the wrappers `Option`, `Box`, `Rc`, `Arc`, `Cow<str>` and `NonZero*`) in ID fields, in an `ids` or `*_ids` field holding a `Vec`, `VecDeque`, `HashSet` or `BTreeSet` of a bare type, malformed typed-ID structs, a `type <Name>Id = <primitive>` alias in `model`, and single-property named model value objects (a one-field struct whose field is `id: <…>Id` is an entity and passes); serialization alone does not exempt domain models, while technology/wire contract boundaries do (`arch-domain.md`, Entity, value object, identifier) |
+| `BareIdentifier` | node | bare standard strings, UUIDs or integer primitives (including supported aliases and the wrappers `Option`, `Box`, `Rc`, `Arc`, `Cow<str>` and `NonZero*`) in ID fields, in an `ids` or `*_ids` field holding a `Vec`, `VecDeque`, `HashSet` or `BTreeSet` of a bare type, malformed typed-ID structs, a `type <Name>Id = <primitive>` alias in `model`, and single-property named model value objects (a one-field struct whose field is `id: <…>Id` is an entity and passes, and so does one that derives `Serialize` or `Deserialize`, also through `cfg_attr`, unless it carries `#[serde(transparent)]`, `try_from` or `from`: its field is the key of a file format, which a tuple struct would write without it); serialization alone does not exempt an id field of a domain model, while technology/wire contract boundaries do (`arch-domain.md`, Entity, value object, identifier) |
 | `TestFunctionName` | node | a test name outside `given_<state>_when_<action>_then_<outcome>`; a test attribute counts when it resolves to `tokio::test` through a `use` |
 | `CallbackDeclaration` | node | outside the test and fixture trees, as Kotlin does outside test sources: a function parameter or a struct field named `on_*` whose type, bare or inside `Option` or another single-value wrapper (`Mutex`, `RwLock`, `OnceLock`, `Cell`, `RefCell`, `OnceCell`), is a closure type (`impl Fn…`, `dyn Fn…` behind any pointer, an `fn(…)` pointer: Kotlin's function type) or a type parameter bounded by `Fn`, `FnMut` or `FnOnce`; a trait the project declares named `*Listener` or `*Callback` |
 | `DeclarationOrder` | node | constants, type families, constructors or trait associated items out of their required order; a constant with a value inside a trait body (it belongs at the top of the file) |
-| `CalleeBeforeCaller` | node | free-function callers above callees in files without type declarations, and own-type method ordering; includes self-qualified paths and proven local function aliases with lexical scope; constructors and mutual recursion are exempt; arbitrary dynamic call targets remain review |
-| `OneTypeFamilyPerFile` | node, module | a mismatched file name, multiple behavioural types, unrelated secondary types (a type's reference to itself is no use) or free functions beside a type, a secondary struct or enum named `*Error` or deriving `Error` included; `<Type>Factory` is exempt (`arch-package.rs.md`, What goes in one file; `arch-package.md`, Files) |
+| `CalleeBeforeCaller` | node | free-function callers above callees in files without type declarations (a `type` alias is no type declaration), and own-type method ordering; includes self-qualified paths and proven local function aliases with lexical scope; constructors and mutual recursion are exempt; arbitrary dynamic call targets remain review |
+| `OneTypeFamilyPerFile` | node, module | a mismatched file name, multiple behavioural types, unrelated secondary types (a type's reference to itself is no use) or free functions beside a type, a secondary struct or enum named `*Error` or deriving `Error` included; `<Type>Factory` is exempt; a `type` alias is no type, so a file of aliases and free functions is a function file (`arch-package.rs.md`, What goes in one file; `arch-package.md`, Files) |
 | `ConstantOutsideImpl` | node | a type's constants outside or before the end of its inherent impl; a file module holding only constants beside the file of its owner type (the module name is the owner's snake-case name followed by `_` and a word, or the owner's file mentions the module) |
 | `NamespaceType` | node | a struct without fields, or an enum without variants, with an inherent impl holding a function and no trait impl (`arch-package.rs.md`, What goes in one file) |
 | `LocalItem` | node | `struct`, `enum`, `union`, `trait`, `impl` or `mod` inside a function body, closure or `async` block (`arch-package.rs.md`, What goes in one file) |
@@ -377,7 +278,7 @@ The floor is 1.93.0; the library declares `rust-version = "1.93"`.
 | `CatchUnwind` | node | `catch_unwind` whose closure calls a crate-local item, or whose argument (also inside `AssertUnwindSafe`) is a path to a crate-local function or to a local closure that calls one, through a chain of local closures each followed once; a local closure is not taken for a crate-local function of the same name |
 | `DocCommentScope` | node | mechanically redundant application/trait-implementation docs, malformed contract headings, missing published error/safety contracts and proven panic docs (`unwrap`, `expect`, `unwrap_err` and `expect_err` on a parameter; `panic!`, the assertion macros, `unreachable!`, `todo!` and `unimplemented!`), including supported caller-controlled indexing and default trait bodies; external reasons, additional contract information and unknown panic behavior remain review |
 | `GlobalState` | node | a `static` typed `OnceLock`, `LazyLock`, `Mutex` or `RwLock`, also inside std `thread_local!`; `lazy_static!`; installing a logging subscriber (`set_global_default`, `.init()` on a subscriber builder) outside `fn main` |
-| `DiModuleShape` | node | DI declarations outside the permitted struct/trait forms, service construction outside new, generic contract parameters (on the impl, or on an inherent `fn` through its generics, where clause or `impl Trait` parameter, bounded by a workspace trait; on a use case every inherent `fn` but `new`, which `UseCaseShape` reads), unsupported sharing/deferred storage and contract injection despite an accessible compatible provider module; a DI trait's contract trigger and external semantics remain review |
+| `DiModuleShape` | node | DI declarations outside the permitted struct/trait forms, service construction outside new, generic contract parameters (on the impl, or on an inherent `fn` through its generics, where clause or `impl Trait` parameter, bounded by a workspace trait; on a use case every inherent `fn` but `new`, which `UseCaseShape` reads), unsupported sharing/deferred storage (a service is shared when it sits in an `Arc` or `OnceLock`, also as the element of a `Vec` or `VecDeque` or the value of a `HashMap` or `BTreeMap`) and contract injection despite an accessible compatible provider module; a DI trait's contract trigger and external semantics remain review |
 | `ConstructorDependency` | node | supported construction/factory calls of proven replaceable dependencies outside composition boundaries, a free function included unless it sits in `di` or in the module that declares the constructed type; data containers and host root assembly are preserved (`arch-domain.md`, Factory) |
 | `MainShape` | node | entry main runtime/root enable/disable structure and supported awaited shutdown wait, one level inside an awaited workspace `async fn`, free or associated, included; `<CancellationToken local>.cancelled().await` and an awaited `async` method of a workspace type whose body awaits the shutdown signal (one level) also count; arbitrary runtime control flow remains review |
 | `BlockingCallInAsync` | node | `std::thread::sleep`, `std::fs::*` (every method of a `std::fs::File` included) or `std::sync::mpsc::*` inside an `async fn` or `async` block |
@@ -385,11 +286,11 @@ The floor is 1.93.0; the library declares `rust-version = "1.93"`.
 | `SelectCancelSafety` | node | a branch future of `tokio::select!` inside a loop that calls `read_exact`, `read_to_end`, `read_to_string`, `write_all`, `lock`, a tokio `RwLock`'s `read` or `write`, `Semaphore::acquire` or `Notify::notified`, also through a workspace callee followed one level and analysed in its own crate and module |
 | `JoinSetBehindLock` | node | a type `Mutex<JoinSet<…>>` or `RwLock<JoinSet<…>>` |
 | `BlockingLockInSync` | node | `blocking_lock()`, `blocking_read()` or `blocking_write()` in `fn drop` or in a synchronous `on_enable` or `on_reload` method of an `impl` (not `on_disable`, which runs after `block_on`, and not a free function); in `fn drop` also `recv` or `recv_timeout` on a `std::sync::mpsc::Receiver`, `blocking_recv` on a tokio `mpsc` or `broadcast` receiver and `blocking_send` on a tokio `mpsc::Sender` |
-| `CriticalSectionWrite` | node | multiple writes or trailing operations in supported guard scopes, including supported collection mutations (deque ends, the sort family, `mem::take`, `mem::replace` and `mem::swap` of a guard place) and nested branches; arbitrary panic atomicity remains review |
+| `CriticalSectionWrite` | node | multiple writes or trailing operations in supported guard scopes, including supported collection mutations (deque ends, the sort family, `mem::take`, `mem::replace` and `mem::swap` of a guard place) and nested branches; a scope whose tail (also the operand of `return`) only names a value, that is a literal, a path (local, parameter, constant, `None`, unit variant) or a field of such a value, also under unary minus or in parentheses, returns it and has no trailing operation; a call, a method call, a macro, a block, an index or any other tail expression is a statement; arbitrary panic atomicity remains review |
 | `LockChoice` | node | proven integer/Boolean locks and supported RwLock patterns (a tokio `RwLock` whose guard no `.await` crosses included); general access-contention semantics remain review |
 | `TestTimePaused` | node | known virtual-time operations without a paused test, also one level inside a called workspace `async fn` (free or associated), incompatible runtime flavor, and missing tokio test-util; deeper helper timing remains review |
 | `ModelRuleTest` | node | `#[tokio::test]` with no await that directly exercises a proven pure model rule (a local bound to a non-model function path is not a model call); a `util` path alone does not classify an integration test |
-| `Unanalysable` | node, crate | a root file or file module that does not parse, a missing module file, `include!`, `cfg_attr(…, path = …)`, an item macro call in the root file |
+| `Unanalysable` | node, crate | a root file or file module that does not parse, a missing module file, `include!`, `cfg_attr(…, path = …)`, an item macro call in the root file, except a macro called by a path through a non-workspace dependency of the crate whose arguments are plain identifiers (`pumpkin_plugin_api::register_plugin!(Plugin);`) in a crate with no Rust library target: no crate can name what such a crate generates |
 | `UnfulfilledExpectation` | none | an expectation with no finding in its permitted scope |
 | `UnknownRule` | none | an exception naming no catalogue rule |
 | `RetiredRule` | none | an exception naming a retired id; the finding names its replacement |
@@ -444,6 +345,19 @@ What the Rust documents leave to the checker, stated here. Each line was checked
   `NamespaceType`, `DeclarationOrder`, `CalleeBeforeCaller`, `ConstantOutsideImpl`, `ImportOrdering`,
   `WildcardImport` and `ForbiddenComment`. The `mod` line that declares it is read as any other.
 
+- **Macros and the name index.** The checks that prove "no other crate names this item" (`DiModuleVisibility`,
+  `DocHiddenUse`, the workspace pass of `VisibilityTier`, the `unused_public` branch of `ReExportShape`, the `stub` and
+  `memory` branch of `ImplementationVisibility`, the owner branches of `NestedDataStruct` and `NestedEnum`) stop while
+  a name may be hidden. A macro in expression or statement position whose arguments read as comma-separated
+  expressions (`warn!("{}", value)`, `write!(buffer, "x")`) hides none, since it adds no item to a module and its
+  arguments are visited, and the names a format string captures inline (`info!("{LIMIT}")`) are uses; `include!`
+  hides names in any position. A macro at item position, in an `impl` or a trait, with arguments that do not read that way,
+  any `macro_rules!`, a generated file or an unresolved path hides names. In a crate with no Rust library target an
+  item macro called through a non-workspace dependency with plain identifier arguments hides none either: no crate can name what it
+  generates. The linter does not expand macros: it reads text on the pinned stable toolchain, and an expansion
+  needs a compiler pass (`cargo expand` and `-Zunpretty=expanded` are nightly-only, and `notes.rs.md` keeps projects
+  on stable), the `ra_ap_*` crates (rust-analyzer as a library, unversioned) or a `macro_rules!` expander of its own.
+
 Not carried over from the documents: "the checker holds the direction between concepts" (it does not: see
 Direction), and the comparisons with Kotlin's checker (how it takes a library's first word, that it skips the
 generated sources under `build/`), which describe no Rust behaviour.
@@ -452,8 +366,8 @@ generated sources under `build/`), which describe no Rust behaviour.
 
 ```text
 rules-rust/
-  Cargo.toml, clippy.toml, rust-toolchain.toml, .cargo/config.toml
-  modules/rules/   the published crate `klibs-rules`: src/, test/ (case workspaces, both gate halves)
+  Cargo.toml, clippy.toml, rust-toolchain.toml, release-plz.toml, .cargo/config.toml
+  modules/rules/   the published crate `klibs-rules`, the library and the `cargo-klibs-rules` binary: src/, test/ (case workspaces, both gate halves)
   xtask/           `cargo xtask gate-sync --docs <dir> [--check]`
   cases/           standalone workspaces, excluded from this one
     rules/<RuleId>/<fail|pass>-<case>/        expected.tsv
@@ -476,12 +390,12 @@ rules-rust/
 - Validation tests prove that incorrect code is reported and correct code is accepted, including finding subjects,
   locations and documented exceptions. Coverage percentages do not block CI; tests are added for behavior and
   regressions rather than to exercise implementation lines or assertion failure paths.
-- CI: `rust-pr.yml` (floor 1.93.0 through `RUSTUP_TOOLCHAIN`, and the pinned toolchain with the gate sync),
-  `rust-release.yml`, `rust-msrv.yml` (weekly fresh resolution of
-  `cases/consumer/fixed` on 1.93.0), `rust-doc-drift.yml` (weekly gate sync). None is a required check.
-- Release: bump `version` in `modules/rules/Cargo.toml`; on merge `rust-release.yml` finds the commit that set the
-  version, runs the gate sync on it, tags it `rules-rust-<version>`, publishes from the tag through crates.io Trusted
-  Publishing (`rust-lang/crates-io-auth-action@v1`) and creates the GitHub release; every step resumes after a failure.
-  When the documents drifted after the bump, the release stops before tagging: re-sync the gate and bump the version
-  in one commit, which abandons the drifted version. The first release, 0.1.1, is published by hand from its tag
-  with the owner's token read from the environment, after which the Trusted Publisher is registered.
+- CI: `pr.yml` runs the Rust checks (`call-rust-validation.yml`) only when the pull request changes `rules-rust/`,
+  `.github/workflows/` or `.github/actions/`: rustfmt, clippy and the tests on the pinned toolchain, the tests on the
+  floor 1.93.0 (through `RUSTUP_TOOLCHAIN`, asserted with `KLIBS_RULES_EXPECT_TOOLCHAIN`) and
+  `cargo publish --dry-run`. A pull request that changes `rules-rust/` must also change the `klibs-rules` version
+  (`call-rust-version-changed.yml`).
+- Release: bump `version` in `modules/rules/Cargo.toml`. On a push to `master` that changes `rules-rust/`, `release.yml`
+  runs `release-plz release` (`call-rust-release.yml`, configured by `release-plz.toml`): when crates.io does not have
+  the version, it publishes the crate with the `CARGO_REGISTRY_TOKEN` secret, tags the commit `rules-rust-<version>`
+  and creates the GitHub release; a push without a bump publishes nothing.

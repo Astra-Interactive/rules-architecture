@@ -15,6 +15,36 @@ fn given_type_declarations_when_checked_then_free_functions_are_exempt_but_metho
 }
 
 #[test]
+fn given_type_alias_beside_free_functions_when_checked_then_the_file_is_ordered_as_a_function_file()
+{
+    for (source, expected) in [
+        (
+            "type Slot = u32; fn first() { second(); } fn second() {}",
+            1,
+        ),
+        (
+            "type Slot = u32; fn second() {} fn first() { second(); }",
+            0,
+        ),
+        (
+            "struct Subject; type Slot = u32; fn first() { second(); } fn second() {}",
+            0,
+        ),
+        (
+            "type Slot = u32; struct Subject; fn first() { second(); } fn second() {}",
+            0,
+        ),
+    ] {
+        crate::test::syntax::util::assert_syntax_findings(
+            &CalleeBeforeCaller,
+            "CalleeBeforeCaller",
+            source,
+            expected,
+        );
+    }
+}
+
+#[test]
 fn given_alternative_branches_when_checked_then_each_branch_sees_its_own_incoming_aliases() {
     for source in [
         "fn other() {} fn first(flag: bool) { let mut run = compute; if flag { run = other; } else { run(); } } fn compute() {}",

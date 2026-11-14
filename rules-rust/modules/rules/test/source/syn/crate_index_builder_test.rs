@@ -329,6 +329,74 @@ fn given_qualified_self_super_and_glob_exports_when_resolved_then_all_routes_rea
 }
 
 #[test]
+fn given_function_and_module_of_one_name_when_the_last_segment_is_resolved_then_both_namespaces_are_targets()
+ {
+    let index = build_index(
+        "mod util { pub use permission_node::permission_node; mod permission_node { pub fn permission_node() {} } }",
+    );
+    let Resolution::Internal(targets) = resolve(&index, 0, "util::permission_node") else {
+        panic!("resolves internally");
+    };
+    assert!(targets.iter().any(|target| target.item.is_none()));
+    assert!(targets.iter().any(|target| {
+        target
+            .item
+            .is_some_and(|item| matches!(index.items[item].syntax, syn::Item::Fn(_)))
+    }));
+    let Resolution::Internal(inside) = resolve(&index, 0, "util::permission_node::permission_node")
+    else {
+        panic!("a longer path walks through the module");
+    };
+    assert!(inside.iter().all(|target| target.item.is_some()));
+}
+
+#[test]
+fn given_many_globs_of_child_modules_when_a_name_is_resolved_then_the_resolution_stays_linear() {
+    let source = (0..10)
+        .map(|number| format!("mod m{number} {{ pub struct S{number}; }} pub use m{number}::*;"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let index = build_index(&source);
+    for number in [0, 5, 9] {
+        let Resolution::Internal(targets) = resolve(&index, 0, &format!("S{number}")) else {
+            panic!("the glob of m{number} resolves S{number}");
+        };
+        assert_eq!(1, targets.len(), "{targets:?}");
+        assert_eq!(
+            format!("m{number}"),
+            index.modules[targets[0].module].module.path.join("::")
+        );
+        let item = targets[0].item.expect("an item");
+        assert_eq!(format!("S{number}"), index.items[item].name);
+    }
+    assert_eq!(Resolution::Unresolved, resolve(&index, 0, "Missing"));
+}
+
+#[test]
+fn given_function_and_module_of_one_name_reexported_by_glob_when_resolved_then_both_namespaces_are_targets()
+ {
+    for source in [
+        "mod util { pub use permission_node::*; mod permission_node { pub fn permission_node() {} } }",
+        "mod util { pub use first::*; pub use permission_node::*; pub use last::*; mod first { pub struct First; } mod permission_node { pub fn permission_node() {} } mod last { pub struct Last; } }",
+    ] {
+        let index = build_index(source);
+        let Resolution::Internal(targets) = resolve(&index, 0, "util::permission_node") else {
+            panic!("{source}: resolves internally");
+        };
+        assert!(
+            targets.iter().any(|target| target.item.is_none()),
+            "{source}"
+        );
+        assert!(
+            targets.iter().any(|target| target
+                .item
+                .is_some_and(|item| matches!(index.items[item].syntax, syn::Item::Fn(_)))),
+            "{source}: {targets:?}"
+        );
+    }
+}
+
+#[test]
 fn given_two_internal_globs_when_resolved_then_ambiguity_retains_both_definitions() {
     let index = build_index(
         "mod left { pub struct Value; } mod right { pub struct Value; } mod consumer { use crate::left::*; use crate::right::*; fn call() { Value; } }",
@@ -372,6 +440,18 @@ fn given_generic_and_value_shadowing_when_indexed_then_type_names_keep_their_own
     assert_eq!(index.unanalysable.len(), 1);
     assert_eq!(index.unanalysable[0].subject, "T");
     assert!(index.edges.iter().any(|edge| edge.path == ["Value"]));
+}
+
+#[test]
+fn given_restricted_visibility_when_indexed_then_the_scope_path_is_neither_an_edge_nor_a_reference()
+{
+    let index = build_index(
+        "mod flow { pub(crate) struct A; pub(in crate::flow) struct B; pub(super) struct C; pub(in crate::flow::inner) struct D; pub(crate) fn run() { crate::flow::A; } mod inner { pub(in crate::flow) struct E; } }",
+    );
+    assert!(index.unanalysable.is_empty());
+    assert_eq!(1, index.edges.len());
+    assert_eq!(index.edges[0].path, ["crate", "flow", "A"]);
+    assert_eq!(1, index.references.len());
 }
 
 #[test]

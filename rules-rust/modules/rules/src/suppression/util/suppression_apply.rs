@@ -186,10 +186,7 @@ fn describe_unfulfilled(rule_id: &str, activity: &RuleActivity) -> String {
     }
     if !activity.active_rules.contains(rule_id) {
         let phase = find_catalogue_entry(rule_id).map_or(0, |entry| entry.phase);
-        return format!(
-            "`{rule_id}` is not active in klibs-rules {}: it ships in phase {phase}",
-            env!("CARGO_PKG_VERSION")
-        );
+        return format!("`{rule_id}` is not active in klibs-rules: it ships in phase {phase}");
     }
     format!("no `{rule_id}` finding is anchored in the scope of this exception")
 }

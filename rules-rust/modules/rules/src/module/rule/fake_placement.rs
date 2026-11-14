@@ -5,7 +5,7 @@ use crate::module::util::{
     build_shape_item_finding, build_shape_module_finding, find_kind_name, item_concept,
     owns_implementation,
 };
-use crate::source::model::{CrateIndex, IndexedItem, SourceTree};
+use crate::source::model::{CrateIndex, IndexedItem, IndexedModule, SourceTree};
 use crate::workspace::model::TomlValue;
 use std::collections::BTreeSet;
 use syn::Visibility;
@@ -73,6 +73,36 @@ impl FakePlacement {
                 && item.cfg.and(&other.cfg).is_satisfiable()
         });
         (!in_fake || !correct_visibility || wrong_concept || duplicate).then(|| build_shape_item_finding(index, item, "FakePlacement", "A fake lives once in its trait's concept/fake tree, pub(crate) in test or pub in fixture (arch-package.rs.md)"))
+    }
+
+    fn check_fake_file(
+        context: &RuleContext,
+        ordinal: usize,
+        module: &IndexedModule,
+    ) -> Option<RuleFinding> {
+        let index = &context.indexes[ordinal];
+        let is_double_tree = matches!(module.tree, SourceTree::Test | SourceTree::Fixture);
+        if !is_double_tree
+            || !module.is_file_module
+            || find_kind_name(context, ordinal, module.id) != "fake"
+        {
+            return None;
+        }
+        let declares_fake = index.items.iter().any(|item| {
+            item.module == module.id
+                && matches!(item.syntax, syn::Item::Struct(_) | syn::Item::Enum(_))
+                && item.name.starts_with("Fake")
+        });
+        if declares_fake {
+            return None;
+        }
+        build_shape_module_finding(
+            context,
+            ordinal,
+            module.id,
+            "FakePlacement",
+            "A file of the fake kind declares a Fake type: a double under another name is renamed, or, when it only stores values, is an InMemory type in memory (arch-package.rs.md, Tests)",
+        )
     }
 
     fn feature_finding(context: &RuleContext, crate_name: &str) -> Option<RuleFinding> {
@@ -211,6 +241,12 @@ impl Rule for FakePlacement {
                     .filter_map(|(identity, item)| {
                         Self::check_fake(context, ordinal, identity, item)
                     }),
+            );
+            findings.extend(
+                index
+                    .modules
+                    .iter()
+                    .filter_map(|module| Self::check_fake_file(context, ordinal, module)),
             );
             findings.extend(index.modules.iter().filter(|module| module.tree == SourceTree::Src && !module.is_file_module && module.module.path.last().is_some_and(|name| name == "fake")).filter_map(|module| build_shape_module_finding(context, ordinal, module.id, "FakePlacement", "The fake kind exists only in test or fixture trees (arch-package.rs.md)")));
         }
