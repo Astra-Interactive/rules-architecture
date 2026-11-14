@@ -137,6 +137,44 @@ fn given_serde_structs_with_identifier_shapes_when_checked_then_only_the_single_
     );
 }
 
+const IDENTIFIER_MESSAGE: &str = "Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)";
+
+const SINGLE_PROPERTY_MESSAGE: &str = "A model struct with one named field is a single-property value object: write it as a tuple struct (arch-domain.rs.md)";
+
+fn list_messages(source: &str) -> Vec<String> {
+    let context = crate::test::declaration::util::read_code_context(source);
+    BareIdentifier
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.message.clone())
+        .collect()
+}
+
+#[test]
+fn given_single_field_struct_without_serde_in_model_when_checked_then_the_message_names_the_value_object()
+ {
+    assert_eq!(
+        list_messages("mod model {\nstruct Basket { items: Vec<Item> }\nstruct Item;\n}"),
+        [SINGLE_PROPERTY_MESSAGE]
+    );
+}
+
+#[test]
+fn given_braced_struct_named_id_when_checked_then_the_message_names_the_identifier() {
+    assert_eq!(
+        list_messages("mod model {\nstruct OrderId { value: String }\n}"),
+        [IDENTIFIER_MESSAGE]
+    );
+}
+
+#[test]
+fn given_bare_id_field_when_checked_then_the_message_names_the_identifier() {
+    assert_eq!(
+        list_messages("mod model {\nstruct Order { customer_id: String, note: String }\n}"),
+        [IDENTIFIER_MESSAGE]
+    );
+}
+
 #[test]
 fn given_single_field_structs_in_model_when_checked_then_the_identity_field_is_the_entity_mark() {
     assert_code_findings(

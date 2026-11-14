@@ -25,6 +25,7 @@ members = [
   "modules/good/arch-package-rs-fixture/consumer",
   "modules/good/arch-package-rs-tree",
   "modules/good/async-rs",
+  "modules/good/async-rs-job-scope",
   "modules/good/clean-code-rs",
   "modules/good/closure-naming-rs",
   "modules/good/code-ordering-rs",

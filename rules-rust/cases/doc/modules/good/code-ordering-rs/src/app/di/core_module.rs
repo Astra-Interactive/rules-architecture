@@ -1,4 +1,5 @@
 use crate::app::service::TaskScope;
+use crate::lifecycle::api::Lifecycle;
 use std::sync::Arc;
 
 pub(crate) struct CoreModule {
@@ -10,5 +11,13 @@ impl CoreModule {
         Self {
             task_scope: Arc::new(TaskScope::new("core".to_owned())),
         }
+    }
+}
+
+impl Lifecycle for CoreModule {
+    fn on_enable(&self) {}
+
+    fn on_disable(&self) {
+        self.task_scope.abort();
     }
 }

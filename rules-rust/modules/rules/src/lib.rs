@@ -684,6 +684,9 @@ pub(crate) mod module {
         pub(crate) use root_file_shape::RootFileShape;
         pub(crate) use root_module_construction::RootModuleConstruction;
         pub(crate) use root_module_placement::RootModulePlacement;
+        pub(crate) use scope_call_visitor::ScopeCallVisitor;
+        pub(crate) use scope_origin_visitor::ScopeOriginVisitor;
+        pub(crate) use scope_ownership::ScopeOwnership;
         pub(crate) use system_clock_outside_di::SystemClockOutsideDi;
         pub(crate) use test_attribute_visitor::TestAttributeVisitor;
         pub(crate) use test_mirror::TestMirror;
@@ -764,6 +767,9 @@ pub(crate) mod module {
         mod main_shape_visitor;
         mod root_construction_visitor;
         mod root_module_construction;
+        mod scope_call_visitor;
+        mod scope_origin_visitor;
+        mod scope_ownership;
         mod system_clock_outside_di;
     }
 
@@ -1135,6 +1141,7 @@ mod test {
             pub(crate) use resolver_case_test::assert_resolution_cases;
             pub(crate) use shape_inspect_test::{
                 read_binary_shape_context, read_shape_context, read_workspace_shape_context,
+                read_workspace_shape_context_with_files,
             };
             pub(crate) use workspace_provider_test::add_workspace_provider;
             mod di_inspect_test;

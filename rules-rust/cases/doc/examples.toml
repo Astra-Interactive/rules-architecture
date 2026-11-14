@@ -2,7 +2,7 @@
 # `cargo xtask gate-sync --docs <conf.ide>/.claude/docs` rewrites sha256 and conf-ide-commit; the rest is reviewed by hand.
 
 [sync]
-conf-ide-commit = "7c53072"
+conf-ide-commit = "d61ee9e"
 
 [[example]]
 claim = "arch-package.rs:Modules:5"
@@ -383,7 +383,7 @@ review = []
 [[example.fragment]]
 path = "modules/good/async-rs/src/reminder/di/reminder_module.rs"
 block-lines = "5-5"
-fixture-lines = "19-19"
+fixture-lines = "20-20"
 
 [[example]]
 claim = "async.rs:Tasks:12"
@@ -406,6 +406,40 @@ fixture-lines = "1-1"
 path = "modules/good/async-rs/src/reminder/service/task_scope.rs"
 block-lines = "2-49"
 fixture-lines = "8-55"
+
+[[example]]
+claim = "async.rs:Tasks:13"
+document = "async.rs.md"
+anchor = "### Tasks"
+first-line = "// task/api/scoped_job.rs, in the crate that declares TaskScope"
+occurrence = 1
+half = "good"
+lines = "1-81"
+split = "none"
+wrap = "file"
+sha256 = "a5ab19ee699a8aafa71db0aa46ddd813a1cc8f0156302f0d88926376c3b27bc5"
+expected = []
+review = []
+[[example.fragment]]
+path = "modules/good/async-rs-job-scope/src/task/api/scoped_job.rs"
+block-lines = "1-1"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/async-rs-job-scope/src/task/api/scoped_job.rs"
+block-lines = "2-5"
+fixture-lines = "4-7"
+[[example.fragment]]
+path = "modules/good/async-rs-job-scope/src/task/model/task_guard.rs"
+block-lines = "7-8"
+fixture-lines = "1-2"
+[[example.fragment]]
+path = "modules/good/async-rs-job-scope/src/task/memory/task_scope.rs"
+block-lines = "10-10"
+fixture-lines = "1-1"
+[[example.fragment]]
+path = "modules/good/async-rs-job-scope/src/task/memory/task_scope.rs"
+block-lines = "11-81"
+fixture-lines = "7-77"
 
 [[example]]
 claim = "async.rs:Locks:19"

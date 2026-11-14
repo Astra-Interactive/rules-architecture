@@ -10,4 +10,5 @@ RootFileShape	modules/sample/src/build/kept.rs	modules/sample/src/build/kept.rs	
 ModuleVisibility	modules/sample/src/lib.rs:3	case_sample::fixture	module visibility must be Crate (arch-package.rs.md, Modules and directories)
 ModuleVisibility	modules/sample/src/lib.rs:6	case_sample::fixture::sample	module visibility must be Crate (arch-package.rs.md, Modules and directories)
 ModuleVisibility	modules/sample/src/lib.rs:7	case_sample::fixture::sample::fake	module visibility must be Crate (arch-package.rs.md, Modules and directories)
+FakePlacement	modules/sample/src/lib.rs:8	case_sample::fixture::sample::fake::fake_sample	A file of the fake kind declares a Fake type: a double under another name is renamed, or, when it only stores values, is an InMemory type in memory (arch-package.rs.md, Tests)
 TestMirror	modules/sample/src/lib.rs:18	case_sample::test::sample::usecase::sample_test	the test file has no source file at its mirrored src path

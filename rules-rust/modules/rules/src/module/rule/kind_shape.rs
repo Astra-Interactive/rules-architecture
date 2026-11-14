@@ -5,10 +5,12 @@ use crate::config::model::Role;
 use crate::module::rule::ContractPlacement;
 use crate::module::util::build_shape_item_finding;
 use crate::module::util::build_shape_module_finding;
+use crate::module::util::external_trait;
+use crate::module::util::find_kind_name;
 use crate::module::util::find_mirrored_source_path;
 use crate::module::util::format_shape_subject;
 use crate::module::util::resolve_shape_type;
-use crate::source::model::{IndexedItem, IndexedModule, SourceFile, SourceTree};
+use crate::source::model::{IndexedImpl, IndexedItem, IndexedModule, SourceFile, SourceTree};
 use crate::source::util::find_node_span;
 use syn::Item;
 use syn::ext::IdentExt;
@@ -45,6 +47,31 @@ impl KindShape {
         )
     }
 
+    fn implements_contract(
+        context: &RuleContext,
+        ordinal: usize,
+        implementation: &IndexedImpl,
+    ) -> bool {
+        let Some((path, _)) = &implementation.syntax.trait_ else {
+            return false;
+        };
+        let workspace = context.resolve_workspace_path(ordinal, implementation.module, path);
+        if !workspace.is_empty() {
+            return workspace.iter().any(|target| {
+                target.path.item.is_some_and(|identity| {
+                    let contract = &context.indexes[target.index].items[identity];
+                    matches!(contract.syntax, Item::Trait(_))
+                        && find_kind_name(context, target.index, contract.module) == "api"
+                })
+            });
+        }
+        external_trait(context, ordinal, implementation).is_some_and(|path| {
+            let identity = context.resolve_external_identity(ordinal, &path);
+            context.is_platform_identity(&identity)
+                || context.is_technology_identity(ordinal, &identity)
+        })
+    }
+
     fn is_implementation_file(context: &RuleContext, ordinal: usize, module: usize) -> bool {
         if !Self::is_mixed_unit(context, ordinal) {
             return false;
@@ -56,11 +83,17 @@ impl KindShape {
         let implemented: std::collections::BTreeSet<usize> = index
             .implementations
             .iter()
-            .filter(|implementation| implementation.syntax.trait_.is_some())
+            .filter(|implementation| Self::implements_contract(context, ordinal, implementation))
             .filter(|implementation| {
-                resolve_shape_type(index, implementation.module, &implementation.syntax.self_ty)
-                    .iter()
-                    .any(|target| index.items[*target].module == implementation.module)
+                let targets = resolve_shape_type(
+                    index,
+                    implementation.module,
+                    &implementation.syntax.self_ty,
+                );
+                targets.is_empty()
+                    || targets
+                        .iter()
+                        .any(|target| index.items[*target].module == implementation.module)
             })
             .map(|implementation| implementation.module)
             .collect();

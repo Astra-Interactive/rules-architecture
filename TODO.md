@@ -1449,57 +1449,17 @@ spot of function-body macros, the `Unanalysable` row of an item macro in a crate
 `UseCaseShape` and `ConstructorDependency` on a model that implements an `api` trait, `DiModuleShape` on a list of
 shared services, `PlatformImport` in the test and fixture trees, `OneTypeFamilyPerFile` on a file of type aliases and
 functions, `CriticalSectionWrite` on a returned field of a local, `KindImportDirection` on a test-tree fake that uses the
-`memory` of its own concept) are not here. Each item below is a case that was read
-in the source, found present, and left to a decision. **Doc** lines are those of `conf.ide` on 2026-11-14; **Rule**
-paths are under `rules-rust/modules/rules/src/`. No item has a test.
+`memory` of its own concept, and the five cases of the second round: `KindShape` on a concept file whose only impl is
+of a standard trait (an implementation is an impl of an `api` trait of the workspace or of a trait the platform's or
+the technology's library declares), `DiModuleLifecycle` on a private method called in a lifecycle body (kept, pinned
+by tests; the document names the job form), `TaskScope` recognised by name (a second `TaskScope` declaration in one
+product of the workspace is reported), `FakePlacement` on a double under another name in a `fake` block (a file of a
+`fake` block declares a `Fake…` type), `BareIdentifier` printing one text for its branches; with them `ImplPlacement`
+on a contract impl for a type another crate declares, the handed and the owned `TaskScope` (a type handed an
+`Arc<TaskScope>` only spawns, an owner holds it by value or builds the `Arc` in its own `new`), `block_on` on the
+stored runtime `Handle` in `on_disable`) are not here. **Doc** lines are those of `conf.ide` on 2026-11-14; **Rule**
+paths are under `rules-rust/modules/rules/src/`.
 
-- [ ] **RP-01** — missed (document conflict) · candidate (rollout): `KindShape` accepts a concept file for any trait
-  impl
-  - Doc (`arch-package.md:130–132`): "its implementations and their helpers may sit directly in a concept"
-  - Gap: `is_implementation_file` counts any `impl Trait for T` with `T` declared in the file, so a guard with `impl
-    Drop`, or a type with `impl Default` or `impl Display`, makes its file an "implementation" that may sit directly in
-    a concept. The document speaks of implementations of contracts. The test
-    `given_technology_concept_implementations_and_private_helpers_when_checked_then_only_unowned_helper_reports` pins
-    `impl std::fmt::Display` as an implementation, and the concept files of PumpkinMcPlugin `core/pumpkin` are
-    accepted through such impls, so tightening the rule flips rows there. It needs a trial run on that project and the
-    owner's reading of "implementation" (a workspace `api` trait or a trait of a platform library, not a derivable std
-    trait).
-  - Rule: `KindShape`, `module/rule/kind_shape.rs` (`is_implementation_file`; `is_accepted_concept_file` calls it for
-    a test mirror, so a decision here moves both)
-- [ ] **RP-02** — false positive (to confirm) · candidate (rollout): `DiModuleLifecycle` rejects any call in a
-  lifecycle body but a forward, `abort`, `spawn` and a shared clone
-  - Doc (`di-manual.rs.md:54–58`): "its methods call the same method of only the DI modules it owns, in order";
-    (`di-manual.rs.md:141–142`): "A task that seeds or migrates a resource … is started by its `on_enable`"
-  - Gap: `fn on_reload(&self) { self.reload_configuration(); self.listener.on_reload(); }` is reported for the first
-    call, since `visit_expr_method_call` accepts only the forwards of owned children, `abort`, a task start and a
-    shared clone. The first sentence is what the rule enforces; the second allows more than the rule does, and a
-    configuration reload in `on_reload` has no legal form unless it goes through a job. Either the document names the
-    job form, or the rule accepts a call to a private method of the same module whose body passes the same check.
-    (Closed part, 2026-11-14: `self.<own TaskScope field>.reload()` in `on_reload` is accepted, the twin of the
-    `spawn` of `is_own_task_start`; the call of a private method of the module is still reported.)
-  - Rule: `DiModuleLifecycle`, `module/rule/lifecycle_body_visitor.rs` (`visit_expr_call`, `visit_expr_method_call`)
-- [ ] **RP-03** — missed · candidate (rollout): `TaskScope` is recognised by its type name
-  - Doc (`di-manual.rs.md:62–64`): "A DI module whose types start tasks either owns a `TaskScope` for them or hands
-    them the shared scope that `CoreModule` holds"
-  - Gap: `DiModuleShape` (`service_identity`) skips every workspace type named `TaskScope`, and the lifecycle body
-    visitor accepts the start of a task through a field of that name (`is_own_task_start`), so any other type with
-    that name is exempt too. The document names no path of the type; resolving its identity needs one.
-  - Rule: `DiModuleShape`, `module/rule/di_module_shape.rs` (`service_identity`); `DiModuleLifecycle`,
-    `module/rule/lifecycle_body_visitor.rs` (`is_own_task_start`)
-- [ ] **RP-04** — missed (document wording) · candidate (rollout): `FakePlacement` judges a double by its name
-  - Doc (`arch-package.rs.md:303–304`): "A `Fake…` scripts failures or records calls. A same-crate fake lives in the
-    test tree, in `fake/` …"
-  - Gap: `FakePlacement` ignores every type whose name does not start with `Fake`, so a double that records calls but
-    is named otherwise is never placed or checked. The document defines the fake by its name, so the rule follows it;
-    a double renamed to leave the `fake` kind is silent, which is a rename for the checker (`no-workarounds.md`) that
-    only a reviewer sees.
-  - Rule: `FakePlacement`, `module/rule/fake_placement.rs`
-- [ ] **RP-05** — message · candidate (rollout): one text for three branches of `BareIdentifier`
-  - Doc (`arch-domain.rs.md:61–63`): "A single-property value object is a tuple struct too."
-  - Gap: the finding of the single-property branch prints "Use a single-field tuple identifier instead of bare
-    strings, UUIDs or numbers", which names a string, a UUID or a number although the field of the reported struct
-    (`Vec<Portal>`, a model struct, a `bool`) is none of them.
-  - Rule: `BareIdentifier`, `declaration/rule/bare_identifier.rs` (`check`)
 - [ ] **RP-06** — missed · kept (2026-11-14): an `InMemory…` store that writes through
   - Doc (`arch-package.md:243–246`): "`InMemory<Contract>` names a store that only holds its values in memory; a store
     that keeps them in memory and writes them to a file or a database is named by that technology
@@ -1509,6 +1469,21 @@ paths are under `rules-rust/modules/rules/src/`. No item has a test.
     path held as a value, and a store that writes through an injected trait shows nothing in its file.
   - Rule: `InMemoryPlacement`, `module/rule/in_memory_placement.rs` (`check`, `wrong_implementation`)
   - Near: **KT-26** — the same sentence in the Kotlin linter.
+- [ ] **RP-07** — missed · kept (review of 2026-11-14): a handed scope held inside a wrapper
+  - Doc (`di-manual.rs.md`, Lifecycle and scopes; `async.rs.md`, Tasks): "Such a type calls `spawn` and nothing else on it"
+  - Gap: the handed-scope finding reads fields whose outer type is `Arc<TaskScope>`; the same scope held as
+    `Option<Arc<TaskScope>>`, `Mutex<Arc<TaskScope>>` or `OnceLock<Arc<TaskScope>>` and aborted or reloaded through a
+    `let`, `if let` or a guard binding is not reported. Aliases made by `let s = Arc::clone(&self.scope)`, `&self.scope`,
+    `.as_ref()`, `UFCS` and tuple fields are.
+  - Rule: `DiModuleLifecycle`, `module/rule/di_module_lifecycle.rs` (`list_handed_fields`), `module/rule/scope_call_visitor.rs`
+- [ ] **RP-08** — missed · kept (re-review of 2026-11-14): a scope built outside the type's own constructors
+  - Doc (`async.rs.md`, Tasks; `di-manual.rs.md`, Lifecycle and scopes): "it builds the scope in its `new` and holds it by value"
+  - Gap: ownership is read from the expression a constructor of the type (`new`, `with_…`, any associated function returning
+    `Self`, `Arc<Self>`, `Box<Self>`, or a `Result` or `Option` of them) assigns to the field: `TaskScope::new()`,
+    `TaskScope::default()`, `Arc::new(…)` and `Arc::default()` of those, a local bound to one, or `#[derive(Default)]`. A
+    scope built in a builder type or a free function, or through a method chain (`TaskScope::new().named(..)`), is read as
+    handed, so its owner is reported in a non-DI type and its abort is reported in a DI module. Tests pin this reading.
+  - Rule: `DiModuleLifecycle`, `module/rule/scope_ownership.rs`, `module/rule/scope_origin_visitor.rs`
 
 ## Kotlin linter (arch-fix, 2026-11-13)
 
@@ -1699,6 +1674,13 @@ there. **Rule** paths are under `rules-kotlin/konsist/src/main/kotlin/ru/astrain
     `tween(durationMs, delayMs, easing)` became `Easing.EaseInOut.tween(durationMs, delayMs)`, `fadeIn(spec)` became
     `spec.fadeIn()` (eight builders), and the infix `enter with exit` became the constructor call
     `ContentTransform(enter, exit)`.
+- [ ] **KT-27** — missed · candidate (rollout): a double under another name in a test-tree `fake` package
+  - Doc (`arch-package.kt.md`, Tests): "A file of a `fake` package declares a `Fake…` class, and a double under
+    another name is not written."
+  - Gap: `FakePlacement` reads the `Fake[A-Z]\w*` name only; its reverse check (`findProductCode`) reports a class
+    not named `Fake…` in a `<feature>/fake` unit, and a test-tree `fake` package has none, so a renamed double is
+    silent there. The Rust twin exists (`FakePlacement`, `module/rule/fake_placement.rs`, `check_fake_file`).
+  - Rule: `FakePlacement`, `check/placement/konsist/FakePlacement.kt`
 
 ## Kotlin linter (documents of 2026-11-14)
 

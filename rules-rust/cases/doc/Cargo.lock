@@ -340,6 +340,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "good-async-rs-job-scope"
+version = "0.0.0"
+dependencies = [
+ "parking_lot",
+]
+
+[[package]]
 name = "good-clean-code-rs"
 version = "0.0.0"
 dependencies = [

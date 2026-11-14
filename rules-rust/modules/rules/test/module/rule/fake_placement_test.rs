@@ -166,6 +166,83 @@ fn given_shared_fake_in_a_crate_that_does_not_own_the_trait_when_checked_then_on
     );
 }
 
+const DOUBLE_WITHOUT_FAKE_NAME: &str =
+    "pub(crate) struct RecordingReader; impl crate::account::api::Reader for RecordingReader {}";
+
+#[test]
+fn given_file_of_a_test_fake_block_without_a_fake_type_when_checked_then_the_file_is_reported() {
+    let context = read_placement_context(&[
+        (
+            "src/lib.rs",
+            "mod account { mod api { pub(crate) trait Reader {} } }\n#[cfg(test)] mod test { mod account { mod fake { mod recording_reader; } } }",
+        ),
+        (
+            "src/test/account/fake/recording_reader.rs",
+            DOUBLE_WITHOUT_FAKE_NAME,
+        ),
+    ]);
+    assert_placement_findings(
+        &FakePlacement,
+        "FakePlacement",
+        &context,
+        &[("src/lib.rs", 2, "Module")],
+    );
+}
+
+#[test]
+fn given_file_of_a_fixture_fake_block_without_a_fake_type_when_checked_then_the_file_is_reported() {
+    let mut context = read_placement_context(&[
+        (
+            "src/lib.rs",
+            "pub mod account { pub mod api { pub trait Reader {} } }\n#[cfg(any(test, feature = \"fake\"))] pub mod fixture { pub mod account { pub mod fake { mod recording_reader; } } }",
+        ),
+        (
+            "src/fixture/account/fake/recording_reader.rs",
+            "pub struct RecordingReader; impl crate::account::api::Reader for RecordingReader {}",
+        ),
+    ]);
+    let path = context.workspace.members[0].manifest.path.clone();
+    context.workspace.members[0].manifest =
+        parse_toml_file(&path, "[features]\nfake = []\n").expect("fake feature");
+    assert_placement_findings(
+        &FakePlacement,
+        "FakePlacement",
+        &context,
+        &[("src/lib.rs", 2, "Module")],
+    );
+}
+
+#[test]
+fn given_fake_file_with_a_plain_data_struct_only_its_fake_uses_when_checked_then_nothing_is_reported()
+ {
+    let context = read_placement_context(&[
+        (
+            "src/lib.rs",
+            "mod account { mod api { pub(crate) trait Reader {} } }\n#[cfg(test)] mod test { mod account { mod fake { mod fake_reader; } } }",
+        ),
+        (
+            "src/test/account/fake/fake_reader.rs",
+            "pub(crate) struct FakeReader { calls: Vec<ReadCall> }\nstruct ReadCall;\nimpl crate::account::api::Reader for FakeReader {}",
+        ),
+    ]);
+    assert_placement_findings(&FakePlacement, "FakePlacement", &context, &[]);
+}
+
+#[test]
+fn given_double_named_otherwise_in_a_memory_block_when_checked_then_fake_placement_is_silent() {
+    let context = read_placement_context(&[
+        (
+            "src/lib.rs",
+            "mod account { mod api { pub(crate) trait Reader {} } }\n#[cfg(test)] mod test { mod account { mod memory { mod recording_reader; } } }",
+        ),
+        (
+            "src/test/account/memory/recording_reader.rs",
+            DOUBLE_WITHOUT_FAKE_NAME,
+        ),
+    ]);
+    assert_placement_findings(&FakePlacement, "FakePlacement", &context, &[]);
+}
+
 #[test]
 fn given_phase_one_fake_crate_cases_when_checked_then_preserves_the_crate_rule() {
     let bad = read_case_context("FakePlacement", "fail-crate");

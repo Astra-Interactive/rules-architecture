@@ -7,7 +7,7 @@ use crate::module::util::{
     build_shape_item_finding, external_trait, find_kind_name, find_type_path, is_model_item,
     owns_implementation, resolve_type_uses,
 };
-use crate::source::model::{CrateIndex, IndexedImpl, IndexedItem, Resolution};
+use crate::source::model::{CrateIndex, IndexedImpl, IndexedItem, Resolution, SourceTree};
 use crate::syntax::util::to_snake_case;
 use std::path::Path;
 
@@ -112,13 +112,200 @@ impl ImplPlacement {
         let dependency = path.split("::").next().unwrap_or("");
         let kind = find_kind_name(context, ordinal, module);
         let word = dependency.split('_').next().unwrap_or("");
-        kind == dependency
-            || kind == word
-            || context
-                .find_role_config(&index.crate_name)
-                .and_then(|config| config.role)
-                == Some(Role::Technology)
-                && kind.is_empty()
+        let role = context
+            .find_role_config(&index.crate_name)
+            .and_then(|config| config.role);
+        let is_whole_technology_crate = matches!(
+            role,
+            Some(Role::Technology | Role::Platform | Role::CorePlatform)
+        );
+        kind == dependency || kind == word || is_whole_technology_crate && kind.is_empty()
+    }
+
+    fn stands_alone(
+        context: &RuleContext,
+        ordinal: usize,
+        implementation: &IndexedImpl,
+        contract: &syn::Path,
+    ) -> bool {
+        let index = &context.indexes[ordinal];
+        let Some(file) = context
+            .crates
+            .iter()
+            .find(|sources| {
+                sources.crate_name == index.crate_name && sources.target == index.target
+            })
+            .and_then(|sources| {
+                sources
+                    .files
+                    .iter()
+                    .find(|file| file.path == implementation.file)
+            })
+        else {
+            return false;
+        };
+        let contract_name = contract.segments.last().map(|segment| &segment.ident);
+        file.syntax.items.iter().all(|item| match item {
+            syn::Item::Use(_) => true,
+            syn::Item::Impl(other) => other.trait_.as_ref().is_some_and(|(path, _)| {
+                path.segments.last().map(|segment| &segment.ident) == contract_name
+            }),
+            _ => false,
+        })
+    }
+
+    fn find_pointee(self_type: &syn::Type) -> Option<&syn::Type> {
+        match self_type {
+            syn::Type::Reference(reference) => Some(&*reference.elem),
+            syn::Type::Path(path) => {
+                let segment = path.path.segments.last()?;
+                if !["Arc", "Box", "Rc"].contains(&segment.ident.to_string().as_str()) {
+                    return None;
+                }
+                let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments else {
+                    return None;
+                };
+                arguments.args.iter().find_map(|argument| match argument {
+                    syn::GenericArgument::Type(inner) => Some(inner),
+                    _ => None,
+                })
+            }
+            _ => None,
+        }
+    }
+
+    fn bounds_name_contract<'bound>(
+        mut bounds: impl Iterator<Item = &'bound syn::TypeParamBound>,
+        contract: &syn::Ident,
+    ) -> bool {
+        bounds.any(|bound| {
+            matches!(bound, syn::TypeParamBound::Trait(bound) if bound.path.segments.last().is_some_and(|segment| &segment.ident == contract))
+        })
+    }
+
+    fn is_forwarding_impl(implementation: &IndexedImpl, contract: &syn::Path) -> bool {
+        let Some(contract_name) = contract.segments.last().map(|segment| &segment.ident) else {
+            return false;
+        };
+        let Some(pointee) = Self::find_pointee(&implementation.syntax.self_ty) else {
+            return false;
+        };
+        if let syn::Type::TraitObject(object) = pointee {
+            return Self::bounds_name_contract(object.bounds.iter(), contract_name);
+        }
+        let syn::Type::Path(path) = pointee else {
+            return false;
+        };
+        let Some(parameter) = path.path.get_ident() else {
+            return false;
+        };
+        let generics = &implementation.syntax.generics;
+        let in_parameters = generics.params.iter().any(|candidate| {
+            matches!(candidate, syn::GenericParam::Type(declared) if declared.ident == *parameter
+                && Self::bounds_name_contract(declared.bounds.iter(), contract_name))
+        });
+        let in_where_clause = generics.where_clause.as_ref().is_some_and(|clause| {
+            clause.predicates.iter().any(|predicate| {
+                matches!(predicate, syn::WherePredicate::Type(bounded)
+                    if matches!(&bounded.bounded_ty, syn::Type::Path(path) if path.path.is_ident(parameter))
+                        && Self::bounds_name_contract(bounded.bounds.iter(), contract_name))
+            })
+        });
+        in_parameters || in_where_clause
+    }
+
+    fn is_prelude_standard_type(self_type: &syn::Type) -> bool {
+        let Some(path) = find_type_path(self_type) else {
+            return false;
+        };
+        let [segment] = path.segments.iter().collect::<Vec<_>>()[..] else {
+            return false;
+        };
+        Self::PRELUDE_STANDARD_TYPES.contains(&segment.ident.to_string().as_str())
+    }
+
+    fn is_local_contract(
+        context: &RuleContext,
+        ordinal: usize,
+        implementation: &IndexedImpl,
+        contract: &syn::Path,
+    ) -> bool {
+        let index = &context.indexes[ordinal];
+        context
+            .resolve_workspace_path(ordinal, implementation.module, contract)
+            .iter()
+            .any(|target| {
+                target.index == ordinal
+                    && target.path.item.is_some_and(|identity| {
+                        let item = &index.items[identity];
+                        matches!(item.syntax, syn::Item::Trait(_))
+                            && find_kind_name(context, ordinal, item.module) == "api"
+                    })
+            })
+    }
+
+    fn build_wrapper_finding(implementation: &IndexedImpl, subject: String) -> RuleFinding {
+        build_node_finding(
+            "ImplPlacement",
+            &implementation.file,
+            implementation.span,
+            subject,
+            "A contract is not implemented for a type of the standard library: write a wrapper type (arch-package.rs.md)".to_owned(),
+        )
+    }
+
+    fn foreign_contract_finding(
+        context: &RuleContext,
+        ordinal: usize,
+        implementation: &IndexedImpl,
+    ) -> Option<RuleFinding> {
+        let index = &context.indexes[ordinal];
+        if index.modules[implementation.module].tree != SourceTree::Src {
+            return None;
+        }
+        let (contract, _) = implementation.syntax.trait_.as_ref()?;
+        let is_local_contract = Self::is_local_contract(context, ordinal, implementation, contract);
+        let is_foreign_type = index
+            .resolve_type_items(implementation.module, &implementation.syntax.self_ty)
+            .is_empty();
+        if !is_local_contract
+            || !is_foreign_type
+            || Self::is_forwarding_impl(implementation, contract)
+        {
+            return None;
+        }
+        if Self::is_prelude_standard_type(&implementation.syntax.self_ty) {
+            return Some(Self::build_wrapper_finding(
+                implementation,
+                "std".to_owned(),
+            ));
+        }
+        let external = Self::external_origin(
+            index,
+            implementation.module,
+            &implementation.syntax.self_ty,
+            0,
+        )?;
+        let first_segment = external.split("::").next().unwrap_or("");
+        if ["std", "core", "alloc"].contains(&first_segment) {
+            return Some(Self::build_wrapper_finding(implementation, external));
+        }
+        let in_technology =
+            Self::technology_scope(context, ordinal, implementation.module, &external);
+        let type_name = external.rsplit("::").next().unwrap_or("");
+        let contract_name = contract.segments.last()?.ident.to_string();
+        let expected_stem = format!(
+            "{}_{}",
+            to_snake_case(type_name),
+            to_snake_case(&contract_name)
+        );
+        let stem = Path::new(&implementation.file)
+            .file_stem()
+            .and_then(|stem| stem.to_str());
+        let is_placed = in_technology
+            && stem == Some(expected_stem.as_str())
+            && Self::stands_alone(context, ordinal, implementation, contract);
+        (!is_placed).then(|| build_node_finding("ImplPlacement", &implementation.file, implementation.span, external, "An impl of a contract for a type of another crate stands alone in <type>_<contract>.rs of that crate's technology module (arch-package.rs.md)".to_owned()))
     }
 
     fn external_conversion_finding(
@@ -187,12 +374,24 @@ impl ImplPlacement {
         let mut findings = Self::external_conversion_finding(context, ordinal, implementation)
             .into_iter()
             .collect::<Vec<_>>();
+        findings.extend(Self::foreign_contract_finding(
+            context,
+            ordinal,
+            implementation,
+        ));
         findings.extend(index.resolve_type_items(implementation.module, &implementation.syntax.self_ty).into_iter().filter(|identity| owns_implementation(index, *identity, implementation)).filter_map(|identity| {
             let item = &index.items[identity];
             (!Self::allowed(context, ordinal, item, implementation)).then(|| build_node_finding("ImplPlacement", &implementation.file, implementation.span, item.name.clone(), "An impl stays in its type's file, its documented util extension or a conversion/framework boundary (arch-package.rs.md)".to_owned()))
         }));
         findings
     }
+}
+
+impl ImplPlacement {
+    const PRELUDE_STANDARD_TYPES: [&'static str; 22] = [
+        "String", "Vec", "Option", "Result", "Box", "bool", "char", "str", "u8", "u16", "u32",
+        "u64", "u128", "usize", "i8", "i16", "i32", "i64", "i128", "isize", "f32", "f64",
+    ];
 }
 
 impl Rule for ImplPlacement {

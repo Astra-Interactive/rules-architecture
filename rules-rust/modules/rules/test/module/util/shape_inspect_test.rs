@@ -5,7 +5,14 @@ use crate::test::check::usecase::read_case_context;
 use std::fs;
 
 pub(crate) fn read_workspace_shape_context(members: &[(&str, &str, &str)]) -> RuleContext {
-    read_workspace_with_binaries(members, &[])
+    read_workspace_with_binaries(members, &[], &[])
+}
+
+pub(crate) fn read_workspace_shape_context_with_files(
+    members: &[(&str, &str, &str)],
+    files: &[(&str, &str)],
+) -> RuleContext {
+    read_workspace_with_binaries(members, &[], files)
 }
 
 pub(crate) fn read_binary_shape_context(library: &str, binary: &str) -> RuleContext {
@@ -16,12 +23,14 @@ pub(crate) fn read_binary_shape_context(library: &str, binary: &str) -> RuleCont
             library,
         )],
         &[("shop_cli", binary)],
+        &[],
     )
 }
 
 fn read_workspace_with_binaries(
     members: &[(&str, &str, &str)],
     binaries: &[(&str, &str)],
+    files: &[(&str, &str)],
 ) -> RuleContext {
     use crate::workspace::api::WorkspaceReader;
     let mut context = read_case_context("RootFileShape", "pass-tree");
@@ -43,6 +52,11 @@ fn read_workspace_with_binaries(
     }
     for (name, source) in binaries {
         fs::write(directory.path().join(name).join("src/main.rs"), source).expect("binary source");
+    }
+    for (path, text) in files {
+        let path = directory.path().join(path);
+        fs::create_dir_all(path.parent().expect("file parent")).expect("file directory");
+        fs::write(path, text).expect("file module");
     }
     context.workspace = crate::workspace::cargo::CargoWorkspaceReader::new(
         crate::workspace::util::resolve_cargo_path(),

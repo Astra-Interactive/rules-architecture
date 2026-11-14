@@ -161,7 +161,7 @@ impl BareIdentifier {
         ordinal: usize,
         module: usize,
         fields: &syn::Fields,
-        spans: &mut Vec<proc_macro2::Span>,
+        sites: &mut Vec<BareSite>,
     ) {
         for field in fields {
             let Some(name) = &field.ident else {
@@ -173,7 +173,10 @@ impl BareIdentifier {
             let is_bare_plural = (name == "ids" || name.ends_with("_ids"))
                 && Self::is_bare_collection(context, ordinal, module, &field.ty);
             if is_bare_single || is_bare_plural {
-                spans.push(field.span());
+                sites.push(BareSite {
+                    span: field.span(),
+                    message: Self::IDENTIFIER_MESSAGE,
+                });
             }
         }
     }
@@ -203,8 +206,8 @@ impl BareIdentifier {
         module: usize,
         item: &syn::Item,
         in_model: bool,
-    ) -> Vec<proc_macro2::Span> {
-        let mut spans = Vec::new();
+    ) -> Vec<BareSite> {
+        let mut sites = Vec::new();
         match item {
             syn::Item::Struct(value) => {
                 let invalid_identifier = value.ident.unraw().to_string().ends_with("Id")
@@ -214,25 +217,40 @@ impl BareIdentifier {
                     && !is_format_record
                     && matches!(&value.fields, syn::Fields::Named(fields)
                         if fields.named.len() == 1 && !fields.named.iter().any(Self::is_identity_field));
-                if invalid_identifier || single_property {
-                    spans.push(value.ident.span());
+                if invalid_identifier {
+                    sites.push(BareSite {
+                        span: value.ident.span(),
+                        message: Self::IDENTIFIER_MESSAGE,
+                    });
+                } else if single_property {
+                    sites.push(BareSite {
+                        span: value.ident.span(),
+                        message: Self::SINGLE_PROPERTY_MESSAGE,
+                    });
                 }
-                Self::check_fields(context, ordinal, module, &value.fields, &mut spans);
+                Self::check_fields(context, ordinal, module, &value.fields, &mut sites);
             }
             syn::Item::Enum(value) => {
                 for variant in &value.variants {
-                    Self::check_fields(context, ordinal, module, &variant.fields, &mut spans);
+                    Self::check_fields(context, ordinal, module, &variant.fields, &mut sites);
                 }
             }
             syn::Item::Type(value)
                 if in_model && value.ident.unraw().to_string().ends_with("Id") =>
             {
-                spans.push(value.ident.span());
+                sites.push(BareSite {
+                    span: value.ident.span(),
+                    message: Self::IDENTIFIER_MESSAGE,
+                });
             }
             _ => {}
         }
-        spans
+        sites
     }
+
+    const IDENTIFIER_MESSAGE: &'static str = "Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)";
+
+    const SINGLE_PROPERTY_MESSAGE: &'static str = "A model struct with one named field is a single-property value object: write it as a tuple struct (arch-domain.rs.md)";
 
     const STANDARD_COLLECTIONS: [&'static str; 4] = ["Vec", "VecDeque", "HashSet", "BTreeSet"];
 
@@ -259,17 +277,35 @@ impl Rule for BareIdentifier {
                 if contract || is_technology(context, index, item.module) {
                     continue;
                 }
-                for span in Self::check_item(
+                for site in Self::check_item(
                     context,
                     ordinal,
                     item.module,
                     &item.syntax,
                     crate::declaration::util::has_kind(index, item.module, "model"),
                 ) {
-                    findings.push(build_node_finding("BareIdentifier", &item.file, find_node_span(span), format!("{}::{}", format_module_path(&index.crate_name, &index.modules[item.module].module.path), item.name), "Use a single-field tuple identifier instead of bare strings, UUIDs or numbers (arch-domain.rs.md)".to_owned()));
+                    findings.push(build_node_finding(
+                        "BareIdentifier",
+                        &item.file,
+                        find_node_span(site.span),
+                        format!(
+                            "{}::{}",
+                            format_module_path(
+                                &index.crate_name,
+                                &index.modules[item.module].module.path
+                            ),
+                            item.name
+                        ),
+                        site.message.to_owned(),
+                    ));
                 }
             }
         }
         findings
     }
+}
+
+struct BareSite {
+    span: proc_macro2::Span,
+    message: &'static str,
 }

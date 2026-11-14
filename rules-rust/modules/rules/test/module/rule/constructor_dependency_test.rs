@@ -121,6 +121,15 @@ fn given_persistent_di_policy_pairs_when_checked_then_exact_nodes_and_subjects_m
     }
 }
 #[test]
+fn given_task_scope_built_in_the_new_of_the_type_that_holds_it_when_checked_then_it_is_own_state() {
+    crate::test::module::util::assert_di_lines(
+        &crate::module::rule::ConstructorDependency,
+        "mod task { pub(crate) mod memory { pub(crate) struct TaskScope { jobs: std::sync::Mutex<Vec<u8>> } impl TaskScope { pub(crate) fn new() -> Self { Self { jobs: std::sync::Mutex::new(Vec::new()) } } pub(crate) fn spawn(&self) {} pub(crate) fn abort(&self) {} } } }\nmod feature { pub(crate) struct FeatureParts { scope: crate::task::memory::TaskScope } impl FeatureParts { pub(crate) fn new() -> Self { Self { scope: crate::task::memory::TaskScope::new() } } pub(crate) fn disable(&self) { self.scope.abort(); } } }",
+        &[],
+    );
+}
+
+#[test]
 fn given_known_factory_constructors_when_checked_then_dependencies_fail_and_local_state_passes() {
     for constructor in ["with_config", "from_config", "default"] {
         crate::test::module::util::assert_di_lines(

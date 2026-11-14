@@ -4,17 +4,18 @@ use crate::config::model::Role;
 use crate::module::rule::KindShape;
 use crate::test::check::usecase::read_case_context;
 use crate::test::module::util::read_shape_context;
+use crate::test::module::util::read_workspace_shape_context_with_files;
 use crate::workspace::util::parse_toml_file;
 
 #[test]
 fn given_technology_concept_implementations_and_private_helpers_when_checked_then_only_unowned_helper_reports()
  {
     let mut context = read_shape_context(
-        "mod invoice { mod repository; mod refreshing_cache; mod unrelated; mod model { struct Invoice; } }",
+        "mod invoice { mod repository; mod refreshing_cache; mod unrelated; mod model { struct Invoice; } mod api { trait InvoiceReader {} } }",
         &[
             (
                 "invoice/repository.rs",
-                "struct InvoiceStore { cache: super::refreshing_cache::RefreshingCache } impl std::fmt::Display for InvoiceStore {}",
+                "struct InvoiceStore { cache: super::refreshing_cache::RefreshingCache } impl super::api::InvoiceReader for InvoiceStore {}",
             ),
             (
                 "invoice/refreshing_cache.rs",
@@ -32,7 +33,10 @@ fn given_technology_concept_implementations_and_private_helpers_when_checked_the
     );
 }
 
-const MIRROR_IMPLEMENTATION: &str = "pub(crate) struct CommandSlot; impl std::fmt::Display for CommandSlot { fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { Ok(()) } }";
+const MIRROR_IMPLEMENTATION: &str =
+    "pub(crate) struct CommandSlot; impl crate::slot::api::HandlerSlot for CommandSlot {}";
+
+const SLOT_API: &str = "pub(crate) mod api { pub(crate) trait HandlerSlot {} }";
 
 fn list_shape_subjects(source: &str, files: &[(&str, &str)], role: Role) -> Vec<String> {
     let mut context = read_shape_context(source, files);
@@ -50,7 +54,9 @@ fn list_shape_subjects(source: &str, files: &[(&str, &str)], role: Role) -> Vec<
 fn given_test_mirror_of_an_accepted_concept_file_when_checked_then_the_mirror_is_judged_by_its_source()
  {
     let subjects = list_shape_subjects(
-        "mod slot { mod command_slot; }\n#[cfg(test)]\n#[path = \"../test\"]\nmod test { mod slot { mod command_slot_test; } }",
+        &format!(
+            "mod slot {{ mod command_slot; {SLOT_API} }}\n#[cfg(test)]\n#[path = \"../test\"]\nmod test {{ mod slot {{ mod command_slot_test; }} }}"
+        ),
         &[
             ("slot/command_slot.rs", MIRROR_IMPLEMENTATION),
             (
@@ -67,7 +73,9 @@ fn given_test_mirror_of_an_accepted_concept_file_when_checked_then_the_mirror_is
 fn given_fixture_file_directly_in_a_concept_when_checked_then_it_is_reported_even_beside_a_same_named_source()
  {
     let subjects = list_shape_subjects(
-        "mod slot { mod command_slot; }\n#[cfg(any(test, feature = \"fake\"))]\n#[path = \"../fixture\"]\npub mod fixture { pub mod slot { mod command_slot; } }",
+        &format!(
+            "mod slot {{ mod command_slot; {SLOT_API} }}\n#[cfg(any(test, feature = \"fake\"))]\n#[path = \"../fixture\"]\npub mod fixture {{ pub mod slot {{ mod command_slot; }} }}"
+        ),
         &[
             ("slot/command_slot.rs", MIRROR_IMPLEMENTATION),
             ("../fixture/slot/command_slot.rs", "pub struct SlotFixture;"),
@@ -96,7 +104,7 @@ fn read_published_mirror_context(source: &str, files: &[(&str, &str)]) -> RuleCo
     .expect("member manifest");
     std::fs::write(
         root.join("sample/src/lib.rs"),
-        "mod slot { mod command_slot; mod loose; }",
+        format!("mod slot {{ mod command_slot; mod loose; {SLOT_API} }}"),
     )
     .expect("root source");
     std::fs::create_dir_all(root.join("sample/src/slot")).expect("slot directory");
@@ -156,7 +164,9 @@ fn given_tests_it_mirror_of_an_accepted_concept_file_when_checked_then_the_sourc
 fn given_test_mirror_of_a_rejected_or_missing_source_when_checked_then_the_mirror_is_reported_too()
 {
     let subjects = list_shape_subjects(
-        "mod slot { mod command_slot; mod loose; }\n#[cfg(test)]\n#[path = \"../test\"]\nmod test { mod slot { mod command_slot_test; mod loose_test; mod orphan_test; } }",
+        &format!(
+            "mod slot {{ mod command_slot; mod loose; {SLOT_API} }}\n#[cfg(test)]\n#[path = \"../test\"]\nmod test {{ mod slot {{ mod command_slot_test; mod loose_test; mod orphan_test; }} }}"
+        ),
         &[
             ("slot/command_slot.rs", MIRROR_IMPLEMENTATION),
             ("slot/loose.rs", "struct Loose;"),
@@ -562,6 +572,174 @@ fn given_a_role_kind_module_in_an_app_api_crate_when_checked_then_the_crate_role
             .finding
             .message
             .contains("the crate role does not permit this kind")
+    );
+}
+
+#[test]
+fn given_technology_concept_file_with_only_a_standard_trait_impl_when_checked_then_it_is_reported()
+{
+    for implementation in [
+        "impl Drop for Guard { fn drop(&mut self) {} }",
+        "impl Default for Guard { fn default() -> Self { Self } }",
+        "impl std::fmt::Display for Guard {}",
+    ] {
+        let subjects = list_shape_subjects(
+            "mod invoice { mod guard; mod model { struct Invoice; } }",
+            &[(
+                "invoice/guard.rs",
+                &format!("pub(crate) struct Guard; {implementation}"),
+            )],
+            Role::Technology,
+        );
+        assert_eq!(
+            subjects,
+            ["case_sample::invoice::guard"],
+            "{implementation}"
+        );
+    }
+}
+
+#[test]
+fn given_concept_file_with_only_a_contract_impl_for_a_foreign_type_when_checked_then_it_is_an_implementation()
+ {
+    let files = [(
+        "invoice/inventory_invoice_reader.rs",
+        "use futures_executor::Inventory;\nimpl super::api::InvoiceReader for Inventory {}",
+    )];
+    let root = "mod invoice { mod inventory_invoice_reader; mod api { trait InvoiceReader {} } }";
+    assert!(list_shape_subjects(root, &files, Role::Technology).is_empty());
+    assert!(list_shape_subjects(root, &files, Role::CorePlatform).is_empty());
+    let standard_trait = [(
+        "invoice/inventory_invoice_reader.rs",
+        "use futures_executor::Inventory;\nimpl std::fmt::Display for Inventory {}",
+    )];
+    assert_eq!(
+        list_shape_subjects(root, &standard_trait, Role::Technology),
+        ["case_sample::invoice::inventory_invoice_reader"]
+    );
+}
+
+#[test]
+fn given_drop_guard_used_by_a_contract_implementation_of_its_concept_when_checked_then_it_is_accepted()
+ {
+    let subjects = list_shape_subjects(
+        "mod invoice { mod repository; mod guard; mod api { trait InvoiceReader {} } }",
+        &[
+            (
+                "invoice/repository.rs",
+                "struct InvoiceStore { guard: super::guard::Guard } impl super::api::InvoiceReader for InvoiceStore {}",
+            ),
+            (
+                "invoice/guard.rs",
+                "pub(crate) struct Guard; impl Drop for Guard { fn drop(&mut self) {} }",
+            ),
+        ],
+        Role::Technology,
+    );
+    assert!(subjects.is_empty(), "{subjects:?}");
+}
+
+fn list_platform_subjects(implementation: &str) -> Vec<String> {
+    let mut context = read_shape_context(
+        "mod bridge { mod host_bridge; }",
+        &[(
+            "bridge/host_bridge.rs",
+            &format!("pub(crate) struct HostBridge; {implementation}"),
+        )],
+    );
+    context.project_config.crates[0].role = Some(Role::Platform);
+    context.project_config.platform_words = vec!["vendor".to_owned()];
+    for index in &mut context.indexes {
+        index
+            .dependencies
+            .extend(["vendor", "serde"].map(str::to_owned));
+    }
+    KindShape
+        .check(&context)
+        .iter()
+        .map(|finding| finding.finding.subject.clone())
+        .collect()
+}
+
+#[test]
+fn given_impl_of_a_platform_library_trait_in_a_platform_crate_when_checked_then_the_file_is_an_implementation()
+ {
+    assert!(list_platform_subjects("impl vendor::Handler for HostBridge {}").is_empty());
+    assert_eq!(
+        list_platform_subjects("impl serde::Serialize for HostBridge {}"),
+        ["case_sample::bridge::host_bridge"]
+    );
+}
+
+#[test]
+fn given_impl_of_an_api_trait_of_another_workspace_crate_when_checked_then_the_file_is_an_implementation()
+ {
+    let context = read_workspace_shape_context_with_files(
+        &[
+            (
+                "shop_task_api",
+                "",
+                "pub mod invoice { pub mod api { pub trait Worker {} } }",
+            ),
+            (
+                "shop_task_host",
+                "shop_task_api={path=\"../shop_task_api\"}\n[package.metadata.klibs-rules]\nrole=\"core-platform\"\n",
+                "mod invoice { mod binding_worker; mod loose_worker; }",
+            ),
+        ],
+        &[
+            (
+                "shop_task_host/src/invoice/binding_worker.rs",
+                "pub(crate) struct BindingWorker; impl shop_task_api::invoice::api::Worker for BindingWorker {}",
+            ),
+            (
+                "shop_task_host/src/invoice/loose_worker.rs",
+                "struct LooseWorker;",
+            ),
+        ],
+    );
+    let findings = KindShape.check(&context);
+    let subjects: Vec<String> = findings
+        .iter()
+        .map(|finding| finding.finding.subject.clone())
+        .collect();
+    assert_eq!(
+        subjects,
+        ["shop_task_host::invoice::loose_worker"],
+        "{findings:?}"
+    );
+}
+
+#[test]
+fn given_test_mirror_of_a_file_with_only_a_standard_trait_impl_when_checked_then_the_mirror_is_reported_with_its_source()
+ {
+    let subjects = list_shape_subjects(
+        &format!(
+            "mod slot {{ mod guard; mod command_slot; {SLOT_API} }}\n#[cfg(test)]\n#[path = \"../test\"]\nmod test {{ mod slot {{ mod guard_test; mod command_slot_test; }} }}"
+        ),
+        &[
+            (
+                "slot/guard.rs",
+                "pub(crate) struct Guard; impl Drop for Guard { fn drop(&mut self) {} }",
+            ),
+            ("slot/command_slot.rs", MIRROR_IMPLEMENTATION),
+            (
+                "../test/slot/guard_test.rs",
+                "#[test] fn given_a_when_b_then_c() {}",
+            ),
+            (
+                "../test/slot/command_slot_test.rs",
+                "#[test] fn given_a_when_b_then_c() {}",
+            ),
+        ],
+        Role::CorePlatform,
+    );
+    assert_eq!(
+        subjects,
+        [
+            "case_sample::slot::guard",
+            "case_sample::test::slot::guard_test"
+        ]
     );
 }
 
