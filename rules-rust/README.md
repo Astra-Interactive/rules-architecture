@@ -27,7 +27,7 @@ name = "xtask"
 edition = "2024"
 
 [dependencies]
-klibs-rules = "=0.2.1"
+klibs-rules = "=X.Y.Z"
 
 [lints]
 workspace = true
@@ -248,7 +248,7 @@ and the groups `clippy::restriction`, `clippy::pedantic` and `clippy::nursery` a
 
 The floor is 1.93.0; the library declares `rust-version = "1.93"`.
 
-## Rules in 0.2.1
+## Rules
 
 | Id | Anchor | Reports |
 |---|---|---|

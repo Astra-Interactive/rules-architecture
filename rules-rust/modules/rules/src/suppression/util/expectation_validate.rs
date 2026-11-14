@@ -37,10 +37,7 @@ fn check_rule_id(expectation: &Expectation, rule_id: &str) -> Result<(), Finding
         return Err(meta("RetiredRule", message));
     }
     let Some(entry) = find_catalogue_entry(rule_id) else {
-        let message = format!(
-            "klibs-rules {} knows no rule `{rule_id}`",
-            env!("CARGO_PKG_VERSION")
-        );
+        let message = format!("klibs-rules knows no rule `{rule_id}`");
         return Err(meta("UnknownRule", message));
     };
     if !is_position_allowed(&entry, &expectation.position) {
