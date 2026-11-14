@@ -5,7 +5,7 @@ use crate::dependency::rule::UnitDependency;
 use crate::test::check::usecase::read_case_context;
 use crate::workspace::model::{Dependency, DependencyKind};
 
-const ROLE_VARIANTS: [Role; 15] = [
+const ROLE_VARIANTS: [Role; 14] = [
     Role::EntryPoint,
     Role::Platform,
     Role::Context,
@@ -20,7 +20,6 @@ const ROLE_VARIANTS: [Role; 15] = [
     Role::CorePlatform,
     Role::CoreUi,
     Role::ProcMacro,
-    Role::Tooling,
 ];
 const ROLE_ROWS: &[(Role, &[Role])] = &[
     (
@@ -108,7 +107,6 @@ const ROLE_ROWS: &[(Role, &[Role])] = &[
     (Role::CorePlatform, &[Role::CoreApi, Role::ProcMacro]),
     (Role::CoreUi, &[Role::CoreApi, Role::ProcMacro]),
     (Role::ProcMacro, &[]),
-    (Role::Tooling, &[]),
 ];
 
 fn read_feature_context(table: &str, dependency: &str) -> RuleContext {
@@ -219,7 +217,6 @@ fn given_persistent_role_rows_when_checked_then_each_forbidden_edge_and_external
         "core-platform",
         "core-ui",
         "proc-macro",
-        "tooling",
     ] {
         let fail = read_case_context("UnitDependency", &format!("fail-role-{role}"));
         let findings = UnitDependency.check(&fail);
@@ -236,6 +233,109 @@ fn given_persistent_role_rows_when_checked_then_each_forbidden_edge_and_external
         let pass = read_case_context("UnitDependency", &format!("pass-role-{role}"));
         assert!(UnitDependency.check(&pass).is_empty(), "{role}");
     }
+}
+
+fn read_single_message(context: &RuleContext) -> String {
+    let findings = UnitDependency.check(context);
+    assert_eq!(1, findings.len(), "{findings:?}");
+    findings[0].finding.message.clone()
+}
+
+#[test]
+fn given_edge_the_dependent_row_does_not_list_when_checked_then_the_message_names_both_roles_and_the_row()
+ {
+    let context = read_role_context(Role::Context, Role::Context, DependencyKind::Normal);
+    assert_eq!(
+        "case-consumer (context) may not depend on case-provider (context): a context crate depends on api, core-api, core, core-platform and storage-contract crates (arch-context.md, Direction and enforcement)",
+        read_single_message(&context)
+    );
+}
+
+#[test]
+fn given_edge_that_fails_a_row_condition_when_checked_then_the_message_names_the_condition() {
+    let mut context = read_role_context(Role::Technology, Role::Api, DependencyKind::Normal);
+    context.workspace.members[1].directory = "modules/other/api".to_owned();
+    context.workspace.members[0].dependencies[0].path = Some("modules/other/api".to_owned());
+    assert_eq!(
+        "case-consumer (technology) may not depend on case-provider (api): a technology crate depends on the api crate beside it only (arch-context.md, Direction and enforcement)",
+        read_single_message(&context)
+    );
+    let mut context = read_role_context(Role::ImplUi, Role::Impl, DependencyKind::Normal);
+    context.project_config.crates[0].implementation_access = "none".to_owned();
+    assert_eq!(
+        "case-consumer (impl-ui) may not depend on case-provider (impl): an impl-ui crate depends on its sibling impl only with implementation-access = \"siblings\" (arch-context.md, Direction and enforcement)",
+        read_single_message(&context)
+    );
+    let context = read_role_context(Role::ImplUi, Role::ImplUi, DependencyKind::Normal);
+    assert_eq!(
+        "case-consumer (impl-ui) may not depend on case-provider (impl-ui): an impl-ui crate depends on another impl-ui only with composition = \"host\" (arch-context.md, Direction and enforcement)",
+        read_single_message(&context)
+    );
+    let context = read_role_context(Role::Context, Role::Contract, DependencyKind::Normal);
+    assert_eq!(
+        "case-consumer (context) may not depend on case-provider (contract): a contract crate is reached from a route or a technology module (arch-context.md, Direction and enforcement)",
+        read_single_message(&context)
+    );
+}
+
+#[test]
+fn given_dependent_that_depends_on_nothing_when_checked_then_the_message_says_so() {
+    for (role, name) in [(Role::ProcMacro, "proc-macro"), (Role::Core, "core")] {
+        let context = read_role_context(role, Role::Api, DependencyKind::Normal);
+        assert_eq!(
+            format!(
+                "case-consumer ({name}) depends on no crate of the project (proc-macro, core, core-api, contract)"
+            ),
+            read_single_message(&context)
+        );
+    }
+}
+
+#[test]
+fn given_dependent_without_a_detected_role_when_checked_then_the_message_asks_for_the_declaration()
+{
+    let mut context = read_role_context(Role::Context, Role::Api, DependencyKind::Normal);
+    context.project_config.crates[0].role = None;
+    assert_eq!(
+        "case-consumer has no role the linter detects: declare its role (README, Roles)",
+        read_single_message(&context)
+    );
+}
+
+#[test]
+fn given_fake_feature_outside_dev_dependencies_when_checked_then_the_message_names_the_feature() {
+    let mut context = read_role_context(Role::Context, Role::Api, DependencyKind::Normal);
+    context.workspace.members[0].dependencies[0].features = vec!["fake".to_owned()];
+    assert_eq!(
+        "case-consumer enables the fake feature of case-provider outside [dev-dependencies] (arch-package.rs.md, Tests)",
+        read_single_message(&context)
+    );
+}
+
+#[test]
+fn given_dependent_without_a_detected_role_when_it_enables_the_fake_feature_outside_dev_dependencies_then_the_message_names_the_feature()
+ {
+    let mut context = read_role_context(Role::Context, Role::Api, DependencyKind::Normal);
+    context.project_config.crates[0].role = None;
+    context.workspace.members[0].dependencies[0].features = vec!["fake".to_owned()];
+    assert_eq!(
+        "case-consumer enables the fake feature of case-provider outside [dev-dependencies] (arch-package.rs.md, Tests)",
+        read_single_message(&context)
+    );
+}
+
+#[test]
+fn given_impl_ui_edge_to_an_impl_that_is_no_sibling_when_access_is_siblings_then_the_message_names_the_directory_condition()
+ {
+    let mut context = read_role_context(Role::ImplUi, Role::Impl, DependencyKind::Normal);
+    context.project_config.crates[0].implementation_access = "siblings".to_owned();
+    context.workspace.members[1].directory = "modules/other/implementation".to_owned();
+    context.workspace.members[0].dependencies[0].path =
+        Some("modules/other/implementation".to_owned());
+    assert_eq!(
+        "case-consumer (impl-ui) may not depend on case-provider (impl): an impl-ui crate depends on an impl only when it is a sibling, in the same parent directory (arch-context.md, Direction and enforcement)",
+        read_single_message(&context)
+    );
 }
 
 #[test]

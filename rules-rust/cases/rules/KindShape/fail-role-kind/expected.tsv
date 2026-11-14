@@ -1,6 +1,6 @@
 OneTypeFamilyPerFile	modules/sample/src/lib.rs:5	case_sample::vote::limiter::limit_items	Name the file after its primary type family (arch-package.rs.md)
 KindShape	modules/sample/src/lib.rs:9	case_sample::vote::parser::ballot_parser	a concept holds kind blocks; files live in a named kind
-ContractPlacement	modules/sample/src/vote/limiter/limit_items.rs:3	case_sample::vote::limiter::Window	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ContractPlacement	modules/sample/src/vote/limiter/limit_items.rs:3	case_sample::vote::limiter::Window	a trait of this crate is a contract and lives in api; an extension trait of another crate's type is a <Type>Ext in util/<type>_ext.rs (arch-package.rs.md, What goes in one file)
 KindShape	modules/sample/src/vote/limiter/limit_items.rs:3	case_sample::vote::limiter::Window	a role kind holds types and their impls only
 ReExportShape	modules/sample/src/vote/limiter/limit_items.rs:3	Window	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 VisibilityTier	modules/sample/src/vote/limiter/limit_items.rs:3	Window	visibility follows the actual workspace users of the item

@@ -17,7 +17,7 @@ UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:20	AnonymousTuple	no `
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:22	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:24	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:27	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
-ContractPlacement	modules/sample/src/sample/kinds.rs:31	case_sample::sample::Shape	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ContractPlacement	modules/sample/src/sample/kinds.rs:31	case_sample::sample::Shape	a trait of this crate is a contract and lives in api; an extension trait of another crate's type is a <Type>Ext in util/<type>_ext.rs (arch-package.rs.md, What goes in one file)
 ReExportShape	modules/sample/src/sample/kinds.rs:31	Shape	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:32	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception
 UnfulfilledExpectation	modules/sample/src/sample/kinds.rs:34	AnonymousTuple	no `AnonymousTuple` finding is anchored in the scope of this exception

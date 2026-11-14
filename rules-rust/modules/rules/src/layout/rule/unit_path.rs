@@ -37,31 +37,13 @@ impl Rule for UnitPath {
                 .and_then(|config| config.role);
             let segments: Vec<&str> = member.directory.split('/').collect();
             let valid = match role {
-                Some(Role::Tooling) => member.directory == "xtask",
                 Some(Role::EntryPoint) => segments.len() == 2 && segments[0] == "instances",
                 _ => (2..=4).contains(&segments.len()) && segments[0] == "modules",
             };
             if !valid || segments.contains(&"shared") {
                 findings.push(Self::build_finding(&member.name, &member.directory,
-                    "place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared"));
+                    "place entry points at instances/<name> and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared"));
             }
-        }
-        let has_xtask = context
-            .workspace
-            .directories
-            .iter()
-            .any(|path| path == "xtask");
-        let is_member = context
-            .workspace
-            .members
-            .iter()
-            .any(|member| member.directory == "xtask");
-        if has_xtask && !is_member {
-            findings.push(Self::build_finding(
-                "xtask",
-                "xtask",
-                "add xtask to workspace.members: tooling is a workspace member",
-            ));
         }
         findings
     }

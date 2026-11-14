@@ -11,7 +11,7 @@ ReExportShape	modules/sample/src/util/invoice_total.rs:10	read_moment	A non-priv
 VisibilityTier	modules/sample/src/util/invoice_total.rs:10	read_moment	visibility follows the actual workspace users of the item
 ReExportShape	modules/sample/src/util/invoice_total.rs:12	run_step	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 VisibilityTier	modules/sample/src/util/invoice_total.rs:12	run_step	visibility follows the actual workspace users of the item
-LockChoice	modules/sample/src/util/invoice_total.rs:14	case_sample::util::invoice_total	Follow the LockChoice typed runtime requirement (async.rs.md; time-api.rs.md)
+LockChoice	modules/sample/src/util/invoice_total.rs:14	case_sample::util::invoice_total	A counter or a flag is an atomic, not a lock around a bool or an integer (async.rs.md, Shared state and locks)
 ReExportShape	modules/sample/src/util/invoice_total.rs:14	count_all	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 VisibilityTier	modules/sample/src/util/invoice_total.rs:14	count_all	visibility follows the actual workspace users of the item
 ReExportShape	modules/sample/src/util/invoice_total.rs:16	apply_step	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block

@@ -25,6 +25,23 @@ fn given_struct_update_on_an_exempt_type_when_checked_then_only_the_plain_struct
 }
 
 #[test]
+fn given_struct_update_on_a_type_with_hand_written_serde_deserialize_when_checked_then_it_is_exempt()
+ {
+    assert_code_findings(
+        &StructDefaultValue,
+        "StructDefaultValue",
+        "use serde::Deserialize;\n#[derive(Default)]\npub struct Config { window: u16 }\nimpl<'de> Deserialize<'de> for Config {}\npub struct Plain { value: u64, other: u64 }\nfn build() {\n    let config = Config { window: 1, ..Default::default() };\n    let plain = Plain { value: 2, ..Default::default() };\n}",
+        &[8],
+    );
+    assert_code_findings(
+        &StructDefaultValue,
+        "StructDefaultValue",
+        "use serde::Deserialize;\npub struct Left { value: u64 }\npub struct Right;\nimpl<'de> Deserialize<'de> for Right {}\nfn build() {\n    let left = Left { value: 1, ..Default::default() };\n}",
+        &[6],
+    );
+}
+
+#[test]
 fn given_persistent_code_fixtures_when_checked_then_match_exact_anchors() {
     assert_code_fixture(&StructDefaultValue, "StructDefaultValue", "bad");
     assert_code_fixture(&StructDefaultValue, "StructDefaultValue", "good");
@@ -93,6 +110,43 @@ fn given_deserialization_and_zero_argument_construction_when_checked_then_accept
             source,
             0,
         );
+    }
+}
+
+#[test]
+fn given_hand_written_serde_deserialize_when_default_is_derived_or_implemented_then_the_type_is_exempt()
+ {
+    for source in [
+        "use serde::Deserialize;\n#[derive(Debug, Clone, Default, PartialEq, Eq)]\npub struct ScalarText(String);\nimpl<'de> Deserialize<'de> for ScalarText {}",
+        "#[derive(Default)]\npub struct ScalarText(String);\nimpl<'de> serde::Deserialize<'de> for ScalarText {}",
+        "use serde::Deserialize;\npub struct Settings { retries: u8 }\nimpl Default for Settings { fn default() -> Self { Self { retries: 3 } } }\nimpl<'de> Deserialize<'de> for Settings {}",
+        "use serde::Deserialize as Decode;\n#[derive(Default)]\npub enum Mode { #[default] Fast }\nimpl<'de> Decode<'de> for Mode {}",
+    ] {
+        assert_code_findings(&StructDefaultValue, "StructDefaultValue", source, &[]);
+    }
+}
+
+#[test]
+fn given_default_beside_an_impl_that_is_not_serde_deserialize_when_checked_then_still_reports() {
+    for (source, lines) in [
+        (
+            "trait Deserialize<'de> {}\n#[derive(Default)]\npub struct Local(String);\nimpl<'de> Deserialize<'de> for Local {}",
+            &[2][..],
+        ),
+        (
+            "use serde::Serialize;\n#[derive(Default)]\npub struct Written(String);\nimpl Serialize for Written {}",
+            &[2][..],
+        ),
+        (
+            "use serde::Deserialize;\n#[derive(Default)]\npub struct Left(String);\npub struct Right(String);\nimpl<'de> Deserialize<'de> for Right {}",
+            &[2][..],
+        ),
+        (
+            "use serde::Deserialize;\npub struct Settings { retries: u8 }\nimpl Default for Settings { fn default() -> Self { Self { retries: 3 } } }\npub struct Other;\nimpl<'de> Deserialize<'de> for Other {}",
+            &[3][..],
+        ),
+    ] {
+        assert_code_findings(&StructDefaultValue, "StructDefaultValue", source, lines);
     }
 }
 

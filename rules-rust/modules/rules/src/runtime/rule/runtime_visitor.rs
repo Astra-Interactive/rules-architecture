@@ -62,13 +62,13 @@ impl RuntimeVisitor<'_> {
 
     fn check_runtime_call(&mut self, span: proc_macro2::Span, is_block_on: bool) {
         if self.rule == "BlockOnInTest" && self.is_test() {
-            self.report(span, "Run async tests with tokio::test instead of building or blocking a runtime (testing.rs.md)");
+            self.report(span, Self::BLOCK_ON_IN_TEST_MESSAGE);
         }
         if self.rule != "BlockOnOutsideBoundary" || self.is_main {
             return;
         }
         if !is_block_on || !self.is_technology() {
-            self.report(span, "Build and block a runtime only in entry-point root main; technology boundaries may block_on (di-manual.rs.md)");
+            self.report(span, Self::BLOCK_ON_OUTSIDE_BOUNDARY_MESSAGE);
         }
     }
 
@@ -202,6 +202,10 @@ impl RuntimeVisitor<'_> {
         }
         findings
     }
+
+    pub(crate) const BLOCK_ON_IN_TEST_MESSAGE: &'static str = "Run async tests with tokio::test instead of building or blocking a runtime (testing.rs.md)";
+
+    pub(crate) const BLOCK_ON_OUTSIDE_BOUNDARY_MESSAGE: &'static str = "Build and block a runtime only in entry-point root main; technology boundaries may block_on (di-manual.rs.md)";
 }
 
 impl<'ast> Visit<'ast> for RuntimeVisitor<'_> {
@@ -274,7 +278,7 @@ impl<'ast> Visit<'ast> for RuntimeVisitor<'_> {
             let is_test_executor =
                 resolved.ends_with("::block_on_stream") || resolved.ends_with("::LocalPool::new");
             if is_test_executor && self.rule == "BlockOnInTest" && self.is_test() {
-                self.report(expression.span(), "Run async tests with tokio::test instead of building or blocking a runtime (testing.rs.md)");
+                self.report(expression.span(), Self::BLOCK_ON_IN_TEST_MESSAGE);
             }
         }
         syn::visit::visit_expr_call(self, expression);

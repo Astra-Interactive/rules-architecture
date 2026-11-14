@@ -160,7 +160,12 @@ impl ContractPlacement {
         let mut findings = Vec::new();
         let misplaced_trait = matches!(&item.syntax, Item::Trait(contract) if kind != "api" && !Self::is_exception(context, ordinal, item, contract));
         if misplaced_trait {
-            findings.push(build_shape_item_finding(index, item, "ContractPlacement", "a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies"));
+            findings.push(build_shape_item_finding(
+                index,
+                item,
+                "ContractPlacement",
+                "a trait of this crate is a contract and lives in api; an extension trait of another crate's type is a <Type>Ext in util/<type>_ext.rs (arch-package.rs.md, What goes in one file)",
+            ));
         }
         if Self::is_wrong_default_usecase(context, ordinal, item) {
             findings.push(build_shape_item_finding(index, item, "ContractPlacement", "an app use-case Default implementation lives in its owner's sibling impl/usecase unit"));

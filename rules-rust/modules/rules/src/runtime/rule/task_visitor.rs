@@ -147,7 +147,7 @@ impl TaskVisitor<'_> {
         findings
     }
 
-    fn report(&mut self, span: proc_macro2::Span) {
+    fn report(&mut self, span: proc_macro2::Span, message: &str) {
         let index = &self.context.indexes[self.ordinal];
         if !node_predicate(index, self.module, &self.file.path, find_node_span(span))
             .is_satisfiable()
@@ -155,9 +155,20 @@ impl TaskVisitor<'_> {
             return;
         }
         if self.findings.iter().any(|finding| matches!(&finding.anchor, crate::check::model::Anchor::Node { span: existing, .. } if *existing == find_node_span(span))) { return; }
-        self.findings.push(build_node_finding(self.rule, &self.file.path, find_node_span(span),
+        self.findings.push(build_node_finding(
+            self.rule,
+            &self.file.path,
+            find_node_span(span),
             format_module_path(&index.crate_name, &index.modules[self.module].module.path),
-            format!("Follow the {} async ownership/context requirement (async.rs.md; no-callbacks.rs.md)", self.rule)));
+            message.to_owned(),
+        ));
+    }
+
+    fn discarded_handle_message(&self) -> &'static str {
+        if self.rule == "ThreadPrimitive" {
+            return Self::THREAD_NOT_JOINED_MESSAGE;
+        }
+        Self::DETACHED_TASK_MESSAGE
     }
 
     fn external(&self, path: &syn::Path) -> Option<String> {
@@ -480,11 +491,8 @@ impl TaskVisitor<'_> {
     }
 
     fn is_spawn(&self, expression: &syn::Expr) -> bool {
-        let owned_thread = self.rule == "ThreadPrimitive"
-            && self.is_technology_module()
-            && self.is_thread_spawn(expression);
-        if owned_thread {
-            return true;
+        if self.rule == "ThreadPrimitive" {
+            return self.is_technology_module() && self.is_thread_spawn(expression);
         }
         match expression {
             syn::Expr::Paren(paren) => self.is_spawn(&paren.expr),
@@ -644,7 +652,7 @@ impl TaskVisitor<'_> {
                 || self.runs_local_closure_logic(argument)
         });
         if calls_local {
-            self.report(expression.span());
+            self.report(expression.span(), Self::CATCH_UNWIND_MESSAGE);
         }
     }
 
@@ -1480,7 +1488,7 @@ impl TaskVisitor<'_> {
                 })
                 .collect::<Vec<_>>();
             for span in spans {
-                self.report(span);
+                self.report(span, self.discarded_handle_message());
             }
         }
         self.consume_handle(argument);
@@ -1562,18 +1570,23 @@ impl TaskVisitor<'_> {
             })
     }
 
-    fn call_violation(&self, canonical: Option<&str>) -> bool {
+    fn call_violation(&self, canonical: Option<&str>) -> Option<&'static str> {
         let spawn = canonical.is_some_and(Self::is_spawn_path);
         let detached = spawn
             || canonical.is_some_and(Self::is_blocking_spawn_path)
             || canonical.is_some_and(Self::is_local_spawn_path);
         match self.rule {
             "ThreadPrimitive" => {
-                canonical == Some("std::thread::spawn")
-                    && (self.discard && self.is_technology_module()
-                        || self.thread_expect && !self.is_technology_module())
+                if canonical != Some("std::thread::spawn") {
+                    return None;
+                }
+                if self.discard && self.is_technology_module() {
+                    return Some(Self::THREAD_NOT_JOINED_MESSAGE);
+                }
+                (self.thread_expect && !self.is_technology_module())
+                    .then_some(Self::THREAD_OUTSIDE_TECHNOLOGY_MESSAGE)
             }
-            "DetachedTask" => detached && self.discard,
+            "DetachedTask" => (detached && self.discard).then_some(Self::DETACHED_TASK_MESSAGE),
             "BridgeCleanup" => {
                 let blocks = canonical.is_some_and(|path| {
                     matches!(
@@ -1583,11 +1596,15 @@ impl TaskVisitor<'_> {
                             | "futures_executor::block_on"
                     )
                 });
-                (spawn || blocks) && self.drop_context
+                let is_dropping_blocker = (spawn || blocks) && self.drop_context;
+                is_dropping_blocker.then_some(Self::BRIDGE_CLEANUP_MESSAGE)
             }
-            "CallbackBridgeShape" => detached && self.callback_depth > 0,
+            "CallbackBridgeShape" => {
+                let is_spawn_in_callback = detached && self.callback_depth > 0;
+                is_spawn_in_callback.then_some(Self::CALLBACK_SPAWN_MESSAGE)
+            }
             "BlockingCallInAsync" => {
-                self.async_context
+                let blocks = self.async_context
                     && canonical.is_some_and(|path| {
                         path == "std::thread::sleep"
                             || path.starts_with("std::fs::")
@@ -1599,9 +1616,10 @@ impl TaskVisitor<'_> {
                             ]
                             .iter()
                             .any(|socket| path.starts_with(socket))
-                    })
+                    });
+                blocks.then_some(Self::BLOCKING_CALL_MESSAGE)
             }
-            _ => false,
+            _ => None,
         }
     }
 
@@ -1628,26 +1646,30 @@ impl TaskVisitor<'_> {
     }
 
     fn check_method_call(&mut self, expression: &syn::ExprMethodCall) {
-        if self.sends_blocking_in_callback(expression)
-            || self.is_discarded_task_builder_unwrap(expression)
-        {
-            self.report(expression.span());
+        if self.sends_blocking_in_callback(expression) {
+            self.report(expression.span(), Self::CALLBACK_BLOCKING_SEND_MESSAGE);
+        }
+        if self.is_discarded_task_builder_unwrap(expression) {
+            self.report(expression.span(), Self::DETACHED_TASK_MESSAGE);
         }
         let returns_handle = self.returns_join_handle_method(expression);
         if self.rule == "DetachedTask"
             && self.discard
             && (self.is_runtime_spawn(expression) || returns_handle)
         {
-            self.report(expression.span());
+            self.report(expression.span(), Self::DETACHED_TASK_MESSAGE);
         }
         if self.rule == "CallbackBridgeShape"
             && self.callback_depth > 0
             && self.is_runtime_spawn(expression)
         {
-            self.report(expression.span());
+            self.report(expression.span(), Self::CALLBACK_SPAWN_MESSAGE);
         }
-        if self.is_block_on_in_drop(expression) || self.is_discarded_builder_spawn(expression) {
-            self.report(expression.span());
+        if self.is_block_on_in_drop(expression) {
+            self.report(expression.span(), Self::BRIDGE_CLEANUP_MESSAGE);
+        }
+        if self.is_discarded_builder_spawn(expression) {
+            self.report(expression.span(), Self::THREAD_NOT_JOINED_MESSAGE);
         }
         if expression.method == "abort" && !self.test_function {
             self.consume_handle(&expression.receiver);
@@ -1656,6 +1678,24 @@ impl TaskVisitor<'_> {
             self.consume_handle(&expression.receiver);
         }
     }
+
+    pub(crate) const BLOCKING_CALL_MESSAGE: &'static str = "An async fn never blocks its worker thread: tokio::time::sleep, tokio::fs or spawn_blocking and tokio::sync channels replace std::thread::sleep, std::fs, std::net and std::sync::mpsc (no-callbacks.rs.md, Threads)";
+
+    pub(crate) const THREAD_OUTSIDE_TECHNOLOGY_MESSAGE: &'static str = "std::thread::spawn and Builder::spawn start only blocking work that runs until shutdown, in a technology module (no-callbacks.rs.md, Threads)";
+
+    const THREAD_NOT_JOINED_MESSAGE: &'static str = "A started thread has an owner that joins it when it stops: keep its JoinHandle and join it (no-callbacks.rs.md, Threads)";
+
+    const DETACHED_TASK_MESSAGE: &'static str = "A spawned task keeps an owner: spawn it on a TaskScope or keep and await its JoinHandle; a dropped handle detaches the task (async.rs.md, Tasks)";
+
+    const CALLBACK_SPAWN_MESSAGE: &'static str = "A library callback sends on a channel the bridge owns: never tokio::spawn per event, which loses the order and starts a task per event (no-callbacks.rs.md, The bridge)";
+
+    const CALLBACK_BLOCKING_SEND_MESSAGE: &'static str = "Never blocking_send in a library's callback: it blocks the library's thread while the buffer is full; use try_send or an unbounded send (no-callbacks.rs.md, The bridge)";
+
+    const CALLBACK_GUARD_MESSAGE: &'static str = "Bind a registration guard to a named variable: a discarded guard drops at once and removes the callback it registered (no-callbacks.rs.md, The bridge)";
+
+    const BRIDGE_CLEANUP_MESSAGE: &'static str = "Drop is synchronous and short: it does not spawn, sleep or block_on; hand an async unregister to the TaskScope or give the owner an async close (no-callbacks.rs.md, Cleanup)";
+
+    const CATCH_UNWIND_MESSAGE: &'static str = "catch_unwind around project code hides a panic: let it end its task, and the task's scope logs the JoinError (async.rs.md, Tasks)";
 }
 
 impl<'ast> Visit<'ast> for TaskVisitor<'_> {
@@ -1743,7 +1783,7 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
             .collect::<Vec<_>>();
         if matches!(self.rule, "DetachedTask" | "ThreadPrimitive") {
             for span in abandoned {
-                self.report(span);
+                self.report(span, self.discarded_handle_message());
             }
         }
         self.closures.truncate(closures);
@@ -1820,7 +1860,7 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
                 .filter_map(|(_, span, consumed)| (!consumed).then_some(*span))
                 .collect::<Vec<_>>();
             for span in pending {
-                self.report(span);
+                self.report(span, Self::DETACHED_TASK_MESSAGE);
             }
         }
     }
@@ -1988,7 +2028,7 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
                 other => other,
             };
             if self.discarded_guard(dropped) {
-                self.report(statement.span());
+                self.report(statement.span(), Self::CALLBACK_GUARD_MESSAGE);
             }
         }
         let parent = self.discard;
@@ -2007,7 +2047,7 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
                 && self.discard
                 && self.discarded_guard(&init.expr)
             {
-                self.report(local.span());
+                self.report(local.span(), Self::CALLBACK_GUARD_MESSAGE);
             }
             self.visit_expr(&init.expr);
             if let Some((_, diverge)) = &init.diverge {
@@ -2037,8 +2077,8 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
             syn::Expr::Path(path) => self.external(&path.path),
             _ => None,
         };
-        if self.call_violation(canonical.as_deref()) {
-            self.report(expression.span());
+        if let Some(message) = self.call_violation(canonical.as_deref()) {
+            self.report(expression.span(), message);
         }
         self.check_unwind(expression, canonical.as_deref());
         let is_drop = canonical.as_deref().is_some_and(|path| {
@@ -2049,7 +2089,7 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
         });
         if self.rule == "DetachedTask" && self.discard && self.returns_join_handle_call(expression)
         {
-            self.report(expression.span());
+            self.report(expression.span(), Self::DETACHED_TASK_MESSAGE);
         }
         let inherit_async =
             self.async_context && !canonical.as_deref().is_some_and(Self::runs_off_async);
@@ -2064,10 +2104,10 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
                 self.consume_argument(argument, is_drop);
             }
             if self.is_dropped_thread_spawn(is_drop, argument) {
-                self.report(argument.span());
+                self.report(argument.span(), Self::THREAD_NOT_JOINED_MESSAGE);
             }
             if self.rule == "DetachedTask" && is_drop && self.is_dropped_spawn(argument) {
-                self.report(argument.span());
+                self.report(argument.span(), Self::DETACHED_TASK_MESSAGE);
                 let parent = self.discard;
                 self.discard = false;
                 self.visit_expr(argument);
@@ -2131,7 +2171,7 @@ impl<'ast> Visit<'ast> for TaskVisitor<'_> {
     fn visit_expr_try(&mut self, expression: &'ast syn::ExprTry) {
         let is_dropped = self.rule == "DetachedTask" && self.discard;
         if is_dropped && self.is_task_builder_spawn(&expression.expr) {
-            self.report(expression.span());
+            self.report(expression.span(), Self::DETACHED_TASK_MESSAGE);
         }
         syn::visit::visit_expr_try(self, expression);
     }

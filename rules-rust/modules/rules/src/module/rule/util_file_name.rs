@@ -100,6 +100,57 @@ impl UtilFileName {
         }
     }
 
+    fn is_bounded_blanket(
+        index: &crate::source::model::CrateIndex,
+        implementation: &crate::source::model::IndexedImpl,
+        owner: &str,
+    ) -> bool {
+        let syn::Type::Path(typed) = implementation.syntax.self_ty.as_ref() else {
+            return false;
+        };
+        let Some(parameter) = typed.path.get_ident() else {
+            return false;
+        };
+        let generics = &implementation.syntax.generics;
+        let Some(declaration) = generics
+            .type_params()
+            .find(|entry| entry.ident == *parameter)
+        else {
+            return false;
+        };
+        let where_bounds = generics
+            .where_clause
+            .iter()
+            .flat_map(|clause| &clause.predicates)
+            .filter_map(|predicate| match predicate {
+                syn::WherePredicate::Type(bounded)
+                    if matches!(&bounded.bounded_ty, syn::Type::Path(path) if path.path.is_ident(parameter)) =>
+                {
+                    Some(&bounded.bounds)
+                }
+                _ => None,
+            })
+            .flatten();
+        declaration.bounds.iter().chain(where_bounds).any(|bound| {
+            let syn::TypeParamBound::Trait(bound) = bound else {
+                return false;
+            };
+            if bound.maybe.is_some() || bound.modifiers.require_empty().is_err() {
+                return false;
+            }
+            let names_owner = bound
+                .path
+                .segments
+                .last()
+                .is_some_and(|segment| segment.ident == owner);
+            names_owner
+                && matches!(
+                    index.resolve_path(implementation.module, &bound.path),
+                    Resolution::External(_)
+                )
+        })
+    }
+
     fn wrong_implementation(
         index: &crate::source::model::CrateIndex,
         item: &crate::source::model::IndexedItem,
@@ -152,8 +203,10 @@ impl UtilFileName {
                     implementation.module,
                     &implementation.syntax.self_ty,
                 );
+                let names_owner =
+                    target.is_some_and(|name| name == owner || name == owner.to_lowercase());
                 implementation.file != item.file
-                    || !target.is_some_and(|name| name == owner || name == owner.to_lowercase())
+                    || !(names_owner || Self::is_bounded_blanket(index, implementation, owner))
             })
     }
 

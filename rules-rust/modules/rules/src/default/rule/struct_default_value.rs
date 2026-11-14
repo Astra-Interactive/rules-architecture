@@ -148,7 +148,48 @@ impl StructDefaultValue {
         })
     }
 
+    pub(crate) fn is_serde_deserialize_trait(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        path: &syn::Path,
+    ) -> bool {
+        let crate::source::model::Resolution::External(external) =
+            context.indexes[ordinal].resolve_path(module, path)
+        else {
+            return false;
+        };
+        let identity = context.resolve_external_identity(ordinal, &external);
+        identity.package == "serde"
+            && identity
+                .segments
+                .last()
+                .is_some_and(|segment| segment == "Deserialize")
+    }
+
+    fn implements_serde_deserialize(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        items: &[syn::Item],
+        name: &str,
+    ) -> bool {
+        items.iter().any(|item| {
+            let syn::Item::Impl(value) = item else {
+                return false;
+            };
+            let Some((path, _)) = &value.trait_ else {
+                return false;
+            };
+            find_self_name(&value.self_ty).as_deref() == Some(name)
+                && Self::is_serde_deserialize_trait(context, ordinal, module, path)
+        })
+    }
+
     fn requires_explicit_values(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
         attributes: &[syn::Attribute],
         items: &[syn::Item],
         name: &str,
@@ -159,10 +200,20 @@ impl StructDefaultValue {
         if Self::derives(attributes, "Deserialize") {
             return false;
         }
+        if Self::implements_serde_deserialize(context, ordinal, module, items, name) {
+            return false;
+        }
         !Self::has_empty_new(items, name)
     }
 
-    fn accepts_default(items: &[syn::Item], name: &str, implementation: &syn::ItemImpl) -> bool {
+    fn accepts_default(
+        context: &RuleContext,
+        ordinal: usize,
+        module: usize,
+        items: &[syn::Item],
+        name: &str,
+        implementation: &syn::ItemImpl,
+    ) -> bool {
         let deserialized = items.iter().any(|candidate| match candidate {
             syn::Item::Struct(value) => {
                 value.ident == name && Self::derives(&value.attrs, "Deserialize")
@@ -174,7 +225,17 @@ impl StructDefaultValue {
         });
         let constructor_default =
             Self::has_empty_new(items, name) && Self::delegates_to_new(implementation, name);
-        deserialized || constructor_default
+        deserialized
+            || constructor_default
+            || Self::implements_serde_deserialize(context, ordinal, module, items, name)
+    }
+
+    fn find_module_id(context: &RuleContext, ordinal: usize, module_path: &[String]) -> usize {
+        context.indexes[ordinal]
+            .modules
+            .iter()
+            .find(|module| module.module.path == module_path)
+            .map_or(0, |module| module.id)
     }
 
     fn check_items(
@@ -184,23 +245,31 @@ impl StructDefaultValue {
         items: &[syn::Item],
         own_types: &HashSet<String>,
     ) -> Vec<proc_macro2::Span> {
-        let module = context.indexes[ordinal]
-            .modules
-            .iter()
-            .find(|module| module.module.path == module_path)
-            .map_or(0, |module| module.id);
+        let module = Self::find_module_id(context, ordinal, module_path);
         let mut findings = Vec::new();
         for item in items {
             match item {
                 syn::Item::Struct(value) => {
-                    if Self::requires_explicit_values(&value.attrs, items, &value.ident.to_string())
-                    {
+                    if Self::requires_explicit_values(
+                        context,
+                        ordinal,
+                        module,
+                        &value.attrs,
+                        items,
+                        &value.ident.to_string(),
+                    ) {
                         findings.push(value.span());
                     }
                 }
                 syn::Item::Enum(value) => {
-                    if Self::requires_explicit_values(&value.attrs, items, &value.ident.to_string())
-                    {
+                    if Self::requires_explicit_values(
+                        context,
+                        ordinal,
+                        module,
+                        &value.attrs,
+                        items,
+                        &value.ident.to_string(),
+                    ) {
                         findings.push(value.span());
                     }
                 }
@@ -215,7 +284,7 @@ impl StructDefaultValue {
                     if !own_types.contains(&name) {
                         continue;
                     }
-                    if !Self::accepts_default(items, &name, value) {
+                    if !Self::accepts_default(context, ordinal, module, items, &name, value) {
                         findings.push(value.span());
                     }
                 }

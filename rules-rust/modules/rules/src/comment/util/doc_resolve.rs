@@ -1,5 +1,5 @@
 use crate::check::model::RuleContext;
-use crate::comment::model::DocOwner;
+use crate::comment::model::{DocOwner, DocSubject};
 use crate::module::util::owns_implementation;
 
 fn item_member(context: &RuleContext, ordinal: usize, identity: usize, name: &str) -> bool {
@@ -237,5 +237,53 @@ pub(crate) fn doc_resolves(
             function_resolves(context, ordinal, module, owner, name, cfg)
         }
         None => path_resolves(context, ordinal, module, owner, candidate, cfg),
+    }
+}
+
+pub(crate) fn doc_names_subject(
+    context: &RuleContext,
+    ordinal: usize,
+    module: usize,
+    subject: &DocSubject,
+    candidate: &str,
+    cfg: &crate::source::model::CfgPredicate,
+) -> bool {
+    let name = candidate.strip_suffix("()").unwrap_or(candidate);
+    let Ok(path) = syn::parse_str::<syn::Path>(name) else {
+        return false;
+    };
+    let Some(last) = path.segments.last() else {
+        return false;
+    };
+    match subject {
+        DocSubject::Item(item) => context
+            .resolve_workspace_path(ordinal, module, &path)
+            .iter()
+            .any(|target| {
+                cfg.and(&target.path.cfg).is_satisfiable()
+                    && target.index == item.ordinal
+                    && target.path.item == Some(item.identity)
+                    && (path.segments.len() == 1
+                        || last.ident == context.indexes[item.ordinal].items[item.identity].name)
+            }),
+        DocSubject::Member {
+            owner: member_owner,
+            name: member_name,
+        } => {
+            if path.segments.len() != 2 || last.ident != *member_name {
+                return false;
+            }
+            let mut parent = path.clone();
+            parent.segments.pop();
+            parent.segments.pop_punct();
+            if parent.is_ident("Self") {
+                return true;
+            }
+            parent_types(context, ordinal, module, &parent, cfg)
+                .into_iter()
+                .any(|(owner_ordinal, owner_identity)| {
+                    owner_ordinal == member_owner.ordinal && owner_identity == member_owner.identity
+                })
+        }
     }
 }

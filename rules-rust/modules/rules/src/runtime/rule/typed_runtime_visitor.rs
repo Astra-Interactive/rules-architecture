@@ -3,6 +3,7 @@ use crate::check::util::{build_node_finding, format_module_path};
 use crate::runtime::rule::AwaitVisitor;
 use crate::runtime::rule::ClosureEffects;
 use crate::runtime::rule::GuardWrites;
+use crate::runtime::rule::RuntimeVisitor;
 use crate::runtime::rule::SelectBranches;
 use crate::runtime::rule::TaskVisitor;
 use crate::runtime::util::expects_lint;
@@ -129,7 +130,7 @@ impl TypedRuntimeVisitor<'_> {
         findings
     }
 
-    fn report_message(&mut self, span: proc_macro2::Span, message: String) {
+    fn report(&mut self, span: proc_macro2::Span, message: &str) {
         let index = &self.context.indexes[self.ordinal];
         if !node_predicate(index, self.module, &self.file.path, find_node_span(span))
             .is_satisfiable()
@@ -141,27 +142,12 @@ impl TypedRuntimeVisitor<'_> {
             &self.file.path,
             find_node_span(span),
             format_module_path(&index.crate_name, &index.modules[self.module].module.path),
-            message,
+            message.to_owned(),
         ));
     }
 
     fn report_discarded_result(&mut self, span: proc_macro2::Span) {
-        self.report_message(
-            span,
-            "Handle or propagate the Result instead of dropping it through `_ =`, `.ok()` or an unread `_name` binding (error-handling.rs.md)".to_owned(),
-        );
-    }
-
-    fn report(&mut self, span: proc_macro2::Span) {
-        let message = if self.rule == "ResultConsumption" {
-            "The discard expectation requires a proven oneshot::Sender::send, mpsc::UnboundedSender::send, broadcast::Sender::send or mpsc::Sender::try_send; an unresolved receiver cannot establish this exception (error-handling.rs.md)".to_owned()
-        } else {
-            format!(
-                "Follow the {} typed runtime requirement (async.rs.md; time-api.rs.md)",
-                self.rule
-            )
-        };
-        self.report_message(span, message);
+        self.report(span, Self::DISCARDED_RESULT_MESSAGE);
     }
 
     fn build_receiver_type(&self, typed: syn::Type, module: usize) -> Rc<ResolvedTypeSyntax> {
@@ -592,8 +578,11 @@ impl TypedRuntimeVisitor<'_> {
     fn check_blocking_in_sync(&mut self, call: &syn::ExprMethodCall) {
         let is_lock = self.synchronous_boundary && self.is_blocking_lock_call(call);
         let is_channel = self.in_drop && self.is_blocking_channel_call(call);
-        if is_lock || is_channel {
-            self.report(call.span());
+        if is_lock {
+            self.report(call.span(), Self::BLOCKING_LOCK_MESSAGE);
+        }
+        if is_channel {
+            self.report(call.span(), Self::BLOCKING_CHANNEL_MESSAGE);
         }
     }
 
@@ -857,7 +846,8 @@ impl TypedRuntimeVisitor<'_> {
             let Some(syn::GenericArgument::Type(inner)) = arguments.args.first() else {
                 continue;
             };
-            let invalid = if self.rule == "JoinSetBehindLock" {
+            let is_join_set_rule = self.rule == "JoinSetBehindLock";
+            let invalid = if is_join_set_rule {
                 self.context
                     .resolve_external_type_paths(resolved.index, resolved.module, inner)
                     .iter()
@@ -868,7 +858,12 @@ impl TypedRuntimeVisitor<'_> {
                         ["bool", "u8", "u16", "u32", "u64", "u128", "usize", "i8", "i16", "i32", "i64", "i128", "isize"].contains(&name.to_string().as_str()))))
             };
             if invalid {
-                self.report(typed.span());
+                let message = if is_join_set_rule {
+                    Self::JOIN_SET_BEHIND_LOCK_MESSAGE
+                } else {
+                    Self::LOCK_AROUND_PRIMITIVE_MESSAGE
+                };
+                self.report(typed.span(), message);
                 break;
             }
         }
@@ -961,7 +956,7 @@ impl TypedRuntimeVisitor<'_> {
                             || Self::STD_IO_FUNCTIONS.contains(&path.format_path().as_str())))));
             let is_noisy = watch && self.has_sleep_or_log_event(&effects);
             if impure || is_noisy {
-                self.report(argument.span());
+                self.report(argument.span(), Self::IMPURE_UPDATE_MESSAGE);
             }
         }
     }
@@ -1195,7 +1190,7 @@ impl TypedRuntimeVisitor<'_> {
                 .position(|count| *count > 0)
                 .is_some_and(|write| write + 1 < writes.len() - tail_value);
             if count > 1 || trailing {
-                self.report(local.span());
+                self.report(local.span(), Self::CRITICAL_SECTION_WRITE_MESSAGE);
             }
         } else if self.has_async_lock_type(&call.receiver)
             && !following
@@ -1203,7 +1198,7 @@ impl TypedRuntimeVisitor<'_> {
                 .take_while(|statement| !self.drops_guard(statement, name))
                 .any(AwaitVisitor::in_statement)
         {
-            self.report(local.span());
+            self.report(local.span(), Self::ASYNC_LOCK_WITHOUT_AWAIT_MESSAGE);
         }
     }
 
@@ -2022,7 +2017,7 @@ impl TypedRuntimeVisitor<'_> {
         if self.rule == "LockChoice"
             && temporary.is_some_and(|expression| self.temporary_guard_without_await(expression))
         {
-            self.report(statement.span());
+            self.report(statement.span(), Self::ASYNC_LOCK_WITHOUT_AWAIT_MESSAGE);
         }
     }
 
@@ -2199,6 +2194,32 @@ impl TypedRuntimeVisitor<'_> {
         "log::warn",
         "log::error",
     ];
+
+    const DISCARDED_RESULT_MESSAGE: &'static str = "Handle or propagate the Result instead of dropping it through `_ =`, `.ok()` or an unread `_name` binding (error-handling.rs.md)";
+
+    const UNPROVEN_DISCARD_MESSAGE: &'static str = "The discard expectation requires a proven oneshot::Sender::send, mpsc::UnboundedSender::send, broadcast::Sender::send or mpsc::Sender::try_send; an unresolved receiver cannot establish this exception (error-handling.rs.md)";
+
+    const JOIN_SET_BEHIND_LOCK_MESSAGE: &'static str = "A JoinSet behind a lock keeps every finished task until join_next runs: spawn on a TaskScope, whose drain owns the JoinSet (async.rs.md, Tasks)";
+
+    const CRITICAL_SECTION_WRITE_MESSAGE: &'static str = "A critical section computes first and writes once: build the new value with a pure rule, then store it in the last statement of the guard's scope (async.rs.md, Shared state and locks)";
+
+    const LOCK_AROUND_PRIMITIVE_MESSAGE: &'static str = "A counter or a flag is an atomic, not a lock around a bool or an integer (async.rs.md, Shared state and locks)";
+
+    const ASYNC_LOCK_WITHOUT_AWAIT_MESSAGE: &'static str = "A lock whose guard no .await crosses is parking_lot::Mutex or RwLock; tokio::sync::Mutex is only for a guard that lives across an .await (async.rs.md, Shared state and locks)";
+
+    const BROADCAST_LAG_MESSAGE: &'static str = "Match RecvError::Lagged and go on: a loop that ends at the first lag leaves events in the channel (no-callbacks.rs.md, Things that happen)";
+
+    const SELECT_CANCEL_SAFETY_MESSAGE: &'static str = "In a looped select! every branch is cancel safe, or its future is created once before the loop and polled through &mut (async.rs.md, Tasks)";
+
+    const IMPURE_UPDATE_MESSAGE: &'static str = "The closure of send_modify, send_if_modified and fetch_update computes the new value from the current one and does nothing else: no I/O, no lock, no other channel, no captured write (async.rs.md)";
+
+    const BLOCKING_LOCK_MESSAGE: &'static str = "A synchronous Drop, on_enable or on_reload on a runtime thread cannot call blocking_lock: use a parking_lot lock for data no .await crosses (async.rs.md, Shared state and locks)";
+
+    const BLOCKING_CHANNEL_MESSAGE: &'static str = "Drop does not block on a channel: end the task by dropping its sender and cancel through a guard, not through recv or blocking_send (no-callbacks.rs.md, Cleanup)";
+
+    const WATCH_TIMEOUT_MESSAGE: &'static str = "A timeout wraps a call that can actually wait; around a read that returns at once it never fires: read the watch with borrow() (async.rs.md)";
+
+    const DURATION_OVERLOAD_MESSAGE: &'static str = "Pass the Duration itself where the API takes one: keep the constant a Duration and convert to an integer only at a call that takes only an integer (time-api.rs.md)";
 }
 
 impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
@@ -2206,7 +2227,7 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
         if self.rule == "BroadcastLag" && self.loops > 0 && self.broadcast_recv(&expression.expr) {
             for arm in &expression.arms {
                 if self.lag_pattern(&arm.pat) && Self::terminates_loop(&arm.body) {
-                    self.report(arm.span());
+                    self.report(arm.span(), Self::BROADCAST_LAG_MESSAGE);
                 }
             }
         }
@@ -2288,7 +2309,7 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
                     .iter()
                     .any(|call| self.unsafe_select_call(call))
             {
-                self.report(future.span());
+                self.report(future.span(), Self::SELECT_CANCEL_SAFETY_MESSAGE);
             }
         }
     }
@@ -2412,7 +2433,7 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
             && let Some(init) = &local.init
             && !self.is_channel_send(&init.expr)
         {
-            self.report(local.span());
+            self.report(local.span(), Self::UNPROVEN_DISCARD_MESSAGE);
         }
         if self.rule == "ResultConsumption"
             && let syn::Pat::Ident(name) = &local.pat
@@ -2420,7 +2441,7 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
             && let Some(init) = &local.init
             && self.is_channel_send(&init.expr)
         {
-            self.report(local.span());
+            self.report(local.span(), Self::UNPROVEN_DISCARD_MESSAGE);
         }
         self.check_discarded_ok(local);
         if self.rule == "BroadcastLag"
@@ -2430,7 +2451,7 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
             && self.lag_stopping_let(&local.pat, &init.expr)
             && Self::terminates_loop(diverge)
         {
-            self.report(local.span());
+            self.report(local.span(), Self::BROADCAST_LAG_MESSAGE);
         }
         syn::visit::visit_local(self, local);
         self.bind_initializer(local);
@@ -2453,20 +2474,24 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
         let index = &self.context.indexes[self.ordinal];
         let in_test = index.modules[self.module].tree != crate::source::model::SourceTree::Src;
         if self.rule == "BlockOnInTest" && in_test && self.is_local_pool_run(expression) {
-            self.report(expression.span());
+            self.report(expression.span(), RuntimeVisitor::BLOCK_ON_IN_TEST_MESSAGE);
         }
         if expression.method == "block_on" && self.is_block_on_receiver(&expression.receiver) {
             let outside_boundary = !self.runtime_main
                 && !crate::declaration::util::is_technology(self.context, index, self.module);
-            if self.rule == "BlockOnInTest" && in_test
-                || self.rule == "BlockOnOutsideBoundary" && outside_boundary
-            {
-                self.report(expression.span());
+            if self.rule == "BlockOnInTest" && in_test {
+                self.report(expression.span(), RuntimeVisitor::BLOCK_ON_IN_TEST_MESSAGE);
+            }
+            if self.rule == "BlockOnOutsideBoundary" && outside_boundary {
+                self.report(
+                    expression.span(),
+                    RuntimeVisitor::BLOCK_ON_OUTSIDE_BOUNDARY_MESSAGE,
+                );
             }
         }
         let blocking_async = self.rule == "BlockingCallInAsync" && self.async_context;
         if blocking_async && self.is_blocking_method(expression) {
-            self.report(expression.span());
+            self.report(expression.span(), TaskVisitor::BLOCKING_CALL_MESSAGE);
         }
         if self.rule == "ThreadPrimitive"
             && self.thread_expect
@@ -2478,7 +2503,10 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
                 self.module,
             )
         {
-            self.report(expression.span());
+            self.report(
+                expression.span(),
+                TaskVisitor::THREAD_OUTSIDE_TECHNOLOGY_MESSAGE,
+            );
         }
         if self.rule == "ImpureUpdateClosure" {
             self.check_update(expression);
@@ -2507,7 +2535,7 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
             && let Some(condition) = Self::let_condition(&expression.cond)
             && self.lag_stopping_let(&condition.pat, &condition.expr)
         {
-            self.report(expression.span());
+            self.report(expression.span(), Self::BROADCAST_LAG_MESSAGE);
         }
         let length = self.bindings.len();
         syn::visit::visit_expr_while(self, expression);
@@ -2517,7 +2545,7 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
 
     fn visit_expr_if(&mut self, expression: &'ast syn::ExprIf) {
         if self.is_lag_stopping_if(expression) {
-            self.report(expression.span());
+            self.report(expression.span(), Self::BROADCAST_LAG_MESSAGE);
         }
         let length = self.bindings.len();
         self.visit_expr(&expression.cond);
@@ -2531,7 +2559,7 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
     fn visit_expr_try(&mut self, expression: &'ast syn::ExprTry) {
         let is_in_lag_loop = self.rule == "BroadcastLag" && self.loops > 0;
         if is_in_lag_loop && self.is_awaited_broadcast_recv(&expression.expr) {
-            self.report(expression.span());
+            self.report(expression.span(), Self::BROADCAST_LAG_MESSAGE);
         }
         syn::visit::visit_expr_try(self, expression);
     }
@@ -2545,7 +2573,7 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
 
     fn visit_expr_call(&mut self, expression: &'ast syn::ExprCall) {
         if self.rule == "WatchTimeout" && self.invalid_timeout(expression) {
-            self.report(expression.span());
+            self.report(expression.span(), Self::WATCH_TIMEOUT_MESSAGE);
         }
         if self.rule == "DurationOverloadCall"
             && let syn::Expr::Path(path) = &*expression.func
@@ -2567,7 +2595,7 @@ impl<'ast> Visit<'ast> for TypedRuntimeVisitor<'_> {
                 .iter()
                 .any(|argument| self.duration_roundtrip(argument))
         {
-            self.report(expression.span());
+            self.report(expression.span(), Self::DURATION_OVERLOAD_MESSAGE);
         }
         self.visit_expr(&expression.func);
         let inherit = self.async_context && !self.runs_off_async_call(expression);

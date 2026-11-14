@@ -1,20 +1,11 @@
 use crate::check::api::Rule;
 use crate::check::model::{Anchor, Finding, Location, RuleContext, RuleFinding, RuleId};
-use crate::config::model::Role;
 use crate::workspace::model::{Member, TomlValue};
 use std::collections::BTreeMap;
 
 pub(crate) struct RootPackagePath;
 
 impl RootPackagePath {
-    fn is_tooling(context: &RuleContext, member: &Member) -> bool {
-        context
-            .project_config
-            .crates
-            .iter()
-            .any(|config| config.name == member.name && config.role == Some(Role::Tooling))
-    }
-
     fn suffix(member: &Member) -> Option<String> {
         member
             .directory
@@ -36,9 +27,6 @@ impl RootPackagePath {
         }
         let mut candidates = BTreeMap::<String, usize>::new();
         for member in &context.workspace.members {
-            if Self::is_tooling(context, member) {
-                continue;
-            }
             let Some(suffix) = Self::suffix(member) else {
                 continue;
             };
@@ -109,9 +97,6 @@ impl Rule for RootPackagePath {
                     "do not set `[lib] name`; the crate import name follows its package name"
                         .to_owned(),
                 ));
-            }
-            if Self::is_tooling(context, member) {
-                continue;
             }
             let Some(suffix) = Self::suffix(member) else {
                 continue;

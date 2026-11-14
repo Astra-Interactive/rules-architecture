@@ -70,6 +70,9 @@ impl TestMirror {
         context: &RuleContext,
         findings: &mut Vec<RuleFinding>,
     ) {
+        if module.id.is_test_root() {
+            return;
+        }
         if file
             .module
             .path

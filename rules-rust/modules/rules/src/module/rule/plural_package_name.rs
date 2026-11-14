@@ -1,5 +1,6 @@
 use crate::check::api::Rule;
 use crate::check::model::{RuleContext, RuleFinding};
+use crate::check::util::drop_mirrored_findings;
 use crate::module::util::{build_shape_module_finding, list_shape_words};
 
 pub(crate) struct PluralPackageName;
@@ -18,7 +19,7 @@ impl PluralPackageName {
 
 impl Rule for PluralPackageName {
     fn check(&self, context: &RuleContext) -> Vec<RuleFinding> {
-        context.indexes.iter().enumerate().flat_map(|(ordinal, index)| {
+        let findings: Vec<RuleFinding> = context.indexes.iter().enumerate().flat_map(|(ordinal, index)| {
             let exceptions = list_shape_words(context, &index.crate_name, "plural-concepts");
             index.modules.iter().filter(|module| !module.is_file_module).filter_map(move |module| {
                 let name = module.module.path.last()?;
@@ -26,6 +27,7 @@ impl Rule for PluralPackageName {
                 if !plural || ["news", "settings"].contains(&name.as_str()) || Self::SINGULAR_AS_WORDS.contains(&name.as_str()) || exceptions.contains(name) || context.is_technology_kind(&index.crate_name, name) { return None; }
                 build_shape_module_finding(context, ordinal, module.id, "PluralPackageName", "name a concept in the singular, or declare its project word in plural-concepts")
             }).collect::<Vec<_>>()
-        }).collect()
+        }).collect();
+        drop_mirrored_findings(findings)
     }
 }

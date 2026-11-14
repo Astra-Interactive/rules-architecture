@@ -181,8 +181,21 @@ impl Rule for SystemClockOutsideDi {
                         .any(|segment| segment == "system");
                 let signature = item.name == "Clock"
                     && matches!(&item.syntax, syn::Item::Trait(contract) if !Self::valid_clock(context, ordinal, item, contract));
-                if misplaced || signature {
-                    findings.push(build_shape_item_finding(index, item, "SystemClockOutsideDi", "SystemClock lives in system and Clock declares exactly fn now(&self) -> SystemTime"));
+                if misplaced {
+                    findings.push(build_shape_item_finding(
+                        index,
+                        item,
+                        "SystemClockOutsideDi",
+                        "SystemClock is declared in a system module (time-api.rs.md)",
+                    ));
+                }
+                if signature {
+                    findings.push(build_shape_item_finding(
+                        index,
+                        item,
+                        "SystemClockOutsideDi",
+                        "the Clock trait declares exactly fn now(&self) -> SystemTime (time-api.rs.md)",
+                    ));
                 }
             }
         }

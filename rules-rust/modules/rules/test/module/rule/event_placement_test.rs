@@ -1,3 +1,4 @@
+use crate::check::api::Rule;
 use crate::check::model::RuleContext;
 use crate::config::model::Role;
 use crate::module::rule::EventPlacement;
@@ -104,6 +105,23 @@ fn given_no_platform_words_when_event_uses_derive_or_trait_of_another_workspace_
         &context,
         &[("src/lib.rs", 3, "Node"), ("src/lib.rs", 5, "Node")],
     );
+}
+
+#[test]
+fn given_event_named_type_outside_model_when_checked_then_the_message_names_the_model_and_the_platform_exception()
+ {
+    let mut context = read_code_context(
+        "mod packet { pub struct GameEvent { pub event: u8 } }\nmod chat { pub enum ClickEvent { Open } }",
+    );
+    context.project_config.crates[0].role = Some(Role::Context);
+    let findings = EventPlacement.check(&context);
+    assert_eq!(2, findings.len(), "{findings:?}");
+    for finding in &findings {
+        assert_eq!(
+            "a type named …Event lives in model (arch-domain.md, Domain event); only a platform's event type stays in event of a platform crate",
+            finding.finding.message
+        );
+    }
 }
 
 #[test]

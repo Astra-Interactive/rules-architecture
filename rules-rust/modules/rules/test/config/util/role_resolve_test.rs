@@ -39,10 +39,12 @@ fn given_role_rows_when_detected_then_first_matching_path_target_and_dependency_
         Some(Role::Technology)
     );
     member.name = "xtask".to_owned();
+    member.directory = "modules/xtask".to_owned();
     assert_eq!(
         detect_role(&member, &platforms, &technology),
-        Some(Role::Tooling)
+        Some(Role::Context)
     );
+    member.directory = "modules/data/sqlx".to_owned();
     member.name = "case-macro".to_owned();
     member.targets[0].kinds = vec!["proc-macro".to_owned()];
     assert_eq!(
@@ -57,13 +59,52 @@ fn given_role_rows_when_detected_then_first_matching_path_target_and_dependency_
 }
 
 #[test]
+fn given_role_names_when_listed_then_there_are_fourteen_and_tooling_is_none_of_them() {
+    let names = crate::config::util::list_role_names();
+    assert_eq!(14, names.len(), "{names:?}");
+    assert!(!names.contains(&"tooling"), "{names:?}");
+    assert_eq!(None, crate::config::util::parse_role("tooling"));
+}
+
+#[test]
+fn given_xtask_package_in_a_library_directory_when_roles_are_detected_then_it_is_an_ordinary_crate()
+{
+    let mut context = read_case_context("RootFileShape", "pass-tree");
+    context.workspace.members[0].name = "xtask".to_owned();
+    context.workspace.members[0].directory = "modules/xtask".to_owned();
+    let config = parse_project_config(&context.workspace).expect("valid configuration");
+    assert_eq!(
+        Some(Role::Context),
+        config.crates[0].role,
+        "a crate named xtask gets no special role"
+    );
+}
+
+#[test]
+fn given_declared_tooling_role_when_parsed_then_the_configuration_error_says_it_is_retired() {
+    let mut context = read_case_context("RootFileShape", "pass-tree");
+    context.workspace.members[0].manifest = parse_toml_file(
+        "modules/sample/Cargo.toml",
+        "[package.metadata.klibs-rules]\nrole='tooling'",
+    )
+    .expect("manifest");
+    let error = match parse_project_config(&context.workspace) {
+        Ok(_) => panic!("role = \"tooling\" must be rejected"),
+        Err(error) => error.to_string(),
+    };
+    assert!(
+        error.contains("the `tooling` role is retired: a binary is an `entry-point` crate"),
+        "{error}"
+    );
+}
+
+#[test]
 fn given_declared_roles_and_ui_options_when_parsed_then_declaration_wins_and_values_are_retained() {
     let mut context = read_case_context("RootFileShape", "pass-tree");
     context.workspace.members[0].name = "xtask".to_owned();
     context.workspace.members[0].directory = "instances/runner".to_owned();
     context.workspace.members[0].targets[0].kinds = vec!["proc-macro".to_owned()];
     for role in [
-        "tooling",
         "proc-macro",
         "entry-point",
         "core-ui",

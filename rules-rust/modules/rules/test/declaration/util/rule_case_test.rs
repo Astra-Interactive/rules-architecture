@@ -1,11 +1,32 @@
 use crate::check::api::Rule;
 use crate::check::model::Anchor;
 use crate::check::model::RuleContext;
+use crate::check::model::RuleFinding;
 use crate::source::model::SourceTree;
 use crate::source::syn::CrateIndexBuilder;
 use crate::source::syn::ModuleTreeWalker;
 use crate::test::check::usecase::read_case_context;
 use std::fs;
+use std::path::Path;
+use std::path::PathBuf;
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct FindingMessage {
+    pub(crate) line: u32,
+    pub(crate) message: String,
+}
+
+pub(crate) fn list_finding_messages(findings: &[RuleFinding]) -> Vec<FindingMessage> {
+    let mut messages: Vec<FindingMessage> = findings
+        .iter()
+        .map(|finding| FindingMessage {
+            line: finding.finding.location.line.expect("finding line"),
+            message: finding.finding.message.clone(),
+        })
+        .collect();
+    messages.sort();
+    messages
+}
 
 pub(crate) fn read_code_context(source: &str) -> RuleContext {
     let mut context = read_case_context("ImplementationName", "pass-syntax");
@@ -140,14 +161,16 @@ fn assert_runtime_resolution(context: &RuleContext, rule_name: &str) {
     }
 }
 
-pub(crate) fn assert_code_fixture(rule: &dyn Rule, rule_name: &str, half: &str) {
-    let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+fn find_fixture_directory(rule_name: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../cases/code")
-        .join(rule_name);
+        .join(rule_name)
+}
+
+fn read_fixture_context(rule_name: &str, half: &str) -> RuleContext {
+    let directory = find_fixture_directory(rule_name);
     let source = fs::read_to_string(directory.join(format!("{half}.rs")))
         .expect("persistent source fixture");
-    let expected = fs::read_to_string(directory.join(format!("{half}.tsv")))
-        .expect("persistent anchor fixture");
     let mut context = read_code_context(&source);
     let manifest = directory.join("manifest.toml");
     if manifest.exists() {
@@ -156,6 +179,19 @@ pub(crate) fn assert_code_fixture(rule: &dyn Rule, rule_name: &str, half: &str) 
             crate::workspace::util::parse_toml_file(&manifest.to_string_lossy(), &text)
                 .expect("valid manifest fixture");
     }
+    context
+}
+
+pub(crate) fn read_fixture_messages(rule: &dyn Rule, rule_name: &str) -> Vec<FindingMessage> {
+    let context = read_fixture_context(rule_name, "bad");
+    list_finding_messages(&rule.check(&context))
+}
+
+pub(crate) fn assert_code_fixture(rule: &dyn Rule, rule_name: &str, half: &str) {
+    let expected =
+        fs::read_to_string(find_fixture_directory(rule_name).join(format!("{half}.tsv")))
+            .expect("persistent anchor fixture");
+    let context = read_fixture_context(rule_name, half);
     assert_resolved_fixture(&context, rule_name, half);
     let findings = rule.check(&context);
     let mut anchors = findings

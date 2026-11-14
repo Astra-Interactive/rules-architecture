@@ -5,6 +5,13 @@ use crate::test::declaration::util::assert_code_findings;
 use crate::test::declaration::util::assert_code_fixture;
 use crate::test::declaration::util::read_code_context;
 
+const TOKIO_SPAWN_SOURCES: [&str; 4] = [
+    "fn run() {\n    let lost = tokio::spawn(async {});\n}",
+    "fn run() {\n    let handle = tokio::spawn(async {});\n    drop(handle);\n}",
+    "fn run() {\n    tokio::spawn(async {});\n}",
+    "fn run() {\n    let _ = tokio::spawn(async {});\n}",
+];
+
 #[test]
 fn given_normative_runtime_counterexamples_when_checked_then_matches_exact_node_anchors() {
     assert_code_findings(
@@ -345,6 +352,39 @@ fn given_handle_joined_in_loop_body_in_technology_module_when_checked_then_repor
         .map(|finding| finding.finding.location.line)
         .collect::<Vec<_>>();
     assert_eq!(vec![Some(15)], lines, "{source}");
+}
+
+#[test]
+fn given_tokio_spawn_handle_outside_a_technology_module_when_checked_then_thread_primitive_reports_nothing()
+ {
+    for source in TOKIO_SPAWN_SOURCES {
+        assert_code_findings(&ThreadPrimitive, "ThreadPrimitive", source, &[]);
+    }
+}
+
+#[test]
+fn given_tokio_spawn_handle_in_technology_module_when_checked_then_thread_primitive_reports_nothing()
+ {
+    for source in TOKIO_SPAWN_SOURCES {
+        let mut context = read_code_context(source);
+        context.project_config.crates[0].role = Some(Role::Technology);
+        let findings = ThreadPrimitive.check(&context);
+        assert!(findings.is_empty(), "{source}\n{findings:?}");
+    }
+}
+
+#[test]
+fn given_unjoined_std_thread_handle_in_technology_module_when_checked_then_the_message_names_the_join()
+ {
+    let source = "fn run() {}\n#[expect(clippy::disallowed_methods, reason = \"pumps the device until shutdown\")]\npub(crate) fn start_pump() {\n    let _pump = std::thread::spawn(run);\n}";
+    let mut context = read_code_context(source);
+    context.project_config.crates[0].role = Some(Role::Technology);
+    let findings = ThreadPrimitive.check(&context);
+    assert_eq!(1, findings.len(), "{findings:?}");
+    assert_eq!(
+        "A started thread has an owner that joins it when it stops: keep its JoinHandle and join it (no-callbacks.rs.md, Threads)",
+        findings[0].finding.message
+    );
 }
 
 #[test]

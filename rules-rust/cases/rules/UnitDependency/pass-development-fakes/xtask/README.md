@@ -1,1 +1,0 @@
-Exercises workspace dependency policy.

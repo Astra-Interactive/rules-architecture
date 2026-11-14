@@ -18,6 +18,8 @@ use std::path::PathBuf;
 use toml::Table;
 use toml::Value;
 
+const SAMPLE_WORKSPACE_MANIFEST: &str = "[workspace]\nresolver = \"3\"\nmembers = [\"modules/sample\"]\n\n[workspace.metadata.klibs-rules]\nproduct-kind = \"app\"\n";
+
 pub(crate) fn read_case_context(rule: &str, case: &str) -> RuleContext {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../cases/rules")
@@ -304,6 +306,163 @@ fn given_missing_rule_carrier_when_compared_then_failure_identifies_its_example_
     assert_eq!(failures.len(), 1);
     assert!(failures[0].contains("case bad"));
     assert!(failures[0].contains("src/value.rs:5"));
+}
+
+fn list_case_roots() -> Vec<PathBuf> {
+    let root = find_rules_rust_root().join("cases");
+    let mut directories = Vec::new();
+    for group in ["rules", "suppression", "consumer"] {
+        let group_root = root.join(group);
+        if group != "rules" {
+            directories.extend(list_case_directories(&group_root));
+            continue;
+        }
+        let rules: Vec<PathBuf> = fs::read_dir(&group_root)
+            .expect("the case group exists")
+            .map(|entry| entry.expect("the case group is readable").path())
+            .collect();
+        for rule in rules {
+            directories.extend(list_case_directories(&rule));
+        }
+    }
+    directories.sort();
+    directories
+}
+
+#[test]
+fn given_every_case_workspace_when_checked_then_no_message_is_a_placeholder_naming_its_own_rule() {
+    let mut offenders = Vec::new();
+    for directory in list_case_roots() {
+        let Ok(report) = check_workspace(&directory) else {
+            continue;
+        };
+        for line in report.to_violation_lines().lines() {
+            let columns: Vec<&str> = line.split('\t').collect();
+            let [rule, _, _, message] = columns[..] else {
+                continue;
+            };
+            if message.contains("Follow the") || message.contains(rule) {
+                offenders.push(format!("{}: {line}", directory.display()));
+            }
+        }
+    }
+    assert!(offenders.is_empty(), "{}", offenders.join("\n"));
+}
+
+struct WorkspaceFile<'file> {
+    path: &'file str,
+    text: &'file str,
+}
+
+fn build_rust_files_workspace(files: &[WorkspaceFile<'_>]) -> tempfile::TempDir {
+    let directory = tempfile::tempdir().expect("temporary workspace");
+    for file in files {
+        let path = directory.path().join(file.path);
+        fs::create_dir_all(path.parent().expect("file parent")).expect("file directory");
+        fs::write(path, file.text).expect("workspace file");
+    }
+    directory
+}
+
+#[test]
+fn given_source_finding_taken_by_an_exception_when_its_test_twin_exists_then_the_twin_is_not_reported()
+ {
+    let directory = build_rust_files_workspace(&[
+        WorkspaceFile {
+            path: "Cargo.toml",
+            text: "[workspace]\nresolver = \"3\"\nmembers = [\"modules/sample\"]\n\n[workspace.metadata.klibs-rules]\nproduct-kind = \"app\"\n",
+        },
+        WorkspaceFile {
+            path: "modules/sample/Cargo.toml",
+            text: "[package]\nname = \"sample\"\nedition = \"2024\"\n",
+        },
+        WorkspaceFile {
+            path: "modules/sample/src/lib.rs",
+            text: "#[cfg_attr(klibs_rules, expect(PluralPackageName, reason = \"suspected false positive, reported as #42\"))]\nmod options {}\n#[cfg(test)]\n#[path = \"../test\"]\nmod test {\n    mod options {}\n}\n",
+        },
+    ]);
+    let report = check_workspace(directory.path()).expect("the workspace is checked");
+    let violations: Vec<String> = report
+        .to_violation_lines()
+        .lines()
+        .filter(|line| {
+            [
+                "PluralPackageName",
+                "UnfulfilledExpectation",
+                "MalformedExpectation",
+            ]
+            .iter()
+            .any(|rule| line.starts_with(&format!("{rule}\t")))
+        })
+        .map(str::to_owned)
+        .collect();
+    assert!(violations.is_empty(), "{violations:#?}");
+    let accepted: Vec<String> = report
+        .to_policy_lines()
+        .lines()
+        .filter(|line| line.starts_with("PluralPackageName\t"))
+        .map(str::to_owned)
+        .collect();
+    assert_eq!(1, accepted.len(), "{accepted:#?}");
+}
+
+#[test]
+fn given_attribute_exception_naming_a_retired_rule_without_successor_when_checked_then_the_finding_says_it_has_no_successor()
+ {
+    let directory = build_rust_files_workspace(&[
+        WorkspaceFile {
+            path: "Cargo.toml",
+            text: SAMPLE_WORKSPACE_MANIFEST,
+        },
+        WorkspaceFile {
+            path: "modules/sample/Cargo.toml",
+            text: "[package]\nname = \"sample\"\nedition = \"2024\"\n",
+        },
+        WorkspaceFile {
+            path: "modules/sample/src/lib.rs",
+            text: "#[cfg_attr(klibs_rules, expect(ShellAutomation, reason = \"suspected false positive, reported as #42\"))]\nmod options {}\n",
+        },
+    ]);
+    let report = check_workspace(directory.path()).expect("the workspace is checked");
+    let retired: Vec<String> = report
+        .to_violation_lines()
+        .lines()
+        .filter(|line| line.starts_with("RetiredRule\t"))
+        .map(str::to_owned)
+        .collect();
+    assert_eq!(
+        vec![
+            "RetiredRule\tmodules/sample/src/lib.rs:1\tShellAutomation\t`ShellAutomation` is retired in klibs-rules: it has no successor"
+                .to_owned()
+        ],
+        retired
+    );
+}
+
+#[test]
+fn given_manifest_exception_naming_a_retired_rule_without_successor_when_checked_then_the_configuration_error_says_it_has_no_successor()
+ {
+    let directory = build_rust_files_workspace(&[
+        WorkspaceFile {
+            path: "Cargo.toml",
+            text: SAMPLE_WORKSPACE_MANIFEST,
+        },
+        WorkspaceFile {
+            path: "modules/sample/Cargo.toml",
+            text: "[package]\nname = \"sample\"\nedition = \"2024\"\n\n[package.metadata.klibs-rules.checks.disabled.XtaskAlias]\n\"sample\" = \"a reason\"\n",
+        },
+        WorkspaceFile {
+            path: "modules/sample/src/lib.rs",
+            text: "",
+        },
+    ]);
+    let Err(error) = check_workspace(directory.path()) else {
+        panic!("a retired rule id in the manifest stops the check");
+    };
+    assert_eq!(
+        "modules/sample/Cargo.toml:5: `XtaskAlias` is retired: it has no successor",
+        error.to_string()
+    );
 }
 
 #[test]

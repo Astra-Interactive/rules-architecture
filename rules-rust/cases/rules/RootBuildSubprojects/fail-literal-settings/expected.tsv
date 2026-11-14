@@ -8,10 +8,10 @@ RootBuildSubprojects	modules/sample/Cargo.toml:7	sample package.repository	decla
 RootBuildSubprojects	modules/sample/Cargo.toml:9	sample profile	declare profile in the workspace root and inherit shared settings with workspace = true
 RootBuildSubprojects	modules/sample/Cargo.toml:11	sample patch	declare patch in the workspace root and inherit shared settings with workspace = true
 RootBuildSubprojects	modules/sample/Cargo.toml:13	sample dependencies.leaf	declare dependencies.leaf in the workspace root and inherit shared settings with workspace = true
-UnitDependency	modules/sample/Cargo.toml:13	sample -> leaf	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+UnitDependency	modules/sample/Cargo.toml:13	sample -> leaf	sample (context) may not depend on leaf (context): a context crate depends on api, core-api, core, core-platform and storage-contract crates (arch-context.md, Direction and enforcement)
 RootBuildSubprojects	modules/sample/Cargo.toml:15	sample dev-dependencies.leaf	declare dev-dependencies.leaf in the workspace root and inherit shared settings with workspace = true
-UnitDependency	modules/sample/Cargo.toml:15	sample -> leaf	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+UnitDependency	modules/sample/Cargo.toml:15	sample -> leaf	sample (context) may not depend on leaf (context): a context crate depends on api, core-api, core, core-platform and storage-contract crates (arch-context.md, Direction and enforcement)
 RootBuildSubprojects	modules/sample/Cargo.toml:17	sample build-dependencies.leaf	declare build-dependencies.leaf in the workspace root and inherit shared settings with workspace = true
-UnitDependency	modules/sample/Cargo.toml:17	sample -> leaf	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+UnitDependency	modules/sample/Cargo.toml:17	sample -> leaf	sample (context) may not depend on leaf (context): a context crate depends on api, core-api, core, core-platform and storage-contract crates (arch-context.md, Direction and enforcement)
 RootBuildSubprojects	modules/sample/Cargo.toml:19	sample target.cfg(windows).dependencies.leaf	declare target.cfg(windows).dependencies.leaf in the workspace root and inherit shared settings with workspace = true
-UnitDependency	modules/sample/Cargo.toml:19	sample -> leaf	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
+UnitDependency	modules/sample/Cargo.toml:19	sample -> leaf	sample (context) may not depend on leaf (context): a context crate depends on api, core-api, core, core-platform and storage-contract crates (arch-context.md, Direction and enforcement)

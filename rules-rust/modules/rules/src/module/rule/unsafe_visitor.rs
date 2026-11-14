@@ -1,10 +1,13 @@
 use crate::check::model::{RuleContext, RuleFinding};
 use crate::check::util::build_node_finding;
 use crate::module::util::find_kind_name;
-use crate::source::model::SourceFile;
+use crate::source::model::{Resolution, SourceFile, SourceTree};
 use crate::source::util::{find_node_span, parse_macro_arguments};
 use syn::spanned::Spanned;
 use syn::visit::Visit;
+
+const POINTER_FUNCTIONS: [&str; 3] = ["null", "null_mut", "into_raw"];
+const POINTER_METHODS: [&str; 3] = ["as_ptr", "as_mut_ptr", "into_raw"];
 
 pub(crate) struct UnsafeVisitor<'source> {
     context: &'source RuleContext,
@@ -33,6 +36,93 @@ impl UnsafeVisitor<'_> {
             "Keep unsafe code behind a safe technology implementation (arch-package.rs.md)"
                 .to_owned(),
         ));
+    }
+
+    fn is_entry_point(&self) -> bool {
+        let index = &self.context.indexes[self.ordinal];
+        self.context
+            .find_role_config(&index.crate_name)
+            .and_then(|config| config.role)
+            == Some(crate::config::model::Role::EntryPoint)
+    }
+
+    fn exports_symbol(attribute: &syn::Attribute) -> bool {
+        let is_symbol =
+            |path: &syn::Path| path.is_ident("no_mangle") || path.is_ident("export_name");
+        match &attribute.meta {
+            syn::Meta::List(list) if list.path.is_ident("unsafe") => list
+                .parse_args_with(
+                    syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
+                )
+                .is_ok_and(|metas| metas.iter().any(|meta| is_symbol(meta.path()))),
+            meta => is_symbol(meta.path()),
+        }
+    }
+
+    fn is_host_function(item: &syn::ItemFn) -> bool {
+        item.sig.abi.is_some() && item.attrs.iter().any(Self::exports_symbol)
+    }
+
+    fn is_pointer_function_call(call: &syn::ExprCall) -> bool {
+        let syn::Expr::Path(callee) = call.func.as_ref() else {
+            return false;
+        };
+        let Some(segment) = callee.path.segments.last() else {
+            return false;
+        };
+        let is_producer = POINTER_FUNCTIONS.iter().any(|name| segment.ident == *name);
+        is_producer && call.args.iter().all(Self::is_safe_argument)
+    }
+
+    fn is_pointer_method_call(call: &syn::ExprMethodCall) -> bool {
+        let is_producer = POINTER_METHODS.iter().any(|name| call.method == *name);
+        is_producer
+            && Self::is_safe_argument(&call.receiver)
+            && call.args.iter().all(Self::is_safe_argument)
+    }
+
+    fn is_safe_argument(expression: &syn::Expr) -> bool {
+        match expression {
+            syn::Expr::Path(_) | syn::Expr::Lit(_) => true,
+            syn::Expr::Cast(cast) => Self::is_safe_argument(&cast.expr),
+            syn::Expr::Reference(reference) => Self::is_safe_argument(&reference.expr),
+            syn::Expr::Paren(parenthesized) => Self::is_safe_argument(&parenthesized.expr),
+            syn::Expr::Unary(unary) => {
+                matches!(unary.op, syn::UnOp::Neg(_)) && Self::is_safe_argument(&unary.expr)
+            }
+            syn::Expr::Call(call) => Self::is_pointer_function_call(call),
+            syn::Expr::MethodCall(call) => Self::is_pointer_method_call(call),
+            _ => false,
+        }
+    }
+
+    fn is_host_function_call(&self, expression: &syn::ExprUnsafe) -> bool {
+        let index = &self.context.indexes[self.ordinal];
+        if index.modules[self.module].tree != SourceTree::Test || !self.is_entry_point() {
+            return false;
+        }
+        let [syn::Stmt::Expr(syn::Expr::Call(call), _)] = expression.block.stmts.as_slice() else {
+            return false;
+        };
+        if !call.args.iter().all(Self::is_safe_argument) {
+            return false;
+        }
+        let syn::Expr::Path(callee) = call.func.as_ref() else {
+            return false;
+        };
+        let Resolution::Internal(targets) = index.resolve_path(self.module, &callee.path) else {
+            return false;
+        };
+        targets.iter().any(|target| {
+            let Some(identity) = target.item else {
+                return false;
+            };
+            let item = &index.items[identity];
+            let syn::Item::Fn(function) = &item.syntax else {
+                return false;
+            };
+            item.module == 0 && Self::is_host_function(function)
+        })
     }
 
     pub(crate) fn check_file(
@@ -84,21 +174,24 @@ impl<'ast> Visit<'ast> for UnsafeVisitor<'_> {
     fn visit_attribute(&mut self, attribute: &'ast syn::Attribute) {
         let is_unsafe_attribute =
             matches!(&attribute.meta, syn::Meta::List(list) if list.path.is_ident("unsafe"));
-        let index = &self.context.indexes[self.ordinal];
-        let is_host_entry = self.module == 0
-            && self
-                .context
-                .find_role_config(&index.crate_name)
-                .and_then(|config| config.role)
-                == Some(crate::config::model::Role::EntryPoint);
+        let is_host_entry = self.module == 0 && self.is_entry_point();
         if is_unsafe_attribute && !is_host_entry {
             self.check_span(attribute.span());
         }
         syn::visit::visit_attribute(self, attribute);
     }
 
+    fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
+        if self.module == 0 && self.is_entry_point() && Self::is_host_function(item) {
+            return;
+        }
+        syn::visit::visit_item_fn(self, item);
+    }
+
     fn visit_expr_unsafe(&mut self, expression: &'ast syn::ExprUnsafe) {
-        self.check_span(expression.span());
+        if !self.is_host_function_call(expression) {
+            self.check_span(expression.span());
+        }
         syn::visit::visit_expr_unsafe(self, expression);
     }
 

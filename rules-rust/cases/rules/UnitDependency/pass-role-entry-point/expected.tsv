@@ -1,1 +1,1 @@
-UnitPath	modules/billing/consumer	case-billing-consumer	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
+UnitPath	modules/billing/consumer	case-billing-consumer	place entry points at instances/<name> and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared

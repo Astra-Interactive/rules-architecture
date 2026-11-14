@@ -134,18 +134,24 @@ fn check_product_kind(table: &TomlValue, path: &str) -> Result<(), CheckError> {
     )
 }
 
+fn describe_unknown_role(name: &str) -> String {
+    if name == "tooling" {
+        return "the `tooling` role is retired: a binary is an `entry-point` crate".to_owned();
+    }
+    format!(
+        "unknown role \"{name}\"; roles: {}",
+        list_role_names().join(", ")
+    )
+}
+
 fn parse_declared_role(table: Option<&TomlValue>, path: &str) -> Result<Option<Role>, CheckError> {
     let Some(entry) = table.and_then(|table| table.find_entry("role")) else {
         return Ok(None);
     };
     let name = parse_string(&entry.value, path, "role")?;
-    parse_role(&name).map(Some).ok_or_else(|| {
-        let message = format!(
-            "unknown role \"{name}\"; roles: {}",
-            list_role_names().join(", ")
-        );
-        build_configuration_error(path, entry.line, message)
-    })
+    parse_role(&name)
+        .map(Some)
+        .ok_or_else(|| build_configuration_error(path, entry.line, describe_unknown_role(&name)))
 }
 
 fn check_role_key(

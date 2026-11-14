@@ -1,3 +1,1 @@
-XtaskAlias	.cargo/config.toml	.cargo/config.toml	set `[alias] xtask = "run --package xtask --"` in the root Cargo configuration
-UnitDependency	modules/billing/consumer/Cargo.toml:12	case-billing-consumer -> case-billing-provider	the workspace dependency is forbidden by the dependent role, fake-feature or tooling/proc-macro boundary
-UnitPath	modules/billing/provider	case-billing-provider	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
+UnitDependency	modules/billing/consumer/Cargo.toml:12	case-billing-consumer -> case-billing-provider	case-billing-consumer (technology) may not depend on case-billing-provider (context): a technology crate depends on storage-contract, core-api and core crates, and the api crate beside it (arch-context.md, Direction and enforcement)

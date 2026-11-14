@@ -26,6 +26,31 @@ fn given_blank_line_between_imports_of_a_root_module_block_when_checked_then_rep
 }
 
 #[test]
+fn given_non_private_use_after_an_item_in_a_file_module_when_checked_then_reports_the_import() {
+    for source in [
+        "fn run() {}\npub use std::fmt::Debug;",
+        "struct Value;\npub(crate) use std::fmt::Debug;",
+    ] {
+        crate::test::syntax::util::assert_syntax_findings(
+            &ImportOrdering,
+            "ImportOrdering",
+            source,
+            1,
+        );
+    }
+}
+
+#[test]
+fn given_non_private_use_after_an_item_at_the_crate_root_when_checked_then_leaves_it_to_re_export_shape()
+ {
+    let mut context = read_case_context("ImportOrdering", "pass-syntax");
+    assert!(context.crates[0].files[0].module.path.is_empty());
+    context.crates[0].files[0].syntax =
+        syn::parse_file("fn run() {}\npub use std::fmt::Debug;").expect("valid source");
+    assert!(ImportOrdering.check(&context).is_empty());
+}
+
+#[test]
 fn given_comments_between_imports_when_checked_then_reports_the_interrupted_block() {
     for source in [
         "use std::fmt::Debug; // reason\nuse std::fmt::Display;",

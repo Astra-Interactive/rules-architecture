@@ -1,3 +1,3 @@
-ContractPlacement	modules/sample/src/model/invoice_repository.rs:1	case_sample::model::InvoiceRepository	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ContractPlacement	modules/sample/src/model/invoice_repository.rs:1	case_sample::model::InvoiceRepository	a trait of this crate is a contract and lives in api; an extension trait of another crate's type is a <Type>Ext in util/<type>_ext.rs (arch-package.rs.md, What goes in one file)
 ReExportShape	modules/sample/src/model/invoice_repository.rs:1	InvoiceRepository	A non-private file-module item needs exactly one by-name re-export without `as` or a glob in its kind block
 VisibilityTier	modules/sample/src/model/invoice_repository.rs:1	InvoiceRepository	visibility follows the actual workspace users of the item

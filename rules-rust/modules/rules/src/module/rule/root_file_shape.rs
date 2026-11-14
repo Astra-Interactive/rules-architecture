@@ -60,6 +60,10 @@ impl RootFileShape {
         })
     }
 
+    fn is_re_export(item: &Item) -> bool {
+        matches!(item, Item::Use(import) if !matches!(import.vis, Visibility::Inherited))
+    }
+
     fn is_host(item: &Item, host_items: &[String]) -> bool {
         match item {
             Item::Fn(function) => {
@@ -111,7 +115,7 @@ impl RootFileShape {
                 let is_private = matches!(item.vis, Visibility::Inherited);
                 (allows_import && is_private).then_some(0)
             }
-            Item::Mod(module) if module.content.is_some() => {
+            Item::Mod(module) if module.content.is_some() || module.ident == "test" => {
                 Some(match module.ident.to_string().as_str() {
                     "fixture" => 3,
                     "test" => 4,
@@ -170,11 +174,12 @@ impl RootFileShape {
         let has_cfg = attributes.contains(&"cfg(test)".to_owned());
         let has_path = attributes.contains(&"path=\"../test\"".to_owned());
         let is_private = matches!(module.vis, Visibility::Inherited);
-        if !has_cfg || !has_path || !is_private {
+        let is_inline = module.content.is_some();
+        if !has_cfg || !has_path || !is_private || !is_inline {
             Self::report(
                 file,
                 item,
-                "test is private, cfg(test) with path = \"../test\"",
+                "declare the test tree as an inline block: #[cfg(test)] #[path = \"../test\"] mod test { … } (arch-package.rs.md, Tests)",
                 findings,
             );
         }
@@ -183,8 +188,11 @@ impl RootFileShape {
     fn check_binary_root(file: &SourceFile, findings: &mut Vec<RuleFinding>) {
         let mut saw_main = false;
         for item in &file.syntax.items {
+            if Self::is_re_export(item) {
+                continue;
+            }
             match item {
-                Item::Use(import) if matches!(import.vis, Visibility::Inherited) => {
+                Item::Use(_) => {
                     if saw_main {
                         Self::report(file, item, "use lines precede fn main", findings);
                     }
@@ -230,6 +238,9 @@ impl RootFileShape {
         let hosts = config.map_or(&[][..], |config| config.host_items.as_slice());
         let mut previous = 0;
         for item in &file.syntax.items {
+            if Self::is_re_export(item) {
+                continue;
+            }
             match Self::stage(item, is_entry, is_bin, is_macro, hosts) {
                 Some(stage) if stage >= previous => previous = stage,
                 Some(_) => Self::report(
@@ -256,6 +267,9 @@ impl RootFileShape {
     fn check_file(file: &SourceFile, context: &RuleContext, findings: &mut Vec<RuleFinding>) {
         if file.module.path.is_empty() {
             Self::check_root(file, context, findings);
+            return;
+        }
+        if file.module.is_test_root() {
             return;
         }
         for item in &file.syntax.items {

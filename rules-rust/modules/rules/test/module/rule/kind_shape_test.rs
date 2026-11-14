@@ -7,6 +7,68 @@ use crate::test::module::util::read_shape_context;
 use crate::test::module::util::read_workspace_shape_context_with_files;
 use crate::workspace::util::parse_toml_file;
 
+fn list_findings_with(context: &RuleContext, needle: &str) -> Vec<String> {
+    let mut lines: Vec<String> = KindShape
+        .check(context)
+        .iter()
+        .filter(|finding| finding.finding.message.contains(needle))
+        .map(|finding| format!("{}\t{}", finding.finding.subject, finding.finding.message))
+        .collect();
+    lines.sort();
+    lines
+}
+
+#[test]
+fn given_empty_kind_block_mirrored_in_the_test_and_fixture_trees_when_checked_then_only_the_source_reports()
+ {
+    for mirror in [
+        "#[cfg(test)]\n#[path = \"../test\"]\nmod test { mod order { mod model {} } }",
+        "#[cfg(any(test, feature = \"fake\"))]\n#[path = \"../fixture\"]\npub mod fixture { mod order { mod model {} } }",
+    ] {
+        let context = read_shape_context(&format!("mod order {{ mod model {{}} }}\n{mirror}"), &[]);
+        let lines = list_findings_with(&context, "never empty");
+        assert_eq!(1, lines.len(), "{lines:#?}");
+        assert!(
+            lines[0].starts_with("case_sample::order::model\t"),
+            "{lines:#?}"
+        );
+    }
+}
+
+#[test]
+fn given_empty_kind_block_only_in_the_test_tree_when_checked_then_it_reports_as_before() {
+    let context = read_shape_context(
+        "mod order { mod model { struct Invoice; } }\n#[cfg(test)]\n#[path = \"../test\"]\nmod test { mod order { mod model {} } }",
+        &[],
+    );
+    let lines = list_findings_with(&context, "never empty");
+    assert_eq!(1, lines.len(), "{lines:#?}");
+    assert!(
+        lines[0].starts_with("case_sample::test::order::model\t"),
+        "{lines:#?}"
+    );
+}
+
+#[test]
+fn given_kind_block_mixing_files_and_blocks_in_the_source_and_the_test_tree_when_checked_then_only_the_source_reports()
+ {
+    let context = crate::test::module::util::read_placement_context(&[
+        (
+            "src/lib.rs",
+            "mod settings {\n    mod model {\n        mod first;\n        mod second {}\n    }\n}\n#[cfg(test)]\n#[path = \"../test\"]\nmod test {\n    mod settings {\n        mod model {\n            mod first_test;\n            mod second {}\n        }\n    }\n}",
+        ),
+        ("src/settings/model/first.rs", "pub struct First;"),
+        (
+            "test/settings/model/first_test.rs",
+            "#[test]\nfn given_first_when_built_then_ready() {}",
+        ),
+    ]);
+    let lines = list_findings_with(&context, "does not mix file modules and inline blocks");
+    assert_eq!(1, lines.len(), "{lines:#?}");
+    assert!(lines[0].contains("::settings::model\t"), "{lines:#?}");
+    assert!(!lines[0].contains("::test::"), "{lines:#?}");
+}
+
 #[test]
 fn given_technology_concept_implementations_and_private_helpers_when_checked_then_only_unowned_helper_reports()
  {

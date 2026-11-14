@@ -13,6 +13,27 @@ fn given_policy_fixtures_when_checked_then_incorrect_is_detected_and_correct_is_
 }
 
 #[test]
+fn given_crate_named_xtask_when_checked_then_it_carries_the_prefix_like_every_member() {
+    let mut context = read_case_context("RootFileShape", "pass-tree");
+    context.workspace.root_manifest = parse_toml_file(
+        "Cargo.toml",
+        "[workspace.metadata.klibs-rules]\nproduct-kind='app'\nprefix='case'",
+    )
+    .expect("manifest");
+    context.workspace.members[0].name = "xtask".to_owned();
+    context.workspace.members[0].directory = "modules/xtask".to_owned();
+    context.project_config =
+        crate::config::util::parse_project_config(&context.workspace).expect("valid configuration");
+    let findings = RootPackagePath.check(&context);
+    assert_eq!(1, findings.len(), "{findings:?}");
+    assert_eq!("xtask", findings[0].finding.subject);
+    assert_eq!(
+        "name this crate `case-xtask` to match its unit path",
+        findings[0].finding.message
+    );
+}
+
+#[test]
 fn given_explicit_prefix_when_names_and_lib_override_are_checked_then_exact_member_is_reported() {
     let mut context = read_case_context("RootFileShape", "pass-tree");
     context.workspace.root_manifest = parse_toml_file(

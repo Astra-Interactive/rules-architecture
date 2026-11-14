@@ -1,7 +1,7 @@
 RootFileShape	modules/sample/src/lib.rs:6	case_sample	a module block in the root file holds only use and mod items
 RootFileShape	modules/sample/src/lib.rs:10	case_sample	a module block in the root file holds only use and mod items
 RootFileShape	modules/sample/src/lib.rs:14	case_sample	a module block in the root file holds only use and mod items
-ContractPlacement	modules/sample/src/lib.rs:16	case_sample::sample::Positioned	a crate contract lives in api unless its documented factory, extension, use-case, state-holder or registration exception applies
+ContractPlacement	modules/sample/src/lib.rs:16	case_sample::sample::Positioned	a trait of this crate is a contract and lives in api; an extension trait of another crate's type is a <Type>Ext in util/<type>_ext.rs (arch-package.rs.md, What goes in one file)
 RootFileShape	modules/sample/src/lib.rs:16	case_sample	a module block in the root file holds only use and mod items
 RootFileShape	modules/sample/src/lib.rs:20	case_sample	a module block in the root file holds only use and mod items
 NamespaceType	modules/sample/src/lib.rs:36	case_sample::sample::Nested	Use module functions instead of a fieldless namespace type (arch-package.rs.md)

@@ -35,7 +35,17 @@ fn build_entry(
 }
 
 fn build_retired_rule(id: &'static str, replacement: &'static str) -> RetiredRule {
-    RetiredRule { id, replacement }
+    RetiredRule {
+        id,
+        replacement: Some(replacement),
+    }
+}
+
+fn build_unreplaced_rule(id: &'static str) -> RetiredRule {
+    RetiredRule {
+        id,
+        replacement: None,
+    }
 }
 
 fn build_workspace_entries() -> Vec<CatalogueEntry> {
@@ -53,8 +63,6 @@ fn build_workspace_entries() -> Vec<CatalogueEntry> {
         build_entry("EntryPointDependency", 1, NONE, false),
         build_entry("RootPackagePath", 2, CRATE | WORKSPACE, false),
         build_entry("PublishedVersion", 2, CRATE, false),
-        build_entry("XtaskAlias", 2, WORKSPACE, false),
-        build_entry("ShellAutomation", 2, WORKSPACE, false),
         build_entry("DependencyFloor", 2, WORKSPACE, false),
         build_entry("TimeCrate", 2, WORKSPACE, false),
         build_entry("PlatformSourceSetUnit", 2, CRATE, false),
@@ -229,8 +237,10 @@ fn build_retired_rules() -> Vec<RetiredRule> {
         build_retired_rule("RunBlockingInTest", "BlockOnInTest"),
         build_retired_rule("RunBlockingOutsideBoundary", "BlockOnOutsideBoundary"),
         build_retired_rule("SealedFamilyFile", "EnumFamilyFile"),
+        build_unreplaced_rule("ShellAutomation"),
         build_retired_rule("StateFlowTimeout", "WatchTimeout"),
         build_retired_rule("TrivialLambdaReference", "TrivialClosurePath"),
+        build_unreplaced_rule("XtaskAlias"),
     ]
 }
 

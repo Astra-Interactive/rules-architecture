@@ -1,7 +1,78 @@
 use crate::check::api::Rule;
 use crate::runtime::rule::DetachedTask;
-use crate::test::declaration::util::assert_code_fixture;
-use crate::test::declaration::util::{assert_code_findings, read_code_context};
+use crate::test::declaration::util::{
+    assert_code_findings, assert_code_fixture, read_code_context, read_fixture_messages,
+};
+
+struct RuleFixture<'rule> {
+    id: &'rule str,
+    rule: &'rule dyn Rule,
+}
+
+#[test]
+fn given_discarded_spawn_handles_when_checked_then_each_message_names_the_owner_to_keep() {
+    let messages = read_fixture_messages(&DetachedTask, "DetachedTask");
+    assert_eq!(4, messages.len(), "{messages:?}");
+    for reported in &messages {
+        assert_eq!(
+            "A spawned task keeps an owner: spawn it on a TaskScope or keep and await its JoinHandle; a dropped handle detaches the task (async.rs.md, Tasks)",
+            reported.message,
+            "line {}",
+            reported.line
+        );
+    }
+}
+
+#[test]
+fn given_failing_fixture_of_every_task_rule_when_checked_then_no_message_is_a_placeholder() {
+    use crate::runtime::rule::{
+        BlockingCallInAsync, BridgeCleanup, CallbackBridgeShape, CatchUnwind, ThreadPrimitive,
+    };
+    let fixtures = [
+        RuleFixture {
+            id: "DetachedTask",
+            rule: &DetachedTask,
+        },
+        RuleFixture {
+            id: "CallbackBridgeShape",
+            rule: &CallbackBridgeShape,
+        },
+        RuleFixture {
+            id: "BridgeCleanup",
+            rule: &BridgeCleanup,
+        },
+        RuleFixture {
+            id: "ThreadPrimitive",
+            rule: &ThreadPrimitive,
+        },
+        RuleFixture {
+            id: "CatchUnwind",
+            rule: &CatchUnwind,
+        },
+        RuleFixture {
+            id: "BlockingCallInAsync",
+            rule: &BlockingCallInAsync,
+        },
+    ];
+    let mut offenders = Vec::new();
+    for fixture in fixtures {
+        let messages = read_fixture_messages(fixture.rule, fixture.id);
+        assert!(
+            !messages.is_empty(),
+            "{} reports nothing on its fixture",
+            fixture.id
+        );
+        for reported in messages {
+            if reported.message.contains("Follow the") || reported.message.contains(fixture.id) {
+                offenders.push(format!(
+                    "{}:{}: {}",
+                    fixture.id, reported.line, reported.message
+                ));
+            }
+        }
+    }
+    assert!(offenders.is_empty(), "{}", offenders.join("\n"));
+}
 
 #[test]
 fn given_dropped_handle_returned_by_a_workspace_function_when_checked_then_reports_each_discard() {
