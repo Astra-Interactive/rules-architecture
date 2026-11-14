@@ -4,14 +4,6 @@ on:
     branches:
       - master
   workflow_dispatch:
-    inputs:
-      project:
-        description: Project to release
-        required: true
-        type: choice
-        options:
-          - kotlin
-          - rust
 jobs:
   changes:
     name: Detect changed projects
@@ -36,7 +28,7 @@ jobs:
   gradle_validation:
     name: Validate Gradle wrapper
     needs: changes
-    if: github.event.inputs.project == 'kotlin' || needs.changes.outputs.kotlin == 'true'
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.kotlin == 'true'
     uses: ./.github/workflows/call-gradle-wrapper-validation.yml
   release:
     name: Publish release
@@ -52,7 +44,7 @@ jobs:
   rust_release:
     name: Publish Rust release
     needs: changes
-    if: github.event.inputs.project == 'rust' || needs.changes.outputs.rust == 'true'
+    if: needs.changes.outputs.rust == 'true'
     # Two releases of one version must not run side by side; a waiting run releases whatever is unpublished.
     concurrency:
       group: rust-release

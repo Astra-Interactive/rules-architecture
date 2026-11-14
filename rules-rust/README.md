@@ -495,5 +495,4 @@ rules-rust/
 - Release: bump `version` in `modules/rules/Cargo.toml`. On a push to `master` that changes `rules-rust/`, `release.yml`
   runs `release-plz release` (`call-rust-release.yml`, configured by `release-plz.toml`): when crates.io does not have
   the version, it publishes the crate with the `CARGO_REGISTRY_TOKEN` secret, tags the commit `rules-rust-<version>`
-  and creates the GitHub release; a push without a bump publishes nothing. A manual run of `release.yml` with the
-  `rust` project does the same without a change under `rules-rust/`.
+  and creates the GitHub release; a push without a bump publishes nothing.
