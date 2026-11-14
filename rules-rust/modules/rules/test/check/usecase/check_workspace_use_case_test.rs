@@ -191,29 +191,6 @@ fn locate_finding(examples: &[Value], path: &str, line: u32) -> Option<usize> {
     })
 }
 
-fn find_fixture_line(example: &Value, block_line: u32) -> Option<String> {
-    example
-        .get("fragment")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .find_map(|fragment| {
-            let block = fragment
-                .get("block-lines")
-                .and_then(Value::as_str)
-                .and_then(read_range)?;
-            let fixture = fragment
-                .get("fixture-lines")
-                .and_then(Value::as_str)
-                .and_then(read_range)?;
-            let path = fragment.get("path").and_then(Value::as_str)?;
-            let line = fixture.start() + (block_line.checked_sub(*block.start())?);
-            block
-                .contains(&block_line)
-                .then(|| format!("{path}:{line}"))
-        })
-}
-
 fn list_expected_rule_findings(example: &Value) -> BTreeSet<String> {
     example
         .get("expected")
@@ -223,10 +200,9 @@ fn list_expected_rule_findings(example: &Value) -> BTreeSet<String> {
         .filter_map(|expected| {
             let carrier = expected.get("carrier").and_then(Value::as_str)?;
             let is_rule = carrier.chars().next().is_some_and(char::is_uppercase);
-            let block_line =
-                u32::try_from(expected.get("line").and_then(Value::as_integer)?).ok()?;
-            let location = find_fixture_line(example, block_line)?;
-            is_rule.then(|| format!("{carrier}\t{location}"))
+            let path = expected.get("path").and_then(Value::as_str)?;
+            let line = u32::try_from(expected.get("line").and_then(Value::as_integer)?).ok()?;
+            is_rule.then(|| format!("{carrier}\t{path}:{line}"))
         })
         .collect()
 }
@@ -323,7 +299,7 @@ fn given_missing_or_unreadable_snapshot_when_compared_then_even_empty_reports_fa
 
 #[test]
 fn given_missing_rule_carrier_when_compared_then_failure_identifies_its_example_and_location() {
-    let example = Value::Table("claim=\"case\"\nhalf=\"bad\"\nexpected=[{line=2,carrier=\"AnonymousTuple\"}]\nfragment=[{path=\"src/value.rs\",block-lines=\"1-2\",fixture-lines=\"4-5\"}]".parse().expect("example TOML"));
+    let example = Value::Table("claim=\"case\"\nhalf=\"bad\"\nexpected=[{path=\"src/value.rs\",line=5,carrier=\"AnonymousTuple\"}]\nfragment=[{path=\"src/value.rs\",fixture-lines=\"4-5\"}]".parse().expect("example TOML"));
     let failures = compare_rule_carriers(&[example], &[BTreeSet::new()]);
     assert_eq!(failures.len(), 1);
     assert!(failures[0].contains("case bad"));

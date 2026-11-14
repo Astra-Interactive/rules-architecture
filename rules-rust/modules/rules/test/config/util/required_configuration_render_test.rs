@@ -1,8 +1,6 @@
 use crate::config::util::render_required_configuration;
 use cargo_metadata::Message;
 use cargo_metadata::diagnostic::Diagnostic;
-use sha2::Digest;
-use sha2::Sha256;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::env;
@@ -283,11 +281,6 @@ fn check_probes(diagnostics: &[Diagnostic], probes: &[Value]) -> Vec<String> {
 fn collect_expected_lints(examples: &[Value]) -> BTreeSet<String> {
     let mut expected = BTreeSet::new();
     for example in examples {
-        let fragments = example
-            .get("fragment")
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten();
         for carrier in example
             .get("expected")
             .and_then(Value::as_array)
@@ -297,23 +290,14 @@ fn collect_expected_lints(examples: &[Value]) -> BTreeSet<String> {
             let Some(code) = carrier.get("carrier").and_then(Value::as_str) else {
                 continue;
             };
-            let block_line = carrier
+            let path = carrier.get("path").and_then(Value::as_str);
+            let line = carrier
                 .get("line")
                 .and_then(Value::as_integer)
                 .and_then(|line| u32::try_from(line).ok());
             let is_lint = !code.chars().next().is_some_and(char::is_uppercase);
-            let location = fragments.clone().find_map(|fragment| {
-                let block = read_range(fragment.get("block-lines")?.as_str()?)?;
-                let fixture = read_range(fragment.get("fixture-lines")?.as_str()?)?;
-                let line = block_line?;
-                let path = fragment.get("path")?.as_str()?;
-                block.contains(&line).then(|| {
-                    let line = fixture.start() + line - block.start();
-                    format!("{path}\t{line}\t{code}")
-                })
-            });
-            if let Some(location) = location.filter(|_| is_lint) {
-                expected.insert(location);
+            if let (Some(path), Some(line), true) = (path, line, is_lint) {
+                expected.insert(format!("{path}\t{line}\t{code}"));
             }
         }
     }
@@ -403,19 +387,6 @@ fn collect_rustfmt_lines(stdout: &str, doc: &Path) -> BTreeMap<String, BTreeSet<
     changed
 }
 
-fn hash_lines(lines: &[&str]) -> String {
-    let joined = lines
-        .iter()
-        .map(|line| line.trim())
-        .filter(|line| !line.is_empty())
-        .collect::<Vec<&str>>()
-        .join("\n");
-    Sha256::digest(joined.as_bytes())
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
-}
-
 #[test]
 fn given_doc_gate_manifest_when_compared_then_lint_block_and_clippy_toml_equal_the_rendered_configuration()
  {
@@ -435,51 +406,135 @@ fn given_doc_gate_manifest_when_compared_then_lint_block_and_clippy_toml_equal_t
     }
 }
 
-fn read_fragment_lines(fragment: &Value) -> Option<BTreeMap<u32, Vec<String>>> {
-    let path = fragment.get("path")?.as_str()?;
-    let range = read_range(fragment.get("fixture-lines")?.as_str()?)?;
-    let block = read_range(fragment.get("block-lines")?.as_str()?)?;
-    let text = fs::read_to_string(find_doc_gate().join(path)).ok()?;
-    let selected: Vec<String> = text
-        .lines()
-        .zip(1_u32..)
-        .filter(|(_, number)| range.contains(number))
-        .map(|(line, _)| line.to_owned())
-        .collect();
-    Some(BTreeMap::from([(*block.start(), selected)]))
-}
-
-fn compare_fixture_hash(example: &Value) -> Option<String> {
-    let lines: BTreeMap<u32, Vec<String>> = example
+fn check_example_structure(example: &Value, doc: &Path) -> Vec<String> {
+    let claim = example.get("claim").and_then(Value::as_str).unwrap_or("?");
+    let half = example.get("half").and_then(Value::as_str).unwrap_or("?");
+    let label = format!("{claim} {half}");
+    let mut defects = Vec::new();
+    let fragments = example
         .get("fragment")
         .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-        .iter()
-        .filter_map(read_fragment_lines)
-        .flatten()
-        .collect();
-    let joined: Vec<&str> = lines.values().flatten().map(String::as_str).collect();
-    let hash = hash_lines(&joined);
-    let recorded = example
-        .get("sha256")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    (hash != recorded).then(|| format!("{:?} {:?}", example.get("claim"), example.get("half")))
+        .into_iter()
+        .flatten();
+    for fragment in fragments {
+        let Some(path) = fragment.get("path").and_then(Value::as_str) else {
+            defects.push(format!("{label}: a fragment names no path"));
+            continue;
+        };
+        let Ok(text) = fs::read_to_string(doc.join(path)) else {
+            defects.push(format!("{label}: fragment {path} cannot be read"));
+            continue;
+        };
+        let total = u32::try_from(text.lines().count()).unwrap_or(u32::MAX);
+        let range = fragment
+            .get("fixture-lines")
+            .and_then(Value::as_str)
+            .and_then(read_range);
+        let is_inside_file = range.as_ref().is_some_and(|range| {
+            let first = *range.start();
+            let last = *range.end();
+            (1..=last).contains(&first) && last <= total
+        });
+        if !is_inside_file {
+            defects.push(format!(
+                "{label}: fragment {path} has fixture-lines {:?}, not <first>-<last> inside 1-{total}",
+                fragment.get("fixture-lines")
+            ));
+        }
+    }
+    let carriers = example
+        .get("expected")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten();
+    for carrier in carriers {
+        let path = carrier.get("path").and_then(Value::as_str);
+        let line = carrier
+            .get("line")
+            .and_then(Value::as_integer)
+            .and_then(|line| u32::try_from(line).ok());
+        let code = carrier.get("carrier").and_then(Value::as_str);
+        let (Some(path), Some(line), Some(_)) = (path, line, code) else {
+            defects.push(format!(
+                "{label}: expected entry {carrier} lacks a string path, an integer line or a string carrier"
+            ));
+            continue;
+        };
+        if find_fragment(std::slice::from_ref(example), path, line).is_none() {
+            defects.push(format!(
+                "{label}: expected {path}:{line} lies in no fragment of the example"
+            ));
+        }
+    }
+    defects
 }
 
 #[test]
-fn given_doc_gate_examples_when_fixture_lines_are_hashed_then_each_equals_its_document_hash() {
-    let failures: Vec<String> = read_examples()
+fn given_doc_gate_examples_when_structure_is_checked_then_fragments_and_carriers_name_fixture_lines()
+ {
+    let doc = find_doc_gate();
+
+    let defects: Vec<String> = read_examples()
         .iter()
-        .filter(|example| example.get("wrap").and_then(Value::as_str) != Some("none"))
-        .filter_map(compare_fixture_hash)
+        .flat_map(|example| check_example_structure(example, &doc))
         .collect();
 
+    let rendered = defects.join("\n");
+    assert!(defects.is_empty(), "{rendered}");
+}
+
+#[test]
+fn given_broken_gate_examples_when_structure_is_checked_then_each_defect_is_reported() {
+    let doc = find_doc_gate();
+    let fixture = "modules/good/arch-package-rs-tree/src/lib.rs";
+    let build_example = |path: &str, lines: &str, expected: &str| {
+        Value::Table(
+            format!(
+                "claim = \"case\"\nhalf = \"good\"\nexpected = {expected}\nfragment = [{{ path = \"{path}\", fixture-lines = \"{lines}\" }}]"
+            )
+            .parse()
+            .expect("example TOML"),
+        )
+    };
+    let build_expected = |path: &str, line: u32| {
+        format!("[{{ path = \"{path}\", line = {line}, carrier = \"AnonymousTuple\" }}]")
+    };
+
+    let missing = build_example("modules/good/missing.rs", "1-2", "[]");
+    let missing_defects = check_example_structure(&missing, &doc);
+    assert_eq!(missing_defects.len(), 1, "{missing_defects:?}");
     assert!(
-        failures.is_empty(),
-        "fixture lines differ from the document: {failures:?}"
+        missing_defects[0].contains("case good"),
+        "{missing_defects:?}"
     );
+
+    for (name, example, expected_count) in [
+        ("missing file", missing, 1),
+        ("reversed range", build_example(fixture, "7-3", "[]"), 1),
+        (
+            "range beyond the file",
+            build_example(fixture, "1-100000", "[]"),
+            1,
+        ),
+        (
+            "carrier below its fragment",
+            build_example(fixture, "1-10", &build_expected(fixture, 11)),
+            1,
+        ),
+        (
+            "carrier in another file",
+            build_example(fixture, "1-10", &build_expected("modules/good/other.rs", 1)),
+            1,
+        ),
+        (
+            "carrier on the last fragment line",
+            build_example(fixture, "1-10", &build_expected(fixture, 10)),
+            0,
+        ),
+    ] {
+        let defects = check_example_structure(&example, &doc);
+        assert_eq!(defects.len(), expected_count, "{name}: {defects:?}");
+    }
 }
 
 #[test]
@@ -510,15 +565,11 @@ fn classify_rustfmt_lines(
             lines
                 .into_iter()
                 .filter_map(|line| {
-                    let fragment = find_fragment(examples, &path, line);
                     let is_bad = examples.iter().any(|example| {
                         example.get("half").and_then(Value::as_str) == Some("bad")
                             && find_fragment(std::slice::from_ref(example), &path, line).is_some()
                     });
-                    let is_rendered = fragment.is_some_and(|fragment| {
-                        fragment.get("suffix").is_some() || fragment.get("translate").is_some()
-                    });
-                    let is_accepted = path.starts_with("modules/bad/") || is_bad || is_rendered;
+                    let is_accepted = path.starts_with("modules/bad/") || is_bad;
                     (!is_accepted).then(|| format!("{path}:{line}"))
                 })
                 .collect::<Vec<String>>()
@@ -570,14 +621,8 @@ fn given_missing_probe_and_carriers_when_classified_then_drift_is_reported() {
 }
 
 #[test]
-fn given_changed_good_lines_and_wrong_hash_when_checked_then_validation_rejects_them() {
+fn given_changed_good_lines_when_checked_then_validation_rejects_them() {
     let examples = read_examples();
-    let mut example = examples[0].clone();
-    example
-        .as_table_mut()
-        .expect("example table")
-        .insert("sha256".to_owned(), Value::String("wrong".to_owned()));
-    assert!(compare_fixture_hash(&example).is_some());
     let changed = BTreeMap::from([(
         "modules/good/arch-package-rs-tree/src/lib.rs".to_owned(),
         BTreeSet::from([1]),
@@ -608,5 +653,4 @@ fn given_malformed_gate_ranges_and_diff_headers_when_parsed_then_invalid_records
     assert!(
         collect_rustfmt_lines("Diff in value.rs:invalid:\n+new\n", &find_doc_gate()).is_empty()
     );
-    assert!(read_fragment_lines(&Value::Table(Table::new())).is_none());
 }
