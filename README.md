@@ -1,13 +1,27 @@
-[![version](https://img.shields.io/maven-central/v/ru.astrainteractive.klibs.rules/detekt?style=flat-square)](https://github.com/Astra-Interactive/rules-architecture)
+[![maven_central](https://img.shields.io/maven-central/v/ru.astrainteractive.klibs.rules/detekt?style=flat-square&label=maven%20central)](https://central.sonatype.com/namespace/ru.astrainteractive.klibs.rules)
+[![crates_io](https://img.shields.io/crates/v/klibs-rules?style=flat-square)](https://crates.io/crates/klibs-rules)
 [![kotlin_version](https://img.shields.io/badge/kotlin-2.4.10-blueviolet?style=flat-square)](https://github.com/Astra-Interactive/rules-architecture)
 [![detekt_version](https://img.shields.io/badge/detekt-2.0.0--alpha.6-orange?style=flat-square)](https://detekt.dev)
+[![rust_version](https://img.shields.io/crates/msrv/klibs-rules?style=flat-square&label=rust)](https://crates.io/crates/klibs-rules)
 
 ## Rules Architecture
 
-A linter for the package layout and architecture of Kotlin and Kotlin Multiplatform projects: detekt rules,
-Konsist checks and Gradle structure checks behind one Gradle plugin.
+A linter for the package layout and architecture of Kotlin, Kotlin Multiplatform and Rust projects. Both linters
+enforce the same architecture: units and their roles, the direction of dependencies, which kind of code lives
+where, and naming.
 
-## 🚀 Installation
+|          | [Kotlin](#kotlin)                                      | [Rust](#rust)                                               |
+|----------|--------------------------------------------------------|-------------------------------------------------------------|
+| Sources  | [`rules-kotlin`](rules-kotlin)                         | [`rules-rust`](rules-rust)                                  |
+| Ships as | Gradle plugins and libraries on Maven Central          | the `klibs-rules` crate on crates.io                        |
+| Runs as  | `./gradlew architectureLint`                           | `cargo klibs-rules`                                         |
+| Made of  | detekt rules, Konsist checks, Gradle structure checks  | a required rustc, clippy and rustfmt configuration and rules of its own |
+
+## Kotlin
+
+detekt rules, Konsist checks and Gradle structure checks behind one Gradle plugin.
+
+### 🚀 Installation
 
 ```toml
 [versions]
@@ -31,7 +45,7 @@ klibs-rules-detekt = { id = "ru.astrainteractive.klibs.rules.gradle.detekt", ver
 
 The plugins are on Maven Central: add `mavenCentral()` to the `pluginManagement` repositories.
 
-## 🛠️ Configuration
+### 🛠️ Configuration
 
 Apply the linter to the root project and to every unit.
 
@@ -62,7 +76,8 @@ linter {
 }
 ```
 
-Every option:
+<details>
+<summary><b>Every option</b></summary>
 
 ```kotlin
 import ru.astrainteractive.klibs.rules.core.unit.model.Checks
@@ -93,7 +108,10 @@ linter {
 }
 ```
 
-### Roles
+</details>
+
+<details>
+<summary><b>Roles</b></summary>
 
 | `UnitRole`        | The unit                                              | Detected when not set                                 |
 |-------------------|-------------------------------------------------------|-------------------------------------------------------|
@@ -112,7 +130,10 @@ linter {
 | `CorePlatform`    | shared platform code                                  | the platform unit of `core`                           |
 | `CoreUi`          | the design system                                     | `core/ui` and below                                   |
 
-### Tasks
+</details>
+
+<details>
+<summary><b>Tasks</b></summary>
 
 | Task                             | Runs                                                                                           |
 |----------------------------------|------------------------------------------------------------------------------------------------|
@@ -123,6 +144,8 @@ linter {
 | `architectureBaseline`           | writes findings that cannot carry `@Suppress` to `architecture-baseline.txt`                   |
 | `detektFormat`                   | detekt with auto-correct                                                                       |
 
+</details>
+
 ```shell
 ./gradlew architectureLint --continue --no-configure-on-demand
 ```
@@ -132,13 +155,14 @@ linter {
 Suppress a finding of any rule below with `@Suppress("RuleName")` on a declaration or `@file:Suppress("RuleName")`
 on a file.
 
-## 🔍 Checks
+### 🔍 Checks
 
 Rules marked *types* need type resolution and report only in `architectureLint`.
 
-### detekt
+#### detekt
 
-**Naming**
+<details>
+<summary><b>Naming</b></summary>
 
 | Rule                        | Reports                                                                          |
 |-----------------------------|----------------------------------------------------------------------------------|
@@ -154,7 +178,10 @@ Rules marked *types* need type resolution and report only in `architectureLint`.
 | `CompanionFactoryFunction`  | a `create…` function in a companion object                                       |
 | `PropertyAsFunction`        | a function without parameters that only returns a property                       |
 
-**Declarations and files**
+</details>
+
+<details>
+<summary><b>Declarations and files</b></summary>
 
 | Rule                        | Reports                                                                          |
 |-----------------------------|----------------------------------------------------------------------------------|
@@ -170,7 +197,10 @@ Rules marked *types* need type resolution and report only in `architectureLint`.
 | `KDocHtmlTag`               | Javadoc HTML (`<p>`, `<code>`) in KDoc                                           |
 | `KDocFiller`                | filler phrases, `@param` and `@return` that repeat a name, a summary over four sentences |
 
-**Formatting**
+</details>
+
+<details>
+<summary><b>Formatting</b></summary>
 
 | Rule                                   | Reports                                                               |
 |----------------------------------------|-----------------------------------------------------------------------|
@@ -184,7 +214,10 @@ Rules marked *types* need type resolution and report only in `architectureLint`.
 | `ExplicitInvoke`                       | `callback(…)` instead of `callback.invoke(…)`                         |
 | `TrivialLambdaReference`               | a lambda that only forwards to a call instead of a reference (*types*) |
 
-**Compose**
+</details>
+
+<details>
+<summary><b>Compose</b></summary>
 
 | Rule                            | Reports                                                                   |
 |---------------------------------|---------------------------------------------------------------------------|
@@ -197,7 +230,10 @@ Rules marked *types* need type resolution and report only in `architectureLint`.
 | `ComposeConstantCase`           | a constant in a composable or `theme` file not in its case                |
 | `ThemeObjectFunction`           | a function inside a `theme` object                                        |
 
-**Coroutines and flows**
+</details>
+
+<details>
+<summary><b>Coroutines and flows</b></summary>
 
 | Rule                         | Reports                                                                        |
 |------------------------------|--------------------------------------------------------------------------------|
@@ -217,7 +253,10 @@ Rules marked *types* need type resolution and report only in `architectureLint`.
 | `DurationOverloadCall`       | `.inWholeMilliseconds` passed where a `Duration` overload exists               |
 | `ThreadPrimitive`            | `Thread` created or used in main sources                                       |
 
-**Errors and output**
+</details>
+
+<details>
+<summary><b>Errors and output</b></summary>
 
 | Rule                     | Reports                                                                            |
 |--------------------------|------------------------------------------------------------------------------------|
@@ -226,7 +265,10 @@ Rules marked *types* need type resolution and report only in `architectureLint`.
 | `GetOrThrowInMain`       | `getOrThrow()` outside tests                                                       |
 | `ConsoleOutput`          | `print`, `println`, `System.out`, `System.err`, `printStackTrace()`, `Thread.dumpStack()` |
 
-**DI and time**
+</details>
+
+<details>
+<summary><b>DI and time</b></summary>
 
 | Rule                            | Reports                                                                     |
 |---------------------------------|-----------------------------------------------------------------------------|
@@ -236,9 +278,14 @@ Rules marked *types* need type resolution and report only in `architectureLint`.
 | `ClockSystemOutsideDi`          | `Clock.System` outside `di`, tests and previews                             |
 | `SystemTimeCall`                | `System.currentTimeMillis()`, `System.nanoTime()`                           |
 
-### Konsist
+</details>
+
+#### Konsist
 
 The last column names the document section each check enforces.
+
+<details>
+<summary><b>Konsist checks</b></summary>
 
 | Check | Reports | Enforces |
 |---|---|---|
@@ -276,7 +323,12 @@ The last column names the document section each check enforces.
 | `InMemoryPlacement` | an `InMemory*` outside a `memory` package of its source set: main, `test` or `testFixtures` | `arch-package.kt.md`, Tests |
 | `AndroidNamespace` | an Android `namespace` that differs from the root package | `arch-package.kt.md`, Packages and directories |
 
-### Structure
+</details>
+
+#### Structure
+
+<details>
+<summary><b>Structure checks</b></summary>
 
 | Check | Reports | Enforces |
 |---|---|---|
@@ -301,9 +353,12 @@ The last column names the document section each check enforces.
 | `ApiUnitPlatformDependency` | a platform dependency in an API unit outside a platform source set | `arch-package.kt.md`, Units and Gradle; `arch-context.md`, The dependency graph |
 | `PlatformDependencyMetadata` | a platform dependency whose source set cannot be established | no document rule: the build metadata `ApiUnitPlatformDependency` needs |
 
-## 📖 Details
+</details>
 
-### Gradle plugins
+### 📖 Details
+
+<details>
+<summary><b>Gradle plugins</b></summary>
 
 - The linter plugin applies the detekt plugin and adds the architecture rules, the Konsist and structure checks
   and the tasks above. It uses the `detekt`, `konsist` and `structure` artifacts of its own version.
@@ -318,7 +373,10 @@ The last column names the document section each check enforces.
 - Configuration on demand is rejected because it can skip sibling projects; parallel execution and the
   configuration cache work.
 
-### Roles and exceptions
+</details>
+
+<details>
+<summary><b>Roles and exceptions</b></summary>
 
 - `productKind` decides whether `impl` and `impl-ui` units are allowed. An `Api` unit exposing use-case
   interfaces needs it.
@@ -335,7 +393,10 @@ The last column names the document section each check enforces.
 - `maven-publish` marks a published library. A production dependency on a `Fake` unit is rejected even from an
   entry point.
 
-### What the linter knows about a unit
+</details>
+
+<details>
+<summary><b>What the linter knows about a unit</b></summary>
 
 - detekt and Konsist get the same unit context: the role, the product kind, publication, technology words and
   each Kotlin compilation with its source directories and project dependencies.
@@ -351,7 +412,10 @@ The last column names the document section each check enforces.
 - `RunCatchingCancellation` accepts the inline `CancellationException` check only when mikro-core is not in the
   version catalog.
 
-### How the checks read a project
+</details>
+
+<details>
+<summary><b>How the checks read a project</b></summary>
 
 - The checks cover what a rule states as a fixed name, number or shape: the package names, the concept/kind shape,
   the naming of implementations, the dependencies between units, and the platform and framework imports of
@@ -387,7 +451,10 @@ The last column names the document section each check enforces.
   does not prove a declaration unused; a published API (`EXTERNAL`) has consumers outside this build. Neither a
   candidate nor the number of candidates proves an API unnecessary or blocks the build.
 
-### Graph and API ownership
+</details>
+
+<details>
+<summary><b>Graph and API ownership</b></summary>
 
 - Package cycles are checked per production or test compilation; unit cycles per production backend and
   variant. Test dependencies never become production edges.
@@ -405,7 +472,10 @@ The last column names the document section each check enforces.
 The report reads sources lexically: overloads and shadowing can keep a declaration, and generated code, Java,
 included builds and reflection are not seen. An empty list does not prove the layout is right.
 
-### Rule settings
+</details>
+
+<details>
+<summary><b>Rule settings</b></summary>
 
 ```yaml
 architecture:
@@ -429,7 +499,10 @@ architecture:
   `SuspendFunSwallowedCancellation`, `SuspendFunInFinallySection`.
 - `MagicNumber` accepts a number in a property declaration.
 
-### Without the Gradle plugin
+</details>
+
+<details>
+<summary><b>Without the Gradle plugin</b></summary>
 
 **detekt.** Copy [`detekt-architecture.yml`](rules-kotlin/detekt/src/main/resources/detekt-architecture.yml) into
 the project and list it after your own config:
@@ -512,6 +585,120 @@ val violations: List<StructureViolation> = checker.check(
 )
 ```
 
+</details>
+
+## Rust
+
+`klibs-rules` checks a Cargo workspace: a required rustc, clippy and rustfmt configuration plus rules of its own.
+The full reference (every key, role, rule and exception) is [`rules-rust/README.md`](rules-rust/README.md).
+
+### 🚀 Installation
+
+```shell
+cargo install klibs-rules --version <latest-version> --locked
+```
+
+This installs the `cargo-klibs-rules` binary, which Cargo runs as `cargo klibs-rules`. The project gets no new
+dependency and no build script.
+
+### 🛠️ Configuration
+
+```toml
+# root Cargo.toml
+[workspace]
+resolver = "3"
+
+[workspace.metadata.klibs-rules]
+product-kind = "app" # or "platform-plugin"
+```
+
+```toml
+# a member's Cargo.toml
+[lints]
+workspace = true
+
+[package.metadata.klibs-rules]
+role = "impl-ui" # detected from the path when not set; `core` and `impl-ui` are always declared
+```
+
+<details>
+<summary><b>Required lints and toolchain</b></summary>
+
+- Copy the `[workspace.lints]` block of [`rules-rust/Cargo.toml`](rules-rust/Cargo.toml) and
+  [`rules-rust/clippy.toml`](rules-rust/clippy.toml) into the workspace root. The `LintConfig` rule reports every
+  entry that is missing or lowered; extra lints are allowed.
+- Pin the toolchain in `rust-toolchain.toml`, 1.93.0 or newer: the set of stable rustfmt keys differs by release,
+  so an unpinned project can get a finding on one machine and none on another.
+- A workspace with host frameworks names them in `platform-words`. Every other key is in
+  [Configuration](rules-rust/README.md#configuration).
+
+</details>
+
+<details>
+<summary><b>Roles</b></summary>
+
+| Role               | Detected when not declared                                        |
+|--------------------|-------------------------------------------------------------------|
+| `tooling`          | the package is named `xtask`                                      |
+| `proc-macro`       | its lib target is a `proc-macro`                                  |
+| `entry-point`      | under `instances/`, or a crate without a Rust library target      |
+| `core-ui`          | `modules/core/ui` or below it                                     |
+| `core-platform`    | `modules/core/<word>` named in `platform-words`                   |
+| `core-api`         | another path below `modules/core`                                 |
+| `core`             | declaration only                                                  |
+| `contract`         | final directory segment `contract`                                |
+| `storage-contract` | final directory segment `dao`                                     |
+| `api`              | final directory segment `api`                                     |
+| `impl`             | final directory segment `impl`                                    |
+| `impl-ui`          | declaration only                                                  |
+| `platform`         | final directory segment named in `platform-words`                 |
+| `technology`       | final directory segment matches a technology word of a dependency |
+| `context`          | remaining crates                                                  |
+
+The first matching row wins; the details are in [Roles](rules-rust/README.md#roles).
+
+</details>
+
+### ▶️ Run
+
+```shell
+cargo klibs-rules                                # the workspace in the current directory
+cargo klibs-rules --manifest-path <Cargo.toml>   # another workspace
+```
+
+The command prints one line per finding (`<RuleId>`, path and line, subject, message) and writes
+`violations.txt`, `policy.txt` and `api-ownership.txt` to `<target>/klibs-rules/`.
+
+| Exit code | Means                                                  |
+|-----------|--------------------------------------------------------|
+| `0`       | the workspace is clean                                 |
+| `1`       | there are findings                                     |
+| `2`       | a configuration, metadata, write or argument error     |
+
+<details>
+<summary><b>In CI</b></summary>
+
+```shell
+cargo install klibs-rules --version <latest-version> --locked
+cargo fmt --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cargo klibs-rules
+```
+
+</details>
+
+### 🔍 Checks
+
+The rules cover the workspace layout and crate roles, the dependencies between crates, the module tree and kind
+packages, naming, declarations, async code, error handling, DI, time and rustdoc. A finding is fixed in the code;
+an exception is a `checks.disabled` or `checks.allowed-dependencies` entry with a reason in the manifest, or
+`#[cfg_attr(klibs_rules, expect(<RuleId>, reason = "..."))]` in the source.
+
+- [Rules](rules-rust/README.md#rules): every rule id and what it reports.
+- [Exceptions](rules-rust/README.md#exceptions): when an exception is allowed and how it is written.
+- [Report](rules-rust/README.md#report): the format of a finding.
+
 ## 🗂️ Development
 
 | Path                         | Holds                                                           |
@@ -528,6 +715,24 @@ cd rules-kotlin
 ./gradlew check                # tests, 100% line coverage, detekt and the architecture self-check
 ./gradlew publishToMavenLocal  # all artifacts to ~/.m2
 ```
+
+```shell
+cd rules-rust
+cargo fmt --all --check
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --locked  # KLIBS_RULES_BLESS=1 rewrites the expected files of the cases
+```
+
+<details>
+<summary><b>Pull requests and releases</b></summary>
+
+- A pull request runs the checks of the project it changes: `rules-kotlin/` or `rules-rust/`.
+- A pull request that changes a project also changes its version: `klibs.project.version.string` in
+  `rules-kotlin/gradle.properties`, `version` in `rules-rust/modules/rules/Cargo.toml`.
+- A push to `master` releases the changed project: `rules-kotlin` to Maven Central with the tag
+  `rules-kotlin-<version>`, `rules-rust` to crates.io with the tag `rules-rust-<version>`.
+
+</details>
 
 ---
 
