@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["modules/rules", "xtask"]
+members = ["modules/rules"]
 exclude = ["cases"]
 
 [workspace.package]
@@ -13,7 +13,6 @@ repository = "https://github.com/Astra-Interactive/rules-architecture"
 cargo_metadata = "0.23"
 proc-macro2 = { version = "1", features = ["span-locations"] }
 quote = "1"
-sha2 = "0.10"
 syn = { version = "3", features = ["full", "visit", "fold"] }
 tempfile = "3"
 thiserror = "2"

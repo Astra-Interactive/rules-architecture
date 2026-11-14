@@ -366,9 +366,8 @@ generated sources under `build/`), which describe no Rust behaviour.
 
 ```text
 rules-rust/
-  Cargo.toml, clippy.toml, rust-toolchain.toml, release-plz.toml, .cargo/config.toml
+  Cargo.toml, clippy.toml, rust-toolchain.toml, release-plz.toml
   modules/rules/   the published crate `klibs-rules`, the library and the `cargo-klibs-rules` binary: src/, test/ (case workspaces, both gate halves)
-  xtask/           `cargo xtask gate-sync --docs <dir> [--check]`
   cases/           standalone workspaces, excluded from this one
     rules/<RuleId>/<fail|pass>-<case>/        expected.tsv
     suppression/<case>/                       expected.tsv and accepted.tsv
@@ -379,14 +378,13 @@ rules-rust/
 
 - `KLIBS_RULES_BLESS=1 cargo test --workspace` rewrites `expected.tsv`, `accepted.tsv`, `expected-error.txt` and
   `cases/doc/expected-scaffold.tsv`; the diff is reviewed like code.
-- The gate (`cases/doc`) holds every Bad and Good example of the documents. `examples.toml` maps each half to its
-  fragments (`block-lines` in the document, `fixture-lines` in the fixture); the tests check that the fixture lines
-  hash to the document's, that Good halves have no rustc, clippy or rule finding, that Bad halves give exactly their
-  carriers, that every probe of the required configuration behaves, and that rustfmt changes no Good or scaffold
-  line. Findings outside the halves' lines are compared with `expected-scaffold.tsv`. With
-  `KLIBS_RULES_EXPECT_TOOLCHAIN=<version>` the tests assert that `rustc` and `$CARGO` in `cases/doc` are that version.
-- `cargo xtask gate-sync --docs <conf.ide>/.claude/docs` re-hashes the examples and records the `conf.ide` commit;
-  `--check` exits 1 on a changed, moved, new or unplaced example.
+- The gate (`cases/doc`) holds Bad and Good examples taken from the documents. `examples.toml` lists each half: its
+  fragments (`path`, `fixture-lines`) and its expected carriers (`path`, `line`, `carrier`); the tests check that Good
+  halves have no rustc, clippy or rule finding, that Bad halves give exactly their carriers, that every probe of the
+  required configuration behaves, and that rustfmt changes no Good or scaffold line. Findings outside the halves' lines
+  are compared with `expected-scaffold.tsv`. The examples are not compared with the documents: a changed document
+  example is carried into the fixture by hand. With `KLIBS_RULES_EXPECT_TOOLCHAIN=<version>` the tests assert that
+  `rustc` and `$CARGO` in `cases/doc` are that version.
 - Validation tests prove that incorrect code is reported and correct code is accepted, including finding subjects,
   locations and documented exceptions. Coverage percentages do not block CI; tests are added for behavior and
   regressions rather than to exercise implementation lines or assertion failure paths.
