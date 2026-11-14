@@ -1,4 +1,3 @@
 UnitPath	.	shop	place tooling at xtask, entry points at instances/<name>, and product crates at modules/<a>[/<b>[/<c>]]; no segment is shared
 RootSources	Cargo.toml:1	.	the root manifest is virtual: move the crate to modules/<name> and keep only [workspace] here
 RootSources	src	.	the workspace root holds no src/: every crate sits in its own directory
-NestedUnit	xtask/Cargo.toml	xtask	xtask is inside .: a crate directory holds no other crate

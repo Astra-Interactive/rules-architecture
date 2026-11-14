@@ -2,129 +2,29 @@
 
 `klibs-rules` checks a Cargo workspace against the Astra-Interactive architecture rules (the `.rs.md` documents of
 `conf.ide/.claude/docs` and the language-neutral `arch-*.md`). It is the Rust counterpart of `rules-kotlin`: a
-required rustc, clippy and rustfmt configuration plus rules of its own, run as a test of the consumer's `xtask`.
+required rustc, clippy and rustfmt configuration plus rules of its own, run as `cargo klibs-rules`.
 
 ## Installation
 
-1. `klibs-rules = "=X.Y.Z"` in the `[dependencies]` of the consumer's `xtask` crate.
+1. `cargo install klibs-rules --version X.Y.Z --locked` installs the `cargo-klibs-rules` binary, which Cargo runs as
+   `cargo klibs-rules`.
 2. The required configuration: the `[workspace.lints]` block and `clippy.toml` that
    `klibs_rules::config::util::render_required_configuration()` renders (below), `[lints] workspace = true` in every
    member, `resolver = "3"` in the root `[workspace]`.
 3. `[workspace.metadata.klibs-rules] product-kind`, `platform-words` when the project has host frameworks, and the
    `role` of every crate the detection does not cover.
-4. `[alias] xtask = "run --package xtask --"` in `.cargo/config.toml`.
-5. The `xtask` template below: `xtask/Cargo.toml`, `xtask/README.md`, `xtask/src/main.rs`, the command and its test.
-   A tooling crate is `src/main.rs` alone, so the template's `main.rs` holds the module tree and the test block; only
-   an `entry-point` crate splits `src/lib.rs` (the tree) from `src/main.rs` (`use` lines and `fn main`).
-6. Pin the toolchain in `rust-toolchain.toml`: `LintConfig` asks the rustfmt beside the running cargo which keys are
+4. Pin the toolchain in `rust-toolchain.toml`: `LintConfig` asks the rustfmt beside the running cargo which keys are
    nightly-only, and that list differs by release (`hex_literal_case` is stable on 1.99.0, nightly-only on 1.93.0), so
    an unpinned project can get a rustfmt finding on one machine and none on another.
 
-```toml
-# xtask/Cargo.toml (no `version`: the crate is not published)
-[package]
-name = "xtask"
-edition = "2024"
-
-[dependencies]
-klibs-rules = "=X.Y.Z"
-
-[lints]
-workspace = true
-```
-
-```text
-# xtask/README.md
-Runs the build automation of this workspace, the architecture check among it.
-```
-
-```rust
-// xtask/src/main.rs
-use crate::architecture::command::run_architecture_check;
-use std::env;
-use std::path::Path;
-use std::process::ExitCode;
-
-pub(crate) mod architecture {
-    pub(crate) mod command {
-        pub(crate) use architecture_check_command::run_architecture_check;
-        mod architecture_check_command;
-    }
-}
-
-fn main() -> ExitCode {
-    let task = env::args().nth(1);
-    match task.as_deref() {
-        Some("architecture-check") => run_architecture_check(Path::new(env!("CARGO_MANIFEST_DIR"))),
-        _ => ExitCode::from(2),
-    }
-}
-
-#[cfg(test)]
-#[path = "../test"]
-mod test {
-    mod architecture {
-        mod command {
-            mod architecture_check_command_test;
-        }
-    }
-}
-```
-
-```rust
-// xtask/src/architecture/command/architecture_check_command.rs
-use klibs_rules::check::di::CheckModule;
-use std::path::Path;
-use std::process::ExitCode;
-
-#[expect(
-    clippy::print_stdout,
-    reason = "the architecture report is this command's product"
-)]
-pub(crate) fn run_architecture_check(workspace_dir: &Path) -> ExitCode {
-    let check_module = CheckModule::new();
-    let checked = match check_module.check_workspace_use_case.invoke_with_ownership(workspace_dir) {
-        Ok(report) => report,
-        Err(error) => {
-            println!("{error}");
-            return ExitCode::from(2);
-        }
-    };
-    let report = &checked.report;
-    println!("{}", report.to_violation_lines());
-    if let Err(error) = check_module.report_writer.write_with_ownership(&checked) {
-        println!("{error}");
-        return ExitCode::from(2);
-    }
-    report.to_exit_code()
-}
-```
-
-```rust
-// xtask/test/architecture/command/architecture_check_command_test.rs
-use klibs_rules::check::di::CheckModule;
-use std::path::Path;
-
-#[test]
-fn given_this_workspace_when_checked_then_no_rule_is_violated() {
-    let check_module = CheckModule::new();
-
-    let report = check_module
-        .check_workspace_use_case
-        .invoke(Path::new(env!("CARGO_MANIFEST_DIR")))
-        .expect("the klibs-rules configuration loads");
-
-    assert!(report.is_clean(), "{}", report.to_violation_lines());
-}
-```
-
-`cases/consumer/fixed` is this template in a workspace that passes; `cases/consumer/failing` reports two findings;
+`cases/consumer/fixed` is a workspace that passes; `cases/consumer/failing` reports two findings;
 `cases/consumer/single-crate` is a root `[package]` before its re-layout (`RootSources`).
 
-Locally and in CI: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`
-(runs the architecture test). `cargo xtask architecture-check` prints the report and writes
-`<target>/klibs-rules/violations.txt`, `<target>/klibs-rules/policy.txt` and `<target>/klibs-rules/api-ownership.txt`; it exits 0 when clean, 1 with findings, 2 on
-a configuration, metadata or write error. No test writes a report file.
+Locally and in CI: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`,
+and `cargo klibs-rules`, which prints the report, writes `<target>/klibs-rules/violations.txt`,
+`<target>/klibs-rules/policy.txt` and `<target>/klibs-rules/api-ownership.txt`, and exits 0 when clean, 1 with findings,
+2 on a configuration, metadata, write or argument error. `cargo klibs-rules --manifest-path <Cargo.toml>` checks another
+workspace. CI installs the tool first with the same `cargo install` line.
 
 The ownership report is advisory: `CANDIDATE`, `RETAIN`, `UNKNOWN`, `UNCERTAIN` and `EXTERNAL` records provide evidence
 for a human ownership decision and do not fail the architecture check. Existing callers may keep `invoke()` and
@@ -158,7 +58,8 @@ A manifest exception naming an unknown or retired rule id, or a rule with no fin
 configuration error. The Cargo configuration read is the one Cargo uses at the workspace root: `.cargo/config` when
 it exists, `.cargo/config.toml` otherwise; parent directories and `$CARGO_HOME/config.toml` are out of scope.
 `cargo metadata`, `rustfmt` and the toolchain checks use the cargo named by `$CARGO`, or `cargo` on `PATH` when
-`$CARGO` is unset (an `xtask` binary started by hand or from an IDE), and the rustfmt beside it, or `rustfmt` on `PATH`.
+`$CARGO` is unset, and the rustfmt beside it, or `rustfmt` on `PATH`. `$CARGO` is unset when `cargo-klibs-rules` is
+started by hand rather than as `cargo klibs-rules`.
 
 ## Roles
 
@@ -466,7 +367,7 @@ generated sources under `build/`), which describe no Rust behaviour.
 ```text
 rules-rust/
   Cargo.toml, clippy.toml, rust-toolchain.toml, release-plz.toml, .cargo/config.toml
-  modules/rules/   the published crate `klibs-rules`: src/, test/ (case workspaces, both gate halves)
+  modules/rules/   the published crate `klibs-rules`, the library and the `cargo-klibs-rules` binary: src/, test/ (case workspaces, both gate halves)
   xtask/           `cargo xtask gate-sync --docs <dir> [--check]`
   cases/           standalone workspaces, excluded from this one
     rules/<RuleId>/<fail|pass>-<case>/        expected.tsv

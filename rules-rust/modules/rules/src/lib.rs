@@ -17,6 +17,7 @@ pub mod check {
         pub(crate) use rule_context::RuleContext;
         pub(crate) use rule_finding::RuleFinding;
         pub use rule_id::RuleId;
+        pub(crate) use workspace_argument_error::WorkspaceArgumentError;
         mod accepted_exception;
         mod anchor;
         mod api_ownership_report;
@@ -28,10 +29,15 @@ pub mod check {
         mod rule_context;
         mod rule_finding;
         mod rule_id;
+        mod workspace_argument_error;
     }
     pub mod usecase {
         pub use check_workspace_use_case::CheckWorkspaceUseCase;
         mod check_workspace_use_case;
+    }
+    pub mod command {
+        pub use check_workspace_command::run_check_workspace_command;
+        mod check_workspace_command;
     }
     pub(crate) mod util {
         pub(crate) use api_ownership_build::build_api_ownership;
@@ -40,12 +46,14 @@ pub mod check {
         pub(crate) use rule_finding_build::build_node_finding;
         pub(crate) use rule_finding_build::format_module_path;
         pub(crate) use unanalysable_findings::build_unanalysable_findings;
+        pub(crate) use workspace_argument_parse::parse_workspace_directory;
         mod api_ownership_build;
         mod report_build;
         mod report_ext;
         mod rule_context_ext;
         mod rule_finding_build;
         mod unanalysable_findings;
+        mod workspace_argument_parse;
         mod workspace_type_query;
     }
     pub(crate) mod file {
@@ -1052,6 +1060,7 @@ mod test {
         mod util {
             mod api_ownership_build_test;
             mod report_ext_test;
+            mod workspace_argument_parse_test;
         }
         mod di {
             mod rule_module_test;
