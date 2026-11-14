@@ -28,6 +28,7 @@ jobs:
     outputs:
       kotlin: ${{ steps.filter.outputs.kotlin }}
       rust: ${{ steps.filter.outputs.rust }}
+      ci: ${{ steps.filter.outputs.ci }}
     steps:
       - name: Detect changed projects
         id: filter
@@ -36,15 +37,21 @@ jobs:
           filters: |
             kotlin:
               - 'rules-kotlin/**'
-              - '.github/workflows/**'
             rust:
               - 'rules-rust/**'
+            ci:
               - '.github/workflows/**'
+              - '.github/actions/**'
   gradle_validation:
     name: Validate Gradle wrapper
     needs: changes
-    if: needs.changes.outputs.kotlin == 'true'
+    if: needs.changes.outputs.kotlin == 'true' || needs.changes.outputs.ci == 'true'
     uses: ./.github/workflows/call-gradle-wrapper-validation.yml
+  version_changed:
+    name: Validate version is changed
+    needs: changes
+    if: needs.changes.outputs.kotlin == 'true'
+    uses: ./.github/workflows/call-version-changed.yml
   detekt_validation:
     name: Detekt static analysis
     needs: gradle_validation
@@ -66,5 +73,10 @@ jobs:
   rust_validation:
     name: Rust checks
     needs: changes
-    if: needs.changes.outputs.rust == 'true'
+    if: needs.changes.outputs.rust == 'true' || needs.changes.outputs.ci == 'true'
     uses: ./.github/workflows/call-rust-validation.yml
+  rust_version_changed:
+    name: Validate Rust version is changed
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    uses: ./.github/workflows/call-rust-version-changed.yml

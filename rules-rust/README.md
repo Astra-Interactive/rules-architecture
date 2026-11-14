@@ -27,7 +27,7 @@ name = "xtask"
 edition = "2024"
 
 [dependencies]
-klibs-rules = "=0.2.0"
+klibs-rules = "=0.2.1"
 
 [lints]
 workspace = true
@@ -248,7 +248,7 @@ and the groups `clippy::restriction`, `clippy::pedantic` and `clippy::nursery` a
 
 The floor is 1.93.0; the library declares `rust-version = "1.93"`.
 
-## Rules in 0.2.0
+## Rules in 0.2.1
 
 | Id | Anchor | Reports |
 |---|---|---|
@@ -489,9 +489,11 @@ rules-rust/
 - Validation tests prove that incorrect code is reported and correct code is accepted, including finding subjects,
   locations and documented exceptions. Coverage percentages do not block CI; tests are added for behavior and
   regressions rather than to exercise implementation lines or assertion failure paths.
-- CI: `pr.yml` runs the Rust checks (`call-rust-validation.yml`) only when the pull request changes `rules-rust/` or
-  `.github/workflows/`: rustfmt, clippy and the tests on the pinned toolchain, the tests on the floor 1.93.0 (through
-  `RUSTUP_TOOLCHAIN`, asserted with `KLIBS_RULES_EXPECT_TOOLCHAIN`) and `cargo publish --dry-run`.
+- CI: `pr.yml` runs the Rust checks (`call-rust-validation.yml`) only when the pull request changes `rules-rust/`,
+  `.github/workflows/` or `.github/actions/`: rustfmt, clippy and the tests on the pinned toolchain, the tests on the
+  floor 1.93.0 (through `RUSTUP_TOOLCHAIN`, asserted with `KLIBS_RULES_EXPECT_TOOLCHAIN`) and
+  `cargo publish --dry-run`. A pull request that changes `rules-rust/` must also change the `klibs-rules` version
+  (`call-rust-version-changed.yml`).
 - Release: bump `version` in `modules/rules/Cargo.toml`. On a push to `master` that changes `rules-rust/`, `release.yml`
   runs `release-plz release` (`call-rust-release.yml`, configured by `release-plz.toml`): when crates.io does not have
   the version, it publishes the crate with the `CARGO_REGISTRY_TOKEN` secret, tags the commit `rules-rust-<version>`
