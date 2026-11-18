@@ -10,19 +10,24 @@ import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassLikeSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaConstructorSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolOrigin
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeAliasSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaErrorType
 import org.jetbrains.kotlin.analysis.api.types.symbol
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.psi.KtBinaryExpression
+import org.jetbrains.kotlin.psi.KtCallElement
 import org.jetbrains.kotlin.psi.KtCallExpression
+import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtUserType
 import org.jetbrains.kotlin.psi.KtValueArgument
+import org.jetbrains.kotlin.psi.psiUtil.getQualifiedExpressionForSelectorOrThis
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 
 /**
  * Resolves Kotlin's `Pair` and `Triple` types and constructors, including aliases, and pairs inferred from `a to b`.
- * Direct entries of standard map builders are allowed; unrelated DSL operators and names are not tuples.
+ * Direct entries of standard map builders are allowed, and so is a tuple passed straight to a parameter that a library
+ * declares as `Pair` or `Triple`; unrelated DSL operators and names are not tuples.
  */
 internal class AnonymousTuple(config: Config) : Rule(config, DESCRIPTION), RequiresAnalysisApi {
 
@@ -36,6 +41,23 @@ internal class AnonymousTuple(config: Config) : Rule(config, DESCRIPTION), Requi
         return analyze(call) {
             call.resolveToCall()?.singleFunctionCallOrNull()?.symbol?.callableId?.asSingleFqName()?.asString() in
                 MAP_BUILDERS
+        }
+    }
+
+    private fun isLibraryTupleArgument(expression: KtExpression): Boolean {
+        val argumentExpression = expression.getQualifiedExpressionForSelectorOrThis()
+        val argument = argumentExpression.parent as? KtValueArgument ?: return false
+        val call = argument.getStrictParentOfType<KtCallElement>() ?: return false
+        return analyze(call) {
+            val parameter = call.resolveToCall()
+                ?.singleFunctionCallOrNull()
+                ?.valueArgumentMapping
+                ?.get(argumentExpression)
+                ?.symbol
+                ?: return@analyze false
+            val isLibraryParameter = parameter.origin in LIBRARY_ORIGINS
+            val isTupleParameter = parameter.returnType.symbol?.classId?.asFqNameString() in TUPLE_NAMES
+            isLibraryParameter && isTupleParameter
         }
     }
 
@@ -61,6 +83,7 @@ internal class AnonymousTuple(config: Config) : Rule(config, DESCRIPTION), Requi
             expression.expressionType?.symbol?.classId?.asFqNameString()
         }
             ?.takeIf(TUPLE_NAMES::contains)?.substringAfterLast('.') ?: return
+        if (isLibraryTupleArgument(expression)) return
         reportTuple(Entity.from(expression), name)
     }
 
@@ -75,6 +98,7 @@ internal class AnonymousTuple(config: Config) : Rule(config, DESCRIPTION), Requi
             expression.expressionType?.symbol?.classId?.asFqNameString()
         }
         if (type != "kotlin.Pair") return
+        if (isLibraryTupleArgument(expression)) return
         reportTuple(Entity.from(expression), PAIR)
     }
 
@@ -84,6 +108,9 @@ internal class AnonymousTuple(config: Config) : Rule(config, DESCRIPTION), Requi
 
         @JvmField
         val TUPLE_NAMES = setOf("kotlin.Pair", "kotlin.Triple")
+
+        @JvmField
+        val LIBRARY_ORIGINS = setOf(KaSymbolOrigin.LIBRARY, KaSymbolOrigin.JAVA_LIBRARY)
 
         @JvmField
         val MAP_BUILDERS = setOf(
