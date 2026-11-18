@@ -27,6 +27,7 @@ import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
 import ru.astrainteractive.klibs.rules.gradle.linter.model.AndroidVariantSources
 import ru.astrainteractive.klibs.rules.gradle.linter.model.UnitBuild
+import ru.astrainteractive.klibs.rules.gradle.linter.model.VersionCatalogSection
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
 import ru.astrainteractive.klibs.rules.structure.unit.structure.isPlatformUnitName
 import ru.astrainteractive.klibs.rules.structure.unit.structure.isTechnologyUnitName
@@ -364,6 +365,29 @@ internal fun Project.hasMikroCoreInCatalog(): Boolean {
             val library = catalog.findLibrary(alias).orElse(null) ?: return@any false
             library.get().module.name == MIKRO_CORE
         }
+    }
+}
+
+internal fun Project.readVersionCatalogSections(): List<VersionCatalogSection> {
+    val catalogs = extensions.findByType(VersionCatalogsExtension::class.java) ?: return emptyList()
+    return catalogs.flatMap { catalog ->
+        listOf(
+            VersionCatalogSection(
+                catalogName = catalog.name,
+                table = VersionCatalogSection.Table.LIBRARIES,
+                aliases = catalog.libraryAliases
+            ),
+            VersionCatalogSection(
+                catalogName = catalog.name,
+                table = VersionCatalogSection.Table.PLUGINS,
+                aliases = catalog.pluginAliases
+            ),
+            VersionCatalogSection(
+                catalogName = catalog.name,
+                table = VersionCatalogSection.Table.BUNDLES,
+                aliases = catalog.bundleAliases
+            )
+        )
     }
 }
 

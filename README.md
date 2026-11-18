@@ -352,6 +352,7 @@ The last column names the document section each check enforces.
 | `UnpublishedExplicitApi` | explicit API in a unit that is not published | `arch-package.kt.md`, Visibility |
 | `ApiUnitPlatformDependency` | a platform dependency in an API unit outside a platform source set | `arch-package.kt.md`, Units and Gradle; `arch-context.md`, The dependency graph |
 | `PlatformDependencyMetadata` | a platform dependency whose source set cannot be established | no document rule: the build metadata `ApiUnitPlatformDependency` needs |
+| `CatalogAliasPrefix` | root: a version catalog alias that is a proper prefix of another alias of the same `[libraries]`, `[plugins]` or `[bundles]` table, `-`, `_` and `.` counting as one separator (`a-b` and `a-b-c`, not `a-b` and `a-bc`) | `arch-package.kt.md`, Units and Gradle |
 
 </details>
 

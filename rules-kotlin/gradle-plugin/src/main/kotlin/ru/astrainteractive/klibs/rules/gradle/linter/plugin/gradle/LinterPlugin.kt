@@ -28,6 +28,7 @@ import ru.astrainteractive.klibs.rules.gradle.detekt.service.DetektConfigService
 import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
 import ru.astrainteractive.klibs.rules.gradle.linter.model.AndroidVariantSources
 import ru.astrainteractive.klibs.rules.gradle.linter.model.ArchitectureFinding
+import ru.astrainteractive.klibs.rules.gradle.linter.model.VersionCatalogSection
 import ru.astrainteractive.klibs.rules.gradle.linter.service.ArchitectureGraphService
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ApiOwnershipReportTask
 import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.ArchitectureBaselineTask
@@ -38,12 +39,14 @@ import ru.astrainteractive.klibs.rules.gradle.linter.task.gradle.DetektSettingsT
 import ru.astrainteractive.klibs.rules.gradle.linter.util.androidNamespace
 import ru.astrainteractive.klibs.rules.gradle.linter.util.dependencyInputs
 import ru.astrainteractive.klibs.rules.gradle.linter.util.explicitApiMode
+import ru.astrainteractive.klibs.rules.gradle.linter.util.findAliasPrefixFindings
 import ru.astrainteractive.klibs.rules.gradle.linter.util.findBuildFindings
 import ru.astrainteractive.klibs.rules.gradle.linter.util.findUnitTechnologyWords
 import ru.astrainteractive.klibs.rules.gradle.linter.util.hasMikroCoreInCatalog
 import ru.astrainteractive.klibs.rules.gradle.linter.util.productionProjectDependencies
 import ru.astrainteractive.klibs.rules.gradle.linter.util.readUnitBuild
 import ru.astrainteractive.klibs.rules.gradle.linter.util.readUnitContext
+import ru.astrainteractive.klibs.rules.gradle.linter.util.readVersionCatalogSections
 import ru.astrainteractive.klibs.rules.gradle.linter.util.registerAndroidVariantSources
 import ru.astrainteractive.klibs.rules.gradle.linter.util.toLine
 import ru.astrainteractive.klibs.rules.gradle.util.hasKotlinPlugin
@@ -281,6 +284,34 @@ internal class LinterPlugin : Plugin<Project> {
         }
     }
 
+    private fun Project.findCatalogFindings(): List<ArchitectureFinding> {
+        // Every unit sees the same catalogs, so only the root of the build reports them
+        if (path != isolated.rootProject.path) return emptyList()
+        return readVersionCatalogSections().flatMap(VersionCatalogSection::findAliasPrefixFindings)
+    }
+
+    private fun Project.configureBuildFindings(
+        extension: LinterExtension,
+        androidVariants: List<AndroidVariantSources>,
+        checkTask: TaskProvider<ArchitectureCheckTask>,
+        baselineTask: TaskProvider<ArchitectureBaselineTask>
+    ) {
+        afterEvaluate { project ->
+            val unit = project.readUnitContext(
+                extension,
+                project.graphParameters().productKind.orNull,
+                resolveCompose = false,
+                androidVariants = androidVariants
+            )
+            val findings = project.readUnitBuild(unit.kind, unit.productKind)
+                .findBuildFindings()
+                .plus(project.findCatalogFindings())
+                .map(ArchitectureFinding::toLine)
+            checkTask.configure { task -> task.buildFindings.set(findings) }
+            baselineTask.configure { task -> task.buildFindings.set(findings) }
+        }
+    }
+
     override fun apply(target: Project) {
         target.pluginManager.apply(DetektPlugin::class.java)
         val androidVariants = target.registerAndroidVariantSources()
@@ -318,18 +349,12 @@ internal class LinterPlugin : Plugin<Project> {
             )
             task.baselineFile.set(target.layout.projectDirectory.file(BASELINE_FILE_NAME))
         }
-        target.afterEvaluate { project ->
-            val unit = project.readUnitContext(
-                extension,
-                project.graphParameters().productKind.orNull,
-                resolveCompose = false,
-                androidVariants = androidVariants
-            )
-            val findings = project.readUnitBuild(unit.kind, unit.productKind)
-                .findBuildFindings().map(ArchitectureFinding::toLine)
-            checkTask.configure { task -> task.buildFindings.set(findings) }
-            baselineTask.configure { task -> task.buildFindings.set(findings) }
-        }
+        target.configureBuildFindings(
+            extension,
+            androidVariants,
+            checkTask,
+            baselineTask
+        )
         target.attachCheckTask(checkTask)
         val lintTask = target.tasks.register(LINT_TASK_NAME) { task ->
             task.group = LifecycleBasePlugin.VERIFICATION_GROUP

@@ -22,6 +22,7 @@ public enum class RuleId(public val ruleName: String, public val engine: Engine)
     PUBLISHED_LIBRARY_EXPLICIT_API("PublishedLibraryExplicitApi", Engine.BUILD),
     API_UNIT_PLATFORM_DEPENDENCY("ApiUnitPlatformDependency", Engine.BUILD),
     PLATFORM_DEPENDENCY_METADATA("PlatformDependencyMetadata", Engine.BUILD),
+    CATALOG_ALIAS_PREFIX("CatalogAliasPrefix", Engine.BUILD),
     CORE_SHAPE("CoreShape", Engine.KONSIST),
     ERROR_PLACEMENT("ErrorPlacement", Engine.KONSIST),
     UTIL_FUNCTION_AS_EXTENSION("UtilFunctionAsExtension", Engine.KONSIST),
