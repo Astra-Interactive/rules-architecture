@@ -209,6 +209,7 @@ internal class KindShape : ArchitectureCheck {
         @JvmField
         val STATE_HOLDER_SUFFIXES = mapOf(
             "component" to "Component",
+            "feature" to "Feature",
             "viewmodel" to "ViewModel"
         )
 
@@ -221,7 +222,8 @@ internal class KindShape : ArchitectureCheck {
             "stub",
             "di",
             "component",
-            "viewmodel"
+            "viewmodel",
+            "feature"
         )
 
         @JvmField

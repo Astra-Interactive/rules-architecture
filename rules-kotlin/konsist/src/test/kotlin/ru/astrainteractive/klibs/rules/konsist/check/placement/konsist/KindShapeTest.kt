@@ -351,9 +351,9 @@ internal class KindShapeTest {
         assertEquals(
             expected = listOf(
                 "Move ExposedOfferRepository out of 'offer/exposed': an app's api unit holds only the api, model, " +
-                    "util, usecase, stub, di, component, viewmodel kinds, not exposed.",
+                    "util, usecase, stub, di, component, viewmodel, feature kinds, not exposed.",
                 "Move OfferCommand out of 'offer/command': an app's api unit holds only the api, model, util, " +
-                    "usecase, stub, di, component, viewmodel kinds, not command.",
+                    "usecase, stub, di, component, viewmodel, feature kinds, not command.",
             ),
             actual = messages
         )
@@ -384,6 +384,11 @@ internal class KindShapeTest {
                 fileName = "OfferHelpers.kt",
                 code = "interface OfferViewModel\n\nfun format() = Unit"
             )
+            .main(
+                packageName = "x.payment.api.offer.feature",
+                fileName = "DefaultOfferFeature.kt",
+                code = "class DefaultOfferFeature : OfferFeature"
+            )
             .load(
                 UnitKind.API,
                 rootPackage = "x.payment.api",
@@ -396,6 +401,8 @@ internal class KindShapeTest {
             expected = listOf(
                 "Move DefaultOfferComponent out of 'offer/component': an app's api unit holds only interfaces " +
                     "named ...Component in component; move the implementation to the feature's impl unit.",
+                "Move DefaultOfferFeature out of 'offer/feature': an app's api unit holds only interfaces " +
+                    "named ...Feature in feature; move the implementation to the feature's impl unit.",
                 "Move OfferHelpers out of 'offer/viewmodel': an app's api unit holds only interfaces " +
                     "named ...ViewModel in viewmodel; move the implementation to the feature's impl unit.",
                 "Move OfferState out of 'offer/viewmodel': an app's api unit holds only interfaces " +
@@ -495,6 +502,11 @@ internal class KindShapeTest {
                 packageName = "x.payment.api.offer.viewmodel",
                 fileName = "OfferViewModel.kt",
                 code = "interface OfferViewModel"
+            )
+            .main(
+                packageName = "x.payment.api.offer.feature",
+                fileName = "OfferFeature.kt",
+                code = "interface OfferFeature"
             )
             .load(
                 UnitKind.API,

@@ -18,10 +18,10 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
  * Reports a contract or an implementation in the wrong place: a top-level interface outside an `api` package, an
  * implementation of a contract inside `api` instead of its technology's package, and a package named `network`,
  * `local` or `remote`, which are not technology names. A sealed interface is a model family, a use case's interface
- * sits in `usecase`, a DI module's in `di`, and a state holder's (`…Component`, `…ViewModel`) in `component` or
- * `viewmodel`, never in `api`. A Compose scope (`interface FilterCardScope : ColumnScope`) is the receiver of a
- * composable's content, not a contract, and neither is an interface its technology implements (a Room `@Dao`) in that
- * technology's implementation.
+ * sits in `usecase`, a DI module's in `di`, a state holder's (`…ViewModel`, `…Feature`) in `viewmodel` or
+ * `feature`, and a component's (`…Component`) in `component`, never in `api`. A Compose scope
+ * (`interface FilterCardScope : ColumnScope`) is the receiver of a composable's content, not a contract, and
+ * neither is an interface its technology implements (a Room `@Dao`) in that technology's implementation.
  */
 internal class ContractPlacement : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
@@ -45,8 +45,8 @@ internal class ContractPlacement : ArchitectureCheck {
         val stateHolderWord = stateHolderWord(declaration)
         if (stateHolderWord != null) {
             if (kindWord in STATE_HOLDER_WORDS) return null
-            return "Move ${declaration.name} to the $stateHolderWord package of its concept: a state holder's " +
-                "interface sits beside its Default… implementation, in the owner's api unit when another unit calls it."
+            return "Move ${declaration.name} to the $stateHolderWord package of its concept: its interface sits " +
+                "beside its Default… implementation, in the owner's api unit when another unit calls it."
         }
         if (isInterfaceHome) return null
         if (declaration.name.endsWith(REPOSITORY_SUFFIX)) {
@@ -145,11 +145,16 @@ internal class ContractPlacement : ArchitectureCheck {
         const val SCOPE_SUFFIX = "Scope"
 
         @JvmField
-        val STATE_HOLDER_WORDS = setOf("component", "viewmodel")
+        val STATE_HOLDER_WORDS = setOf(
+            "component",
+            "feature",
+            "viewmodel"
+        )
 
         @JvmField
         val STATE_HOLDER_SUFFIXES = mapOf(
             "Component" to "component",
+            "Feature" to "feature",
             "ViewModel" to "viewmodel"
         )
 

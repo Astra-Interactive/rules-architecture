@@ -15,8 +15,8 @@ import ru.astrainteractive.klibs.rules.konsist.layout.util.describe
 
 /**
  * Checks the direction table of `arch-context.md` through imports and fully qualified references between kinds.
- * Interfaces in `component`, `viewmodel` and `usecase` are contract targets; concrete classes retain their kind,
- * and a use case still cannot call another use case through its interface.
+ * Interfaces in `component`, `viewmodel`, `feature` and `usecase` are contract targets; concrete classes retain
+ * their kind, and a use case still cannot call another use case through its interface.
  * A screen is used only by what hosts or opens it: another screen, a component's `Render()`, a router, and `di`.
  *
  * Imports outside the unit are checked only for framework registration interfaces, which stay outside the domain.
@@ -239,7 +239,11 @@ internal class KindImportDirection : ArchitectureCheck {
         const val ROUTER_CONCEPT = "router"
 
         @JvmField
-        val STATE_HOLDER_WORDS = setOf("component", "viewmodel")
+        val STATE_HOLDER_WORDS = setOf(
+            "component",
+            "feature",
+            "viewmodel"
+        )
 
         @JvmField
         val PLATFORM_INVOKED_WORDS = setOf(

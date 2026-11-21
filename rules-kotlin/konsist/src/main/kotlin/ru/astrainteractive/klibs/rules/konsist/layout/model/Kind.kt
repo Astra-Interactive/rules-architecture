@@ -36,6 +36,7 @@ internal enum class Kind(val words: Set<String>) {
             "error",
             "event",
             "expansion",
+            "feature",
             "gui",
             "job",
             "menu",

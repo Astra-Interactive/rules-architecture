@@ -22,6 +22,7 @@ private val NON_TECHNOLOGY_WORDS = setOf(
     "error",
     "event",
     "expansion",
+    "feature",
     "foundation",
     "gradle",
     "gui",

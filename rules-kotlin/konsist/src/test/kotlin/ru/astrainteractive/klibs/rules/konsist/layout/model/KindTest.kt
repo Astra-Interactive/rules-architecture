@@ -66,4 +66,21 @@ internal class KindTest {
             ).map { segment -> Kind.fromSegment(segment, vocabulary) }
         )
     }
+
+    @Test
+    fun GIVEN_feature_segment_WHEN_looked_up_THEN_it_is_an_entry_point_kind_and_its_plural_is_not() {
+        val vocabulary = Vocabulary(
+            entryPointWords = emptySet(),
+            technologyWords = emptySet(),
+            pluralConcepts = emptySet(),
+            platformClasses = emptySet(),
+            extensionKinds = emptySet(),
+            roleKinds = emptySet()
+        )
+
+        assertEquals(
+            listOf(Kind.ENTRY_POINT, null),
+            listOf("feature", "features").map { segment -> Kind.fromSegment(segment, vocabulary) }
+        )
+    }
 }

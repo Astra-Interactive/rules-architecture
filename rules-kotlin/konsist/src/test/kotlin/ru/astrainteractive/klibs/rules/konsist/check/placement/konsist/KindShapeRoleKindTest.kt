@@ -129,7 +129,7 @@ internal class KindShapeRoleKindTest {
         assertEquals(
             expected = listOf(
                 "Move OfferRetryLimiter out of 'offer/limiter': an app's api unit holds only the api, model, util, " +
-                    "usecase, stub, di, component, viewmodel kinds, not limiter."
+                    "usecase, stub, di, component, viewmodel, feature kinds, not limiter."
             ),
             actual = KindShape().check(sources).map(Violation::message)
         )

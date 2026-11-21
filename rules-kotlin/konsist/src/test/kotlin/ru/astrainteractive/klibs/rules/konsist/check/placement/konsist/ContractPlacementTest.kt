@@ -88,6 +88,7 @@ internal class ContractPlacementTest {
             .main("x.offer.model/OfferResult.kt", "sealed interface OfferResult")
             .main("x.offer.model/Priced.kt", "interface Priced")
             .main("x.offer.ktor/Http.kt", "fun interface HttpEngine")
+            .main("x.offer.feature/OfferFeature.kt", "interface OfferFeature")
             .load(UnitKind.CONTEXT, rootPackage = "x")
 
         val messages = ContractPlacement().check(sources).map(Violation::message).sorted()
@@ -110,6 +111,7 @@ internal class ContractPlacementTest {
             .main("x.root.screen/RootRouter.kt", "interface RootRouter")
             .main("x.offer.api/OfferComponent.kt", "interface OfferComponent")
             .main("x.offer.composable/OfferViewModel.kt", "interface OfferViewModel")
+            .main("x.offer.api/OfferFeature.kt", "interface OfferFeature")
             .main("x.root.component/RootComponent.kt", "interface RootComponent")
             .main(
                 "x.filtercard.model/FilterCardScope.kt",
@@ -128,6 +130,7 @@ internal class ContractPlacementTest {
         assertEquals(
             listOf(
                 "Move OfferComponent to the component package of its concept",
+                "Move OfferFeature to the feature package of its concept",
                 "Move OfferViewModel to the viewmodel package of its concept",
                 "Move RootRouter to the api package of its concept",
                 "Move RootScreenComponent to the component package of its concept",

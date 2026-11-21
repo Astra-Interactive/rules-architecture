@@ -606,4 +606,36 @@ internal class KindImportDirectionTest {
             KindImportDirection().check(sources).map(Violation::subject)
         )
     }
+
+    @Test
+    fun GIVEN_a_feature_state_holder_WHEN_checked_THEN_it_depends_on_models_and_use_cases_but_not_di(
+        @TempDir directory: File
+    ) {
+        val sources = SourceTree(directory)
+            .main(
+                "x.app.home.feature/HomeFeature.kt",
+                """
+                import x.app.home.model.Home
+                import x.app.home.usecase.LoadHomeUseCase
+
+                class HomeFeature(val home: Home, val load: LoadHomeUseCase)
+                """
+            )
+            .main(
+                "x.app.home.feature/OtherFeature.kt",
+                "import x.app.home.di.HomeModule\n\nclass OtherFeature(val module: HomeModule)"
+            )
+            .main("x.app.home.model/Home.kt", "class Home")
+            .main("x.app.home.usecase/LoadHomeUseCase.kt", "class LoadHomeUseCase")
+            .main("x.app.home.di/HomeModule.kt", "class HomeModule")
+            .load(UnitKind.CONTEXT, rootPackage = "x.app")
+
+        assertEquals(
+            listOf(
+                "'home/feature' must not import x.app.home.di.HomeModule from 'home/di': an entry point kind " +
+                    "depends on model, contract, util, usecase, theme only."
+            ),
+            KindImportDirection().check(sources).map(Violation::message)
+        )
+    }
 }

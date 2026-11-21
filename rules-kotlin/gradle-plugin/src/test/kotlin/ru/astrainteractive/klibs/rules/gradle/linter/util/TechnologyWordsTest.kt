@@ -16,7 +16,8 @@ class TechnologyWordsTest {
             "org.jetbrains.kotlinx:kotlinx-coroutines-core",
             "androidx.lifecycle:lifecycle-viewmodel",
             "io.ktor:ktor-client-okhttp",
-            "androidx.compose.ui:ui"
+            "androidx.compose.ui:ui",
+            "dev.feature:feature"
         )
 
         assertEquals(

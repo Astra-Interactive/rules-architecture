@@ -18,6 +18,7 @@ internal class KindImportDirectionContractTest {
         listOf(
             "component",
             "viewmodel",
+            "feature",
             "usecase"
         ).forEach { kind ->
             val sources = SourceTree(directory.resolve(kind))
