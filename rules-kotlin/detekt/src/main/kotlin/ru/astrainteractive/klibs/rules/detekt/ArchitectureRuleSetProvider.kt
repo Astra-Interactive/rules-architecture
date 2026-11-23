@@ -32,6 +32,7 @@ import ru.astrainteractive.klibs.rules.declaration.detekt.LocalOrInnerClass
 import ru.astrainteractive.klibs.rules.declaration.detekt.NamespaceObject
 import ru.astrainteractive.klibs.rules.declaration.detekt.OneTypeFamilyPerFile
 import ru.astrainteractive.klibs.rules.declaration.detekt.PropertyAsFunction
+import ru.astrainteractive.klibs.rules.declaration.detekt.SerialNameNotProvided
 import ru.astrainteractive.klibs.rules.formatting.detekt.ArgumentPerLine
 import ru.astrainteractive.klibs.rules.formatting.detekt.BooleanOperatorWrapping
 import ru.astrainteractive.klibs.rules.formatting.detekt.ExplicitInvoke
@@ -139,6 +140,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
             ::RunBlockingOutsideBoundary,
             ::RunCatchingCancellation,
             ::RunTestResult,
+            ::SerialNameNotProvided,
             ::SharedFlowEvent,
             ::SingleJobLaunchMode,
             ::StateFlowTimeout,

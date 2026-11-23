@@ -199,6 +199,7 @@ Rules marked *types* need type resolution and report only in `architectureLint`.
 | `NamespaceObject`           | an `object` that only groups functions                                           |
 | `LocalOrInnerClass`         | a class inside a function, an `inner class`                                      |
 | `DataClassDefaultValue`     | a default value in a data class that is not `@Serializable`                      |
+| `SerialNameNotProvided`     | a property of a `@Serializable` class without `@SerialName`                      |
 | `AnonymousTuple`            | `Pair` and `Triple` outside `mapOf(a to b)` and a library's `Pair` parameter     |
 | `ActualFileSuffix`          | an `actual` in a file without a platform suffix (`Name.android.kt`)              |
 | `KDocHtmlTag`               | Javadoc HTML (`<p>`, `<code>`) in KDoc                                           |

@@ -121,6 +121,8 @@ architecture:
     inlineCancellationCheck: true
   RunTestResult:
     active: true
+  SerialNameNotProvided:
+    active: true
   SharedFlowEvent:
     active: true
   SingleJobLaunchMode:
