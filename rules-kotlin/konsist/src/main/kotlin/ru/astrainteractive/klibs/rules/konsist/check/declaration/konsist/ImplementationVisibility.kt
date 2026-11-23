@@ -1,10 +1,14 @@
 package ru.astrainteractive.klibs.rules.konsist.check.declaration.konsist
 
 import com.lemonappdev.konsist.api.KoModifier
+import com.lemonappdev.konsist.api.declaration.KoClassDeclaration
+import com.lemonappdev.konsist.api.declaration.KoConstructorDeclaration
+import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.ArchitectureCheck
 import ru.astrainteractive.klibs.rules.konsist.check.konsist.UnitSources
 import ru.astrainteractive.klibs.rules.konsist.check.model.Violation
+import ru.astrainteractive.klibs.rules.konsist.check.model.util.resolveTypeName
 import ru.astrainteractive.klibs.rules.konsist.check.model.util.topLevelClasses
 import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
 
@@ -13,10 +17,19 @@ import ru.astrainteractive.klibs.rules.konsist.layout.model.Kind
  * technology unit: the unit's DI module constructs it, so it is `internal`. Classes other units use stay public: a
  * stub, an in-memory implementation in `memory` that any unit's tests and demos use, and a generic class in a core
  * unit, declared as a core role in the build or sitting on a `core` path (`core/cache/cache4k/RefreshingCache`). A
- * published library is not judged.
+ * class with one of [DI_ANNOTATIONS] on itself or on a constructor, resolved through the imports, stays public too:
+ * the DI framework's generated graph may live in another unit. A published library is not judged.
  */
 internal class ImplementationVisibility : ArchitectureCheck {
     override val unitKinds: Set<UnitKind> = UnitKind.entries.toSet()
+
+    private fun isFrameworkConstructed(file: KoFileDeclaration, declaration: KoClassDeclaration): Boolean {
+        val constructorAnnotations = declaration.constructors.flatMap(KoConstructorDeclaration::annotations)
+        return (declaration.annotations + constructorAnnotations).any { annotation ->
+            val name = annotation.text.removePrefix("@").substringBefore('(').trim()
+            file.resolveTypeName(name) in DI_ANNOTATIONS
+        }
+    }
 
     override fun check(sources: UnitSources): List<Violation> {
         if (sources.context.publishedLibrary) return emptyList()
@@ -30,6 +43,7 @@ internal class ImplementationVisibility : ArchitectureCheck {
             .flatMap { file ->
                 file.topLevelClasses()
                     .filterNot { declaration -> NON_PUBLIC.any(declaration::hasModifier) }
+                    .filterNot { declaration -> isFrameworkConstructed(file, declaration) }
                     .map { declaration ->
                         val message = "Make ${declaration.name} internal: the DI module of the unit constructs it."
                         sources.createViolation(
@@ -63,6 +77,42 @@ internal class ImplementationVisibility : ArchitectureCheck {
             KoModifier.INTERNAL,
             KoModifier.PRIVATE,
             KoModifier.PROTECTED
+        )
+
+        @JvmField
+        val DI_ANNOTATIONS = setOf(
+            "dev.zacsweers.metro.AssistedInject",
+            "dev.zacsweers.metro.BindingContainer",
+            "dev.zacsweers.metro.ContributesBinding",
+            "dev.zacsweers.metro.ContributesIntoMap",
+            "dev.zacsweers.metro.ContributesIntoSet",
+            "dev.zacsweers.metro.ContributesTo",
+            "dev.zacsweers.metro.Inject",
+            "dev.zacsweers.metro.SingleIn",
+            "javax.inject.Inject",
+            "javax.inject.Singleton",
+            "jakarta.inject.Inject",
+            "jakarta.inject.Singleton",
+            "dagger.Module",
+            "dagger.Reusable",
+            "dagger.assisted.AssistedInject",
+            "dagger.hilt.InstallIn",
+            "dagger.hilt.android.AndroidEntryPoint",
+            "dagger.hilt.android.lifecycle.HiltViewModel",
+            "com.squareup.anvil.annotations.ContributesBinding",
+            "com.squareup.anvil.annotations.ContributesMultibinding",
+            "com.squareup.anvil.annotations.ContributesTo",
+            "me.tatarka.inject.annotations.Inject",
+            "software.amazon.lastmile.kotlin.inject.anvil.ContributesBinding",
+            "software.amazon.lastmile.kotlin.inject.anvil.ContributesTo",
+            "software.amazon.lastmile.kotlin.inject.anvil.SingleIn",
+            "org.koin.core.annotation.Factory",
+            "org.koin.core.annotation.KoinViewModel",
+            "org.koin.core.annotation.Module",
+            "org.koin.core.annotation.Scoped",
+            "org.koin.core.annotation.Single",
+            "org.koin.android.annotation.KoinViewModel",
+            "org.koin.android.annotation.KoinWorker"
         )
     }
 }

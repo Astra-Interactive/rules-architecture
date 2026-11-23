@@ -310,7 +310,7 @@ The last column names the document section each check enforces.
 | `RootModulePlacement` | a `RootModule` outside the entry point's `di` | `arch-package.md`, Units 1; `di-manual.kt.md` |
 | `EntryPointShape` | an entry-point file outside its root and `di` | `arch-package.md`, Units 1 |
 | `EntryPointVisibility` | a public class the platform invokes (`command`, `event`, `route`, …) | `arch-package.kt.md`, Visibility |
-| `ImplementationVisibility` | a public class in a technology package | `arch-package.kt.md`, Visibility |
+| `ImplementationVisibility` | a public class in a technology package, unless a DI framework constructs it: a Metro, `javax.inject`/`jakarta.inject`, Dagger/Hilt, Anvil, kotlin-inject or Koin annotation on the class or a constructor | `arch-package.kt.md`, Visibility |
 | `CoreShape` | a use case or a repository interface in a `core` unit | `arch-package.md`, Units 1 |
 | `ContractUnitShape` | a type that is not `@Serializable` or logic in a `Contract` unit | `arch-package.kt.md`, Units and Gradle; `arch-context.md`, What crosses |
 | `ErrorPlacement` | an error type outside `model` | `arch-package.md`, Files |
