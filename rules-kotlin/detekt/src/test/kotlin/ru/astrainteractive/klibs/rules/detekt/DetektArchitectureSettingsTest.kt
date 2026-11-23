@@ -136,7 +136,7 @@ internal class DetektArchitectureSettingsTest {
     }
 
     @Test
-    fun GIVEN_callback_thread_and_di_framework_imports_WHEN_linted_THEN_reports_each() {
+    fun GIVEN_callback_thread_and_di_framework_imports_WHEN_linted_THEN_reports_only_callback_and_thread_imports() {
         val code = """
             import android.os.Handler
             import dagger.Module
@@ -153,7 +153,7 @@ internal class DetektArchitectureSettingsTest {
 
         val findings = ForbiddenImport(styleConfig.subConfig("ForbiddenImport")).lint(code)
 
-        assertEquals(9, findings.size)
+        assertEquals(6, findings.size)
     }
 
     @Test

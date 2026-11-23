@@ -60,20 +60,6 @@ style:
         reason: 'Launch a coroutine instead of posting to a Handler.'
       - value: 'kotlin.concurrent.thread'
         reason: 'Launch a coroutine instead of starting a thread.'
-      - value: 'org.koin.*'
-        reason: 'Dependencies are injected by hand through constructors, without a DI framework.'
-      - value: 'org.kodein.di.*'
-        reason: 'Dependencies are injected by hand through constructors, without a DI framework.'
-      - value: 'dagger.*'
-        reason: 'Dependencies are injected by hand through constructors, without a DI framework.'
-      - value: 'com.squareup.anvil.*'
-        reason: 'Dependencies are injected by hand through constructors, without a DI framework.'
-      - value: 'dev.zacsweers.metro.*'
-        reason: 'Dependencies are injected by hand through constructors, without a DI framework.'
-      - value: 'me.tatarka.inject.*'
-        reason: 'Dependencies are injected by hand through constructors, without a DI framework.'
-      - value: 'software.amazon.lastmile.kotlin.inject.anvil.*'
-        reason: 'Dependencies are injected by hand through constructors, without a DI framework.'
   # Executors only build a coroutine dispatcher in core (asCoroutineDispatcher()); test sources are not
   # application code.
   ForbiddenImport/executor:

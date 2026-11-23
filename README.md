@@ -491,8 +491,7 @@ architecture:
 
 - `ClassOrdering` off, replaced by `DeclarationOrder`; `PrintStackTrace` off, replaced by `ConsoleOutput`.
 - `ForbiddenImport`: `kotlinx.datetime.Instant`/`Clock`, `java.util.Date`; `java.time` and `Calendar` outside
-  technology packages; DI frameworks (Koin, Dagger, Anvil, Metro, kotlin-inject, Kodein); `suspendCoroutine`,
-  `trySendBlocking`, `Timer`, `Handler`, `thread`; `Executor` outside `core`; `CompletableFuture` outside technology
+  technology packages; `suspendCoroutine`, `trySendBlocking`, `Timer`, `Handler`, `thread`; `Executor` outside `core`; `CompletableFuture` outside technology
   packages; `painterResource` and `stringResource` outside `util`.
 - `DataClassContainsFunctions` and `DataClassShouldBeImmutable`: a data class holds fields only.
 - `ForbiddenComment` for region markers and separators, `WildcardImport` with no exceptions, ktlint
