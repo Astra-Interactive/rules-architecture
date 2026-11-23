@@ -22,6 +22,7 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
 import org.jetbrains.kotlin.gradle.plugin.mpp.Framework
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
+import ru.astrainteractive.klibs.rules.core.unit.model.RuleId
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitContext
 import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 import ru.astrainteractive.klibs.rules.gradle.linter.extension.model.LinterExtension
@@ -56,6 +57,14 @@ private const val ANDROID_EXTENSION = "android"
 private const val ANDROID_APPLICATION_PLUGIN_ID = "com.android.application"
 
 private const val NAMESPACE_GETTER = "getNamespace"
+
+private const val UNIT_DEPENDENCY_CHECKS_PROPERTY = "klibs.rules.unitDependencyChecks"
+
+private val UNIT_DEPENDENCY_RULES = listOf(
+    RuleId.UNIT_DEPENDENCY,
+    RuleId.API_UNIT_DEPENDENCY,
+    RuleId.TECHNOLOGY_DEPENDENCY
+)
 
 private val PRODUCTION_CONFIGURATION_SUFFIXES = listOf(
     "implementation",
@@ -419,7 +428,12 @@ internal fun Project.readUnitContext(
         technologies,
         compilations
     )
-    return extension.configuredUnitPolicy?.let { policy -> context.copy(policy = policy) } ?: context
+    val configured = extension.configuredUnitPolicy?.let { policy -> context.copy(policy = policy) } ?: context
+    val dependencyChecks = providers.gradleProperty(UNIT_DEPENDENCY_CHECKS_PROPERTY)
+        .map(String::toBooleanStrict)
+        .getOrElse(true)
+    if (dependencyChecks) return configured
+    return configured.withDisabledRules(UNIT_DEPENDENCY_RULES, "Turned off by $UNIT_DEPENDENCY_CHECKS_PROPERTY=false")
 }
 
 internal fun Project.readUnitBuild(unitKind: UnitKind, productKind: ProductKind? = null): UnitBuild {

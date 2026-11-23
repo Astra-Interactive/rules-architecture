@@ -106,6 +106,50 @@ internal class UnitPolicyIntegrationTest {
         assertTrue(changed.output.contains("not allowed"), changed.output)
     }
 
+    @Test
+    fun GIVEN_unit_dependency_checks_turned_off_WHEN_checks_run_THEN_skips_them_until_turned_on(
+        @TempDir directory: File
+    ) {
+        val build = IsolatedProjectsBuild(directory)
+            .online()
+            .withRootBuildScript(ROOT_SCRIPT)
+            .withModule("modules:offer:impl", MODULE_SCRIPT + "\nlinter { unit(UnitRole.Technology()) }")
+            .withModule(
+                "modules:offer:ui",
+                MODULE_SCRIPT + """
+
+                    dependencies { implementation(project(":modules:offer:impl")) }
+                    linter {
+                        unit(UnitRole.ImplUi(checks = Checks(
+                            disabled = mapOf(RuleId.UNIT_README to "fixture module")
+                        )))
+                    }
+                """.trimIndent()
+            )
+
+        build.run(
+            "-Pklibs.rules.unitDependencyChecks=false",
+            ":architectureGraphCheck",
+            ":modules:offer:ui:architectureCheck"
+        )
+
+        assertEquals("", build.file("modules/offer/ui/build/reports/architecture/violations.txt").readText())
+        val report = build.file("modules/offer/ui/build/reports/architecture/policy.txt").readText()
+        assertEquals(
+            """
+                SKIPPED ApiUnitDependency: Turned off by klibs.rules.unitDependencyChecks=false
+                SKIPPED TechnologyDependency: Turned off by klibs.rules.unitDependencyChecks=false
+                SKIPPED UnitDependency: Turned off by klibs.rules.unitDependencyChecks=false
+                SKIPPED UnitReadme: fixture module
+
+            """.trimIndent(),
+            report
+        )
+        val turnedOn = build.runAndFail(":architectureGraphCheck")
+        assertTrue(turnedOn.output.contains(":modules:offer:impl"), turnedOn.output)
+        assertTrue(turnedOn.output.contains("not allowed"), turnedOn.output)
+    }
+
     private companion object {
         val ROOT_SCRIPT = """
             import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind

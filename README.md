@@ -108,6 +108,13 @@ linter {
 }
 ```
 
+```properties
+# gradle.properties of the build, or -P on the command line
+# Turns off UnitDependency, ApiUnitDependency and TechnologyDependency in every unit (default: true);
+# each unit's build/reports/architecture/policy.txt lists them as SKIPPED
+klibs.rules.unitDependencyChecks=false
+```
+
 </details>
 
 <details>
