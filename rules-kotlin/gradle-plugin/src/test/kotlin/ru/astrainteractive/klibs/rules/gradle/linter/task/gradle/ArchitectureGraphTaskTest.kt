@@ -160,7 +160,10 @@ class ArchitectureGraphTaskTest {
     }
 
     @Test
-    fun GIVEN_acyclic_unit_graph_WHEN_graph_checked_THEN_passes(@TempDir rootDirectory: File) {
+    fun GIVEN_acyclic_unit_graph_WHEN_graph_checked_THEN_passes(
+        @TempDir
+        rootDirectory: File
+    ) {
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
             .withRootBuildScript(
@@ -180,7 +183,8 @@ class ArchitectureGraphTaskTest {
 
     @Test
     fun GIVEN_unit_depending_on_an_application_WHEN_graph_checked_THEN_reports_the_dependency(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val appScript = """
             plugins {
@@ -209,7 +213,10 @@ class ArchitectureGraphTaskTest {
     }
 
     @Test
-    fun GIVEN_unit_dependency_cycle_WHEN_graph_checked_THEN_reports_the_cycle(@TempDir rootDirectory: File) {
+    fun GIVEN_unit_dependency_cycle_WHEN_graph_checked_THEN_reports_the_cycle(
+        @TempDir
+        rootDirectory: File
+    ) {
         val aScript = """
             $JAVA_MODULE_SCRIPT
 
@@ -233,7 +240,8 @@ class ArchitectureGraphTaskTest {
 
     @Test
     fun GIVEN_entrypoint_depending_on_a_custom_named_fake_unit_WHEN_checked_THEN_rejects_the_production_edge(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val fake = """
             import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind

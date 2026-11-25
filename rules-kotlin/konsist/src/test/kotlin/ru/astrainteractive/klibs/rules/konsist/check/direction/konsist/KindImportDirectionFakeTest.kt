@@ -13,7 +13,10 @@ import kotlin.test.assertEquals
 internal class KindImportDirectionFakeTest {
 
     @Test
-    fun GIVEN_fake_unit_WHEN_a_fake_imports_another_fake_of_the_unit_THEN_accepts_it(@TempDir directory: File) {
+    fun GIVEN_fake_unit_WHEN_a_fake_imports_another_fake_of_the_unit_THEN_accepts_it(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "commonMain",
@@ -43,7 +46,10 @@ internal class KindImportDirectionFakeTest {
     }
 
     @Test
-    fun GIVEN_test_fakes_WHEN_one_imports_another_fake_of_the_test_tree_THEN_accepts_it(@TempDir directory: File) {
+    fun GIVEN_test_fakes_WHEN_one_imports_another_fake_of_the_test_tree_THEN_accepts_it(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.offer.api/OfferApi.kt", "interface OfferApi")
             .main("x.plan.api/PlanApi.kt", "interface PlanApi")
@@ -73,7 +79,8 @@ internal class KindImportDirectionFakeTest {
 
     @Test
     fun GIVEN_fake_of_a_di_module_interface_WHEN_checked_THEN_accepts_the_interface_and_rejects_another_di_class(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.offer.di/OfferModule.kt", "interface OfferModule")

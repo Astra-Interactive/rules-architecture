@@ -13,7 +13,10 @@ import kotlin.test.assertEquals
 internal class NestedEnumTest {
 
     @Test
-    fun GIVEN_enum_used_through_one_type_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+    fun GIVEN_enum_used_through_one_type_WHEN_checked_THEN_reports_it(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("com.example.paywall.model/FadeSide.kt", "enum class FadeSide { TOP, BOTTOM }")
             .main("com.example.paywall.model/SoftEdge.kt", "data class SoftEdge(val sides: List<FadeSide>)")
@@ -26,7 +29,10 @@ internal class NestedEnumTest {
     }
 
     @Test
-    fun GIVEN_enums_shared_or_named_elsewhere_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_enums_shared_or_named_elsewhere_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("com.example.paywall.model/Stage.kt", "enum class Stage { OFFER }")
             .main("com.example.paywall.model/Card.kt", "data class Card(val stage: Stage)")

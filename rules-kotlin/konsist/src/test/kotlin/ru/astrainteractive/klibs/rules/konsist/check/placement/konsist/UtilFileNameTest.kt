@@ -13,7 +13,10 @@ import kotlin.test.assertEquals
 internal class UtilFileNameTest {
 
     @Test
-    fun GIVEN_misnamed_util_files_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_misnamed_util_files_WHEN_checked_THEN_reports_each(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("com.example.jail.util/Inmates.kt", "fun JailInmate.isSentenceOver(): Boolean = true")
             .main("com.example.jail.model/Utils.kt", "fun format(): String = \"\"")
@@ -32,7 +35,10 @@ internal class UtilFileNameTest {
     }
 
     @Test
-    fun GIVEN_util_files_named_after_their_subject_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_util_files_named_after_their_subject_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("com.example.jail.util/JailInmateExt.kt", "fun JailInmate.isSentenceOver(): Boolean = true")
             .main(
@@ -60,7 +66,8 @@ internal class UtilFileNameTest {
 
     @Test
     fun GIVEN_extensions_of_a_nested_type_WHEN_checked_THEN_accepts_its_outer_full_or_inner_name(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("com.example.tag.util/TagDTOExt.kt", "fun TagDTO.Real.toTagContent(): String = \"\"")
@@ -73,7 +80,8 @@ internal class UtilFileNameTest {
 
     @Test
     fun GIVEN_extensions_of_a_nested_type_in_a_file_named_otherwise_WHEN_checked_THEN_suggests_the_outer_type(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("com.example.tag.util/Tags.kt", "fun com.example.tag.model.TagDTO.Real.toTagContent(): String = \"\"")

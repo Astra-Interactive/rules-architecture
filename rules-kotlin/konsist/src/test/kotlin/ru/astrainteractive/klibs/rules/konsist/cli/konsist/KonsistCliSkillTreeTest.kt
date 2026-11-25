@@ -141,7 +141,8 @@ internal class KonsistCliSkillTreeTest {
 
     @Test
     fun GIVEN_plugin_of_one_context_with_the_vote_capability_WHEN_each_unit_is_checked_THEN_reports_nothing(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val case = TreeCase(
             units = SkillTreeReader("plugin", PLUGIN_UNIT_KINDS).read(listOf(PLUGIN_TREE, PLUGIN_VOTE_TREE)),
@@ -198,7 +199,10 @@ internal class KonsistCliSkillTreeTest {
     }
 
     @Test
-    fun GIVEN_plugin_of_several_capabilities_WHEN_each_unit_is_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_plugin_of_several_capabilities_WHEN_each_unit_is_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val case = TreeCase(
             units = SkillTreeReader("plugin", CAPABILITIES_UNIT_KINDS).read(listOf(CAPABILITIES_TREE)),
             dependencies = CAPABILITIES_DEPENDENCIES,
@@ -234,7 +238,10 @@ internal class KonsistCliSkillTreeTest {
     }
 
     @Test
-    fun GIVEN_app_WHEN_each_unit_is_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_app_WHEN_each_unit_is_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val case = TreeCase(
             units = SkillTreeReader("app", APP_UNIT_KINDS).read(listOf(APP_TREE)),
             dependencies = APP_DEPENDENCIES,

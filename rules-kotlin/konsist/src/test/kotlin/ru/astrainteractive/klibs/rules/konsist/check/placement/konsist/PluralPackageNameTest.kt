@@ -14,7 +14,10 @@ import kotlin.test.assertEquals
 internal class PluralPackageNameTest {
 
     @Test
-    fun GIVEN_plural_package_names_WHEN_checked_THEN_reports_each_package_once(@TempDir directory: File) {
+    fun GIVEN_plural_package_names_WHEN_checked_THEN_reports_each_package_once(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.gui.bukkit.ratings.model/Rating.kt", "data class Rating(val value: Int)")
             .main("x.gui.bukkit.ratings.model/RatingSort.kt", "enum class RatingSort { ASC }")
@@ -36,7 +39,10 @@ internal class PluralPackageNameTest {
     }
 
     @Test
-    fun GIVEN_singular_and_inherently_plural_names_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_singular_and_inherently_plural_names_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.core.settings.model/AstraRatingConfig.kt", "class AstraRatingConfig")
             .main("x.core.news.model/News.kt", "class News")

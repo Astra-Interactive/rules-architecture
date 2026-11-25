@@ -13,7 +13,10 @@ import kotlin.test.assertEquals
 
 internal class PackageDependencyCycleTest {
     @Test
-    fun GIVEN_real_package_cycle_WHEN_checked_THEN_reports_the_complete_path_once(@TempDir directory: File) {
+    fun GIVEN_real_package_cycle_WHEN_checked_THEN_reports_the_complete_path_once(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.feature.a/A.kt", "import x.feature.b.B\nclass A(val b: B)")
             .main("x.feature.b/B.kt", "class B(val c: x.feature.c.C)")
@@ -30,7 +33,10 @@ internal class PackageDependencyCycleTest {
     }
 
     @Test
-    fun GIVEN_dag_with_external_and_same_package_references_WHEN_checked_THEN_accepts_it(@TempDir directory: File) {
+    fun GIVEN_dag_with_external_and_same_package_references_WHEN_checked_THEN_accepts_it(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.feature.a/A.kt",
@@ -57,7 +63,10 @@ internal class PackageDependencyCycleTest {
     }
 
     @Test
-    fun GIVEN_test_cycle_WHEN_checked_THEN_reports_it_without_making_it_a_production_edge(@TempDir directory: File) {
+    fun GIVEN_test_cycle_WHEN_checked_THEN_reports_it_without_making_it_a_production_edge(
+        @TempDir
+        directory: File
+    ) {
         val tree = SourceTree(directory)
             .main("x.feature.model/Model.kt", "class Model")
             .test("x.feature.first/First.kt", "import x.feature.second.Second\nclass First(val second: Second)")
@@ -76,7 +85,8 @@ internal class PackageDependencyCycleTest {
 
     @Test
     fun GIVEN_disjoint_platform_edges_WHEN_checked_THEN_never_combines_their_packages_into_a_cycle(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val tree = SourceTree(directory)
             .main("x.feature.a/A.kt", "class A(val b: x.feature.b.B)")
@@ -100,13 +110,17 @@ internal class PackageDependencyCycleTest {
     }
 
     @Test
-    fun GIVEN_empty_sources_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_empty_sources_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         assertEquals(emptyList(), PackageDependencyCycle().check(SourceTree(directory).load(UnitKind.CONTEXT)))
     }
 
     @Test
     fun GIVEN_mirrored_test_using_its_fake_WHEN_checked_THEN_keeps_test_and_main_package_vertices_separate(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.offer.api/OfferApi.kt", "interface OfferApi")

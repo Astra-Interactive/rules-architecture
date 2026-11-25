@@ -15,7 +15,8 @@ import java.io.File
 class DetektSettingsTaskTest {
     @Test
     fun GIVEN_project_word_and_library_WHEN_settings_written_THEN_every_technology_rule_gets_both(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             plugins {
@@ -63,7 +64,8 @@ class DetektSettingsTaskTest {
 
     @Test
     fun GIVEN_mikro_core_in_the_version_catalog_WHEN_settings_written_THEN_refuses_the_inline_check(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             plugins {
@@ -90,7 +92,8 @@ class DetektSettingsTaskTest {
 
     @Test
     fun GIVEN_disabled_owned_rules_WHEN_settings_written_THEN_each_rule_is_disabled_once(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             plugins {
@@ -129,7 +132,8 @@ class DetektSettingsTaskTest {
 
     @Test
     fun GIVEN_context_larger_than_yaml_limit_WHEN_detekt_runs_THEN_reads_it_and_tracks_context_changes(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             plugins {

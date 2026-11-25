@@ -22,7 +22,10 @@ internal class RunBlockingOutsideBoundaryTest {
     }
 
     @Test
-    fun GIVEN_run_blocking_in_domain_code_WHEN_linted_THEN_reports_each_call(@TempDir directory: File) {
+    fun GIVEN_run_blocking_in_domain_code_WHEN_linted_THEN_reports_each_call(
+        @TempDir
+        directory: File
+    ) {
         val code = """
             package x.jail.usecase
 
@@ -39,7 +42,10 @@ internal class RunBlockingOutsideBoundaryTest {
     }
 
     @Test
-    fun GIVEN_run_blocking_in_main_WHEN_linted_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_run_blocking_in_main_WHEN_linted_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val code = """
             package x
 
@@ -53,7 +59,10 @@ internal class RunBlockingOutsideBoundaryTest {
     }
 
     @Test
-    fun GIVEN_run_blocking_in_technology_package_WHEN_linted_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_run_blocking_in_technology_package_WHEN_linted_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val code = """
             package x.data.exposed.rating
 
@@ -67,7 +76,10 @@ internal class RunBlockingOutsideBoundaryTest {
     }
 
     @Test
-    fun GIVEN_run_blocking_in_test_sources_or_other_calls_WHEN_linted_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_run_blocking_in_test_sources_or_other_calls_WHEN_linted_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val testCode = """
             package x.jail.usecase
 
@@ -85,7 +97,8 @@ internal class RunBlockingOutsideBoundaryTest {
 
     @Test
     fun GIVEN_run_blocking_in_a_project_technology_package_WHEN_linted_THEN_reports_only_without_the_word(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val file = File(directory, "src/main/kotlin/x/data/mongo/rating/MongoRatingRepository.kt")
         file.parentFile.mkdirs()

@@ -22,7 +22,10 @@ internal class RootBuildSubprojectsTest {
     }
 
     @Test
-    fun GIVEN_root_build_with_cross_project_blocks_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_root_build_with_cross_project_blocks_WHEN_checked_THEN_reports_each(
+        @TempDir
+        directory: File
+    ) {
         val script = """
             subprojects {
             }
@@ -42,7 +45,10 @@ internal class RootBuildSubprojectsTest {
     }
 
     @Test
-    fun GIVEN_clean_root_or_a_unit_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_clean_root_or_a_unit_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         File(directory, "build.gradle").writeText("plugins { } // subprojectsCount")
         val root = RootBuildSubprojects().check(unit(directory, isRoot = true))
 

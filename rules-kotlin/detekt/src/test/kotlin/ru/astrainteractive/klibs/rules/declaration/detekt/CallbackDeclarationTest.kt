@@ -61,7 +61,10 @@ internal class CallbackDeclarationTest {
     }
 
     @Test
-    fun GIVEN_composable_handlers_outputs_and_values_WHEN_linted_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_composable_handlers_outputs_and_values_WHEN_linted_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val code = """
             @Composable
             fun PaywallComposable(onClick: () -> Unit, onValueChange: (String) -> Unit) = Unit

@@ -39,7 +39,8 @@ internal class TrivialLambdaReferenceFunctionTypeTest {
 
     @Test
     fun GIVEN_plain_function_for_a_receiver_function_type_WHEN_linted_THEN_keeps_the_lambda(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val original = """
             $RECEIVER_DECLARATIONS
@@ -77,7 +78,8 @@ internal class TrivialLambdaReferenceFunctionTypeTest {
 
     @Test
     fun GIVEN_extension_of_the_expected_receiver_WHEN_linted_THEN_suggests_the_type_qualified_reference(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val original = """
             $RECEIVER_DECLARATIONS
@@ -123,7 +125,8 @@ internal class TrivialLambdaReferenceFunctionTypeTest {
 
     @Test
     fun GIVEN_callback_that_drops_its_implicit_parameter_WHEN_linted_THEN_keeps_the_lambda(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val declarations = "fun SettingsSwitchComposable(onCheckChange: (Boolean) -> Unit) = Unit"
         val original = """

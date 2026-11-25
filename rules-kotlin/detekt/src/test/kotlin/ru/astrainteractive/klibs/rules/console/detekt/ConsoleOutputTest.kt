@@ -280,7 +280,10 @@ internal class ConsoleOutputTest {
     }
 
     @Test
-    fun GIVEN_console_output_in_test_sources_WHEN_linted_THEN_reports_it(@TempDir directory: File) {
+    fun GIVEN_console_output_in_test_sources_WHEN_linted_THEN_reports_it(
+        @TempDir
+        directory: File
+    ) {
         val file = File(directory, "src/test/kotlin/OrderLoaderTest.kt")
         file.parentFile.mkdirs()
         file.writeText(

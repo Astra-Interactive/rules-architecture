@@ -20,12 +20,18 @@ internal class ThreadPrimitiveTest {
     }
 
     @Test
-    fun GIVEN_threads_in_main_sources_WHEN_linted_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_threads_in_main_sources_WHEN_linted_THEN_reports_each(
+        @TempDir
+        directory: File
+    ) {
         assertEquals(3, lintAt(File(directory, "src/main/kotlin/x/Worker.kt")))
     }
 
     @Test
-    fun GIVEN_threads_in_test_sources_WHEN_linted_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_threads_in_test_sources_WHEN_linted_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         assertEquals(0, lintAt(File(directory, "src/test/kotlin/x/WorkerTest.kt")))
     }
 

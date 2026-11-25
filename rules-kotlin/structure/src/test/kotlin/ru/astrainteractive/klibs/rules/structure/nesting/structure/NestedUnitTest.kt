@@ -28,7 +28,10 @@ internal class NestedUnitTest {
     }
 
     @Test
-    fun GIVEN_units_inside_the_unit_directory_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_units_inside_the_unit_directory_WHEN_checked_THEN_reports_each(
+        @TempDir
+        directory: File
+    ) {
         touch(directory, "build.gradle.kts")
         touch(directory, "contract/build.gradle.kts")
         touch(directory, "contract/inner/build.gradle.kts")
@@ -45,7 +48,10 @@ internal class NestedUnitTest {
     }
 
     @Test
-    fun GIVEN_root_project_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_root_project_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         touch(directory, "jail/build.gradle.kts")
 
         assertEquals(emptyList(), NestedUnit().check(unit(directory, isRoot = true)))

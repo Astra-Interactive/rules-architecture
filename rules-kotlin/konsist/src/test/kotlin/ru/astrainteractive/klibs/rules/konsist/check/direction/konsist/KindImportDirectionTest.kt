@@ -134,7 +134,8 @@ internal class KindImportDirectionTest {
 
     @Test
     fun GIVEN_unit_with_imports_against_the_direction_table_WHEN_checked_THEN_reports_each_one(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .withModelAndContracts()
@@ -164,7 +165,8 @@ internal class KindImportDirectionTest {
 
     @Test
     fun GIVEN_contracts_and_entry_points_importing_each_other_WHEN_checked_THEN_reports_all_but_ui_kinds(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -190,7 +192,8 @@ internal class KindImportDirectionTest {
 
     @Test
     fun GIVEN_router_implementation_in_a_technology_unit_WHEN_checked_THEN_it_opens_ui_kinds_only(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -214,7 +217,10 @@ internal class KindImportDirectionTest {
     }
 
     @Test
-    fun GIVEN_violation_WHEN_reported_THEN_message_names_both_places_and_the_allowed_kinds(@TempDir directory: File) {
+    fun GIVEN_violation_WHEN_reported_THEN_message_names_both_places_and_the_allowed_kinds(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.jail.jail.model",
@@ -239,7 +245,10 @@ internal class KindImportDirectionTest {
     }
 
     @Test
-    fun GIVEN_entry_point_violation_WHEN_reported_THEN_names_the_kind_in_words(@TempDir directory: File) {
+    fun GIVEN_entry_point_violation_WHEN_reported_THEN_names_the_kind_in_words(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.jail.jail.command",
@@ -264,7 +273,8 @@ internal class KindImportDirectionTest {
 
     @Test
     fun GIVEN_compose_theme_package_WHEN_checked_THEN_applies_the_theme_rows_of_the_direction_table(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -321,7 +331,10 @@ internal class KindImportDirectionTest {
     }
 
     @Test
-    fun GIVEN_implementation_importing_util_and_its_table_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_implementation_importing_util_and_its_table_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.jail.jail.file",
@@ -391,7 +404,8 @@ internal class KindImportDirectionTest {
 
     @Test
     fun GIVEN_util_importing_table_entity_and_database_WHEN_unit_is_one_technology_THEN_reports_nothing(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .withUtilOverStorage()
@@ -402,7 +416,8 @@ internal class KindImportDirectionTest {
 
     @Test
     fun GIVEN_util_importing_table_and_entity_WHEN_unit_is_not_one_technology_THEN_reports_each(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .withUtilOverStorage()
@@ -447,7 +462,8 @@ internal class KindImportDirectionTest {
 
     @Test
     fun GIVEN_composable_sub_packages_WHEN_checked_THEN_they_import_each_other_and_only_hosts_import_a_screen(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -496,7 +512,10 @@ internal class KindImportDirectionTest {
     }
 
     @Test
-    fun GIVEN_import_of_a_screen_WHEN_reported_THEN_message_names_what_may_host_it(@TempDir directory: File) {
+    fun GIVEN_import_of_a_screen_WHEN_reported_THEN_message_names_what_may_host_it(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.paywall.impl.composable.screen",
@@ -519,7 +538,10 @@ internal class KindImportDirectionTest {
     }
 
     @Test
-    fun GIVEN_fully_qualified_cross_kind_reference_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+    fun GIVEN_fully_qualified_cross_kind_reference_WHEN_checked_THEN_reports_it(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.paywall.impl.model",
@@ -541,7 +563,8 @@ internal class KindImportDirectionTest {
 
     @Test
     fun GIVEN_fake_references_WHEN_checked_THEN_accepts_contracts_models_and_rules_but_rejects_usecases(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.offer.api/OfferApi.kt", "interface OfferApi")
@@ -568,7 +591,10 @@ internal class KindImportDirectionTest {
     }
 
     @Test
-    fun GIVEN_framework_contract_fake_WHEN_checked_THEN_allows_required_signature_types_only(@TempDir directory: File) {
+    fun GIVEN_framework_contract_fake_WHEN_checked_THEN_allows_required_signature_types_only(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.check.component/Check.kt",
@@ -609,7 +635,8 @@ internal class KindImportDirectionTest {
 
     @Test
     fun GIVEN_a_feature_state_holder_WHEN_checked_THEN_it_depends_on_models_and_use_cases_but_not_di(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(

@@ -58,6 +58,7 @@ public enum class RuleId(public val ruleName: String, public val engine: Engine)
     NESTED_DATA_CLASS("NestedDataClass", Engine.KONSIST),
     ACTUAL_FILE_SUFFIX("ActualFileSuffix", Engine.DETEKT),
     ANONYMOUS_TUPLE("AnonymousTuple", Engine.DETEKT),
+    ANNOTATION_ON_SEPARATE_LINE("AnnotationOnSeparateLine", Engine.DETEKT),
     ARGUMENT_PER_LINE("ArgumentPerLine", Engine.DETEKT),
     BARE_IDENTIFIER("BareIdentifier", Engine.DETEKT),
     BOOLEAN_OPERATOR_WRAPPING("BooleanOperatorWrapping", Engine.DETEKT),

@@ -22,7 +22,10 @@ internal class DiModuleVisibilityTest {
     }
 
     @Test
-    fun GIVEN_public_child_module_built_in_its_own_unit_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+    fun GIVEN_public_child_module_built_in_its_own_unit_WHEN_checked_THEN_reports_it(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .withRatingModules()
             .load(UnitKind.TECHNOLOGY, unitPath = ":data:exposed")

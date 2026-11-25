@@ -14,7 +14,8 @@ import kotlin.test.assertTrue
 internal class UnitPolicyIntegrationTest {
     @Test
     fun GIVEN_detekt_finding_WHEN_role_disables_it_THEN_engine_stops_reporting_it(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val module = MODULE_SCRIPT.replace("`java-library`", "id(\"org.jetbrains.kotlin.jvm\")")
         val build = IsolatedProjectsBuild(directory)
@@ -48,7 +49,8 @@ internal class UnitPolicyIntegrationTest {
 
     @Test
     fun GIVEN_typed_edge_exception_WHEN_all_boundary_checks_run_THEN_accepts_and_reports_it(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val build = IsolatedProjectsBuild(directory)
             .online()
@@ -81,7 +83,8 @@ internal class UnitPolicyIntegrationTest {
 
     @Test
     fun GIVEN_sibling_ui_WHEN_target_role_changes_THEN_invalidates_cached_graph(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val build = IsolatedProjectsBuild(directory)
             .withRootBuildScript(ROOT_SCRIPT)
@@ -108,7 +111,8 @@ internal class UnitPolicyIntegrationTest {
 
     @Test
     fun GIVEN_unit_dependency_checks_turned_off_WHEN_checks_run_THEN_skips_them_until_turned_on(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val build = IsolatedProjectsBuild(directory)
             .online()

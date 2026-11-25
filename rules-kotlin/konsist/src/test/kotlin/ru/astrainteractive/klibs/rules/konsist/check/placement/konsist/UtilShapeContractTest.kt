@@ -14,7 +14,8 @@ internal class UtilShapeContractTest {
 
     @Test
     fun GIVEN_util_functions_over_data_types_nested_in_contracts_WHEN_checked_THEN_reports_only_a_nested_contract(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -76,7 +77,8 @@ internal class UtilShapeContractTest {
 
     @Test
     fun GIVEN_explicit_import_and_a_wildcard_import_of_a_contract_namesake_WHEN_checked_THEN_follows_the_explicit_one(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .dependency("x.data.dao.rating.api/Session.kt", "interface Session")
@@ -105,7 +107,8 @@ internal class UtilShapeContractTest {
 
     @Test
     fun GIVEN_util_functions_with_a_context_parameter_of_a_contract_WHEN_checked_THEN_reports_them(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.vote.vote.api/VoteRepository.kt", "interface VoteRepository")
@@ -134,7 +137,8 @@ internal class UtilShapeContractTest {
 
     @Test
     fun GIVEN_util_functions_with_a_type_parameter_bounded_by_a_contract_WHEN_checked_THEN_reports_them(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.vote.vote.api/VoteRepository.kt", "interface VoteRepository")
@@ -166,7 +170,8 @@ internal class UtilShapeContractTest {
 
     @Test
     fun GIVEN_util_functions_over_a_type_alias_of_a_contract_WHEN_checked_THEN_reports_them(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.vote.vote.api/VoteRepository.kt", "interface VoteRepository\n\ntypealias Votes = VoteRepository")

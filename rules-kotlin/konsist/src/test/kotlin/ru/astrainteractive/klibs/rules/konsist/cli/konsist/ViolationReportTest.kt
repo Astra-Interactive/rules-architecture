@@ -12,7 +12,10 @@ internal class ViolationReportTest {
     private fun tsvLine(vararg fields: String): String = fields.joinToString(separator = TAB.toString())
 
     @Test
-    fun GIVEN_violations_with_tabs_and_line_breaks_WHEN_written_THEN_writes_one_line_each(@TempDir directory: File) {
+    fun GIVEN_violations_with_tabs_and_line_breaks_WHEN_written_THEN_writes_one_line_each(
+        @TempDir
+        directory: File
+    ) {
         val reportFile = File(directory, "nested/report.tsv")
 
         writeReport(
@@ -53,7 +56,10 @@ internal class ViolationReportTest {
     }
 
     @Test
-    fun GIVEN_no_violation_WHEN_written_THEN_report_is_empty(@TempDir directory: File) {
+    fun GIVEN_no_violation_WHEN_written_THEN_report_is_empty(
+        @TempDir
+        directory: File
+    ) {
         val reportFile = File(directory, "report.tsv")
 
         writeReport(emptyList(), reportFile)

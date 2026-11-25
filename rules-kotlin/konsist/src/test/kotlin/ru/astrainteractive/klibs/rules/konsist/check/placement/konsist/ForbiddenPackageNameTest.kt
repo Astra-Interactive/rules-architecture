@@ -14,7 +14,10 @@ import kotlin.test.assertTrue
 internal class ForbiddenPackageNameTest {
 
     @Test
-    fun GIVEN_forbidden_words_below_the_root_WHEN_checked_THEN_reports_each_package_once(@TempDir directory: File) {
+    fun GIVEN_forbidden_words_below_the_root_WHEN_checked_THEN_reports_each_package_once(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.data.dao.rating.api",
@@ -73,7 +76,10 @@ internal class ForbiddenPackageNameTest {
     }
 
     @Test
-    fun GIVEN_technology_unit_WHEN_checked_THEN_allows_table_entity_and_database(@TempDir directory: File) {
+    fun GIVEN_technology_unit_WHEN_checked_THEN_allows_table_entity_and_database(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.data.exposed.rating",

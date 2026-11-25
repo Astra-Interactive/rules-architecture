@@ -34,7 +34,10 @@ internal class SuppressionPolicyTest {
     }
 
     @Test
-    fun GIVEN_declaration_suppressions_WHEN_evaluated_THEN_matches_only_named_rules(@TempDir directory: File) {
+    fun GIVEN_declaration_suppressions_WHEN_evaluated_THEN_matches_only_named_rules(
+        @TempDir
+        directory: File
+    ) {
         val sources = loadContainerSources(directory)
         val file = sources.mainFiles.single()
         val outer = file.classes(includeNested = false).single()
@@ -70,7 +73,10 @@ internal class SuppressionPolicyTest {
     }
 
     @Test
-    fun GIVEN_enclosing_suppression_WHEN_evaluated_THEN_applies_to_nested_declarations(@TempDir directory: File) {
+    fun GIVEN_enclosing_suppression_WHEN_evaluated_THEN_applies_to_nested_declarations(
+        @TempDir
+        directory: File
+    ) {
         val sources = loadContainerSources(directory)
         val file = sources.mainFiles.single()
         val outer = file.classes(includeNested = false).single()
@@ -100,7 +106,8 @@ internal class SuppressionPolicyTest {
 
     @Test
     fun GIVEN_file_suppressions_and_external_origin_WHEN_evaluated_THEN_checks_only_matching_source_rules(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         writeMain(
             directory,

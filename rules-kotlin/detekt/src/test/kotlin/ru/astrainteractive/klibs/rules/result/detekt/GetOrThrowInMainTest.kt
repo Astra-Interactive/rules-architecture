@@ -21,13 +21,19 @@ internal class GetOrThrowInMainTest {
     }
 
     @Test
-    fun GIVEN_get_or_throw_in_main_sources_WHEN_linted_THEN_reports_it(@TempDir directory: File) {
+    fun GIVEN_get_or_throw_in_main_sources_WHEN_linted_THEN_reports_it(
+        @TempDir
+        directory: File
+    ) {
         assertEquals(1, lintAt(directory, "src/main/kotlin/Loader.kt"))
         assertEquals(1, lintAt(directory, "src/commonMain/kotlin/Loader.kt"))
     }
 
     @Test
-    fun GIVEN_get_or_throw_in_test_sources_WHEN_linted_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_get_or_throw_in_test_sources_WHEN_linted_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val findings = listOf(
             "src/test/kotlin/LoaderTest.kt",
             "src/commonTest/kotlin/LoaderTest.kt",

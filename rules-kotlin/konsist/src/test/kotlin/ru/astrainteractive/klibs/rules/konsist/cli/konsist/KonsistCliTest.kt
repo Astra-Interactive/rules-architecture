@@ -61,7 +61,8 @@ internal class KonsistCliTest {
 
     @Test
     fun GIVEN_model_tests_with_computed_and_extension_behaviour_WHEN_run_THEN_never_suggests_deleting_tests(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val tree = modelBehaviourTree(directory)
         val reportFile = File(directory, "report.tsv")
@@ -90,7 +91,10 @@ internal class KonsistCliTest {
     }
 
     @Test
-    fun GIVEN_unit_with_violations_WHEN_run_THEN_writes_them_to_the_report(@TempDir directory: File) {
+    fun GIVEN_unit_with_violations_WHEN_run_THEN_writes_them_to_the_report(
+        @TempDir
+        directory: File
+    ) {
         val tree = SourceTree(directory)
             .main(
                 "com.example.jail.jail.usecase",
@@ -148,7 +152,10 @@ internal class KonsistCliTest {
     }
 
     @Test
-    fun GIVEN_unit_without_sources_WHEN_run_THEN_writes_an_empty_report(@TempDir directory: File) {
+    fun GIVEN_unit_without_sources_WHEN_run_THEN_writes_an_empty_report(
+        @TempDir
+        directory: File
+    ) {
         val reportFile = File(directory, "report.tsv")
 
         main(

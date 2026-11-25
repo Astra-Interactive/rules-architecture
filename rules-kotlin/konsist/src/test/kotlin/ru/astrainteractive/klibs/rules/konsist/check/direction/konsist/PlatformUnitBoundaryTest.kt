@@ -22,7 +22,8 @@ internal class PlatformUnitBoundaryTest {
 
     @Test
     fun GIVEN_platform_roles_WHEN_contracts_models_and_usecases_import_frameworks_THEN_reports_them(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val tree = SourceTree(directory)
             .main(
@@ -77,7 +78,8 @@ internal class PlatformUnitBoundaryTest {
 
     @Test
     fun GIVEN_platform_model_with_framework_exception_WHEN_checked_THEN_allows_only_exception_base(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(

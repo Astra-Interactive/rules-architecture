@@ -15,7 +15,8 @@ internal class KindShapeRoleKindTest {
 
     @Test
     fun GIVEN_configured_role_kind_packages_under_a_concept_and_at_the_root_WHEN_checked_THEN_accepts_their_classes(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.vote.vote.limiter/VoteCooldownLimiter.kt", "internal class VoteCooldownLimiter")
@@ -31,7 +32,8 @@ internal class KindShapeRoleKindTest {
 
     @Test
     fun GIVEN_role_kind_class_not_named_by_its_word_WHEN_checked_THEN_reports_only_that_class(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -60,7 +62,8 @@ internal class KindShapeRoleKindTest {
 
     @Test
     fun GIVEN_function_interface_and_object_in_a_role_kind_WHEN_checked_THEN_reports_each_but_not_a_companion(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -95,7 +98,8 @@ internal class KindShapeRoleKindTest {
 
     @Test
     fun GIVEN_package_named_by_a_word_that_is_not_configured_WHEN_checked_THEN_reports_it_as_a_concept_package(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.gui.api.rating.codec/RatingCodec.kt", "internal class RatingCodec")
@@ -115,7 +119,8 @@ internal class KindShapeRoleKindTest {
 
     @Test
     fun GIVEN_role_kind_package_in_an_app_api_unit_WHEN_checked_THEN_reports_it_as_a_kind_the_unit_may_not_hold(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.payment.api.offer.limiter/OfferRetryLimiter.kt", "class OfferRetryLimiter")

@@ -16,7 +16,10 @@ import kotlin.test.assertEquals
 internal class EntryPointVisibilityTest {
 
     @Test
-    fun GIVEN_public_classes_in_platform_invoked_kinds_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_public_classes_in_platform_invoked_kinds_WHEN_checked_THEN_reports_each(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.command.rating.command",
@@ -81,7 +84,8 @@ internal class EntryPointVisibilityTest {
 
     @Test
     fun GIVEN_published_library_WHEN_checked_by_the_checker_THEN_its_public_command_api_is_not_judged(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(

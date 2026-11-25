@@ -15,7 +15,8 @@ internal class InMemoryPlacementTest {
 
     @Test
     fun GIVEN_in_memory_implementations_WHEN_checked_THEN_reports_those_outside_a_memory_package(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -47,7 +48,8 @@ internal class InMemoryPlacementTest {
 
     @Test
     fun GIVEN_main_class_and_test_class_named_alike_WHEN_checked_THEN_reports_only_the_main_class(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -67,7 +69,8 @@ internal class InMemoryPlacementTest {
 
     @Test
     fun GIVEN_in_memory_class_in_a_memory_package_of_the_test_source_set_WHEN_checked_THEN_accepts_it(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.data.dao.rating.api/RatingRepository.kt", "interface RatingRepository")
@@ -82,7 +85,8 @@ internal class InMemoryPlacementTest {
 
     @Test
     fun GIVEN_in_memory_class_in_a_memory_package_of_test_fixtures_WHEN_checked_THEN_accepts_it(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.data.dao.rating.api/RatingRepository.kt", "interface RatingRepository")
@@ -103,7 +107,8 @@ internal class InMemoryPlacementTest {
 
     @Test
     fun GIVEN_in_memory_class_outside_a_memory_package_of_the_test_source_set_WHEN_checked_THEN_reports_it_there(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.data.dao.rating.api/RatingRepository.kt", "interface RatingRepository")
@@ -123,7 +128,8 @@ internal class InMemoryPlacementTest {
 
     @Test
     fun GIVEN_in_memory_class_outside_a_memory_package_of_test_fixtures_WHEN_checked_THEN_reports_it_there(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.data.dao.rating.api/RatingRepository.kt", "interface RatingRepository")
@@ -149,7 +155,8 @@ internal class InMemoryPlacementTest {
 
     @Test
     fun GIVEN_in_memory_class_outside_a_memory_package_of_an_unnamed_test_directory_WHEN_checked_THEN_reports_it_there(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val tree = SourceTree(directory)
             .main("x.data.dao.rating.api/RatingRepository.kt", "interface RatingRepository")
@@ -176,7 +183,8 @@ internal class InMemoryPlacementTest {
 
     @Test
     fun GIVEN_in_memory_class_outside_a_memory_package_of_main_WHEN_checked_THEN_reports_it(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.data.dao.rating.api/RatingRepository.kt", "interface RatingRepository")
@@ -194,7 +202,8 @@ internal class InMemoryPlacementTest {
 
     @Test
     fun GIVEN_misplaced_in_memory_classes_in_main_and_test_WHEN_reported_THEN_no_message_calls_them_production_code(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.data.dao.rating.api/InMemoryRatingCache.kt", "class InMemoryRatingCache")

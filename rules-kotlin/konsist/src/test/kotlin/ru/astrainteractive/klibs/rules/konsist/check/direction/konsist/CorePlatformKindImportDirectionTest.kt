@@ -13,7 +13,8 @@ import kotlin.test.assertEquals
 internal class CorePlatformKindImportDirectionTest {
     @Test
     fun GIVEN_platform_core_adapter_imports_WHEN_checked_THEN_enforces_implementation_direction(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -48,7 +49,8 @@ internal class CorePlatformKindImportDirectionTest {
 
     @Test
     fun GIVEN_platform_core_consumers_WHEN_importing_adapters_THEN_only_di_and_implementations_can_do_it(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val tree = SourceTree(directory)
             .main("x.core.item/BukkitItem.kt", "class BukkitItem")

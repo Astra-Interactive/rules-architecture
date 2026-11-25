@@ -14,7 +14,8 @@ import kotlin.test.assertFalse
 class ApiOwnershipReportTaskTest {
     @Test
     fun GIVEN_sibling_not_configured_WHEN_report_runs_with_cod_THEN_fails_instead_of_reporting_root_only(
-        @TempDir root: File
+        @TempDir
+        root: File
     ) {
         val script = """
             plugins {
@@ -44,7 +45,10 @@ class ApiOwnershipReportTaskTest {
     }
 
     @Test
-    fun GIVEN_local_api_type_WHEN_report_runs_THEN_is_advisory_and_cache_tracks_consumers(@TempDir root: File) {
+    fun GIVEN_local_api_type_WHEN_report_runs_THEN_is_advisory_and_cache_tracks_consumers(
+        @TempDir
+        root: File
+    ) {
         val script = """
             plugins {
                 id("org.jetbrains.kotlin.jvm")

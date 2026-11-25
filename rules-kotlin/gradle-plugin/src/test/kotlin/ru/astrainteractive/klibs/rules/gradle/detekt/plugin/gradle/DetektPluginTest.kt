@@ -51,7 +51,8 @@ class DetektPluginTest {
 
     @Test
     fun GIVEN_two_modules_WHEN_detekt_configured_THEN_both_point_at_one_config_in_the_root_build_directory(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val build = buildWithTwoModules(rootDirectory)
         build.run(":moduleA:reportDetektConfig", ":moduleB:reportDetektConfig")
@@ -67,7 +68,8 @@ class DetektPluginTest {
 
     @Test
     fun GIVEN_project_detekt_config_WHEN_detekt_configured_THEN_it_follows_the_bundled_config(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val build = buildWithTwoModules(rootDirectory)
             .withSourceFile("config/detekt/detekt.yml", PROJECT_CONFIG)
@@ -85,7 +87,8 @@ class DetektPluginTest {
 
     @Test
     fun GIVEN_two_modules_WHEN_detekt_configured_THEN_one_config_file_exists_in_the_whole_build(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val build = buildWithTwoModules(rootDirectory)
         build.run(":moduleA:reportDetektConfig", ":moduleB:reportDetektConfig")
@@ -102,7 +105,8 @@ class DetektPluginTest {
 
     @Test
     fun GIVEN_deleted_build_directory_WHEN_configuration_cache_is_hit_THEN_config_file_is_written_again(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val build = buildWithTwoModules(rootDirectory)
         build.run(":moduleA:reportDetektConfig")
@@ -120,8 +124,10 @@ class DetektPluginTest {
 
     @Test
     fun GIVEN_another_plugin_with_a_root_detekt_yml_WHEN_detekt_configured_THEN_writes_the_bundled_config(
-        @TempDir rootDirectory: File,
-        @TempDir anotherPlugin: File
+        @TempDir
+        rootDirectory: File,
+        @TempDir
+        anotherPlugin: File
     ) {
         File(anotherPlugin, "detekt.yml").writeText(ANOTHER_PLUGIN_CONFIG)
         val build = buildWithTwoModules(rootDirectory).withClasspathAheadOfPlugin(anotherPlugin)
@@ -173,7 +179,8 @@ class DetektPluginTest {
 
     @Test
     fun GIVEN_kotlin_jvm_target_WHEN_detekt_configured_THEN_resolves_types_against_it(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val script = jvmTargetScript(
             applyKotlin = true,
@@ -191,7 +198,8 @@ class DetektPluginTest {
 
     @Test
     fun GIVEN_project_without_kotlin_WHEN_detekt_configured_THEN_resolves_types_against_the_running_jvm(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val script = jvmTargetScript(applyKotlin = false, configuration = "")
 
@@ -203,7 +211,8 @@ class DetektPluginTest {
 
     @Test
     fun GIVEN_jvm_target_in_extension_WHEN_detekt_configured_THEN_it_wins_over_the_kotlin_target(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val script = jvmTargetScript(
             applyKotlin = true,
@@ -225,7 +234,8 @@ class DetektPluginTest {
 
     @Test
     fun GIVEN_unused_private_preview_WHEN_detekt_runs_THEN_reports_only_the_unused_helper(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             plugins {
@@ -252,7 +262,10 @@ class DetektPluginTest {
     }
 
     @Test
-    fun GIVEN_worktree_inside_the_root_WHEN_root_detekt_runs_THEN_skips_the_worktree(@TempDir rootDirectory: File) {
+    fun GIVEN_worktree_inside_the_root_WHEN_root_detekt_runs_THEN_skips_the_worktree(
+        @TempDir
+        rootDirectory: File
+    ) {
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
             .withRootBuildScript("""plugins { id("ru.astrainteractive.klibs.rules.gradle.detekt") }""")
@@ -269,7 +282,8 @@ class DetektPluginTest {
 
     @Test
     fun GIVEN_main_and_test_sources_WHEN_test_detekt_runs_THEN_analyses_only_the_test_sources(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             plugins {
@@ -298,7 +312,8 @@ class DetektPluginTest {
 
     @Test
     fun GIVEN_generated_sources_in_the_build_directory_WHEN_main_detekt_runs_THEN_skips_them(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             plugins {

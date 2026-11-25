@@ -33,6 +33,7 @@ import ru.astrainteractive.klibs.rules.declaration.detekt.NamespaceObject
 import ru.astrainteractive.klibs.rules.declaration.detekt.OneTypeFamilyPerFile
 import ru.astrainteractive.klibs.rules.declaration.detekt.PropertyAsFunction
 import ru.astrainteractive.klibs.rules.declaration.detekt.SerialNameNotProvided
+import ru.astrainteractive.klibs.rules.formatting.detekt.AnnotationOnSeparateLine
 import ru.astrainteractive.klibs.rules.formatting.detekt.ArgumentPerLine
 import ru.astrainteractive.klibs.rules.formatting.detekt.BooleanOperatorWrapping
 import ru.astrainteractive.klibs.rules.formatting.detekt.ExplicitInvoke
@@ -89,6 +90,7 @@ public class ArchitectureRuleSetProvider : RuleSetProvider {
         private val RULES: List<(Config) -> Rule> = listOf(
             ::ActualFileSuffix,
             ::AnonymousTuple,
+            ::AnnotationOnSeparateLine,
             ::ArgumentPerLine,
             ::BareIdentifier,
             ::BooleanOperatorWrapping,

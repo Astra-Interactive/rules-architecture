@@ -81,7 +81,10 @@ internal class TestMirrorTest {
     }
 
     @Test
-    fun GIVEN_tests_named_after_owners_WHEN_checked_THEN_reports_those_in_another_package(@TempDir directory: File) {
+    fun GIVEN_tests_named_after_owners_WHEN_checked_THEN_reports_those_in_another_package(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "com.example.jail.model",
@@ -135,7 +138,10 @@ internal class TestMirrorTest {
     }
 
     @Test
-    fun GIVEN_common_main_owner_and_jvm_test_WHEN_checked_THEN_reports_the_source_set(@TempDir directory: File) {
+    fun GIVEN_common_main_owner_and_jvm_test_WHEN_checked_THEN_reports_the_source_set(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "commonMain",
@@ -162,7 +168,10 @@ internal class TestMirrorTest {
     }
 
     @Test
-    fun GIVEN_matching_common_source_sets_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_matching_common_source_sets_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "commonMain",
@@ -186,7 +195,10 @@ internal class TestMirrorTest {
     }
 
     @Test
-    fun GIVEN_android_main_owner_and_android_host_test_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_android_main_owner_and_android_host_test_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = androidSources(
             directory,
             "androidHostTest",
@@ -198,7 +210,8 @@ internal class TestMirrorTest {
 
     @Test
     fun GIVEN_android_main_owner_and_legacy_android_unit_test_WHEN_checked_THEN_reports_nothing(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = androidSources(
             directory,
@@ -211,7 +224,8 @@ internal class TestMirrorTest {
 
     @Test
     fun GIVEN_test_source_set_not_in_compilation_WHEN_checked_THEN_does_not_treat_it_as_host_test(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = androidSources(
             directory,

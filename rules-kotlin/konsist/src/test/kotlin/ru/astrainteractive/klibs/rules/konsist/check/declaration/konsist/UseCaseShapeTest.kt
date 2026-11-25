@@ -13,7 +13,10 @@ import kotlin.test.assertEquals
 internal class UseCaseShapeTest {
 
     @Test
-    fun GIVEN_use_cases_out_of_shape_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_use_cases_out_of_shape_WHEN_checked_THEN_reports_each(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.gui.api.rating.usecase",
@@ -58,7 +61,10 @@ internal class UseCaseShapeTest {
     }
 
     @Test
-    fun GIVEN_pass_through_use_cases_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_pass_through_use_cases_WHEN_checked_THEN_reports_each(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.jail.api.jail.usecase",
@@ -94,7 +100,10 @@ internal class UseCaseShapeTest {
     }
 
     @Test
-    fun GIVEN_use_cases_of_several_steps_or_other_calls_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_use_cases_of_several_steps_or_other_calls_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.jail.api.jail.usecase",
@@ -132,7 +141,10 @@ internal class UseCaseShapeTest {
     }
 
     @Test
-    fun GIVEN_use_case_in_shape_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_use_case_in_shape_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.gui.api.rating.usecase",

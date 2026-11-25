@@ -47,7 +47,10 @@ class LinterPluginTest {
     }
 
     @Test
-    fun GIVEN_project_kind_word_WHEN_architecture_checked_THEN_accepts_its_package(@TempDir rootDirectory: File) {
+    fun GIVEN_project_kind_word_WHEN_architecture_checked_THEN_accepts_its_package(
+        @TempDir
+        rootDirectory: File
+    ) {
         val moduleScript = JAVA_MODULE_SCRIPT + """
 
             linter {
@@ -75,7 +78,10 @@ class LinterPluginTest {
     }
 
     @Test
-    fun GIVEN_project_role_kind_WHEN_architecture_checked_THEN_accepts_its_package(@TempDir rootDirectory: File) {
+    fun GIVEN_project_role_kind_WHEN_architecture_checked_THEN_accepts_its_package(
+        @TempDir
+        rootDirectory: File
+    ) {
         val moduleScript = JAVA_MODULE_SCRIPT + """
 
             linter {
@@ -102,7 +108,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_storage_representation_matching_a_model_WHEN_architecture_checked_THEN_leaves_the_choice_to_review(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val exposedScript = """
             $JAVA_MODULE_SCRIPT
@@ -138,7 +145,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_android_namespace_other_than_the_root_package_WHEN_architecture_checked_THEN_reports_it(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             $JAVA_MODULE_SCRIPT
@@ -173,7 +181,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_context_with_a_loose_root_file_WHEN_architecture_checked_THEN_fails_naming_it(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val result = jailBuild(rootDirectory).runAndFail(":modules:jail:check")
 
@@ -189,7 +198,10 @@ class LinterPluginTest {
     }
 
     @Test
-    fun GIVEN_baseline_of_current_violations_WHEN_architecture_checked_THEN_passes(@TempDir rootDirectory: File) {
+    fun GIVEN_baseline_of_current_violations_WHEN_architecture_checked_THEN_passes(
+        @TempDir
+        rootDirectory: File
+    ) {
         val build = jailBuild(rootDirectory)
         build.run(":modules:jail:architectureBaseline")
 
@@ -201,7 +213,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_suppressed_violation_WHEN_architecture_checked_THEN_passes_without_baseline(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val build = jailBuild(rootDirectory)
         val loose = build.file("modules/jail/src/main/kotlin/com/example/jail/Jail.kt")
@@ -214,7 +227,10 @@ class LinterPluginTest {
     }
 
     @Test
-    fun GIVEN_violations_fixed_WHEN_baseline_written_again_THEN_removes_the_baseline(@TempDir rootDirectory: File) {
+    fun GIVEN_violations_fixed_WHEN_baseline_written_again_THEN_removes_the_baseline(
+        @TempDir
+        rootDirectory: File
+    ) {
         val build = jailBuild(rootDirectory)
         build.run(":modules:jail:architectureBaseline")
         val loose = build.file("modules/jail/src/main/kotlin/com/example/jail/Jail.kt")
@@ -229,7 +245,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_api_unit_depending_on_impl_unit_WHEN_architecture_checked_THEN_reports_the_dependency(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val apiScript = """
             $JAVA_MODULE_SCRIPT
@@ -257,7 +274,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_unit_declaring_an_api_dependency_WHEN_architecture_checked_THEN_reports_the_configuration(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             plugins {
@@ -291,7 +309,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_kotlin_jvm_module_WHEN_compilation_and_architecture_run_THEN_ignores_automatic_stdlib(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             plugins {
@@ -318,7 +337,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_deferred_and_direct_dependencies_WHEN_baseline_written_THEN_checks_only_direct_declarations(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             $JAVA_MODULE_SCRIPT
@@ -358,7 +378,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_kotlin_unit_WHEN_architecture_lint_planned_THEN_runs_every_linter_task_but_format_and_tests(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             plugins {
@@ -388,7 +409,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_kotlin_library_with_explicit_api_WHEN_configured_THEN_detekt_runs_the_architecture_rules(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             import dev.detekt.gradle.Detekt
@@ -448,7 +470,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_explicit_api_jvm_library_WHEN_source_set_detekt_runs_THEN_public_visibility_is_required(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             plugins {
@@ -477,7 +500,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_explicit_api_kmp_library_WHEN_common_source_set_detekt_runs_THEN_public_visibility_is_required(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             plugins {
@@ -509,7 +533,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_latest_main_source_set_with_explicit_api_WHEN_detekt_runs_THEN_public_visibility_is_required(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             plugins {
@@ -559,7 +584,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_no_explicit_api_WHEN_main_source_set_detekt_runs_THEN_redundant_public_is_reported(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             plugins {
@@ -587,7 +613,10 @@ class LinterPluginTest {
     }
 
     @Test
-    fun GIVEN_string_unit_kind_WHEN_configured_THEN_requires_the_enum(@TempDir rootDirectory: File) {
+    fun GIVEN_string_unit_kind_WHEN_configured_THEN_requires_the_enum(
+        @TempDir
+        rootDirectory: File
+    ) {
         val moduleScript = """
             $JAVA_MODULE_SCRIPT
 
@@ -612,7 +641,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_context_depending_on_impl_only_in_tests_WHEN_architecture_checked_THEN_passes(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             $JAVA_MODULE_SCRIPT
@@ -633,7 +663,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_fake_in_test_fixtures_outside_a_fake_package_WHEN_architecture_checked_THEN_judges_it_as_a_test(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val build = jailBuild(rootDirectory)
             .withSourceFile(
@@ -656,7 +687,10 @@ class LinterPluginTest {
     }
 
     @Test
-    fun GIVEN_root_project_with_sources_WHEN_architecture_checked_THEN_reports_them(@TempDir rootDirectory: File) {
+    fun GIVEN_root_project_with_sources_WHEN_architecture_checked_THEN_reports_them(
+        @TempDir
+        rootDirectory: File
+    ) {
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
             .withRootBuildScript(JAVA_MODULE_SCRIPT)
@@ -674,7 +708,10 @@ class LinterPluginTest {
     }
 
     @Test
-    fun GIVEN_kotlin_convention_plugin_WHEN_root_checked_THEN_allows_sources(@TempDir rootDirectory: File) {
+    fun GIVEN_kotlin_convention_plugin_WHEN_root_checked_THEN_allows_sources(
+        @TempDir
+        rootDirectory: File
+    ) {
         val script = """
             plugins {
                 `kotlin-dsl`
@@ -691,7 +728,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_convention_plugin_applied_after_linter_WHEN_root_checked_THEN_allows_sources_and_reuses_cache(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val script = JAVA_MODULE_SCRIPT + """
 
@@ -710,7 +748,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_kotlin_unit_with_explicit_api_warning_WHEN_configured_THEN_detekt_gets_the_warning_mode(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             import dev.detekt.gradle.Detekt
@@ -753,7 +792,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_test_in_another_source_set_WHEN_architecture_checked_THEN_reports_the_expected_set(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
@@ -776,7 +816,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_inherited_framework_export_WHEN_checked_THEN_only_unrelated_api_dependency_is_reported(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             plugins {
@@ -822,7 +863,8 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_configuration_named_export_without_framework_WHEN_checked_THEN_does_not_exempt_api(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val moduleScript = """
             plugins {
@@ -852,8 +894,10 @@ class LinterPluginTest {
 
     @Test
     fun GIVEN_another_plugin_with_a_root_rules_version_WHEN_configured_THEN_detekt_keeps_the_linter_rules_version(
-        @TempDir rootDirectory: File,
-        @TempDir anotherPlugin: File
+        @TempDir
+        rootDirectory: File,
+        @TempDir
+        anotherPlugin: File
     ) {
         File(anotherPlugin, "klibs-rules.properties").writeText("version=$ANOTHER_PLUGIN_RULES_VERSION")
         val moduleScript = """

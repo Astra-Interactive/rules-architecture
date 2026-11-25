@@ -14,7 +14,10 @@ import kotlin.test.assertEquals
 internal class EntryPointShapeTest {
 
     @Test
-    fun GIVEN_entry_point_with_feature_code_WHEN_checked_THEN_reports_each_file(@TempDir directory: File) {
+    fun GIVEN_entry_point_with_feature_code_WHEN_checked_THEN_reports_each_file(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.bukkit/AstraRating.kt", "class AstraRating")
             .main("x.bukkit.di/RootModule.kt", "class RootModule")
@@ -35,7 +38,8 @@ internal class EntryPointShapeTest {
 
     @Test
     fun GIVEN_platform_classes_outside_the_root_package_WHEN_checked_THEN_sends_them_to_the_root(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val vocabulary = Vocabulary(
             entryPointWords = emptySet(),
@@ -72,7 +76,8 @@ internal class EntryPointShapeTest {
 
     @Test
     fun GIVEN_horologist_tile_service_outside_the_root_WHEN_checked_THEN_sends_it_to_the_root(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.wear.tile/StatusesTileService.kt", "class StatusesTileService : SuspendingTileService()")
@@ -86,7 +91,8 @@ internal class EntryPointShapeTest {
 
     @Test
     fun GIVEN_a_feature_kind_package_and_a_root_class_in_an_entry_point_WHEN_checked_THEN_reports_only_the_kind_package(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.mobile/MainFeature.kt", "class MainFeature")

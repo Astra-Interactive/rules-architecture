@@ -50,7 +50,10 @@ internal class ConfigExtTest {
     }
 
     @Test
-    fun GIVEN_context_file_WHEN_read_THEN_preserves_metadata_instead_of_inline_fallback(@TempDir directory: File) {
+    fun GIVEN_context_file_WHEN_read_THEN_preserves_metadata_instead_of_inline_fallback(
+        @TempDir
+        directory: File
+    ) {
         val context = UnitContext(
             UnitKind.ENTRY_POINT,
             ProductKind.PLATFORM_PLUGIN,
@@ -70,14 +73,20 @@ internal class ConfigExtTest {
     }
 
     @Test
-    fun GIVEN_missing_context_file_WHEN_read_THEN_fails_instead_of_losing_context(@TempDir directory: File) {
+    fun GIVEN_missing_context_file_WHEN_read_THEN_fails_instead_of_losing_context(
+        @TempDir
+        directory: File
+    ) {
         val config = TestConfig("unitContextFile" to File(directory, "missing.txt").absolutePath)
 
         assertFailsWith<FileNotFoundException> { config.unitContextOrNull() }
     }
 
     @Test
-    fun GIVEN_corrupt_context_file_WHEN_read_THEN_fails_instead_of_losing_context(@TempDir directory: File) {
+    fun GIVEN_corrupt_context_file_WHEN_read_THEN_fails_instead_of_losing_context(
+        @TempDir
+        directory: File
+    ) {
         val file = File(directory, "unit-context.txt")
         file.writeText("not base64!")
         val config = TestConfig("unitContextFile" to file.absolutePath)
