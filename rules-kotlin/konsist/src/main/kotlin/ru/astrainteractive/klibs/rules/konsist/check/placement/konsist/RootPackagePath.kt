@@ -41,7 +41,9 @@ internal class RootPackagePath : ArchitectureCheck {
         val candidates = UnitSources.unitNameCandidates(unitPath)
         val endings = candidates + candidates.mapNotNull(::singular) + coreEndings(pathSegments)
         if (endings.any { ending -> segments.takeLast(ending.size) == ending }) return emptyList()
-        val expected = coreEndings(pathSegments).firstOrNull()?.joinToString(".")
+        val expected = coreEndings(pathSegments)
+            .firstOrNull()
+            ?.joinToString(".")
             ?: pathSegments.drop(1).ifEmpty { pathSegments }.joinToString(".") { segment -> segment.replace("-", "") }
         val message = "Name the root package $rootPackage after the unit $unitPath: it ends with $expected, the unit " +
             "path in the project's convention."

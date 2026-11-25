@@ -34,7 +34,8 @@ internal class ApiOwnershipReport {
                     emptyList()
                 }
                 indirect + declaration
-            }.distinct()
+            }
+            .distinct()
     }
 
     private fun assess(
@@ -121,7 +122,9 @@ internal class ApiOwnershipReport {
             )
             limitations.distinct().sorted().forEach { limitation -> appendLine("LIMITATION $limitation") }
             declarations.filter { declaration -> declaration.unit.context.kind == UnitKind.API }
-                .groupBy(OwnershipDeclaration::name).toSortedMap().forEach { (name, variants) ->
+                .groupBy(OwnershipDeclaration::name)
+                .toSortedMap()
+                .forEach { (name, variants) ->
                     appendAssessment(
                         assess(
                             name,

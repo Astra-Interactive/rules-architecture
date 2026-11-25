@@ -91,7 +91,9 @@ internal class KindShapeRoleKindTest {
                 "DefaultLimiter: Move DefaultLimiter out of 'vote/limiter': a role kind holds classes only.",
                 "isCoolingDown: Move isCoolingDown out of 'vote/limiter': a role kind holds classes only.",
             ),
-            actual = KindShape().check(sources).map { violation -> "${violation.subject}: ${violation.message}" }
+            actual = KindShape()
+                .check(sources)
+                .map { violation -> "${violation.subject}: ${violation.message}" }
                 .sorted()
         )
     }

@@ -23,7 +23,8 @@ class ApiOwnershipReportTaskTest {
                 id("ru.astrainteractive.klibs.rules.gradle.linter")
             }
         """.trimIndent()
-        val build = IsolatedProjectsBuild(root).online()
+        val build = IsolatedProjectsBuild(root)
+            .online()
             .withRootBuildScript("""plugins { id("ru.astrainteractive.klibs.rules.gradle.linter") }""")
             .withModule("voice:api", script)
             .withModule("voice:impl", script)
@@ -55,7 +56,8 @@ class ApiOwnershipReportTaskTest {
                 id("ru.astrainteractive.klibs.rules.gradle.linter")
             }
         """.trimIndent()
-        val build = IsolatedProjectsBuild(root).online()
+        val build = IsolatedProjectsBuild(root)
+            .online()
             .withRootBuildScript("""plugins { id("ru.astrainteractive.klibs.rules.gradle.linter") }""")
             .withModule("voice:api", script)
             .withModule(

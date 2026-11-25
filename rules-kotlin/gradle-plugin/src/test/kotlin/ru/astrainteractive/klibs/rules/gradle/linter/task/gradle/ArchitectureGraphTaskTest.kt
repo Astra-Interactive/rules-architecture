@@ -126,7 +126,8 @@ class ArchitectureGraphTaskTest {
             app,
             quiet,
             active
-        ).findGraphViolations()
+        )
+            .findGraphViolations()
             .filter { violation -> violation.rule == "EntryPointGraphDependency" }
             .map { violation -> violation.path }
 
@@ -152,7 +153,8 @@ class ArchitectureGraphTaskTest {
             root,
             quiet,
             active
-        ).findGraphViolations()
+        )
+            .findGraphViolations()
             .filter { violation -> violation.rule == "PluginImplUnit" }
             .map { violation -> violation.subject }
 

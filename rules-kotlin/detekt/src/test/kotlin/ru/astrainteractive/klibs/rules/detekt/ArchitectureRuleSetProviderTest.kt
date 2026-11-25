@@ -34,7 +34,8 @@ internal class ArchitectureRuleSetProviderTest {
 
     @Test
     fun GIVEN_bundled_config_WHEN_compared_with_provider_THEN_every_rule_is_listed_active() {
-        val providedRules = ArchitectureRuleSetProvider().instance().rules.keys
+        val providedRules = ArchitectureRuleSetProvider()
+            .instance().rules.keys
             .map(RuleName::value)
             .toSet()
 
@@ -43,7 +44,8 @@ internal class ArchitectureRuleSetProviderTest {
 
     @Test
     fun GIVEN_rule_registry_WHEN_compared_with_provider_THEN_every_owned_rule_has_an_identifier() {
-        val providedRules = ArchitectureRuleSetProvider().instance().rules.keys
+        val providedRules = ArchitectureRuleSetProvider()
+            .instance().rules.keys
             .map(RuleName::value)
             .toSet()
         val registeredRules = RuleId.entries

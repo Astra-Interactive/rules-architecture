@@ -14,7 +14,8 @@ private val QUALIFIED_REFERENCE = Regex("""\b(?:[a-z_]\w*\.)+[A-Za-z_]\w*(?:\.[A
 
 internal val KoFileDeclaration.qualifiedReferences: Set<String>
     get() {
-        val declarationsText = declarations().filterIsInstance<KoTextProvider>()
+        val declarationsText = declarations()
+            .filterIsInstance<KoTextProvider>()
             .joinToString(separator = "\n", transform = KoTextProvider::text)
         return QUALIFIED_REFERENCE.findAll(declarationsText.replace(NON_CODE, "")).map(MatchResult::value).toSet()
     }

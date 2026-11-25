@@ -60,15 +60,16 @@ public class UnitDependencyCycle {
     }
 
     public fun check(units: List<BuildUnit>): List<StructureViolation> {
-        return dependencyGraphs(units).flatMap { dependencies ->
-            dependencies.keys.flatMap { path ->
-                cyclesFrom(
-                    path,
-                    dependencies,
-                    listOf(path)
-                )
+        return dependencyGraphs(units)
+            .flatMap { dependencies ->
+                dependencies.keys.flatMap { path ->
+                    cyclesFrom(
+                        path,
+                        dependencies,
+                        listOf(path)
+                    )
+                }
             }
-        }
             .toSet()
             .sorted()
             .map { cycle ->

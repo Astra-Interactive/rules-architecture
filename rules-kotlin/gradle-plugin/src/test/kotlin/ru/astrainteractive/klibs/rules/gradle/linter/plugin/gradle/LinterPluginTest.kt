@@ -392,7 +392,8 @@ class LinterPluginTest {
             .withRootBuildScript("""plugins { id("ru.astrainteractive.klibs.rules.gradle.linter") }""")
             .withModule(name = "modules:library", buildScript = moduleScript)
 
-        val planned = build.run("architectureLint", "--dry-run").output.lines()
+        val planned = build.run("architectureLint", "--dry-run").output
+            .lines()
             .filter { line -> line.endsWith(" SKIPPED") }
             .map { line -> line.removeSuffix(" SKIPPED") }
 

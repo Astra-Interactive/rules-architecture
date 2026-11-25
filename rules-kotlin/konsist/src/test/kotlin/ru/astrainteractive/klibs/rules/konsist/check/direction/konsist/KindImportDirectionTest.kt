@@ -14,7 +14,8 @@ import kotlin.test.assertEquals
 internal class KindImportDirectionTest {
 
     private fun formatPaywallReports(sources: UnitSources): List<String> {
-        return KindImportDirection().check(sources)
+        return KindImportDirection()
+            .check(sources)
             .map { violation -> "${violation.path.substringAfter("x/paywall/impl/")} -> ${violation.subject}" }
             .sorted()
     }
@@ -143,7 +144,8 @@ internal class KindImportDirectionTest {
             .withEntryPointsAndWiring()
             .load(UnitKind.API, unitPath = ":gui:api")
 
-        val reported = KindImportDirection().check(sources)
+        val reported = KindImportDirection()
+            .check(sources)
             .map { violation -> "${violation.path.substringAfter("x/gui/api/")} -> ${violation.subject}" }
             .sorted()
 

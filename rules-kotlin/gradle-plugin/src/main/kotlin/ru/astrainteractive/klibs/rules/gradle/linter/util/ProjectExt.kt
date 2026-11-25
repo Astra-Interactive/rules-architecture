@@ -419,7 +419,8 @@ internal fun Project.readUnitContext(
         "Conflicting linter.productKind for $path: root declares $rootProductKind, unit declares $localProduct"
     }
     val technologies = findUnitTechnologyWords(extension).get()
-    val compilations = kotlinCompilations().map { compilation -> readCompilation(compilation, resolveCompose) }
+    val compilations = kotlinCompilations()
+        .map { compilation -> readCompilation(compilation, resolveCompose) }
         .ifEmpty { androidCompilations(androidVariants) }
     val context = UnitContext(
         extension.configuredUnitKind ?: detectUnitKind(technologies),

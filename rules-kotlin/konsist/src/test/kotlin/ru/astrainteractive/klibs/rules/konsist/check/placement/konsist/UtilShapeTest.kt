@@ -150,7 +150,8 @@ internal class UtilShapeTest {
             )
             .load(UnitKind.CONTEXT, rootPackage = "x.gui.bukkit")
 
-        val destinations = UtilShape().check(sources)
+        val destinations = UtilShape()
+            .check(sources)
             .map { violation -> violation.message.substringAfter(" to ").substringBefore(" of the level") }
             .sorted()
 

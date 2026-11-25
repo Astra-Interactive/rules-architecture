@@ -45,7 +45,8 @@ internal class UnitDependencyCycleTest {
             compilations.toList()
         )
         val dependencies = compilations.filterNot(UnitContext.Compilation::test)
-            .flatMap { scope -> scope.projectDependencies }.toSet()
+            .flatMap { scope -> scope.projectDependencies }
+            .toSet()
         return BuildUnit(
             path,
             File("/project"),
@@ -198,14 +199,15 @@ internal class UnitDependencyCycleTest {
         )
         assertEquals(
             listOf(":design:components -> :design:tokens -> :design:components"),
-            UnitDependencyCycle().check(
-                listOf(
-                    settings,
-                    cyclicTheme,
-                    components,
-                    sheet
+            UnitDependencyCycle()
+                .check(
+                    listOf(
+                        settings,
+                        cyclicTheme,
+                        components,
+                        sheet
+                    )
                 )
-            )
                 .map(StructureViolation::subject)
         )
     }

@@ -82,7 +82,9 @@ internal class AnonymousTuple(config: Config) : Rule(config, DESCRIPTION), Requi
             if (call?.symbol !is KaConstructorSymbol) return@analyze null
             expression.expressionType?.symbol?.classId?.asFqNameString()
         }
-            ?.takeIf(TUPLE_NAMES::contains)?.substringAfterLast('.') ?: return
+            ?.takeIf(TUPLE_NAMES::contains)
+            ?.substringAfterLast('.')
+            ?: return
         if (isLibraryTupleArgument(expression)) return
         reportTuple(Entity.from(expression), name)
     }

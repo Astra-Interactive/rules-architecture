@@ -44,7 +44,8 @@ internal fun KtLambdaExpression.findFittingReference(reference: String, call: Kt
         if (functionType.parameterTypes.size != lambda.valueParameters.size) return@analyze null
         val receiver = functionType.receiverType ?: return@analyze reference
         if (call == null || call.parent is KtDotQualifiedExpression) return@analyze null
-        val calleeReceiver = call.resolveToCall()?.singleFunctionCallOrNull()?.symbol?.receiverType
+        val calleeReceiver = call.resolveToCall()
+            ?.singleFunctionCallOrNull()?.symbol?.receiverType
             ?: return@analyze null
         if (!receiver.isSubtypeOf(calleeReceiver)) return@analyze null
         "<Type>$reference"

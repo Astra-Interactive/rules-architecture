@@ -36,7 +36,10 @@ internal class PackageDependencyCycle : ArchitectureCheck {
         if (reference.endsWith(".*")) {
             val packageName = reference.removeSuffix(".*")
             return declarations.filterKeys { name -> name.substringBeforeLast('.') == packageName }
-                .values.flatten().toSet().singleOrNull()
+                .values
+                .flatten()
+                .toSet()
+                .singleOrNull()
         }
         return generateSequence(reference) { name -> name.substringBeforeLast('.', "").ifEmpty { null } }
             .firstNotNullOfOrNull { name -> declarations[name]?.singleOrNull() }

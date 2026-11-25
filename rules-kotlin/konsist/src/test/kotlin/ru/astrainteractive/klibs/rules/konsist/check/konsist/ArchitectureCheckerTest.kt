@@ -100,7 +100,8 @@ internal class ArchitectureCheckerTest {
         val order = ArchitectureChecker(
             mapOf(RuleId.CORE_SHAPE to first, RuleId.UTIL_SHAPE to second),
             SuppressionPolicy()
-        ).check(sources)
+        )
+            .check(sources)
             .map { violation -> "${violation.path}:${violation.rule}:${violation.subject}" }
 
         assertEquals(

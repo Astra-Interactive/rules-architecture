@@ -17,7 +17,8 @@ public class NestedUnit : StructureCheck {
 
     private fun findNestedUnits(directory: File, depth: Int): List<File> {
         if (depth > MAX_DEPTH) return emptyList()
-        val children = directory.listFiles().orEmpty()
+        val children = directory.listFiles()
+            .orEmpty()
             .filter { child -> child.isDirectory && child.name !in SKIPPED && !child.name.startsWith(".") }
         return children.flatMap { child ->
             if (isUnitDirectory(child)) listOf(child) else findNestedUnits(child, depth + 1)

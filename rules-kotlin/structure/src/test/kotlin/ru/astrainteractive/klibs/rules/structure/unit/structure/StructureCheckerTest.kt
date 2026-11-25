@@ -51,7 +51,8 @@ internal class StructureCheckerTest {
         val first = StructureCheck { firstViolations }
         val second = StructureCheck { secondViolations }
 
-        val order = StructureChecker(listOf(first, second)).check(unit)
+        val order = StructureChecker(listOf(first, second))
+            .check(unit)
             .map { violation -> "${violation.path}:${violation.rule}:${violation.subject}" }
 
         assertEquals(

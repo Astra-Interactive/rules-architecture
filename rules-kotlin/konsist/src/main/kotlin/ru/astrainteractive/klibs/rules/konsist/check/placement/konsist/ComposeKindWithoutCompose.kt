@@ -19,7 +19,8 @@ internal class ComposeKindWithoutCompose : ArchitectureCheck {
         return sources.mainFiles
             .distinctBy(KoFileDeclaration::packageName)
             .mapNotNull { file ->
-                val word = sources.placementOf(file)?.kindWord?.takeIf { kindWord -> kindWord in COMPOSE_WORDS }
+                val word = sources.placementOf(file)?.kindWord
+                    ?.takeIf { kindWord -> kindWord in COMPOSE_WORDS }
                     ?: return@mapNotNull null
                 val compose = requireNotNull(sources.isComposeFile(file)) {
                     "Compilation context is missing for ${file.path}; pass --unit-context from the Gradle linter"

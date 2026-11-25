@@ -16,7 +16,9 @@ internal class KonsistOwnershipReport {
     private fun directories(unit: OwnershipUnit): List<File> {
         return unit.context.compilations.filterNot(UnitContext.Compilation::test)
             .flatMap { compilation -> compilation.sourceSets.values.flatten() }
-            .distinct().sorted().map(::File)
+            .distinct()
+            .sorted()
+            .map(::File)
     }
 
     private fun loadFiles(unit: OwnershipUnit): List<KoFileDeclaration> {
@@ -61,7 +63,8 @@ internal class KonsistOwnershipReport {
     fun render(units: List<OwnershipUnit>): String {
         val files = units.associateWith(::loadFiles)
         val names = files.values.flatten()
-            .flatMap { file -> file.topLevelNames().map { name -> qualify(file, name) } }.toSet()
+            .flatMap { file -> file.topLevelNames().map { name -> qualify(file, name) } }
+            .toSet()
         val references = KotlinOwnershipReferences(names)
         val declarations = files.flatMap { (unit, sources) ->
             sources.flatMap { file ->

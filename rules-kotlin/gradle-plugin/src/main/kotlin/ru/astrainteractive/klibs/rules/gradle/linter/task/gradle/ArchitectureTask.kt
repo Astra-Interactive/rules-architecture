@@ -118,7 +118,9 @@ internal abstract class ArchitectureTask : DefaultTask() {
     abstract val execOperations: ExecOperations
 
     private fun sourceDirectories(unitDirectory: File, isTest: Boolean): List<File> {
-        return File(unitDirectory, SOURCE_ROOT).listFiles().orEmpty()
+        return File(unitDirectory, SOURCE_ROOT)
+            .listFiles()
+            .orEmpty()
             .filter(File::isDirectory)
             .filter { sourceSet -> sourceSet.name.contains(TEST_MARKER, ignoreCase = true) == isTest }
             .flatMap { sourceSet -> LANGUAGE_DIRECTORIES.map { language -> File(sourceSet, language) } }
@@ -129,10 +131,12 @@ internal abstract class ArchitectureTask : DefaultTask() {
     private fun sourceDirectories(context: UnitContext, isTest: Boolean): List<File> {
         if (context.compilations.isEmpty()) return sourceDirectories(projectDirectory.get().asFile, isTest)
         val main = context.compilations.filterNot(UnitContext.Compilation::test)
-            .flatMap { compilation -> compilation.sourceSets.values.flatten() }.toSet()
+            .flatMap { compilation -> compilation.sourceSets.values.flatten() }
+            .toSet()
         val selected = if (isTest) {
             context.compilations.filter(UnitContext.Compilation::test)
-                .flatMap { compilation -> compilation.sourceSets.values.flatten() }.toSet() - main
+                .flatMap { compilation -> compilation.sourceSets.values.flatten() }
+                .toSet() - main
         } else {
             main
         }
@@ -142,7 +146,8 @@ internal abstract class ArchitectureTask : DefaultTask() {
     private fun sourceSetName(context: UnitContext, directory: File): String {
         return context.compilations.asSequence()
             .flatMap { compilation -> compilation.sourceSets.entries.asSequence() }
-            .firstOrNull { entry -> directory.absolutePath in entry.value }?.key ?: directory.parentFile.name
+            .firstOrNull { entry -> directory.absolutePath in entry.value }?.key
+            ?: directory.parentFile.name
     }
 
     private fun dependencyArguments(): List<String> {

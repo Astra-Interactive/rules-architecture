@@ -40,7 +40,8 @@ internal abstract class DetektSettingsTask : DefaultTask() {
         contextFile.writeText(unitContext.get())
         val contextPath = contextFile.absolutePath.replace("'", "''")
         val words = technologyWords.get().sorted().joinToString { word -> "'$word'" }
-        val disabledDetektRules = unitContext.get().toUnitContext().policy.checks.disabledRules.keys
+        val disabledDetektRules = unitContext.get()
+            .toUnitContext().policy.checks.disabledRules.keys
             .filter { ruleName ->
                 RuleId.entries.any { ruleId ->
                     ruleId.engine == RuleId.Engine.DETEKT && ruleId.ruleName == ruleName

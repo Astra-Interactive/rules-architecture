@@ -39,7 +39,8 @@ internal class KDocFiller(config: Config) : Rule(config, DESCRIPTION) {
     }
 
     private fun findReturnMessages(kdoc: KDoc): List<String> {
-        return kdoc.getDefaultSection().findTagsByName(RETURN_TAG)
+        return kdoc.getDefaultSection()
+            .findTagsByName(RETURN_TAG)
             .filter { tag -> restatesReturnType(tag, kdoc) }
             .map { "Delete the @return that restates the type, or say what is returned in the edge cases." }
     }

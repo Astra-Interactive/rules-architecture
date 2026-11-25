@@ -269,7 +269,8 @@ internal class LinterPlugin : Plugin<Project> {
             task.sources.from(
                 metadata.map { entries ->
                     entries.flatMap { entry ->
-                        entry.split('\t')[2].toUnitContext().compilations.filterNot(UnitContext.Compilation::test)
+                        entry.split('\t')[2].toUnitContext().compilations
+                            .filterNot(UnitContext.Compilation::test)
                             .flatMap { compilation -> compilation.sourceSets.values.flatten() }
                     }.distinct().map(::File).filter(File::isDirectory)
                 }

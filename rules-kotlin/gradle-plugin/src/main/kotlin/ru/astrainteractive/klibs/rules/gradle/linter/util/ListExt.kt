@@ -16,19 +16,23 @@ internal fun List<BuildUnit>.findGraphViolations(): List<StructureViolation> {
     }
     val root = firstOrNull(BuildUnit::isRoot)
     val rootDisabled = disabledByPath[root?.path].orEmpty()
-    val cycles = UnitDependencyCycle().check(this)
+    val cycles = UnitDependencyCycle()
+        .check(this)
         .takeUnless { RuleId.UNIT_DEPENDENCY_CYCLE.ruleName in rootDisabled }
         .orEmpty()
-    val entryPointEdges = EntryPointGraphDependency().check(this)
+    val entryPointEdges = EntryPointGraphDependency()
+        .check(this)
         .filterNot { violation ->
             RuleId.ENTRY_POINT_GRAPH_DEPENDENCY.ruleName in disabledByPath[violation.path].orEmpty()
         }
-    val pluginRoles = PluginImplUnit().check(this)
+    val pluginRoles = PluginImplUnit()
+        .check(this)
         .filterNot { violation ->
             RuleId.PLUGIN_IMPL_UNIT.ruleName in disabledByPath[violation.subject].orEmpty()
         }
     val directions = flatMap { unit ->
-        UnitDependency().check(unit)
+        UnitDependency()
+            .check(unit)
             .takeUnless { RuleId.UNIT_DEPENDENCY.ruleName in disabledByPath[unit.path].orEmpty() }
             .orEmpty()
     }
