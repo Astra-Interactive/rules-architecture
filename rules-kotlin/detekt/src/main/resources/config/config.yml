@@ -85,6 +85,8 @@ architecture:
     active: true
   LocalOrInnerClass:
     active: true
+  MultilineCallChainWrapping:
+    active: true
   MutableStateFlowEmit:
     active: true
   NamespaceObject:

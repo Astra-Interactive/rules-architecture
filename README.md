@@ -216,6 +216,7 @@ Rules marked *types* need type resolution and report only in `architectureLint`.
 | `PropertyInitializerOnDeclarationLine` | an initializer that starts on the line after its `=`                  |
 | `ArgumentPerLine`                      | a call with three or more arguments not one per line                  |
 | `BooleanOperatorWrapping`              | a line break around `&&` or `\|\|`                                    |
+| `MultilineCallChainWrapping`           | an inline continuation call, safe cast or Elvis in a wrapped chain    |
 | `GuardIfBraces`                        | `if (…) { return }` that fits one line without braces                 |
 | `LambdaSingleIfGuard`                  | a lambda whose whole body is one `if` without `else`                  |
 | `OperatorBeforeTrailingCall`           | `(a * b).sp`, a chain of `plus`/`times` calls                         |

@@ -93,6 +93,7 @@ public enum class RuleId(public val ruleName: String, public val engine: Engine)
     KIND_NAME_IN_PACKAGE("KindNameInPackage", Engine.DETEKT),
     LAMBDA_SINGLE_IF_GUARD("LambdaSingleIfGuard", Engine.DETEKT),
     LOCAL_OR_INNER_CLASS("LocalOrInnerClass", Engine.DETEKT),
+    MULTILINE_CALL_CHAIN_WRAPPING("MultilineCallChainWrapping", Engine.DETEKT),
     MUTABLE_STATE_FLOW_EMIT("MutableStateFlowEmit", Engine.DETEKT),
     NAMESPACE_OBJECT("NamespaceObject", Engine.DETEKT),
     NON_COMPOSABLE_FILE_IN_COMPOSABLE("NonComposableFileInComposable", Engine.DETEKT),
