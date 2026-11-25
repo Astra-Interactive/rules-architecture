@@ -209,6 +209,17 @@ internal class ImplementationVisibilityTest {
                 class FileMuteRepository
                 """.trimIndent()
             )
+            .load(UnitKind.API, rootPackage = "x.jail.api")
+
+        assertEquals(emptyList(), ImplementationVisibility().check(sources).map(Violation::subject).sorted())
+    }
+
+    @Test
+    fun GIVEN_scoped_framework_annotations_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
+        val sources = SourceTree(directory)
             .main(
                 "x.jail.api.jail.file/FileKickViewModel.kt",
                 """

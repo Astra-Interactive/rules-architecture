@@ -110,6 +110,7 @@ public enum class RuleId(public val ruleName: String, public val engine: Engine)
     RUN_BLOCKING_OUTSIDE_BOUNDARY("RunBlockingOutsideBoundary", Engine.DETEKT),
     RUN_CATCHING_CANCELLATION("RunCatchingCancellation", Engine.DETEKT),
     RUN_TEST_RESULT("RunTestResult", Engine.DETEKT),
+    SERIAL_NAME_NOT_PROVIDED("SerialNameNotProvided", Engine.DETEKT),
     SHARED_FLOW_EVENT("SharedFlowEvent", Engine.DETEKT),
     SINGLE_JOB_LAUNCH_MODE("SingleJobLaunchMode", Engine.DETEKT),
     STATE_FLOW_TIMEOUT("StateFlowTimeout", Engine.DETEKT),
