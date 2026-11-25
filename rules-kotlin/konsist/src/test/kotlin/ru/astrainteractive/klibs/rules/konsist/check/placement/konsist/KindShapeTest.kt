@@ -14,7 +14,10 @@ import kotlin.test.assertEquals
 internal class KindShapeTest {
 
     @Test
-    fun GIVEN_unsplit_generator_WHEN_files_lie_in_concepts_THEN_requires_kinds(@TempDir directory: File) {
+    fun GIVEN_unsplit_generator_WHEN_files_lie_in_concepts_THEN_requires_kinds(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.generator.price/CoreCellValue.kt", "sealed interface CoreCellValue")
             .main("x.generator.price/XlsxPriceSource.kt", "class XlsxPriceSource")
@@ -39,7 +42,8 @@ internal class KindShapeTest {
 
     @Test
     fun GIVEN_platform_core_adapters_WHEN_checked_THEN_accepts_concepts_but_rejects_loose_root_files(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -64,7 +68,10 @@ internal class KindShapeTest {
     }
 
     @Test
-    fun GIVEN_loose_files_and_nested_kind_packages_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_loose_files_and_nested_kind_packages_WHEN_checked_THEN_reports_each(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.gui.api",
@@ -111,7 +118,10 @@ internal class KindShapeTest {
     }
 
     @Test
-    fun GIVEN_technology_unit_and_entry_point_WHEN_checked_THEN_accepts_their_exceptions(@TempDir directory: File) {
+    fun GIVEN_technology_unit_and_entry_point_WHEN_checked_THEN_accepts_their_exceptions(
+        @TempDir
+        directory: File
+    ) {
         val technology = SourceTree(File(directory, "exposed"))
             .main(
                 "x.data.exposed.rating",
@@ -141,7 +151,10 @@ internal class KindShapeTest {
     }
 
     @Test
-    fun GIVEN_file_in_a_compose_theme_package_WHEN_checked_THEN_accepts_it_as_a_kind(@TempDir directory: File) {
+    fun GIVEN_file_in_a_compose_theme_package_WHEN_checked_THEN_accepts_it_as_a_kind(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.paywall.impl.splash.theme",
@@ -159,7 +172,10 @@ internal class KindShapeTest {
     }
 
     @Test
-    fun GIVEN_database_kind_package_inside_a_technology_WHEN_checked_THEN_accepts_it(@TempDir directory: File) {
+    fun GIVEN_database_kind_package_inside_a_technology_WHEN_checked_THEN_accepts_it(
+        @TempDir
+        directory: File
+    ) {
         val technology = SourceTree(File(directory, "exposed"))
             .main(
                 "x.data.exposed.rating",
@@ -190,7 +206,8 @@ internal class KindShapeTest {
 
     @Test
     fun GIVEN_composable_with_one_level_of_singular_sub_packages_WHEN_checked_THEN_accepts_it(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -220,7 +237,8 @@ internal class KindShapeTest {
 
     @Test
     fun GIVEN_composable_sub_packages_against_the_compose_rule_WHEN_checked_THEN_reports_each(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -284,7 +302,10 @@ internal class KindShapeTest {
     }
 
     @Test
-    fun GIVEN_memory_packages_in_an_app_api_unit_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_memory_packages_in_an_app_api_unit_WHEN_checked_THEN_reports_each(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 packageName = "x.payment.api.offer.memory",
@@ -322,7 +343,8 @@ internal class KindShapeTest {
 
     @Test
     fun GIVEN_technology_and_entry_point_kinds_in_an_app_api_unit_WHEN_checked_THEN_reports_each(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -361,7 +383,8 @@ internal class KindShapeTest {
 
     @Test
     fun GIVEN_state_holder_implementations_in_an_app_api_unit_WHEN_checked_THEN_reports_each(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -414,7 +437,8 @@ internal class KindShapeTest {
 
     @Test
     fun GIVEN_technology_and_entry_point_kinds_in_a_plugin_api_unit_WHEN_checked_THEN_accepts_them(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -437,7 +461,10 @@ internal class KindShapeTest {
     }
 
     @Test
-    fun GIVEN_api_unit_without_product_kind_WHEN_checked_THEN_reports_no_kind(@TempDir directory: File) {
+    fun GIVEN_api_unit_without_product_kind_WHEN_checked_THEN_reports_no_kind(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 packageName = "x.payment.api.offer.memory",
@@ -460,7 +487,8 @@ internal class KindShapeTest {
 
     @Test
     fun GIVEN_contracts_models_use_cases_stubs_and_state_holders_in_an_app_api_unit_WHEN_checked_THEN_accepts_them(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -518,7 +546,10 @@ internal class KindShapeTest {
     }
 
     @Test
-    fun GIVEN_memory_package_outside_an_app_api_unit_WHEN_checked_THEN_accepts_it(@TempDir directory: File) {
+    fun GIVEN_memory_package_outside_an_app_api_unit_WHEN_checked_THEN_accepts_it(
+        @TempDir
+        directory: File
+    ) {
         val pluginApi = SourceTree(File(directory, "plugin-api"))
             .main(
                 packageName = "x.jail.api.jail.memory",

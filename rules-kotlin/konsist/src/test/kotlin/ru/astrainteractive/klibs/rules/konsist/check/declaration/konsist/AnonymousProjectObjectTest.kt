@@ -14,7 +14,8 @@ internal class AnonymousProjectObjectTest {
 
     @Test
     fun GIVEN_anonymous_objects_of_project_and_library_types_WHEN_checked_THEN_reports_only_project_ones(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .dependency("x.data.dao.rating.api/RatingRepository.kt", "interface RatingRepository")

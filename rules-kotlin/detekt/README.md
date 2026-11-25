@@ -1,3 +1,3 @@
 # detekt
 
-Detekt rules that report the architecture-rule violations visible in a single Kotlin file.
+Detekt rules that report the architecture-rule violations visible in a single Kotlin file, including [annotation placement](annotation-placement.kt.md).

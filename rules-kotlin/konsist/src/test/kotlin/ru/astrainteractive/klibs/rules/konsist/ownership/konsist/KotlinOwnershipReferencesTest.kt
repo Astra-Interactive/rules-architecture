@@ -10,7 +10,10 @@ import kotlin.test.assertEquals
 
 class KotlinOwnershipReferencesTest {
     @Test
-    fun GIVEN_unfinished_qualified_expression_WHEN_scanned_THEN_does_not_invent_reference(@TempDir root: File) {
+    fun GIVEN_unfinished_qualified_expression_WHEN_scanned_THEN_does_not_invent_reference(
+        @TempDir
+        root: File
+    ) {
         File(root, "Caller.kt").writeText("package y\nclass Caller")
         val file = Konsist.scopeFromExternalDirectory(root.absolutePath).files.single()
         val references = KotlinOwnershipReferences(setOf("x.Local"))

@@ -22,7 +22,10 @@ internal class ProjectDirMatchesPathTest {
     }
 
     @Test
-    fun GIVEN_unit_in_another_directory_WHEN_checked_THEN_reports_it(@TempDir root: File) {
+    fun GIVEN_unit_in_another_directory_WHEN_checked_THEN_reports_it(
+        @TempDir
+        root: File
+    ) {
         val unit = unit(
             ":jail:api",
             File(root, "modules/jail-api"),
@@ -39,7 +42,10 @@ internal class ProjectDirMatchesPathTest {
     }
 
     @Test
-    fun GIVEN_unit_at_its_path_or_the_root_WHEN_checked_THEN_reports_nothing(@TempDir root: File) {
+    fun GIVEN_unit_at_its_path_or_the_root_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        root: File
+    ) {
         val module = unit(
             ":modules:jail:api",
             File(root, "modules/jail/api"),

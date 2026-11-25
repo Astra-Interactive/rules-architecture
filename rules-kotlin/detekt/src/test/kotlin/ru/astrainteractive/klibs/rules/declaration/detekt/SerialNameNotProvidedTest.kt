@@ -12,7 +12,7 @@ internal class SerialNameNotProvidedTest {
     private val rule = SerialNameNotProvided(Config.empty)
 
     @Test
-    fun GIVEN_serializable_class_with_constructor_property_without_serial_name_WHEN_linted_THEN_reports_one_finding_naming_the_property() {
+    fun GIVEN_property_without_serial_name_WHEN_linted_THEN_reports_property_name() {
         val code = """
             import kotlinx.serialization.Serializable
 

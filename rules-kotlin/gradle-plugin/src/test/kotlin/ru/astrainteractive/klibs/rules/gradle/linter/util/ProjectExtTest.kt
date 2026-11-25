@@ -26,7 +26,8 @@ internal class ProjectExtTest {
 
     @Test
     fun GIVEN_jvm_test_associates_main_WHEN_context_read_THEN_compiled_sources_exclude_main(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val project = ProjectBuilder.builder().withProjectDir(rootDirectory).build()
         project.pluginManager.apply("org.jetbrains.kotlin.jvm")
@@ -50,7 +51,8 @@ internal class ProjectExtTest {
 
     @Test
     fun GIVEN_kmp_test_association_and_explicit_shared_source_WHEN_context_read_THEN_only_owned_sources_compile(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val project = ProjectBuilder.builder().withProjectDir(rootDirectory).build()
         project.pluginManager.apply("org.jetbrains.kotlin.multiplatform")
@@ -81,7 +83,8 @@ internal class ProjectExtTest {
 
     @Test
     fun GIVEN_android_builtin_kotlin_WHEN_context_read_THEN_includes_configured_production_variant_sources(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val sdkDirectory = sequenceOf(
             System.getenv("ANDROID_HOME"),
@@ -131,7 +134,8 @@ internal class ProjectExtTest {
 
     @Test
     fun GIVEN_custom_depends_on_and_test_source_sets_WHEN_read_THEN_preserves_declaration_and_consumers(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val project = ProjectBuilder.builder().withProjectDir(rootDirectory).build()
         project.pluginManager.apply("org.jetbrains.kotlin.multiplatform")
@@ -174,7 +178,10 @@ internal class ProjectExtTest {
     }
 
     @Test
-    fun GIVEN_conflicting_enum_roles_WHEN_configured_THEN_reports_both_declarations(@TempDir rootDirectory: File) {
+    fun GIVEN_conflicting_enum_roles_WHEN_configured_THEN_reports_both_declarations(
+        @TempDir
+        rootDirectory: File
+    ) {
         val script = """
             import ru.astrainteractive.klibs.rules.core.unit.model.UnitKind
 
@@ -195,7 +202,10 @@ internal class ProjectExtTest {
     }
 
     @Test
-    fun GIVEN_conflicting_product_kinds_WHEN_configured_THEN_reports_the_conflict(@TempDir rootDirectory: File) {
+    fun GIVEN_conflicting_product_kinds_WHEN_configured_THEN_reports_the_conflict(
+        @TempDir
+        rootDirectory: File
+    ) {
         val script = """
             import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
 
@@ -217,7 +227,8 @@ internal class ProjectExtTest {
 
     @Test
     fun GIVEN_app_product_on_root_WHEN_api_checked_twice_THEN_inherits_it_and_reuses_configuration_cache(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val rootScript = """
             import ru.astrainteractive.klibs.rules.core.unit.model.ProductKind
@@ -262,7 +273,8 @@ internal class ProjectExtTest {
 
     @Test
     fun GIVEN_api_usecase_without_product_kind_WHEN_checked_THEN_requests_the_required_enum(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val build = IsolatedProjectsBuild(rootDirectory)
             .online()
@@ -281,7 +293,8 @@ internal class ProjectExtTest {
 
     @Test
     fun GIVEN_entry_point_conventions_and_explicit_roles_WHEN_configured_THEN_explicit_roles_win(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val inferred = unitKindScript("`java-library`")
         val explicitTechnology = inferred + """
@@ -326,7 +339,8 @@ internal class ProjectExtTest {
 
     @Test
     fun GIVEN_units_named_and_built_by_convention_WHEN_configured_THEN_detects_their_kind(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val build = IsolatedProjectsBuild(rootDirectory)
             .withRootBuildScript("")
@@ -374,7 +388,8 @@ internal class ProjectExtTest {
 
     @Test
     fun GIVEN_kotlin_units_with_explicit_api_WHEN_configured_THEN_only_the_published_one_is_a_library(
-        @TempDir rootDirectory: File
+        @TempDir
+        rootDirectory: File
     ) {
         val explicitApi = """
 
@@ -403,7 +418,10 @@ internal class ProjectExtTest {
     }
 
     @Test
-    fun GIVEN_compose_dependencies_WHEN_context_read_THEN_uses_each_real_compilation(@TempDir rootDirectory: File) {
+    fun GIVEN_compose_dependencies_WHEN_context_read_THEN_uses_each_real_compilation(
+        @TempDir
+        rootDirectory: File
+    ) {
         val jvm = unitKindScript("""id("org.jetbrains.kotlin.jvm")""")
         val multiplatform = unitKindScript("""id("org.jetbrains.kotlin.multiplatform")""") + """
 

@@ -31,7 +31,10 @@ internal class UtilFunctionAsExtensionTest {
     }
 
     @Test
-    fun GIVEN_util_functions_taking_one_model_WHEN_checked_THEN_reports_them(@TempDir directory: File) {
+    fun GIVEN_util_functions_taking_one_model_WHEN_checked_THEN_reports_them(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("com.example.jail.model/JailInmate.kt", "data class JailInmate(val days: Int)")
             .main(
@@ -63,7 +66,10 @@ internal class UtilFunctionAsExtensionTest {
     }
 
     @Test
-    fun GIVEN_util_function_taking_a_dependency_model_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+    fun GIVEN_util_function_taking_a_dependency_model_WHEN_checked_THEN_reports_it(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .dependency("x.core.settings.model/AstraRatingConfig.kt", "data class AstraRatingConfig(val max: Int)")
             .main(
@@ -80,7 +86,8 @@ internal class UtilFunctionAsExtensionTest {
 
     @Test
     fun GIVEN_top_level_functions_returning_a_model_parameter_type_WHEN_checked_THEN_reports_each_as_its_extension(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val violations = checkUtil(
             directory,
@@ -110,7 +117,8 @@ internal class UtilFunctionAsExtensionTest {
 
     @Test
     fun GIVEN_top_level_functions_with_one_model_parameter_among_others_WHEN_checked_THEN_reports_each(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val violations = checkUtil(
             directory,
@@ -136,7 +144,8 @@ internal class UtilFunctionAsExtensionTest {
 
     @Test
     fun GIVEN_extensions_reading_a_second_model_type_WHEN_checked_THEN_reports_each_as_a_top_level_function(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val violations = checkUtil(
             directory,
@@ -160,7 +169,8 @@ internal class UtilFunctionAsExtensionTest {
 
     @Test
     fun GIVEN_create_and_parse_functions_WHEN_checked_THEN_exempts_only_those_followed_by_a_type_name(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val violations = checkUtil(
             directory,
@@ -180,7 +190,8 @@ internal class UtilFunctionAsExtensionTest {
 
     @Test
     fun GIVEN_top_level_functions_over_two_model_types_returning_neither_WHEN_checked_THEN_reports_nothing(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val violations = checkUtil(
             directory,
@@ -198,7 +209,8 @@ internal class UtilFunctionAsExtensionTest {
 
     @Test
     fun GIVEN_extensions_returning_their_receiver_type_with_other_model_parameters_WHEN_checked_THEN_reports_nothing(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val violations = checkUtil(
             directory,
@@ -216,7 +228,8 @@ internal class UtilFunctionAsExtensionTest {
 
     @Test
     fun GIVEN_extensions_over_identifiers_primitives_library_types_or_foreign_receivers_WHEN_checked_THEN_accepts_them(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val violations = checkUtil(
             directory,
@@ -236,7 +249,8 @@ internal class UtilFunctionAsExtensionTest {
 
     @Test
     fun GIVEN_extensions_whose_model_parameters_are_all_of_the_receiver_type_WHEN_checked_THEN_reports_nothing(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val violations = checkUtil(
             directory,
@@ -254,7 +268,8 @@ internal class UtilFunctionAsExtensionTest {
 
     @Test
     fun GIVEN_extension_with_a_receiver_type_parameter_and_another_model_parameter_WHEN_checked_THEN_reports_it(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val violations = checkUtil(
             directory,
@@ -274,7 +289,8 @@ internal class UtilFunctionAsExtensionTest {
 
     @Test
     fun GIVEN_top_level_functions_whose_model_parameters_are_all_of_one_type_WHEN_checked_THEN_reports_each(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val violations = checkUtil(
             directory,
@@ -298,7 +314,8 @@ internal class UtilFunctionAsExtensionTest {
 
     @Test
     fun GIVEN_extensions_returning_another_model_parameter_type_WHEN_checked_THEN_reports_each_as_its_extension(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val violations = checkUtil(
             directory,
@@ -326,7 +343,8 @@ internal class UtilFunctionAsExtensionTest {
 
     @Test
     fun GIVEN_top_level_function_with_two_values_of_one_model_and_one_of_another_WHEN_checked_THEN_reports_nothing(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val violations = checkUtil(
             directory,

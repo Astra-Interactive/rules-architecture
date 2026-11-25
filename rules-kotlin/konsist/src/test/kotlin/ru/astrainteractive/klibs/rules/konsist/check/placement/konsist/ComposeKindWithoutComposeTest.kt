@@ -16,7 +16,8 @@ internal class ComposeKindWithoutComposeTest {
 
     @Test
     fun GIVEN_compose_words_in_a_unit_without_compose_WHEN_checked_THEN_reports_each_package_but_viewmodel(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.gui.rating.viewmodel/RatingViewModel.kt", "class RatingViewModel")
@@ -33,7 +34,10 @@ internal class ComposeKindWithoutComposeTest {
     }
 
     @Test
-    fun GIVEN_compose_words_in_a_compose_unit_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_compose_words_in_a_compose_unit_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.gui.rating.composable/RatingComposable.kt", "import androidx.compose.runtime.Composable")
             .load(
@@ -46,7 +50,10 @@ internal class ComposeKindWithoutComposeTest {
     }
 
     @Test
-    fun GIVEN_theme_in_the_root_package_or_a_concept_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_theme_in_the_root_package_or_a_concept_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.features.theme.component/ThemeSwitcherComponent.kt", "interface ThemeSwitcherComponent")
             .main("x.features.theme.dark.model/DarkTheme.kt", "class DarkTheme")
@@ -57,7 +64,8 @@ internal class ComposeKindWithoutComposeTest {
 
     @Test
     fun GIVEN_compose_kind_without_compilation_metadata_WHEN_checked_THEN_requests_build_context(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val tree = SourceTree(directory)
             .main("x.offer.composable/Offer.kt", "fun Offer() = Unit")

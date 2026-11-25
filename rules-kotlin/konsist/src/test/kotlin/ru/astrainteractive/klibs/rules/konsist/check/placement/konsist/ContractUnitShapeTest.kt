@@ -13,7 +13,10 @@ import kotlin.test.assertEquals
 internal class ContractUnitShapeTest {
 
     @Test
-    fun GIVEN_contract_unit_with_behaviour_and_plain_types_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_contract_unit_with_behaviour_and_plain_types_WHEN_checked_THEN_reports_each(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.dictionary.contract/DictionaryResponse.kt",
@@ -48,7 +51,10 @@ internal class ContractUnitShapeTest {
     }
 
     @Test
-    fun GIVEN_contract_unit_of_wire_types_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_contract_unit_of_wire_types_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.dictionary.contract/DictionaryRoutes.kt",

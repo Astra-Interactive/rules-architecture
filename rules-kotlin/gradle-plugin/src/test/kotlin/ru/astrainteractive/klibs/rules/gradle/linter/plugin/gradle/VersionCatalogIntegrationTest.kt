@@ -21,7 +21,8 @@ internal class VersionCatalogIntegrationTest {
 
     @Test
     fun GIVEN_alias_extending_another_in_libraries_WHEN_architecture_checked_THEN_fails_and_reuses_the_cache(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val build = catalogBuild(directory, COLLIDING_LIBRARIES)
 
@@ -37,7 +38,8 @@ internal class VersionCatalogIntegrationTest {
 
     @Test
     fun GIVEN_aliases_that_are_no_segment_prefix_WHEN_architecture_checked_THEN_reports_no_rule(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val build = catalogBuild(directory, SEPARATE_ALIASES)
 
@@ -47,7 +49,10 @@ internal class VersionCatalogIntegrationTest {
     }
 
     @Test
-    fun GIVEN_colliding_catalog_WHEN_module_checked_THEN_only_the_root_reports_the_rule(@TempDir directory: File) {
+    fun GIVEN_colliding_catalog_WHEN_module_checked_THEN_only_the_root_reports_the_rule(
+        @TempDir
+        directory: File
+    ) {
         val build = catalogBuild(directory, COLLIDING_LIBRARIES)
 
         val root = build.runAndFail(":architectureCheck")
@@ -59,7 +64,8 @@ internal class VersionCatalogIntegrationTest {
 
     @Test
     fun GIVEN_bundle_alias_extending_another_WHEN_architecture_checked_THEN_fails_naming_the_bundle(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val build = catalogBuild(directory, BUNDLE_CATALOG)
 

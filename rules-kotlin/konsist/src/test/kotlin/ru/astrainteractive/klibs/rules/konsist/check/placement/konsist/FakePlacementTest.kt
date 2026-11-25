@@ -14,7 +14,10 @@ import kotlin.test.assertTrue
 internal class FakePlacementTest {
 
     @Test
-    fun GIVEN_fakes_in_tests_WHEN_checked_THEN_reports_those_outside_a_fake_package(@TempDir directory: File) {
+    fun GIVEN_fakes_in_tests_WHEN_checked_THEN_reports_those_outside_a_fake_package(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .test(
                 "com.example.jail.data.fake",
@@ -40,7 +43,8 @@ internal class FakePlacementTest {
 
     @Test
     fun GIVEN_fakes_in_main_sources_WHEN_checked_THEN_reports_each_with_the_test_tree_as_destination(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -71,7 +75,8 @@ internal class FakePlacementTest {
 
     @Test
     fun GIVEN_fake_unit_of_a_multiplatform_feature_WHEN_checked_THEN_accepts_its_main_fakes(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -97,7 +102,10 @@ internal class FakePlacementTest {
     }
 
     @Test
-    fun GIVEN_product_code_in_a_fake_unit_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+    fun GIVEN_product_code_in_a_fake_unit_WHEN_checked_THEN_reports_it(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("com.example.monetization.fake.offer.fake/FakeOfferRepository.kt", "class FakeOfferRepository")
             .main("com.example.monetization.fake.offer.fake/OfferPricing.kt", "class OfferPricing")
@@ -108,7 +116,8 @@ internal class FakePlacementTest {
 
     @Test
     fun GIVEN_in_memory_class_in_a_memory_package_of_a_fake_unit_WHEN_checked_THEN_accepts_it_as_a_shared_double(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -141,7 +150,10 @@ internal class FakePlacementTest {
     }
 
     @Test
-    fun GIVEN_fake_role_with_a_misplaced_fake_WHEN_checked_THEN_requires_the_fake_kind(@TempDir directory: File) {
+    fun GIVEN_fake_role_with_a_misplaced_fake_WHEN_checked_THEN_requires_the_fake_kind(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.offer.fake.offer.model/FakeOffer.kt", "class FakeOffer")
             .load(UnitKind.FAKE, rootPackage = "x.offer.fake")
@@ -151,7 +163,8 @@ internal class FakePlacementTest {
 
     @Test
     fun GIVEN_main_class_and_test_class_named_alike_WHEN_checked_THEN_reports_only_the_main_class(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -170,7 +183,10 @@ internal class FakePlacementTest {
     }
 
     @Test
-    fun GIVEN_test_fake_of_another_units_contract_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+    fun GIVEN_test_fake_of_another_units_contract_WHEN_checked_THEN_reports_it(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .dependency("x.data.dao.rating.api/RatingRepository.kt", "interface RatingRepository")
             .main("x.gui.rating.api/RatingGuiRouter.kt", "interface RatingGuiRouter")
@@ -190,7 +206,8 @@ internal class FakePlacementTest {
 
     @Test
     fun GIVEN_fake_of_another_units_contract_in_test_fixtures_WHEN_checked_THEN_reports_nothing(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .dependency("x.data.dao.rating.api/RatingRepository.kt", "interface RatingRepository")

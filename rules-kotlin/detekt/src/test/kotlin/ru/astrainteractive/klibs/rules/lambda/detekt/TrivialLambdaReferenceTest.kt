@@ -277,7 +277,10 @@ internal class TrivialLambdaReferenceTest {
     }
 
     @Test
-    fun GIVEN_bound_suspend_reference_in_on_each_WHEN_compiled_THEN_is_accepted(@TempDir directory: File) {
+    fun GIVEN_bound_suspend_reference_in_on_each_WHEN_compiled_THEN_is_accepted(
+        @TempDir
+        directory: File
+    ) {
         val source = """
             import kotlinx.coroutines.flow.Flow
             import kotlinx.coroutines.flow.onEach
@@ -298,7 +301,10 @@ internal class TrivialLambdaReferenceTest {
     }
 
     @Test
-    fun GIVEN_suspend_reference_in_plain_inline_let_WHEN_compiled_THEN_is_rejected(@TempDir directory: File) {
+    fun GIVEN_suspend_reference_in_plain_inline_let_WHEN_compiled_THEN_is_rejected(
+        @TempDir
+        directory: File
+    ) {
         val source = """
             suspend fun emit(value: Int): Unit = Unit
 
@@ -313,7 +319,8 @@ internal class TrivialLambdaReferenceTest {
 
     @Test
     fun GIVEN_named_suspend_and_generic_callees_WHEN_linted_THEN_suggests_supported_references(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val declarations = """
             suspend fun load(value: Int): String = value.toString()
@@ -387,8 +394,10 @@ internal class TrivialLambdaReferenceTest {
 
     @Test
     fun GIVEN_vararg_callee_without_spread_WHEN_linted_THEN_conservatively_skips_a_compilable_reference(
-        @TempDir originalDirectory: File,
-        @TempDir referenceDirectory: File
+        @TempDir
+        originalDirectory: File,
+        @TempDir
+        referenceDirectory: File
     ) {
         val declarations = "fun append(vararg values: Int) = Unit"
         val original = """
@@ -416,7 +425,10 @@ internal class TrivialLambdaReferenceTest {
     }
 
     @Test
-    fun GIVEN_bound_and_unbound_plain_references_WHEN_compiled_THEN_are_accepted(@TempDir directory: File) {
+    fun GIVEN_bound_and_unbound_plain_references_WHEN_compiled_THEN_are_accepted(
+        @TempDir
+        directory: File
+    ) {
         val source = """
             class User(val name: String) {
                 fun toContent(): String = name

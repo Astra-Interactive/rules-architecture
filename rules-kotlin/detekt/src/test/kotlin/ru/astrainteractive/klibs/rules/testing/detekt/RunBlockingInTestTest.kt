@@ -22,7 +22,10 @@ internal class RunBlockingInTestTest {
     }
 
     @Test
-    fun GIVEN_run_blocking_in_test_sources_WHEN_linted_THEN_reports_it(@TempDir directory: File) {
+    fun GIVEN_run_blocking_in_test_sources_WHEN_linted_THEN_reports_it(
+        @TempDir
+        directory: File
+    ) {
         assertEquals(
             listOf(
                 "Replace runBlocking with runTest from kotlinx.coroutines.test: it skips delays and reports " +
@@ -33,7 +36,10 @@ internal class RunBlockingInTestTest {
     }
 
     @Test
-    fun GIVEN_run_blocking_in_main_sources_WHEN_linted_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_run_blocking_in_main_sources_WHEN_linted_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         assertEquals(emptyList(), lintAt(directory, "src/main/kotlin/Main.kt"))
     }
 

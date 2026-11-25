@@ -17,7 +17,10 @@ internal class AndroidNamespaceTest {
     }
 
     @Test
-    fun GIVEN_namespace_other_than_the_root_package_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+    fun GIVEN_namespace_other_than_the_root_package_WHEN_checked_THEN_reports_it(
+        @TempDir
+        directory: File
+    ) {
         val sources = sourcesWith(directory, "com.flipperdevices.monetization")
             .load(UnitKind.CONTEXT, rootPackage = "com.flipperdevices.bsb.monetization.impl")
 
@@ -31,7 +34,10 @@ internal class AndroidNamespaceTest {
     }
 
     @Test
-    fun GIVEN_matching_namespace_or_no_android_unit_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_matching_namespace_or_no_android_unit_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val matching = sourcesWith(File(directory, "matching"), "com.flipperdevices.bsb.monetization.impl")
             .load(UnitKind.CONTEXT, rootPackage = "com.flipperdevices.bsb.monetization.impl")
         val plain = sourcesWith(File(directory, "plain"), null)

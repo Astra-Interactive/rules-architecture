@@ -23,7 +23,10 @@ internal class RootSourcesTest {
     }
 
     @Test
-    fun GIVEN_root_project_with_sources_WHEN_checked_THEN_reports_them(@TempDir directory: File) {
+    fun GIVEN_root_project_with_sources_WHEN_checked_THEN_reports_them(
+        @TempDir
+        directory: File
+    ) {
         File(directory, "src/main/kotlin").mkdirs()
 
         assertEquals(
@@ -33,7 +36,10 @@ internal class RootSourcesTest {
     }
 
     @Test
-    fun GIVEN_convention_plugin_root_with_sources_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_convention_plugin_root_with_sources_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         File(directory, "src/main/kotlin").mkdirs()
 
         val convention = unit(
@@ -45,7 +51,10 @@ internal class RootSourcesTest {
     }
 
     @Test
-    fun GIVEN_root_without_sources_or_a_unit_with_sources_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_root_without_sources_or_a_unit_with_sources_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         assertEquals(emptyList(), RootSources().check(unit(directory, isRoot = true)))
 
         File(directory, "src/main/kotlin").mkdirs()

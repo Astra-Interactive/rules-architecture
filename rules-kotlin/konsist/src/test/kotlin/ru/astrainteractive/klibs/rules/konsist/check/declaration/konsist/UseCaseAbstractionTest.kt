@@ -16,7 +16,10 @@ import kotlin.test.assertTrue
 internal class UseCaseAbstractionTest {
 
     @Test
-    fun GIVEN_use_case_interfaces_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_use_case_interfaces_WHEN_checked_THEN_reports_each(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.rating.usecase/RatePlayerUseCase.kt", "interface RatePlayerUseCase")
             .main("x.rating.usecase/LowerRatingUseCase.kt", "abstract class LowerRatingUseCase")
@@ -37,7 +40,8 @@ internal class UseCaseAbstractionTest {
 
     @Test
     fun GIVEN_use_case_interface_in_usecase_of_an_api_unit_WHEN_checked_THEN_reports_only_the_abstract_class(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.payment.api.offer.usecase/LoadOfferUseCase.kt", "interface LoadOfferUseCase")
@@ -56,7 +60,10 @@ internal class UseCaseAbstractionTest {
     }
 
     @Test
-    fun GIVEN_api_interface_without_product_kind_WHEN_checked_THEN_requires_explicit_product(@TempDir directory: File) {
+    fun GIVEN_api_interface_without_product_kind_WHEN_checked_THEN_requires_explicit_product(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.offer.usecase/BuyOfferUseCase.kt", "interface BuyOfferUseCase")
             .load(

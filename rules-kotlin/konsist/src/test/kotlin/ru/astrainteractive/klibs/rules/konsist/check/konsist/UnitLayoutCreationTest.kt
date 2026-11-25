@@ -75,7 +75,10 @@ internal class UnitLayoutCreationTest {
     }
 
     @Test
-    fun GIVEN_conflicting_cli_and_context_roles_WHEN_loaded_THEN_rejects_ambiguous_rules(@TempDir directory: File) {
+    fun GIVEN_conflicting_cli_and_context_roles_WHEN_loaded_THEN_rejects_ambiguous_rules(
+        @TempDir
+        directory: File
+    ) {
         val tree = SourceTree(directory)
         val context = tree.load(UnitKind.API).context
 

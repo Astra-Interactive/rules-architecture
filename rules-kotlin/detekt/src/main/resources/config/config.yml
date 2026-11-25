@@ -4,6 +4,8 @@ architecture:
     active: true
   AnonymousTuple:
     active: true
+  AnnotationOnSeparateLine:
+    active: true
   ArgumentPerLine:
     active: true
   BareIdentifier:

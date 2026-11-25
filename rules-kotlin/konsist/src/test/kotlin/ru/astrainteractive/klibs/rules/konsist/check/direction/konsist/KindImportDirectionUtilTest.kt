@@ -13,7 +13,10 @@ import kotlin.test.assertEquals
 internal class KindImportDirectionUtilTest {
 
     @Test
-    fun GIVEN_util_importing_a_contract_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+    fun GIVEN_util_importing_a_contract_WHEN_checked_THEN_reports_it(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.jail.jail.api/JailRepository.kt", "interface JailRepository")
             .main(
@@ -33,7 +36,8 @@ internal class KindImportDirectionUtilTest {
 
     @Test
     fun GIVEN_util_importing_types_nested_in_a_contract_WHEN_checked_THEN_accepts_only_data_enum_and_sealed_types(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -82,7 +86,8 @@ internal class KindImportDirectionUtilTest {
 
     @Test
     fun GIVEN_util_importing_objects_nested_in_a_contract_WHEN_checked_THEN_accepts_only_data_objects(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -112,7 +117,10 @@ internal class KindImportDirectionUtilTest {
     }
 
     @Test
-    fun GIVEN_util_importing_model_util_and_theme_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_util_importing_model_util_and_theme_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.paywall.impl.model/Plan.kt", "class Plan")
             .main("x.paywall.impl.theme/PaywallMotion.kt", "internal object PaywallMotion")

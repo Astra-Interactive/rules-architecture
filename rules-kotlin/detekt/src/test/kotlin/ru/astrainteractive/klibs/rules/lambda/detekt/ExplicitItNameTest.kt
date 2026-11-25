@@ -350,7 +350,10 @@ internal class ExplicitItNameTest {
     }
 
     @Test
-    fun GIVEN_lambda_parameter_it_in_test_sources_WHEN_linted_THEN_reports_it(@TempDir directory: File) {
+    fun GIVEN_lambda_parameter_it_in_test_sources_WHEN_linted_THEN_reports_it(
+        @TempDir
+        directory: File
+    ) {
         val file = File(directory, "src/test/kotlin/WordMapperTest.kt")
         file.parentFile.mkdirs()
         file.writeText(

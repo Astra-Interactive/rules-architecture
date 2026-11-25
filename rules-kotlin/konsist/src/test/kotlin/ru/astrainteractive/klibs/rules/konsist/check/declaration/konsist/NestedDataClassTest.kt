@@ -13,7 +13,10 @@ import kotlin.test.assertEquals
 internal class NestedDataClassTest {
 
     @Test
-    fun GIVEN_data_classes_with_one_owner_WHEN_checked_THEN_reports_them(@TempDir directory: File) {
+    fun GIVEN_data_classes_with_one_owner_WHEN_checked_THEN_reports_them(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "com.example.jail.model",
@@ -43,7 +46,10 @@ internal class NestedDataClassTest {
     }
 
     @Test
-    fun GIVEN_data_classes_shared_or_returned_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_data_classes_shared_or_returned_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "com.example.jail.model",
@@ -97,7 +103,8 @@ internal class NestedDataClassTest {
 
     @Test
     fun GIVEN_sealed_variant_and_screen_state_with_one_owner_WHEN_checked_THEN_reports_nothing(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(

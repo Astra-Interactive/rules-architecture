@@ -224,7 +224,10 @@ internal class AnonymousTupleTest {
     }
 
     @Test
-    fun GIVEN_to_passed_to_library_pair_parameters_WHEN_linted_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_to_passed_to_library_pair_parameters_WHEN_linted_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val code = """
             import acme.panels.Board
             import acme.panels.PanelsLayout
@@ -242,7 +245,8 @@ internal class AnonymousTupleTest {
 
     @Test
     fun GIVEN_pair_and_triple_constructed_for_library_tuple_parameters_WHEN_linted_THEN_reports_nothing(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val code = """
             import acme.panels.PanelsLayout
@@ -283,7 +287,8 @@ internal class AnonymousTupleTest {
 
     @Test
     fun GIVEN_pair_stored_in_property_and_local_before_library_call_WHEN_linted_THEN_reports_each_value(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val code = """
             import acme.panels.PanelsLayout
@@ -299,7 +304,8 @@ internal class AnonymousTupleTest {
 
     @Test
     fun GIVEN_tuples_passed_to_library_generic_and_list_parameters_WHEN_linted_THEN_reports_each_tuple(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val code = """
             import acme.panels.remember

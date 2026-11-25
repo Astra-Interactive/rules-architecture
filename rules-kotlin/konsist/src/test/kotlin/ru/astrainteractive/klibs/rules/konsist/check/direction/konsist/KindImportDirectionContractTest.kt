@@ -13,7 +13,8 @@ import kotlin.test.assertEquals
 internal class KindImportDirectionContractTest {
     @Test
     fun GIVEN_state_holder_and_usecase_contracts_WHEN_used_by_stubs_THEN_allows_interfaces_only(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         listOf(
             "component",
@@ -55,7 +56,8 @@ internal class KindImportDirectionContractTest {
 
     @Test
     fun GIVEN_nested_component_contract_WHEN_stub_uses_qualified_reference_THEN_keeps_nested_classes_forbidden(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -91,7 +93,8 @@ internal class KindImportDirectionContractTest {
 
     @Test
     fun GIVEN_component_contract_WHEN_referenced_by_each_kind_THEN_applies_contract_direction(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -139,7 +142,8 @@ internal class KindImportDirectionContractTest {
 
     @Test
     fun GIVEN_interfaces_outside_contract_homes_WHEN_imported_by_stub_THEN_does_not_exempt_them(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -169,7 +173,8 @@ internal class KindImportDirectionContractTest {
 
     @Test
     fun GIVEN_usecase_interface_WHEN_called_by_another_usecase_THEN_keeps_the_direction_forbidden(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -193,7 +198,8 @@ internal class KindImportDirectionContractTest {
 
     @Test
     fun GIVEN_registration_from_core_WHEN_used_in_domain_or_entry_mechanism_THEN_only_domain_is_rejected(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .dependency(
@@ -214,7 +220,8 @@ internal class KindImportDirectionContractTest {
 
     @Test
     fun GIVEN_local_registration_WHEN_referenced_THEN_exempts_only_interface_in_technical_consumers(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val tree = SourceTree(directory)
             .main(

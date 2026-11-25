@@ -13,7 +13,10 @@ import kotlin.test.assertEquals
 internal class RootPackagePathTest {
 
     @Test
-    fun GIVEN_root_packages_following_their_unit_paths_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_root_packages_following_their_unit_paths_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val event = SourceTree(File(directory, "event"))
             .main("x.astrarating.event.kill.event/KillListener.kt", "class KillListener")
             .load(UnitKind.CONTEXT, unitPath = ":modules:event-bukkit")
@@ -28,7 +31,10 @@ internal class RootPackagePathTest {
     }
 
     @Test
-    fun GIVEN_root_package_of_another_name_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+    fun GIVEN_root_package_of_another_name_WHEN_checked_THEN_reports_it(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.astrarating.ratings.model/Rating.kt", "class Rating")
             .load(
@@ -48,7 +54,8 @@ internal class RootPackagePathTest {
 
     @Test
     fun GIVEN_core_units_and_a_singular_package_WHEN_checked_THEN_reports_only_the_core_outside_core(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val coreApi = SourceTree(File(directory, "core-api"))
             .main("x.astrarating.core.settings.model/Config.kt", "class Config")

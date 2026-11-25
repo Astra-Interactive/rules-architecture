@@ -21,7 +21,10 @@ internal class ContainerSourcesTest {
     }
 
     @Test
-    fun GIVEN_sources_in_the_container_of_a_unit_WHEN_checked_THEN_reports_them(@TempDir root: File) {
+    fun GIVEN_sources_in_the_container_of_a_unit_WHEN_checked_THEN_reports_them(
+        @TempDir
+        root: File
+    ) {
         val unitDirectory = File(root, "modules/gui/api").apply { mkdirs() }
         File(root, "modules/gui/src/main/kotlin").mkdirs()
         File(root, "src/main/kotlin").mkdirs()
@@ -32,7 +35,10 @@ internal class ContainerSourcesTest {
     }
 
     @Test
-    fun GIVEN_containers_without_sources_WHEN_checked_THEN_reports_nothing(@TempDir root: File) {
+    fun GIVEN_containers_without_sources_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        root: File
+    ) {
         val unitDirectory = File(root, "modules/gui/api").apply { mkdirs() }
         File(unitDirectory, "src/main/kotlin").mkdirs()
 
@@ -40,7 +46,10 @@ internal class ContainerSourcesTest {
     }
 
     @Test
-    fun GIVEN_root_unit_with_sources_WHEN_checked_THEN_root_is_not_treated_as_a_container(@TempDir root: File) {
+    fun GIVEN_root_unit_with_sources_WHEN_checked_THEN_root_is_not_treated_as_a_container(
+        @TempDir
+        root: File
+    ) {
         File(root, "src/main/kotlin").mkdirs()
         val rootUnit = BuildUnit(
             ":",

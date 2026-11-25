@@ -13,7 +13,10 @@ import kotlin.test.assertEquals
 internal class RootModulePlacementTest {
 
     @Test
-    fun GIVEN_root_module_outside_the_entry_point_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+    fun GIVEN_root_module_outside_the_entry_point_WHEN_checked_THEN_reports_it(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.jail.di/RootModule.kt", "class RootModule")
             .load(UnitKind.CONTEXT, rootPackage = "x.jail")
@@ -28,7 +31,10 @@ internal class RootModulePlacementTest {
     }
 
     @Test
-    fun GIVEN_root_module_outside_di_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+    fun GIVEN_root_module_outside_di_WHEN_checked_THEN_reports_it(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.bukkit/RootModule.kt", "class RootModule\n\nclass AstraRating")
             .main("x.bukkit.di/RootModule.kt", "class Other")
@@ -41,7 +47,10 @@ internal class RootModulePlacementTest {
     }
 
     @Test
-    fun GIVEN_root_module_in_entry_point_di_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_root_module_in_entry_point_di_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.bukkit.di/RootModule.kt", "class RootModule")
             .load(UnitKind.ENTRY_POINT, rootPackage = "x.bukkit")

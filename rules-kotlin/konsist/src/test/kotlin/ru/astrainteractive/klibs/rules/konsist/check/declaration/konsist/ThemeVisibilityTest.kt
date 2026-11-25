@@ -13,7 +13,10 @@ import kotlin.test.assertEquals
 internal class ThemeVisibilityTest {
 
     @Test
-    fun GIVEN_feature_theme_objects_WHEN_checked_THEN_reports_each_not_internal(@TempDir directory: File) {
+    fun GIVEN_feature_theme_objects_WHEN_checked_THEN_reports_each_not_internal(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.payment.impl.checkout.theme/CheckoutMotion.kt", "object CheckoutMotion")
             .main("x.payment.impl.checkout.theme/CheckoutSpacing.kt", "internal object CheckoutSpacing")
@@ -27,7 +30,10 @@ internal class ThemeVisibilityTest {
     }
 
     @Test
-    fun GIVEN_design_system_theme_objects_WHEN_checked_THEN_reports_each_hidden(@TempDir directory: File) {
+    fun GIVEN_design_system_theme_objects_WHEN_checked_THEN_reports_each_hidden(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.core.ui.theme/AppTheme.kt", "object AppTheme")
             .main("x.core.ui.theme/AppSpacing.kt", "internal object AppSpacing")
@@ -43,7 +49,10 @@ internal class ThemeVisibilityTest {
     }
 
     @Test
-    fun GIVEN_design_system_descendant_WHEN_checked_THEN_keeps_public_theme(@TempDir directory: File) {
+    fun GIVEN_design_system_descendant_WHEN_checked_THEN_keeps_public_theme(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.core.ui.colors.theme/AppColors.kt", "object AppColors")
             .load(UnitKind.CORE_UI, unitPath = ":core:ui:colors")

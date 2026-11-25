@@ -14,7 +14,10 @@ import kotlin.test.assertEquals
 
 internal class PlatformImportTest {
     @Test
-    fun GIVEN_platform_core_WHEN_importing_bukkit_THEN_only_adapters_and_di_accept_it(@TempDir directory: File) {
+    fun GIVEN_platform_core_WHEN_importing_bukkit_THEN_only_adapters_and_di_accept_it(
+        @TempDir
+        directory: File
+    ) {
         val tree = SourceTree(directory)
             .main("x.core.item/BukkitItem.kt", "import org.bukkit.Material\nclass BukkitItem")
         val rejectedKinds = listOf(
@@ -115,7 +118,10 @@ internal class PlatformImportTest {
     }
 
     @Test
-    fun GIVEN_core_common_di_and_android_util_WHEN_checked_THEN_allows_local_integrations(@TempDir directory: File) {
+    fun GIVEN_core_common_di_and_android_util_WHEN_checked_THEN_allows_local_integrations(
+        @TempDir
+        directory: File
+    ) {
         val tree = coreTree(directory)
         val context = coreContext(directory)
         val sources = tree.loadMultipleSourceSets(
@@ -141,7 +147,8 @@ internal class PlatformImportTest {
 
     @Test
     fun GIVEN_custom_android_and_shared_source_sets_WHEN_checked_THEN_uses_compilation_membership(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val tree = SourceTree(directory)
             .main(
@@ -194,7 +201,10 @@ internal class PlatformImportTest {
     }
 
     @Test
-    fun GIVEN_platform_imports_in_model_api_and_usecase_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_platform_imports_in_model_api_and_usecase_WHEN_checked_THEN_reports_each(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.jail.jail.model",
@@ -240,7 +250,10 @@ internal class PlatformImportTest {
     }
 
     @Test
-    fun GIVEN_api_unit_WHEN_checked_THEN_every_file_is_platform_free(@TempDir directory: File) {
+    fun GIVEN_api_unit_WHEN_checked_THEN_every_file_is_platform_free(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.gui.api.rating.component",
@@ -257,7 +270,8 @@ internal class PlatformImportTest {
 
     @Test
     fun GIVEN_api_unit_whose_component_declares_render_WHEN_checked_THEN_reports_only_the_other_platform_imports(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -289,7 +303,8 @@ internal class PlatformImportTest {
 
     @Test
     fun GIVEN_compose_ui_unit_WHEN_checked_THEN_its_model_may_import_compose_but_no_other_platform(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -325,7 +340,10 @@ internal class PlatformImportTest {
     }
 
     @Test
-    fun GIVEN_unit_without_composables_WHEN_model_imports_compose_THEN_reports_it(@TempDir directory: File) {
+    fun GIVEN_unit_without_composables_WHEN_model_imports_compose_THEN_reports_it(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.paywall.api.model",
@@ -341,7 +359,10 @@ internal class PlatformImportTest {
     }
 
     @Test
-    fun GIVEN_fully_qualified_platform_types_WHEN_checked_THEN_reports_them_but_not_text(@TempDir directory: File) {
+    fun GIVEN_fully_qualified_platform_types_WHEN_checked_THEN_reports_them_but_not_text(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.jail.jail.model",
@@ -366,7 +387,8 @@ internal class PlatformImportTest {
 
     @Test
     fun GIVEN_framework_exception_subclass_WHEN_in_mechanism_model_THEN_allows_only_the_base_type(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -397,7 +419,8 @@ internal class PlatformImportTest {
 
     @Test
     fun GIVEN_framework_exception_in_a_platform_free_api_WHEN_checked_THEN_keeps_the_boundary(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -414,7 +437,8 @@ internal class PlatformImportTest {
 
     @Test
     fun GIVEN_exception_type_in_contract_and_core_WHEN_checked_THEN_keeps_platform_types_out(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val tree = SourceTree(directory)
             .main(
@@ -435,7 +459,8 @@ internal class PlatformImportTest {
 
     @Test
     fun GIVEN_core_registration_interfaces_WHEN_checked_THEN_allows_only_signature_framework_types(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -465,7 +490,8 @@ internal class PlatformImportTest {
 
     @Test
     fun GIVEN_framework_imports_outside_registration_signature_WHEN_checked_THEN_keeps_restrictions(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -504,7 +530,8 @@ internal class PlatformImportTest {
 
     @Test
     fun GIVEN_registration_interface_in_platform_free_api_unit_WHEN_checked_THEN_reports_platform(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -521,7 +548,8 @@ internal class PlatformImportTest {
 
     @Test
     fun GIVEN_implementation_sharing_registration_file_WHEN_checked_THEN_does_not_exempt_whole_file(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(

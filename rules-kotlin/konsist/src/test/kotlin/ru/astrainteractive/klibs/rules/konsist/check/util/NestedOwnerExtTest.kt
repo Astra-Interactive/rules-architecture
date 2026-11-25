@@ -14,7 +14,8 @@ internal class NestedOwnerExtTest {
 
     @Test
     fun GIVEN_class_with_properties_WHEN_types_listed_THEN_names_constructor_and_body_properties(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(

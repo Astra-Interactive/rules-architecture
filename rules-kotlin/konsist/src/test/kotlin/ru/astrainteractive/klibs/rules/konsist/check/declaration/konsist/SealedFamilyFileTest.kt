@@ -13,7 +13,10 @@ import kotlin.test.assertEquals
 internal class SealedFamilyFileTest {
 
     @Test
-    fun GIVEN_variants_outside_the_sealed_file_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_variants_outside_the_sealed_file_WHEN_checked_THEN_reports_each(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "com.example.order.model/OrderError.kt",
@@ -36,7 +39,10 @@ internal class SealedFamilyFileTest {
     }
 
     @Test
-    fun GIVEN_sealed_hierarchies_in_one_file_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_sealed_hierarchies_in_one_file_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "com.example.order.model/OrderError.kt",
@@ -56,7 +62,8 @@ internal class SealedFamilyFileTest {
 
     @Test
     fun GIVEN_same_named_nested_sealed_families_of_different_outer_types_WHEN_checked_THEN_reports_nothing(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val family = """
             sealed interface Model {
@@ -83,7 +90,8 @@ internal class SealedFamilyFileTest {
 
     @Test
     fun GIVEN_variants_naming_a_sealed_type_through_its_outer_type_or_an_import_WHEN_checked_THEN_reports_each(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.order.model/Order.kt", "interface Order { sealed interface State }")
@@ -112,7 +120,8 @@ internal class SealedFamilyFileTest {
 
     @Test
     fun GIVEN_nearer_or_imported_type_shadowing_a_sealed_name_WHEN_checked_THEN_reports_nothing(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.screen.model/Model.kt", "sealed interface Model")

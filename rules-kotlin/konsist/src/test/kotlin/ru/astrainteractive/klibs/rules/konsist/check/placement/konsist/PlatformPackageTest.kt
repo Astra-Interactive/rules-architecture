@@ -21,7 +21,10 @@ internal class PlatformPackageTest {
     }
 
     @Test
-    fun GIVEN_platform_package_in_a_multiplatform_unit_WHEN_checked_THEN_reports_it_once(@TempDir directory: File) {
+    fun GIVEN_platform_package_in_a_multiplatform_unit_WHEN_checked_THEN_reports_it_once(
+        @TempDir
+        directory: File
+    ) {
         val tree = writeTree(directory)
         val sources = UnitSources.load(
             kind = UnitKind.CONTEXT,
@@ -48,7 +51,8 @@ internal class PlatformPackageTest {
 
     @Test
     fun GIVEN_platform_package_in_a_single_source_set_unit_WHEN_checked_THEN_reports_nothing(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = writeTree(directory).load(UnitKind.CONTEXT, rootPackage = "x.clipboard")
 

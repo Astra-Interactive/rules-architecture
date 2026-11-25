@@ -14,7 +14,8 @@ internal class ContractPlacementTest {
 
     @Test
     fun GIVEN_platform_core_contract_and_sealed_adapters_WHEN_checked_THEN_only_contract_needs_api(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.core.item/ItemProvider.kt", "interface ItemProvider")
@@ -31,7 +32,10 @@ internal class ContractPlacementTest {
     }
 
     @Test
-    fun GIVEN_contracts_and_implementations_out_of_place_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_contracts_and_implementations_out_of_place_WHEN_checked_THEN_reports_each(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.data.dao.rating.api",
@@ -78,7 +82,10 @@ internal class ContractPlacementTest {
     }
 
     @Test
-    fun GIVEN_interfaces_across_kinds_WHEN_checked_THEN_reports_each_outside_their_homes(@TempDir directory: File) {
+    fun GIVEN_interfaces_across_kinds_WHEN_checked_THEN_reports_each_outside_their_homes(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.offer.api/OfferApi.kt", "interface OfferGateway")
             .main("x.offer.usecase/LoadOfferUseCase.kt", "interface LoadOfferUseCase")
@@ -104,7 +111,8 @@ internal class ContractPlacementTest {
 
     @Test
     fun GIVEN_state_holders_and_compose_scopes_WHEN_checked_THEN_sends_state_holders_to_their_kind(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.root.screen/RootScreenComponent.kt", "interface RootScreenComponent")
@@ -141,7 +149,10 @@ internal class ContractPlacementTest {
     }
 
     @Test
-    fun GIVEN_read_only_model_interfaces_WHEN_checked_THEN_keeps_data_in_model(@TempDir directory: File) {
+    fun GIVEN_read_only_model_interfaces_WHEN_checked_THEN_keeps_data_in_model(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.page.model/Page.kt",
@@ -161,7 +172,10 @@ internal class ContractPlacementTest {
     }
 
     @Test
-    fun GIVEN_behaviour_or_mutability_in_model_interfaces_WHEN_checked_THEN_reports_them(@TempDir directory: File) {
+    fun GIVEN_behaviour_or_mutability_in_model_interfaces_WHEN_checked_THEN_reports_them(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.page.model/Mutable.kt", "interface Mutable { var name: String }")
             .main("x.page.model/Computed.kt", "interface Computed { val size: Int get() = 1 }")
@@ -186,7 +200,8 @@ internal class ContractPlacementTest {
 
     @Test
     fun GIVEN_framework_registration_in_core_WHEN_checked_THEN_keeps_interface_with_mechanism(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -210,7 +225,8 @@ internal class ContractPlacementTest {
 
     @Test
     fun GIVEN_domain_operations_disguised_as_mechanisms_WHEN_checked_THEN_requires_contract_placement(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -256,7 +272,8 @@ internal class ContractPlacementTest {
 
     @Test
     fun GIVEN_registration_with_unsupported_members_WHEN_checked_THEN_requires_contract_placement(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val tree = SourceTree(directory)
         val declarations = listOf(
@@ -288,7 +305,8 @@ internal class ContractPlacementTest {
 
     @Test
     fun GIVEN_model_with_stateful_companion_or_non_model_parent_WHEN_checked_THEN_rejects_it(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -323,7 +341,8 @@ internal class ContractPlacementTest {
 
     @Test
     fun GIVEN_model_inheritance_and_companions_with_behaviour_WHEN_checked_THEN_does_not_hide_operations(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.page.model/Cyclic.kt", "interface Cyclic : Cyclic { val id: Int }")
@@ -359,7 +378,8 @@ internal class ContractPlacementTest {
 
     @Test
     fun GIVEN_room_daos_and_their_base_in_a_room_unit_WHEN_checked_THEN_keeps_them_with_the_technology(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -410,7 +430,8 @@ internal class ContractPlacementTest {
 
     @Test
     fun GIVEN_interfaces_without_the_technology_annotations_in_a_room_unit_WHEN_checked_THEN_reports_them(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.data.room.database/RatingSource.kt", "interface RatingSource { suspend fun load(): Int }")
@@ -475,7 +496,8 @@ internal class ContractPlacementTest {
 
     @Test
     fun GIVEN_room_daos_in_storage_kinds_and_technology_packages_WHEN_checked_THEN_reports_nothing(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(

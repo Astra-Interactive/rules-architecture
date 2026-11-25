@@ -14,7 +14,8 @@ internal class ImplementationVisibilityTest {
 
     @Test
     fun GIVEN_public_platform_core_adapter_WHEN_checked_THEN_preserves_existing_core_path_exception(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val tree = SourceTree(directory).main("x.core.item/ItemStackSerializer.kt", "class ItemStackSerializer")
         val core = tree.load(
@@ -33,7 +34,10 @@ internal class ImplementationVisibilityTest {
     }
 
     @Test
-    fun GIVEN_public_implementations_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_public_implementations_WHEN_checked_THEN_reports_each(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.jail.api.jail.file/FileJailRepository.kt", "class FileJailRepository")
             .main("x.jail.api.jail.memory/InMemoryJailRepository.kt", "public class InMemoryJailRepository")
@@ -49,7 +53,10 @@ internal class ImplementationVisibilityTest {
     }
 
     @Test
-    fun GIVEN_public_generic_class_in_core_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_public_generic_class_in_core_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.core.cache.cache4k/RefreshingCache.kt", "class RefreshingCache")
             .load(
@@ -62,7 +69,10 @@ internal class ImplementationVisibilityTest {
     }
 
     @Test
-    fun GIVEN_core_api_unit_on_a_path_without_core_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_core_api_unit_on_a_path_without_core_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.krate.localstorage/LocalStorageEnumKrate.kt", "class LocalStorageEnumKrate")
             .load(
@@ -75,7 +85,10 @@ internal class ImplementationVisibilityTest {
     }
 
     @Test
-    fun GIVEN_technology_unit_concept_WHEN_checked_THEN_reports_public_class(@TempDir directory: File) {
+    fun GIVEN_technology_unit_concept_WHEN_checked_THEN_reports_public_class(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.data.exposed.rating/ExposedRatingRepository.kt", "class ExposedRatingRepository")
             .load(UnitKind.TECHNOLOGY, rootPackage = "x.data.exposed")
@@ -87,7 +100,10 @@ internal class ImplementationVisibilityTest {
     }
 
     @Test
-    fun GIVEN_metro_annotated_implementation_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_metro_annotated_implementation_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.jail.api.jail.file/FileJailRepository.kt",
@@ -108,7 +124,10 @@ internal class ImplementationVisibilityTest {
     }
 
     @Test
-    fun GIVEN_constructor_injection_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_constructor_injection_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.jail.api.jail.file/FileJailRepository.kt",
@@ -149,7 +168,10 @@ internal class ImplementationVisibilityTest {
     }
 
     @Test
-    fun GIVEN_framework_class_annotations_WHEN_checked_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_framework_class_annotations_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.jail.api.jail.file/FileJailViewModel.kt",
@@ -187,6 +209,17 @@ internal class ImplementationVisibilityTest {
                 class FileMuteRepository
                 """.trimIndent()
             )
+            .load(UnitKind.API, rootPackage = "x.jail.api")
+
+        assertEquals(emptyList(), ImplementationVisibility().check(sources).map(Violation::subject).sorted())
+    }
+
+    @Test
+    fun GIVEN_scoped_framework_annotations_WHEN_checked_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
+        val sources = SourceTree(directory)
             .main(
                 "x.jail.api.jail.file/FileKickViewModel.kt",
                 """
@@ -230,7 +263,8 @@ internal class ImplementationVisibilityTest {
 
     @Test
     fun GIVEN_same_named_annotation_outside_di_frameworks_WHEN_checked_THEN_reports_the_class(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -259,7 +293,8 @@ internal class ImplementationVisibilityTest {
 
     @Test
     fun GIVEN_di_annotation_only_on_a_member_or_nested_class_WHEN_checked_THEN_reports_the_class(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(

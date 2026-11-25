@@ -13,7 +13,10 @@ import kotlin.test.assertEquals
 internal class ErrorPlacementTest {
 
     @Test
-    fun GIVEN_errors_outside_model_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_errors_outside_model_WHEN_checked_THEN_reports_each(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.command.model",

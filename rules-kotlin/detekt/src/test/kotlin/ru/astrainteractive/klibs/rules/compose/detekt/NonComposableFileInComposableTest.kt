@@ -50,7 +50,10 @@ internal class NonComposableFileInComposableTest {
     }
 
     @Test
-    fun GIVEN_test_in_a_composable_package_WHEN_linted_THEN_reports_nothing(@TempDir directory: File) {
+    fun GIVEN_test_in_a_composable_package_WHEN_linted_THEN_reports_nothing(
+        @TempDir
+        directory: File
+    ) {
         val code = """
             package com.example.paywall.impl.composable
 

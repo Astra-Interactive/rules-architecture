@@ -25,7 +25,8 @@ internal class KindImportDirectionRoleKindTest {
 
     @Test
     fun GIVEN_role_kind_importing_every_kind_WHEN_checked_THEN_accepts_model_util_and_role_kinds_only(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .withVoteKinds()
@@ -71,7 +72,8 @@ internal class KindImportDirectionRoleKindTest {
 
     @Test
     fun GIVEN_every_kind_importing_a_role_kind_WHEN_checked_THEN_rejects_model_contracts_and_util(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val tree = SourceTree(directory)
             .main("x.vote.vote.limiter/VoteCooldownLimiter.kt", "internal class VoteCooldownLimiter")
@@ -110,7 +112,8 @@ internal class KindImportDirectionRoleKindTest {
 
     @Test
     fun GIVEN_entry_point_violation_in_a_project_with_role_kinds_WHEN_reported_THEN_lists_role_kinds_as_allowed(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(

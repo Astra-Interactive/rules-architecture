@@ -15,7 +15,10 @@ import kotlin.test.assertEquals
 internal class DiPlacementTest {
 
     @Test
-    fun GIVEN_di_modules_WHEN_checked_THEN_reports_those_outside_a_di_package(@TempDir directory: File) {
+    fun GIVEN_di_modules_WHEN_checked_THEN_reports_those_outside_a_di_package(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.gui.api.di",
@@ -45,7 +48,10 @@ internal class DiPlacementTest {
     }
 
     @Test
-    fun GIVEN_fake_di_module_in_test_sources_WHEN_checked_THEN_reports_none(@TempDir directory: File) {
+    fun GIVEN_fake_di_module_in_test_sources_WHEN_checked_THEN_reports_none(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.gui.api.di/GuiModule.kt", "interface GuiModule")
             .test(
@@ -63,7 +69,10 @@ internal class DiPlacementTest {
     }
 
     @Test
-    fun GIVEN_fake_di_module_in_test_fixtures_sources_WHEN_checked_THEN_reports_none(@TempDir directory: File) {
+    fun GIVEN_fake_di_module_in_test_fixtures_sources_WHEN_checked_THEN_reports_none(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "main",
@@ -93,7 +102,8 @@ internal class DiPlacementTest {
 
     @Test
     fun GIVEN_fake_unit_WHEN_checked_THEN_accepts_a_module_in_its_fake_package_and_reports_one_outside_it(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(

@@ -14,7 +14,10 @@ import kotlin.test.assertEquals
 internal class UtilShapeTest {
 
     @Test
-    fun GIVEN_types_in_util_and_extensions_elsewhere_WHEN_checked_THEN_reports_each(@TempDir directory: File) {
+    fun GIVEN_types_in_util_and_extensions_elsewhere_WHEN_checked_THEN_reports_each(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.command.rating.util",
@@ -65,7 +68,8 @@ internal class UtilShapeTest {
 
     @Test
     fun GIVEN_extensions_in_entry_point_kinds_WHEN_checked_THEN_reports_all_but_private_ones_of_a_composable_file(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -103,7 +107,10 @@ internal class UtilShapeTest {
     }
 
     @Test
-    fun GIVEN_rule_on_a_list_of_a_model_in_the_model_file_WHEN_checked_THEN_reports_it(@TempDir directory: File) {
+    fun GIVEN_rule_on_a_list_of_a_model_in_the_model_file_WHEN_checked_THEN_reports_it(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main(
                 "x.gui.bukkit.placeholder.model",
@@ -124,7 +131,8 @@ internal class UtilShapeTest {
 
     @Test
     fun GIVEN_extensions_on_plain_collection_and_function_receivers_WHEN_reported_THEN_name_the_file_after_the_subject(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main(
@@ -157,7 +165,10 @@ internal class UtilShapeTest {
     }
 
     @Test
-    fun GIVEN_slot_listed_as_an_extension_kind_WHEN_checked_THEN_accepts_its_extensions_only(@TempDir directory: File) {
+    fun GIVEN_slot_listed_as_an_extension_kind_WHEN_checked_THEN_accepts_its_extensions_only(
+        @TempDir
+        directory: File
+    ) {
         val vocabulary = Vocabulary(
             entryPointWords = emptySet(),
             technologyWords = emptySet(),
@@ -191,7 +202,8 @@ internal class UtilShapeTest {
 
     @Test
     fun GIVEN_private_composable_extensions_WHEN_receiver_belongs_to_project_THEN_requires_util(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.offer.model/Offer.kt", "data class Offer(val id: String)")
@@ -225,7 +237,8 @@ internal class UtilShapeTest {
 
     @Test
     fun GIVEN_external_type_with_a_project_namesake_WHEN_imported_explicitly_THEN_keeps_private_extension(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.offer.model/Modifier.kt", "class Modifier")
@@ -245,7 +258,8 @@ internal class UtilShapeTest {
 
     @Test
     fun GIVEN_own_type_in_composable_package_WHEN_extended_privately_THEN_still_requires_util(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.offer.composable/Offer.kt", "class Offer")
@@ -259,7 +273,10 @@ internal class UtilShapeTest {
     }
 
     @Test
-    fun GIVEN_util_functions_taking_a_project_contract_WHEN_checked_THEN_reports_each_form(@TempDir directory: File) {
+    fun GIVEN_util_functions_taking_a_project_contract_WHEN_checked_THEN_reports_each_form(
+        @TempDir
+        directory: File
+    ) {
         val sources = SourceTree(directory)
             .main("x.vote.vote.api/VoteRepository.kt", "interface VoteRepository")
             .main("x.vote.vote.model/Vote.kt", "data class Vote(val id: Int)")
@@ -310,7 +327,8 @@ internal class UtilShapeTest {
 
     @Test
     fun GIVEN_util_functions_over_models_platform_and_library_types_WHEN_checked_THEN_reports_nothing(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val sources = SourceTree(directory)
             .main("x.vote.vote.api/VoteRepository.kt", "interface VoteRepository")

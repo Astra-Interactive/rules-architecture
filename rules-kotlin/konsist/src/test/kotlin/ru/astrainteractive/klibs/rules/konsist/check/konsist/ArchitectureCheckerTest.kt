@@ -28,7 +28,10 @@ internal class ArchitectureCheckerTest {
     }
 
     @Test
-    fun GIVEN_checks_for_other_kinds_WHEN_checked_THEN_runs_only_those_of_the_unit_kind(@TempDir directory: File) {
+    fun GIVEN_checks_for_other_kinds_WHEN_checked_THEN_runs_only_those_of_the_unit_kind(
+        @TempDir
+        directory: File
+    ) {
         val contextOnly = FakeArchitectureCheck(
             unitKinds = setOf(UnitKind.CONTEXT),
             violations = listOf(
@@ -55,7 +58,8 @@ internal class ArchitectureCheckerTest {
 
     @Test
     fun GIVEN_violations_of_several_checks_WHEN_checked_THEN_orders_them_by_path_rule_and_subject(
-        @TempDir directory: File
+        @TempDir
+        directory: File
     ) {
         val first = FakeArchitectureCheck(
             unitKinds = setOf(UnitKind.CONTEXT),
@@ -111,7 +115,10 @@ internal class ArchitectureCheckerTest {
     }
 
     @Test
-    fun GIVEN_suppressed_finding_WHEN_checked_THEN_filters_it_before_returning(@TempDir directory: File) {
+    fun GIVEN_suppressed_finding_WHEN_checked_THEN_filters_it_before_returning(
+        @TempDir
+        directory: File
+    ) {
         val sourceFile = File(directory, "src/main/kotlin/com/example/Suppressed.kt")
         sourceFile.parentFile.mkdirs()
         sourceFile.writeText(
@@ -145,7 +152,10 @@ internal class ArchitectureCheckerTest {
     }
 
     @Test
-    fun GIVEN_disabled_rule_WHEN_checked_THEN_skips_only_that_check(@TempDir directory: File) {
+    fun GIVEN_disabled_rule_WHEN_checked_THEN_skips_only_that_check(
+        @TempDir
+        directory: File
+    ) {
         val disabled = FakeArchitectureCheck(
             unitKinds = UnitKind.entries.toSet(),
             violations = listOf(
